@@ -38,8 +38,6 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.4); }
         .vf-stavenote { transition: opacity 0.1s; }
         .vf-stavenote:hover { opacity: 0.7; }
-        /* Les cartes ont overflow-hidden : sans cette règle, la grille (hauteur limitée + scroll)
-           réduit les lignes pour tout faire tenir et rogne le bas des cartes (portée coupée). */
         #scales-container { grid-auto-rows: max-content; }
     </style>
 </head>
@@ -209,9 +207,6 @@
             return spelled[0] + octave;
         }
 
-        // Nom d'un intervalle (en demi-tons depuis la fondamentale) dans le contexte d'un accord.
-        // Les notes de l'accord gardent leur nom (1, b3, 3, b5, 5, #5, 6, b7, 7) et les autres
-        // sont écrites comme des tensions : b9, 9, #9, 11, #11, b13, 13.
         function getIntervalLabel(interval, chordNotes) {
             const has = (n) => chordNotes.includes(n);
             const inChord = has(interval);
@@ -223,18 +218,18 @@
                 case 0:  return "1";
                 case 1:  return "b9";
                 case 2:  return "9";
-                case 3:  // b3 sur accord mineur/majeur, mais #9 sur un accord de dominante
+                case 3:  
                     if (inChord) return "b3";
                     return (hasMajThird && has(10)) ? "#9" : "b3";
                 case 4:  return "3";
-                case 5:  // quarte : "4" sur un accord suspendu, sinon tension 11
+                case 5:  
                     return (inChord && !hasThird) ? "4" : "11";
                 case 6:
                     if (inChord) return has(7) ? "#11" : "b5";
                     return hasMinThird ? "b5" : "#11";
                 case 7:  return "5";
                 case 8:  return inChord ? "#5" : "b13";
-                case 9:  // sixte de l'accord (6), septième diminuée (dim7), sinon tension 13
+                case 9:  
                     if (inChord) return (hasMinThird && has(6)) ? "bb7" : "6";
                     return "13";
                 case 10: return "b7";
@@ -303,9 +298,7 @@
             ]
         };
 
-        // Vitesse de lecture partagée : délai entre deux notes, identique pour les gammes et les arpèges d'accord.
         const NOTE_STEP_SECONDS = 0.35;
-        // Octave de référence de toute la lecture audio : notes seules, gammes, arpèges et accord plaqué.
         const PLAY_BASE_OCTAVE = 3;
 
         class ChordScaleApp {
@@ -643,10 +636,6 @@
                 container.innerHTML = '';
 
                 try {
-                    // L'orthographe est calculée sur la gamme d'origine (7 notes → mode strict),
-                    // puis on ajoute l'octave et on inverse si la gamme est descendante.
-                    // (Avant : on passait 8 intervalles à getStrictSpelledNotes, ce qui désactivait
-                    // l'orthographe stricte et affichait D# / A# au lieu de Eb / Bb, F au lieu de E#, etc.)
                     let scaleIntervals = [...intervals, 12];
                     let spelledNotes = [
                         ...getStrictSpelledNotes(rootName, intervals),
@@ -659,8 +648,6 @@
 
                     const numNotes = scaleIntervals.length;
                     const VEX_WIDTH = Math.max(450, numNotes * 42 + 60);
-                    // Hauteur suffisante pour les notes graves (do4 sur sa ligne supplémentaire)
-                    // et aiguës (jusqu'au si5) sans qu'elles soient rognées.
                     const VEX_HEIGHT = 120;
 
                     const { Renderer, Stave, StaveNote, Voice, Formatter, Accidental } = Vex.Flow;
@@ -680,16 +667,10 @@
                         svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
                     }
 
-                    // VexFlow ajoute 4 interlignes (40 px) au-dessus de la 1re ligne : avec staveY = 5,
-                    // les lignes vont de y=45 à y=85, ce qui laisse ~20 px de marge en haut (si5)
-                    // et ~20 px en bas (do4 + ligne supplémentaire).
                     const staveY = 5;
                     const stave = new Stave(10, staveY, VEX_WIDTH - 20);
                     stave.addClef("treble").setContext(context).draw();
 
-                    // Espace supplémentaire entre la clé et la première note : sans lui, l'altération
-                    // de la 1re note (b, #) est collée à la clé. On décale le début de la zone des notes ;
-                    // formatToStave() réduit d'autant la largeur disponible, la fin de gamme ne bouge pas.
                     const CLEF_NOTE_GAP = 22;
                     if (typeof stave.setNoteStartX === 'function') {
                         stave.setNoteStartX(stave.getNoteStartX() + CLEF_NOTE_GAP);
@@ -775,12 +756,9 @@
                 }
 
                 const isDesc = !!this.scaleDirections[scaleKey];
-                let playIntervals = [...intervals];
+                let playIntervals = [...intervals, 12];
                 if (isDesc) {
                     playIntervals = playIntervals.reverse();
-                    playIntervals.push(0);
-                } else {
-                    playIntervals.push(12);
                 }
 
                 this.activePlaybacks[scaleKey] = { timers: [] };
@@ -859,8 +837,6 @@
                 const chordObj = this.getCurrentChordObj();
                 const now = this.audioCtx ? this.audioCtx.currentTime : 0;
 
-                // On joue exactement les sons de l'accord, dans l'ordre affiché, aux mêmes hauteurs
-                // que lorsqu'on clique sur chaque note individuellement (playSingleNote).
                 const lastIdx = chordObj.notes.length - 1;
                 chordObj.notes.forEach((interval, idx) => {
                     const noteStr = getNoteNameWithOctave(this.selectedRootIndex, interval, PLAY_BASE_OCTAVE);
