@@ -121,9 +121,12 @@
                 
                 <div class="bg-[#252525] border-b border-[#333333] px-6 py-3.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
                     <div>
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2 flex-wrap">
                             <h2 class="text-sm font-bold text-white">Gammes Compatibles</h2>
                             <span id="scales-count-badge" class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-500/20 text-blue-300">0 gammes</span>
+                            <button onclick="app.toggleShowTargetNotes()" id="btn-toggle-target" class="px-2 py-0.5 rounded text-[11px] font-semibold transition bg-[#1a1a1a] text-slate-500 border border-[#333333]">Notes cibles</button>
+                            <button onclick="app.toggleShowAvoid()" id="btn-toggle-avoid" class="px-2 py-0.5 rounded text-[11px] font-semibold transition bg-[#1a1a1a] text-slate-500 border border-[#333333]">Notes à éviter</button>
+                            <button onclick="app.toggleShowCharacteristic()" id="btn-toggle-characteristic" class="px-2 py-0.5 rounded text-[11px] font-semibold transition bg-[#1a1a1a] text-slate-500 border border-[#333333]">Note caractéristique</button>
                         </div>
                     </div>
 
@@ -328,15 +331,6 @@
             });
         }
 
-        function getNoteNameWithOctave(rootIndex, interval, baseOctave = 3) {
-            const rootName = rootLabels[rootIndex];
-            const spelled = getStrictSpelledNotes(rootName, [interval]);
-            const absSemis = rootIndex + interval;
-            const octaveOffset = Math.floor(absSemis / 12);
-            const octave = baseOctave + octaveOffset;
-            return spelled[0] + octave;
-        }
-
         function getIntervalLabel(interval, chordNotes) {
             const has = (n) => chordNotes.includes(n);
             const inChord = has(interval);
@@ -369,35 +363,49 @@
             }
         }
 
+        function getAvoidNotes(scaleId, chordId) {
+            const avoids = [];
+            const isDom = ['7', '9', '7alt', '7b9', '7sharp5'].includes(chordId);
+            
+            if (['ionian', 'majorBebop'].includes(scaleId)) avoids.push(5);
+            if (['mixolydian', 'mixolydianFlat13', 'phrygianDominant', 'mixolydianFlat9', 'dominantBebop'].includes(scaleId) && chordId !== '7sus4') avoids.push(5);
+            if (['aeolian', 'harmonicMinor'].includes(scaleId)) avoids.push(8);
+            if (scaleId === 'phrygian') { avoids.push(1); avoids.push(8); }
+            if (scaleId === 'locrian') avoids.push(1);
+            if (scaleId === 'bluesScale' && isDom) avoids.push(3);
+            
+            return avoids;
+        }
+
         const scalesDb = {
-            ionian: { name: "Ionien (Gamme majeure)", category: "Diatonique", intervals: [0, 2, 4, 5, 7, 9, 11], desc: "Utilisé sur le degré I. La quarte frotte avec la tierce majeure et doit être traitée comme note de passage." },
-            lydian: { name: "Lydien", category: "Diatonique / Majeur", intervals: [0, 2, 4, 6, 7, 9, 11], desc: "Choix principal en jazz moderne pour éviter la quarte juste dissonante (4)." },
-            lydianAug: { name: "Lydien Augmenté", category: "Mineur Mélodique", intervals: [0, 2, 4, 6, 8, 9, 11], desc: "Sur Maj7#5 (degré III du mineur mélodique)." },
-            harmonicMajor: { name: "Majeur Harmonique", category: "Emprunt Modal", intervals: [0, 2, 4, 5, 7, 8, 11], desc: "Sert aux emprunts modaux pour apporter une couleur sombre." },
-            majorBebop: { name: "Gamme Bebop Majeure", category: "Bebop", intervals: [0, 2, 4, 5, 7, 8, 9, 11], desc: "Ajoute un chromatisme (la #5) entre la quinte et la sixte pour caler le phrasé rythmique sur les temps forts." },
-            majorPentatonic: { name: "Pentatonique Majeure", category: "Pentatonique", intervals: [0, 2, 4, 7, 9], desc: "Retire les demi-tons pour une sonorité ouverte et consonante." },
-            majorBlues: { name: "Gamme Blues Majeure", category: "Blues", intervals: [0, 2, 3, 4, 7, 9], desc: "Introduit la tierce mineure (blue note) comme approche chromatique de la tierce majeure." },
-            dorian: { name: "Dorien", category: "Diatonique / Mineur", intervals: [0, 2, 3, 5, 7, 9, 10], desc: "Degré II. La sixte majeure stabilise l'accord." },
-            melodicMinor: { name: "Mineur Mélodique", category: "Mineur Mélodique", intervals: [0, 2, 3, 5, 7, 9, 11], desc: "Sur mMaj7 ou m6. Accord de tonique mineur de référence." },
-            aeolian: { name: "Éolien (Mineur naturel)", category: "Diatonique / Mineur", intervals: [0, 2, 3, 5, 7, 8, 10], desc: "Degré VI. La b6 frotte contre la quinte, à manier avec prudence." },
-            phrygian: { name: "Phrygien", category: "Diatonique / Mineur", intervals: [0, 1, 3, 5, 7, 8, 10], desc: "Degré III. Très dissonant." },
-            harmonicMinor: { name: "Mineur Harmonique", category: "Mineur Harmonique", intervals: [0, 2, 3, 5, 7, 8, 11], desc: "Sur mMaj7 avec une couleur classique marquée." },
-            minorBebop: { name: "Bebop Mineure (Dorienne)", category: "Bebop", intervals: [0, 2, 3, 5, 7, 9, 10, 11], desc: "Ajoute la septième majeure comme chromatisme de passage vers la tonique." },
-            minorPentatonic: { name: "Pentatonique Mineure", category: "Pentatonique", intervals: [0, 3, 5, 7, 10], desc: "Choix standard, élimine les risques de frottements." },
-            bluesScale: { name: "Gamme Blues", category: "Pentatonique / Blues", intervals: [0, 3, 5, 6, 7, 10], desc: "L'ajout de la blue note crée de la tension sans changer la nature mineure. Sur dominante, la b3 frotte contre la tierce." },
-            mixolydian: { name: "Mixolydien", category: "Diatonique / Dominant", intervals: [0, 2, 4, 5, 7, 9, 10], desc: "Sur un V7 classique non altéré (tensions 9, 13)." },
-            lydianDominant: { name: "Lydien Dominant (Lydien b7)", category: "Mineur Mélodique", intervals: [0, 2, 4, 6, 7, 9, 10], desc: "Pour les V7 qui ne résolvent pas en quinte juste (Substituts tritoniques, bVII7)." },
-            altered: { name: "Altéré (Super Locrien)", category: "Mineur Mélodique", intervals: [0, 1, 3, 4, 6, 8, 10], desc: "Pour V7 résolvant sur un I. Contient toutes les altérations (b9, #9, #11, b13)." },
-            mixolydianFlat13: { name: "Mixolydien b13", category: "Mineur Mélodique", intervals: [0, 2, 4, 5, 7, 8, 10], desc: "5ème mode du mineur mélodique." },
-            phrygianDominant: { name: "Phrygien Dominant", category: "Mineur Harmonique", intervals: [0, 1, 4, 5, 7, 8, 10], desc: "For V7 vers un accord mineur." },
-            mixolydianFlat9: { name: "Mixolydien b9", category: "Majeur Harmonique", intervals: [0, 1, 4, 5, 7, 9, 10], desc: "5ème mode du majeur harmonique." },
-            dominantBebop: { name: "Bebop Dominante", category: "Bebop", intervals: [0, 2, 4, 5, 7, 9, 10, 11], desc: "Chromatisme entre la septième mineure et la fondamentale." },
-            halfWholeDim: { name: "Demi-Ton / Ton (Octatonique)", category: "Symétrique", intervals: [0, 1, 3, 4, 6, 7, 9, 10], desc: "Sur accords 7b9 ou 7#9, garde la quinte juste et la 13e majeure." },
-            wholeTone: { name: "Par Tons (Hexatonique)", category: "Symétrique", intervals: [0, 2, 4, 6, 8, 10], desc: "Sur les accords 7#5 (dominantes sans 9ème altérée)." },
-            locrianSharp2: { name: "Locrien bécarre 2", category: "Mineur Mélodique", intervals: [0, 2, 3, 5, 6, 8, 10], desc: "Choix moderne par défaut sur le degré II d'un ii-V-I mineur. La seconde majeure sonne mieux que la b2." },
-            locrian: { name: "Locrien", category: "Diatonique", intervals: [0, 1, 3, 5, 6, 8, 10], desc: "Degré VII de la gamme majeure." },
-            minorPentatonicFlat5: { name: "Pentatonique mineure b5", category: "Pentatonique", intervals: [0, 3, 5, 6, 10], desc: "Version allégée du Locrien." },
-            wholeHalfDim: { name: "Ton / Demi-Ton (Octatonique)", category: "Symétrique", intervals: [0, 2, 3, 5, 6, 8, 9, 11], desc: "Option principale, couvre la structure symétrique de l'accord diminué et ajoute une note d'approche." }
+            ionian: { name: "Ionien (Gamme majeure)", category: "Diatonique", intervals: [0, 2, 4, 5, 7, 9, 11], characteristicInterval: 11, desc: "Utilisé sur le degré I. La quarte frotte avec la tierce majeure et doit être traitée comme note de passage." },
+            lydian: { name: "Lydien", category: "Diatonique / Majeur", intervals: [0, 2, 4, 6, 7, 9, 11], characteristicInterval: 6, desc: "Choix principal en jazz moderne pour éviter la quarte juste dissonante (4)." },
+            lydianAug: { name: "Lydien Augmenté", category: "Mineur Mélodique", intervals: [0, 2, 4, 6, 8, 9, 11], characteristicInterval: 8, desc: "Sur Maj7#5 (degré III du mineur mélodique)." },
+            harmonicMajor: { name: "Majeur Harmonique", category: "Emprunt Modal", intervals: [0, 2, 4, 5, 7, 8, 11], characteristicInterval: 8, desc: "Sert aux emprunts modaux pour apporter une couleur sombre." },
+            majorBebop: { name: "Gamme Bebop Majeure", category: "Bebop", intervals: [0, 2, 4, 5, 7, 8, 9, 11], characteristicInterval: 8, desc: "Ajoute un chromatisme (la #5) entre la quinte et la sixte pour caler le phrasé rythmique sur les temps forts." },
+            majorPentatonic: { name: "Pentatonique Majeure", category: "Pentatonique", intervals: [0, 2, 4, 7, 9], characteristicInterval: 9, desc: "Retire les demi-tons pour une sonorité ouverte et consonante." },
+            majorBlues: { name: "Gamme Blues Majeure", category: "Blues", intervals: [0, 2, 3, 4, 7, 9], characteristicInterval: 3, desc: "Introduit la tierce mineure (blue note) comme approche chromatique de la tierce majeure." },
+            dorian: { name: "Dorien", category: "Diatonique / Mineur", intervals: [0, 2, 3, 5, 7, 9, 10], characteristicInterval: 9, desc: "Degré II. La sixte majeure stabilise l'accord." },
+            melodicMinor: { name: "Mineur Mélodique", category: "Mineur Mélodique", intervals: [0, 2, 3, 5, 7, 9, 11], characteristicInterval: 11, desc: "Sur mMaj7 ou m6. Accord de tonique mineur de référence." },
+            aeolian: { name: "Éolien (Mineur naturel)", category: "Diatonique / Mineur", intervals: [0, 2, 3, 5, 7, 8, 10], characteristicInterval: 8, desc: "Degré VI. La b6 frotte contre la quinte, à manier avec prudence." },
+            phrygian: { name: "Phrygien", category: "Diatonique / Mineur", intervals: [0, 1, 3, 5, 7, 8, 10], characteristicInterval: 1, desc: "Degré III. Très dissonant." },
+            harmonicMinor: { name: "Mineur Harmonique", category: "Mineur Harmonique", intervals: [0, 2, 3, 5, 7, 8, 11], characteristicInterval: 11, desc: "Sur mMaj7 avec une couleur classique marquée." },
+            minorBebop: { name: "Bebop Mineure (Dorienne)", category: "Bebop", intervals: [0, 2, 3, 5, 7, 9, 10, 11], characteristicInterval: 11, desc: "Ajoute la septième majeure comme chromatisme de passage vers la tonique." },
+            minorPentatonic: { name: "Pentatonique Mineure", category: "Pentatonique", intervals: [0, 3, 5, 7, 10], characteristicInterval: 3, desc: "Choix standard, élimine les risques de frottements." },
+            bluesScale: { name: "Gamme Blues", category: "Pentatonique / Blues", intervals: [0, 3, 5, 6, 7, 10], characteristicInterval: 6, desc: "L'ajout de la blue note crée de la tension sans changer la nature mineure. Sur dominante, la b3 frotte contre la tierce." },
+            mixolydian: { name: "Mixolydien", category: "Diatonique / Dominant", intervals: [0, 2, 4, 5, 7, 9, 10], characteristicInterval: 10, desc: "Sur un V7 classique non altéré (tensions 9, 13)." },
+            lydianDominant: { name: "Lydien Dominant (Lydien b7)", category: "Mineur Mélodique", intervals: [0, 2, 4, 6, 7, 9, 10], characteristicInterval: 6, desc: "Pour les V7 qui ne résolvent pas en quinte juste (Substituts tritoniques, bVII7)." },
+            altered: { name: "Altéré (Super Locrien)", category: "Mineur Mélodique", intervals: [0, 1, 3, 4, 6, 8, 10], characteristicInterval: 1, desc: "Pour V7 résolvant sur un I. Contient toutes les altérations (b9, #9, #11, b13)." },
+            mixolydianFlat13: { name: "Mixolydien b13", category: "Mineur Mélodique", intervals: [0, 2, 4, 5, 7, 8, 10], characteristicInterval: 8, desc: "5ème mode du mineur mélodique." },
+            phrygianDominant: { name: "Phrygien Dominant", category: "Mineur Harmonique", intervals: [0, 1, 4, 5, 7, 8, 10], characteristicInterval: 1, desc: "For V7 vers un accord mineur." },
+            mixolydianFlat9: { name: "Mixolydien b9", category: "Majeur Harmonique", intervals: [0, 1, 4, 5, 7, 9, 10], characteristicInterval: 1, desc: "5ème mode du majeur harmonique." },
+            dominantBebop: { name: "Bebop Dominante", category: "Bebop", intervals: [0, 2, 4, 5, 7, 9, 10, 11], characteristicInterval: 11, desc: "Chromatisme entre la septième mineure et la fondamentale." },
+            halfWholeDim: { name: "Demi-Ton / Ton (Octatonique)", category: "Symétrique", intervals: [0, 1, 3, 4, 6, 7, 9, 10], characteristicInterval: 1, desc: "Sur accords 7b9 ou 7#9, garde la quinte juste et la 13e majeure." },
+            wholeTone: { name: "Par Tons (Hexatonique)", category: "Symétrique", intervals: [0, 2, 4, 6, 8, 10], characteristicInterval: 6, desc: "Sur les accords 7#5 (dominantes sans 9ème altérée)." },
+            locrianSharp2: { name: "Locrien bécarre 2", category: "Mineur Mélodique", intervals: [0, 2, 3, 5, 6, 8, 10], characteristicInterval: 2, desc: "Choix moderne par défaut sur le degré II d'un ii-V-I mineur. La seconde majeure sonne mieux que la b2." },
+            locrian: { name: "Locrien", category: "Diatonique", intervals: [0, 1, 3, 5, 6, 8, 10], characteristicInterval: 1, desc: "Degré VII de la gamme majeure." },
+            minorPentatonicFlat5: { name: "Pentatonique mineure b5", category: "Pentatonique", intervals: [0, 3, 5, 6, 10], characteristicInterval: 6, desc: "Version allégée du Locrien." },
+            wholeHalfDim: { name: "Ton / Demi-Ton (Octatonique)", category: "Symétrique", intervals: [0, 2, 3, 5, 6, 8, 9, 11], characteristicInterval: 9, desc: "Option principale, couvre la structure symétrique de l'accord diminué et ajoute une note d'approche." }
         };
 
         const chordTypes = {
@@ -439,6 +447,10 @@
                 this.visMode = 'staff';
                 this.instrumentKey = 'Bb';
                 
+                this.showAvoidNotes = false;
+                this.showCharacteristic = false;
+                this.showTargetNotes = false;
+
                 this.audioCtx = null;
                 this.pianoInstrument = null;
                 this.reverbInput = null;
@@ -453,6 +465,33 @@
                 this.initUI();
                 this.update();
                 this.initAudioContextOnInteraction();
+            }
+
+            toggleShowTargetNotes() {
+                this.showTargetNotes = !this.showTargetNotes;
+                const btn = document.getElementById('btn-toggle-target');
+                if (btn) {
+                    btn.className = `px-2 py-0.5 rounded text-[11px] font-semibold transition ${this.showTargetNotes ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40' : 'bg-[#1a1a1a] text-slate-500 border border-[#333333]'}`;
+                }
+                this.update();
+            }
+
+            toggleShowAvoid() {
+                this.showAvoidNotes = !this.showAvoidNotes;
+                const btn = document.getElementById('btn-toggle-avoid');
+                if (btn) {
+                    btn.className = `px-2 py-0.5 rounded text-[11px] font-semibold transition ${this.showAvoidNotes ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-[#1a1a1a] text-slate-500 border border-[#333333]'}`;
+                }
+                this.update();
+            }
+
+            toggleShowCharacteristic() {
+                this.showCharacteristic = !this.showCharacteristic;
+                const btn = document.getElementById('btn-toggle-characteristic');
+                if (btn) {
+                    btn.className = `px-2 py-0.5 rounded text-[11px] font-semibold transition ${this.showCharacteristic ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-[#1a1a1a] text-slate-500 border border-[#333333]'}`;
+                }
+                this.update();
             }
 
             setInstrumentKey(key) {
@@ -724,12 +763,16 @@
                 const scalesList = chordObj.scales;
                 document.getElementById('scales-count-badge').textContent = `${scalesList.length} gammes`;
 
+                const pendingStaves = [];
+
                 scalesList.forEach((item, index) => {
                     const scaleDef = scalesDb[item.id];
                     if (!scaleDef) return;
 
                     const scaleKey = `${item.id}-${index}`;
                     const isDesc = !!this.scaleDirections[scaleKey];
+                    const avoidNotes = this.showAvoidNotes ? getAvoidNotes(item.id, chordObj.id) : [];
+                    const characteristicInterval = this.showCharacteristic ? scaleDef.characteristicInterval : null;
 
                     const card = document.createElement('div');
                     card.className = "bg-[#252525] border border-[#333333] hover:border-[#444444] transition rounded-xl p-4 shadow relative group flex flex-col justify-between overflow-hidden";
@@ -748,15 +791,22 @@
                                 <div id="${canvasId}" class="w-full h-full flex items-center justify-center bg-white relative"></div>
                             </div>
                         `;
-                        setTimeout(() => {
-                            this.renderVexFlowStaff(canvasId, scaleDef.intervals, rootName, isDesc);
-                        }, 50);
+                        pendingStaves.push({ canvasId, intervals: scaleDef.intervals, rootName, isDesc, avoidNotes, characteristicInterval, chordObj });
                     } else if (this.visMode === 'intervals') {
                         let intervalsHtml = '';
                         scaleDef.intervals.forEach((interval) => {
                             const intervalName = getIntervalLabel(interval, chordObj.notes);
                             const isMember = chordObj.notes.includes(interval);
-                            const badgeClass = isMember ? "bg-[#2563eb] text-white shadow-sm" : "bg-[#1a1a1a] text-slate-400 border border-[#333333]";
+                            const isTarget = (interval === 3 || interval === 4 || interval === 10 || interval === 11) && isMember;
+                            const highlightBlue = this.showTargetNotes && isTarget;
+                            const isAvoid = avoidNotes.includes(interval);
+                            const isChar = characteristicInterval === interval;
+
+                            let badgeClass = "bg-[#1a1a1a] text-slate-400 border border-[#333333]";
+                            if (isAvoid) badgeClass = "bg-rose-500/20 text-rose-300 border border-rose-500/50";
+                            else if (isChar) badgeClass = "bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold";
+                            else if (highlightBlue) badgeClass = "bg-[#2563eb] text-white shadow-sm";
+
                             intervalsHtml += `<span onclick="app.playSingleNote(${interval}); event.stopPropagation();" class="px-2.5 py-1.5 text-xs font-mono rounded-lg cursor-pointer transition flex items-center justify-center ${badgeClass}">${intervalName}</span>`;
                         });
                         visualizationHtml = `
@@ -772,8 +822,18 @@
                         fullSpilledNotesWithOctave.forEach((anglo, i) => {
                             const frenchName = this.angloToFrench(anglo);
                             const interval = i < scaleDef.intervals.length ? scaleDef.intervals[i] : 12;
-                            const isMember = chordObj.notes.includes(interval);
-                            const badgeClass = isMember && i < scaleDef.intervals.length ? "bg-[#2563eb] text-white shadow-sm" : "bg-[#1a1a1a] text-slate-400 border border-[#333333]";
+                            const checkInterval = interval === 12 ? 0 : interval;
+                            const isMember = chordObj.notes.includes(checkInterval);
+                            const isTarget = (checkInterval === 3 || checkInterval === 4 || checkInterval === 10 || checkInterval === 11) && isMember;
+                            const highlightBlue = this.showTargetNotes && isTarget;
+                            const isAvoid = avoidNotes.includes(checkInterval);
+                            const isChar = characteristicInterval === checkInterval;
+
+                            let badgeClass = "bg-[#1a1a1a] text-slate-400 border border-[#333333]";
+                            if (isAvoid) badgeClass = "bg-rose-500/20 text-rose-300 border border-rose-500/50";
+                            else if (isChar) badgeClass = "bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold";
+                            else if (highlightBlue && i < scaleDef.intervals.length) badgeClass = "bg-[#2563eb] text-white shadow-sm";
+
                             notesHtml += `<span onclick="app.playSingleNote(${interval}); event.stopPropagation();" class="px-2.5 py-1.5 text-xs font-mono rounded-lg cursor-pointer transition flex items-center justify-center ${badgeClass}">${frenchName}</span>`;
                         });
                         visualizationHtml = `
@@ -788,8 +848,18 @@
                         let notesHtml = '';
                         fullSpilledNotesWithOctave.forEach((noteName, i) => {
                             const interval = i < scaleDef.intervals.length ? scaleDef.intervals[i] : 12;
-                            const isMember = chordObj.notes.includes(interval);
-                            const badgeClass = isMember && i < scaleDef.intervals.length ? "bg-[#2563eb] text-white shadow-sm" : "bg-[#1a1a1a] text-slate-400 border border-[#333333]";
+                            const checkInterval = interval === 12 ? 0 : interval;
+                            const isMember = chordObj.notes.includes(checkInterval);
+                            const isTarget = (checkInterval === 3 || checkInterval === 4 || checkInterval === 10 || checkInterval === 11) && isMember;
+                            const highlightBlue = this.showTargetNotes && isTarget;
+                            const isAvoid = avoidNotes.includes(checkInterval);
+                            const isChar = characteristicInterval === checkInterval;
+
+                            let badgeClass = "bg-[#1a1a1a] text-slate-400 border border-[#333333]";
+                            if (isAvoid) badgeClass = "bg-rose-500/20 text-rose-300 border border-rose-500/50";
+                            else if (isChar) badgeClass = "bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold";
+                            else if (highlightBlue && i < scaleDef.intervals.length) badgeClass = "bg-[#2563eb] text-white shadow-sm";
+
                             notesHtml += `<span onclick="app.playSingleNote(${interval}); event.stopPropagation();" class="px-2.5 py-1.5 text-xs font-mono rounded-lg cursor-pointer transition flex items-center justify-center ${badgeClass}">${noteName}</span>`;
                         });
                         visualizationHtml = `
@@ -824,6 +894,10 @@
                     `;
                     container.appendChild(card);
                 });
+
+                pendingStaves.forEach(task => {
+                    this.renderVexFlowStaff(task.canvasId, task.intervals, task.rootName, task.isDesc, task.avoidNotes, task.characteristicInterval, task.chordObj);
+                });
             }
 
             angloToFrench(angloNote) {
@@ -844,7 +918,7 @@
                 this.update();
             }
 
-            renderVexFlowStaff(containerId, intervals, rootName, isDesc) {
+            renderVexFlowStaff(containerId, intervals, rootName, isDesc, avoidNotes = [], characteristicInterval = null, chordObj = null) {
                 const container = document.getElementById(containerId);
                 if (!container) return;
                 container.innerHTML = '';
@@ -924,6 +998,19 @@
 
                         if (accidental) {
                             note.addModifier(new Accidental(accidental), 0);
+                        }
+
+                        const checkInterval = interval === 12 ? 0 : interval;
+                        const isMember = chordObj ? chordObj.notes.includes(checkInterval) : false;
+                        const isTarget = (checkInterval === 3 || checkInterval === 4 || checkInterval === 10 || checkInterval === 11) && isMember;
+                        const highlightBlue = this.showTargetNotes && isTarget;
+
+                        if (avoidNotes.includes(checkInterval)) {
+                            note.setStyle({fillStyle: "#f43f5e", strokeStyle: "#f43f5e"});
+                        } else if (characteristicInterval !== null && characteristicInterval === checkInterval) {
+                            note.setStyle({fillStyle: "#f59e0b", strokeStyle: "#f59e0b"});
+                        } else if (highlightBlue) {
+                            note.setStyle({fillStyle: "#2563eb", strokeStyle: "#2563eb"});
                         }
 
                         return note;
