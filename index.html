@@ -81,6 +81,18 @@
 
                 <div class="space-y-2">
                     <div class="flex justify-between items-center px-1">
+                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tonalité Instrumentale</span>
+                        <span id="selected-transposition-badge" class="text-xs px-2.5 py-0.5 bg-purple-500/20 text-purple-300 rounded-md font-mono font-bold shadow">Bb</span>
+                    </div>
+                    <div class="flex bg-[#1a1a1a] p-1 rounded-lg text-xs font-medium border border-[#333333]">
+                        <button onclick="app.setInstrumentKey('Bb')" id="trans-btn-Bb" class="flex-1 py-1 rounded-md transition bg-[#3a3a3c] text-white shadow-sm">Bb</button>
+                        <button onclick="app.setInstrumentKey('C')" id="trans-btn-C" class="flex-1 py-1 rounded-md transition text-slate-400 hover:text-white">C</button>
+                        <button onclick="app.setInstrumentKey('Eb')" id="trans-btn-Eb" class="flex-1 py-1 rounded-md transition text-slate-400 hover:text-white">Eb</button>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center px-1">
                         <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">1. Fondamentale</span>
                         <span id="selected-root-badge" class="text-xs px-2.5 py-1 bg-[#2563eb] text-white rounded-md font-mono font-bold shadow">C</span>
                     </div>
@@ -310,6 +322,7 @@
                 this.currentCategory = 'maj';
                 this.selectedChordId = 'maj7';
                 this.visMode = 'staff';
+                this.instrumentKey = 'Bb';
                 
                 this.audioCtx = null;
                 this.pianoInstrument = null;
@@ -325,6 +338,32 @@
                 this.initUI();
                 this.update();
                 this.initAudioContextOnInteraction();
+            }
+
+            setInstrumentKey(key) {
+                this.instrumentKey = key;
+                document.getElementById('selected-transposition-badge').textContent = key;
+                ['Bb', 'C', 'Eb'].forEach(k => {
+                    const btn = document.getElementById(`trans-btn-${k}`);
+                    if (k === key) {
+                        btn.className = "flex-1 py-1 rounded-md transition bg-[#3a3a3c] text-white shadow-sm";
+                    } else {
+                        btn.className = "flex-1 py-1 rounded-md transition text-slate-400 hover:text-white";
+                    }
+                });
+            }
+
+            getAudioNoteName(rootIndex, interval, baseOctave = PLAY_BASE_OCTAVE) {
+                const offsets = { 'C': 0, 'Bb': -2, 'Eb': -9 };
+                const offset = offsets[this.instrumentKey] || 0;
+                
+                const absSemis = rootIndex + interval + offset;
+                const normalizedSemi = ((absSemis % 12) + 12) % 12;
+                const octaveOffset = Math.floor(absSemis / 12);
+                const octave = baseOctave + octaveOffset;
+                
+                const rootName = rootLabels[normalizedSemi];
+                return rootName + octave;
             }
 
             stopAllSounds() {
@@ -413,7 +452,28 @@
                 convolver.connect(wetGain);
                 dryGain.connect(masterGain);
                 wetGain.connect(masterGain);
+
+                const mediaStreamDest = audioCtx.createMediaStreamDestination();
+                masterGain.connect(mediaStreamDest);
                 masterGain.connect(audioCtx.destination);
+
+                const relayElement = document.createElement('audio');
+                relayElement.srcObject = mediaStreamDest.stream;
+                relayElement.autoplay = true;
+                relayElement.playsInline = true;
+                relayElement.muted = false;
+                relayElement.style.display = 'none';
+                document.body.appendChild(relayElement);
+
+                const unlockRelay = () => {
+                    relayElement.play().catch(() => {});
+                    window.removeEventListener('click', unlockRelay);
+                    window.removeEventListener('touchstart', unlockRelay);
+                    window.removeEventListener('keydown', unlockRelay);
+                };
+                window.addEventListener('click', unlockRelay);
+                window.addEventListener('touchstart', unlockRelay);
+                window.addEventListener('keydown', unlockRelay);
 
                 return inputNode;
             }
@@ -816,7 +876,7 @@
                 }
 
                 playIntervals.forEach((interval, idx) => {
-                    const noteStr = getNoteNameWithOctave(this.selectedRootIndex, interval, PLAY_BASE_OCTAVE);
+                    const noteStr = this.getAudioNoteName(this.selectedRootIndex, interval, PLAY_BASE_OCTAVE);
                     const timer = setTimeout(() => {
                         try {
                             if (this.pianoInstrument) {
@@ -846,7 +906,7 @@
                 if (this.audioCtx && this.audioCtx.state === 'suspended') {
                     this.audioCtx.resume();
                 }
-                const noteStr = getNoteNameWithOctave(this.selectedRootIndex, interval, PLAY_BASE_OCTAVE);
+                const noteStr = this.getAudioNoteName(this.selectedRootIndex, interval, PLAY_BASE_OCTAVE);
                 try {
                     const node = this.pianoInstrument.play(noteStr, this.audioCtx.currentTime, { duration: 1.5, destination: this.reverbInput });
                     this.activeAudioNodes.push(node);
@@ -877,7 +937,7 @@
                 const now = this.audioCtx ? this.audioCtx.currentTime : 0;
 
                 chordObj.notes.forEach((interval, idx) => {
-                    const noteStr = getNoteNameWithOctave(this.selectedRootIndex, interval, PLAY_BASE_OCTAVE);
+                    const noteStr = this.getAudioNoteName(this.selectedRootIndex, interval, PLAY_BASE_OCTAVE);
                     try {
                         const node = this.pianoInstrument.play(noteStr, now + (idx * 0.04), { duration: 2.2, destination: this.reverbInput });
                         this.activeAudioNodes.push(node);
@@ -924,7 +984,7 @@
                 const arpeggioDurationMs = chordObj.notes.length * NOTE_STEP_SECONDS * 1000;
 
                 chordObj.notes.forEach((interval, idx) => {
-                    const noteStr = getNoteNameWithOctave(this.selectedRootIndex, interval, PLAY_BASE_OCTAVE);
+                    const noteStr = this.getAudioNoteName(this.selectedRootIndex, interval, PLAY_BASE_OCTAVE);
                     try {
                         const node = this.pianoInstrument.play(noteStr, now + (idx * NOTE_STEP_SECONDS), { duration: idx === lastIdx ? 2.2 : 1.8, destination: this.reverbInput });
                         this.activeAudioNodes.push(node);
