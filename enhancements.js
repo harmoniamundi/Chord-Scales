@@ -4,6 +4,16 @@
     const SCALE_STEP_MS = 350;
     const SCALE_END_PADDING_MS = 350;
 
+    function escapeSelector(value) {
+        return typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+            ? CSS.escape(value)
+            : String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+    }
+
+    function getScaleElement(scaleKey) {
+        return document.querySelector(`[data-scale-key="${escapeSelector(scaleKey)}"]`);
+    }
+
     function stopScalePlayback(app, scaleKey) {
         const playback = app.activePlaybacks[scaleKey];
         if (!playback) return;
@@ -12,7 +22,7 @@
         delete app.activePlaybacks[scaleKey];
 
         document
-            .querySelectorAll(`[data-scale-key="${CSS.escape(scaleKey)}"]`)
+            .querySelectorAll(`[data-scale-key="${escapeSelector(scaleKey)}"]`)
             .forEach(element => element.classList.remove('ring-2', 'ring-blue-500'));
     }
 
@@ -37,12 +47,16 @@
     function installScalePlayback(app) {
         app.stopAllSounds = () => stopAllSounds(app);
 
-        app.toggleScalePlayback = async (scaleKey, intervals, scaleName, element) => {
-            const existing = app.activePlaybacks[scaleKey];
-            if (existing) {
+        app.toggleScalePlayback = async (scaleKey, intervals, _scaleName, element) => {
+            if (app.activePlaybacks[scaleKey]) {
                 stopScalePlayback(app, scaleKey);
                 return;
             }
+
+            // Stop other scale playbacks before starting a new one.
+            Object.keys(app.activePlaybacks).forEach(activeKey => {
+                if (activeKey !== scaleKey) stopScalePlayback(app, activeKey);
+            });
 
             const piano = await app.loadPiano();
             if (!piano) return;
@@ -55,7 +69,7 @@
             const playback = { timers: [] };
             app.activePlaybacks[scaleKey] = playback;
 
-            const target = element || document.querySelector(`[data-scale-key="${CSS.escape(scaleKey)}"]`);
+            const target = element || getScaleElement(scaleKey);
             target?.classList.add('ring-2', 'ring-blue-500');
 
             orderedIntervals.forEach((interval, index) => {
@@ -68,7 +82,7 @@
                             duration: Math.max(0.8, SCALE_STEP_MS / 1000 + 0.15),
                             destination: app.reverbInput
                         });
-                        app.activeAudioNodes.push(node);
+                        if (node) app.activeAudioNodes.push(node);
                     } catch (error) {
                         console.error('Erreur de lecture de gamme:', error);
                     }
@@ -76,9 +90,10 @@
                 playback.timers.push(timer);
             });
 
-            const endTimer = setTimeout(() => stopScalePlayback(app, scaleKey),
-                orderedIntervals.length * SCALE_STEP_MS + SCALE_END_PADDING_MS);
-            playback.timers.push(endTimer);
+            playback.timers.push(setTimeout(
+                () => stopScalePlayback(app, scaleKey),
+                orderedIntervals.length * SCALE_STEP_MS + SCALE_END_PADDING_MS
+            ));
         };
     }
 
@@ -97,15 +112,17 @@
             }
 
             const visual = event.target.closest('.staff-visual');
-            if (visual) {
-                const scaleKey = visual.dataset.scaleKey;
-                const index = [...container.querySelectorAll('[data-scale-key]')]
-                    .findIndex(element => element === visual);
-                const card = visual.closest('.scale-card');
-                const scale = card?.dataset.scaleIntervals;
-                if (scaleKey && scale) {
-                    app.toggleScalePlayback(scaleKey, JSON.parse(scale), '', visual);
-                }
+            if (!visual) return;
+
+            const scaleKey = visual.dataset.scaleKey;
+            const card = visual.closest('.scale-card');
+            const encodedIntervals = card?.dataset.scaleIntervals;
+            if (!scaleKey || !encodedIntervals) return;
+
+            try {
+                app.toggleScalePlayback(scaleKey, JSON.parse(encodedIntervals), '', visual);
+            } catch (error) {
+                console.error('Impossible de lire cette gamme:', error);
             }
         });
 
@@ -119,16 +136,28 @@
     }
 
     function patchRendering(app) {
+        if (app.__scaleRenderPatched) return;
+        app.__scaleRenderPatched = true;
+
         const originalRenderScales = app.renderScales.bind(app);
         app.renderScales = (chord, root) => {
             originalRenderScales(chord, root);
 
+            const scaleDatabase = window.scaleDb;
             document.querySelectorAll('#scales-container .scale-card').forEach((card, index) => {
-                const item = chord.scales[index];
-                const scale = item && scaleDb[item.id];
-                if (scale) card.dataset.scaleIntervals = JSON.stringify(scale.intervals);
+                const item = chord.scales?.[index];
+                const scale = item && scaleDatabase?.[item.id];
+                if (scale) {
+                    card.dataset.scaleIntervals = JSON.stringify(scale.intervals);
+                }
             });
         };
+
+        // The first render happens in the app constructor, before this module
+        // observes the application. Re-render once so existing cards receive metadata.
+        const chord = app.getCurrentChordObj?.();
+        const root = window.rootLabels?.[app.selectedRootIndex];
+        if (chord && root) app.renderScales(chord, root);
     }
 
     function install(app) {
