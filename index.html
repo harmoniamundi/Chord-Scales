@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="fr" class="dark">
 <head>
     <meta charset="UTF-8" />
@@ -527,9 +528,6 @@
             wholeHalfDim: { name: "Ton / Demi-Ton (Octatonique)", category: "Symétrique", intervals: [0, 2, 3, 5, 6, 8, 9, 11], characteristicInterval: 9, desc: "Option principale, couvre la structure symétrique d'un accord diminué." }
         };
 
-        window.rootLabels = rootLabels;
-        window.scaleDb = scaleDb;
-
         const chordTypes = {
             maj: [
                 { id: "maj7", name: "maj7", fullName: "Majeur 7", notes: [0, 4, 7, 11], scales: [{ id: "lydian", role: "Principal (Moderne)" }, { id: "ionian", role: "Degré I" }, { id: "harmonicMajor", role: "Emprunt modal" }, { id: "majorBebop", role: "Rythme Bebop" }, { id: "majorPentatonic", role: "Consonance ouverte" }] },
@@ -539,378 +537,676 @@
                 { id: "maj7sharp5", name: "maj7(#5)", fullName: "Majeur 7 quinte augmentée", notes: [0, 4, 8, 11], scales: [{ id: "lydianAug", role: "Principal" }, { id: "majorBebop", role: "Alternatif" }] }
             ],
             min: [
-                { id: "m7", name: "m7", fullName: "Mineur 7", notes: [0, 3, 7, 10], scales: [{ id: "dorian", role: "Principal (Degré II)" }, { id: "aeolian", role: "Degré VI (b6 frotte)" }, { id: "phrygian", role: "Désaccord" }, { id: "minorBebop", role: "Bebop" }] },
-                { id: "m9", name: "m9", fullName: "Mineur 9", notes: [0, 3, 7, 10, 2], scales: [{ id: "dorian", role: "Principal" }, { id: "aeolian", role: "Secondaire" }] },
+                { id: "m7", name: "m7", fullName: "Mineur 7", notes: [0, 3, 7, 10], scales: [{ id: "dorian", role: "Principal (Degré II)" }, { id: "aeolian", role: "Degré VI (b6 frotte)" }, { id: "phrygian", role: "Désaccord" }, { id: "minorBebop", role: "Approche Bebop" }, { id: "minorPentatonic", role: "Sans frottement" }] },
+                { id: "m9", name: "m9", fullName: "Mineur 9", notes: [0, 3, 7, 10, 2], scales: [{ id: "dorian", role: "Principal" }, { id: "aeolian", role: "Secondaire" }, { id: "minorBebop", role: "Bebop" }] },
                 { id: "m11", name: "m11", fullName: "Mineur 11", notes: [0, 3, 7, 10, 2, 5], scales: [{ id: "dorian", role: "Principal" }, { id: "aeolian", role: "Naturel" }] },
-                { id: "mmaj7", name: "mMaj7", fullName: "Mineur/Majeur 7", notes: [0, 3, 7, 11], scales: [{ id: "melodicMinor", role: "Principal" }, { id: "harmonicMinor", role: "Classique" }] },
-                { id: "m6", name: "m6", fullName: "Mineur 6", notes: [0, 3, 7, 9], scales: [{ id: "melodicMinor", role: "Principal" }, { id: "aeolian", role: "Alternatif" }] }
+                { id: "mmaj7", name: "m(maj7)", fullName: "Mineur-Majeur 7", notes: [0, 3, 7, 11], scales: [{ id: "melodicMinor", role: "Principal (Tonique mineure)" }, { id: "harmonicMinor", role: "Classique" }] }
             ],
             dom: [
-                { id: "7", name: "7", fullName: "Dominante 7", notes: [0, 4, 7, 10], scales: [{ id: "mixolydian", role: "Principal" }, { id: "bluesScale", role: "Blues" }, { id: "dominantBebop", role: "Bebop" }, { id: "phrygianDominant", role: "Altéré" }] },
-                { id: "9", name: "9", fullName: "Dominante 9", notes: [0, 4, 7, 10, 2], scales: [{ id: "mixolydian", role: "Principal" }, { id: "dominantBebop", role: "Bebop" }] },
-                { id: "7alt", name: "7alt", fullName: "Dominante altérée", notes: [0, 4, 7, 10, 1], scales: [{ id: "altered", role: "Principal" }, { id: "wholeTone", role: "Bricolage" }] },
-                { id: "7b9", name: "7b9", fullName: "Dominante b9", notes: [0, 4, 7, 10, 1], scales: [{ id: "altered", role: "Principal" }, { id: "halfWholeDim", role: "Symétrique" }] },
-                { id: "7sharp5", name: "7#5", fullName: "Dominante #5", notes: [0, 4, 8, 10], scales: [{ id: "wholeTone", role: "Principal" }, { id: "altered", role: "Altéré" }] }
+                { id: "7", name: "7", fullName: "Dominante 7", notes: [0, 4, 7, 10], scales: [{ id: "mixolydian", role: "Principal (Non altéré)" }, { id: "lydianDominant", role: "Sans résolution juste" }, { id: "dominantBebop", role: "Bebop" }, { id: "bluesScale", role: "Blues/Rock/Funk" }, { id: "mixolydianFlat9", role: "Mixolydien b9" }] },
+                { id: "9", name: "9", fullName: "Dominante 9", notes: [0, 4, 7, 10, 2], scales: [{ id: "mixolydian", role: "Principal" }, { id: "lydianDominant", role: "Recommandé (#11)" }, { id: "dominantBebop", role: "Bebop" }] },
+                { id: "7alt", name: "7alt", fullName: "Dominante Altérée", notes: [0, 4, 6, 10], scales: [{ id: "altered", role: "Principal" }, { id: "halfWholeDim", role: "Alternative" }] },
+                { id: "7b9", name: "7(b9)", fullName: "Dominante 9 mineure", notes: [0, 4, 7, 10, 1], scales: [{ id: "halfWholeDim", role: "Principal (Symétrique)" }, { id: "phrygianDominant", role: "Vers accord mineur" }] },
+                { id: "7sharp5", name: "7(#5)", fullName: "Dominante 7 quinte augmentée", notes: [0, 4, 8, 10], scales: [{ id: "wholeTone", role: "Principal (Ton par ton)" }, { id: "altered", role: "Altéré" }] }
             ],
             other: [
-                { id: "dim7", name: "dim7", fullName: "Diminué 7", notes: [0, 3, 6, 9], scales: [{ id: "wholeHalfDim", role: "Principal" }, { id: "halfWholeDim", role: "Alternatif" }] },
-                { id: "sus4", name: "sus4", fullName: "Sus4", notes: [0, 5, 7, 10], scales: [{ id: "mixolydian", role: "Principal" }, { id: "minorPentatonic", role: "Alternatif" }, { id: "bluesScale", role: "Blues" }] },
-                { id: "7sus4", name: "7sus4", fullName: "7sus4", notes: [0, 5, 7, 10], scales: [{ id: "mixolydian", role: "Principal" }, { id: "phrygianDominant", role: "Alternatif" }] },
-                { id: "m7b5", name: "m7b5", fullName: "Mineur 7 b5", notes: [0, 3, 6, 10], scales: [{ id: "locrian", role: "Principal" }, { id: "wholeHalfDim", role: "Symétrique" }] }
+                { id: "m7b5", name: "m7b5", fullName: "Semi-diminué (Half-dim)", notes: [0, 3, 6, 10], scales: [{ id: "locrianSharp2", role: "Principal Moderne (Degré II)" }, { id: "locrian", role: "Classique (Degré VII)" }, { id: "minorPentatonicFlat5", role: "Allégée" }] },
+                { id: "dim7", name: "dim7", fullName: "Diminué 7", notes: [0, 3, 6, 9], scales: [{ id: "wholeHalfDim", role: "Principal (Couvre la structure symétrique)" }] },
+                { id: "7sus4", name: "7sus4", fullName: "Dominante Suspendue", notes: [0, 5, 7, 10], scales: [{ id: "mixolydian", role: "Principal" }, { id: "dorian", role: "Aérien" }, { id: "phrygian", role: "Modal / Sus4 b9" }] }
             ]
         };
 
-        const app = {
-            selectedRootIndex: 0,
-            currentCategory: 'maj',
-            selectedChordId: 'maj7',
-            visMode: 'staff',
-            selectedInstrumentKey: 'Bb',
-            showTargetNotes: false,
-            showAvoidNotes: false,
-            showCharacteristic: false,
-            activeAudioNodes: [],
-            activePlaybacks: {},
-            scaleDirections: {},
-            audioCtx: null,
-            piano: null,
-            reverbInput: null,
-            isLoopMode: false,
-            loopInterval: null,
-            rootButtonsContainer: null,
-            qualityButtonsContainer: null,
-            scalesContainer: null,
-            mount() {
-                this.rootButtonsContainer = document.getElementById('root-buttons-container');
-                this.qualityButtonsContainer = document.getElementById('quality-buttons-container');
-                this.scalesContainer = document.getElementById('scales-container');
+        function getSemiFromNoteName(noteName) {
+            const sharpIndex = NOTE_NAMES_SHARP.indexOf(noteName);
+            if (sharpIndex !== -1) return sharpIndex;
+            const flatIndex = NOTE_NAMES_FLAT.indexOf(noteName);
+            return flatIndex !== -1 ? flatIndex : 0;
+        }
+
+        function getAccidentalFromDiff(diff) {
+            const map = { 2: '##', 1: '#', 0: '', '-1': 'b', '-2': 'bb' };
+            return map[diff] ?? '';
+        }
+
+        function getStrictSpelledNotes(rootName, intervals) {
+            const baseLetters = { ...majorScalesSpelling, C: ["C", "D", "E", "F", "G", "A", "B"] };
+            const notes = [];
+            const rootSemi = getSemiFromNoteName(rootName);
+
+            intervals.forEach((interval, idx) => {
+                const targetSemi = (rootSemi + interval) % 12;
+                const baseNote = (baseLetters[rootName] || ["C", "D", "E", "F", "G", "A", "B"])[idx] || "C";
+                const baseLetter = baseNote[0];
+                const naturalSemi = NATURAL_SEMITONES[baseLetter] ?? 0;
+                let diff = targetSemi - naturalSemi;
+                if (diff > 6) diff -= 12;
+                if (diff < -6) diff += 12;
+                const accidental = getAccidentalFromDiff(diff);
+
+                const useFlats = rootName.includes('b') || ['F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb'].includes(rootName);
+                if (useFlats) {
+                    const flatPreferred = { 1: 'Db', 3: 'Eb', 6: 'Gb', 8: 'Ab', 10: 'Bb' };
+                    if (flatPreferred[targetSemi] && flatPreferred[targetSemi][0] === baseLetter) {
+                        notes.push(flatPreferred[targetSemi]);
+                        return;
+                    }
+                }
+
+                notes.push(baseLetter + accidental);
+            });
+
+            return notes;
+        }
+
+        const majorScalesSpelling = {
+            C: ["C", "D", "E", "F", "G", "A", "B"],
+            Db: ["Db", "Eb", "F", "Gb", "Ab", "Bb", "C"],
+            D: ["D", "E", "F#", "G", "A", "B", "C#"],
+            Eb: ["Eb", "F", "G", "Ab", "Bb", "C", "D"],
+            E: ["E", "F#", "G#", "A", "B", "C#", "D#"],
+            F: ["F", "G", "A", "Bb", "C", "D", "E"],
+            "F#": ["F#", "G#", "A#", "B", "C#", "D#", "E#"],
+            Gb: ["Gb", "Ab", "Bb", "Cb", "Db", "Eb", "F"],
+            G: ["G", "A", "B", "C", "D", "E", "F#"],
+            Ab: ["Ab", "Bb", "C", "Db", "Eb", "F", "G"],
+            A: ["A", "B", "C#", "D", "E", "F#", "G#"],
+            Bb: ["Bb", "C", "D", "Eb", "F", "G", "A"],
+            B: ["B", "C#", "D#", "E", "F#", "G#", "A#"]
+        };
+
+        function getSpelledChordNotes(rootName, chordObj) {
+            const baseLetters = majorScalesSpelling[rootName] || majorScalesSpelling.C;
+            const rootSemi = getSemiFromNoteName(rootName);
+            const notes = [];
+
+            chordObj.notes.forEach((interval, idx) => {
+                const targetSemi = (rootSemi + interval) % 12;
+                const baseLetter = baseLetters[Math.min(idx, baseLetters.length - 1)][0];
+                const naturalSemi = NATURAL_SEMITONES[baseLetter] ?? 0;
+                let diff = targetSemi - naturalSemi;
+                if (diff > 6) diff -= 12;
+                if (diff < -6) diff += 12;
+
+                const accidental = getAccidentalFromDiff(diff);
+                const useFlats = rootName.includes('b') || ['F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb'].includes(rootName);
+                if (useFlats) {
+                    const flatPreferred = { 1: 'Db', 3: 'Eb', 6: 'Gb', 8: 'Ab', 10: 'Bb' };
+                    if (flatPreferred[targetSemi] && flatPreferred[targetSemi][0] === baseLetter) {
+                        notes.push(flatPreferred[targetSemi]);
+                        return;
+                    }
+                }
+                notes.push(baseLetter + accidental);
+            });
+
+            return notes;
+        }
+
+        function getIntervalLabel(interval, chordNotes) {
+            const has = (n) => chordNotes.includes(n);
+            const inChord = has(interval);
+            const hasMajThird = has(4);
+            const hasMinThird = has(3);
+            const hasThird = hasMajThird || hasMinThird;
+
+            switch (interval) {
+                case 0: return "1";
+                case 1: return "b9";
+                case 2: return "9";
+                case 3: return inChord ? "b3" : (hasMajThird && has(10) ? "#9" : "b3");
+                case 4: return "3";
+                case 5: return (inChord && !hasThird) ? "4" : "11";
+                case 6: return inChord ? (has(7) ? "#11" : "b5") : (hasMinThird ? "b5" : "#11");
+                case 7: return "5";
+                case 8: return inChord ? "#5" : "b13";
+                case 9: return inChord ? ((hasMinThird && has(6)) ? "bb7" : "6") : "13";
+                case 10: return "b7";
+                case 11: return "7";
+                case 12: return "8";
+                default: return String(interval);
+            }
+        }
+
+        function getAvoidNotes(scaleId, chordId) {
+            const avoids = [];
+            const isDom = ['7', '9', '7alt', '7b9', '7sharp5'].includes(chordId);
+
+            if (['ionian', 'majorBebop'].includes(scaleId)) avoids.push(5);
+            if (['mixolydian', 'mixolydianFlat13', 'phrygianDominant', 'mixolydianFlat9', 'dominantBebop'].includes(scaleId) && chordId !== '7sus4') avoids.push(5);
+            if (['aeolian', 'harmonicMinor'].includes(scaleId)) avoids.push(8);
+            if (scaleId === 'phrygian') { avoids.push(1); avoids.push(8); }
+            if (scaleId === 'locrian') avoids.push(1);
+            if (scaleId === 'bluesScale' && isDom) avoids.push(3);
+            return avoids;
+        }
+
+        class ChordScaleApp {
+            constructor() {
+                this.selectedRootIndex = 0;
+                this.currentCategory = 'maj';
+                this.selectedChordId = 'maj7';
+                this.visMode = 'staff';
+                this.instrumentKey = 'Bb';
+                this.showAvoidNotes = false;
+                this.showCharacteristic = false;
+                this.showTargetNotes = false;
+                this.audioCtx = null;
+                this.pianoInstrument = null;
+                this.pianoLoading = null;
+                this.reverbInput = null;
+                this.activePlaybacks = {};
+                this.scaleDirections = {};
+                this.activeAudioNodes = [];
+                this.isLoopMode = false;
+                this.currentLoopType = null;
+                this.loopInterval = null;
 
                 this.renderRootButtons();
                 this.renderQualityButtons();
-                this.bindGlobalControls();
-                this.updateChordDisplay();
-                this.renderScales(this.getCurrentChordObj(), rootLabels[this.selectedRootIndex]);
-                this.attachInitialAudio();
-            },
-            attachInitialAudio() {
-                this.initAudioContext();
-            },
-            initAudioContext() {
-                const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                if (!AudioCtx) return;
-                if (!this.audioCtx) this.audioCtx = new AudioCtx();
-                if (this.audioCtx.state === 'suspended') this.audioCtx.resume().catch(() => {});
-            },
-            getCurrentChordObj() {
-                const chordList = chordTypes[this.currentCategory] || chordTypes.maj;
-                return chordList.find(item => item.id === this.selectedChordId) || chordList[0];
-            },
-            updateChordDisplay() {
-                const chord = this.getCurrentChordObj();
-                const rootLabel = rootLabels[this.selectedRootIndex];
-                document.getElementById('display-chord-name').textContent = `${rootLabel}${chord.name}`;
-                document.getElementById('selected-root-badge').textContent = rootLabel;
-                document.getElementById('selected-quality-badge').textContent = chord.name;
-                document.getElementById('display-chord-notes').innerHTML = '';
-                chord.notes.forEach((interval) => {
-                    const note = this.getNoteName(interval, rootLabel);
-                    const span = document.createElement('span');
-                    span.className = 'tag tag-blue';
-                    span.textContent = note;
-                    document.getElementById('display-chord-notes').appendChild(span);
+                this.bindEvents();
+                this.update();
+                this.initAudioContextOnInteraction();
+            }
+
+            bindEvents() {
+                document.getElementById('play-chord-btn')?.addEventListener('click', () => this.playChord());
+                document.getElementById('play-arp-btn')?.addEventListener('click', () => this.playArpeggio());
+                document.getElementById('loop-chord-btn')?.addEventListener('click', () => this.toggleLoopMode());
+                document.getElementById('btn-toggle-target')?.addEventListener('click', () => this.toggleShowTargetNotes());
+                document.getElementById('btn-toggle-avoid')?.addEventListener('click', () => this.toggleShowAvoid());
+                document.getElementById('btn-toggle-characteristic')?.addEventListener('click', () => this.toggleShowCharacteristic());
+
+                document.querySelectorAll('[data-key]').forEach(button => {
+                    button.addEventListener('click', () => this.setInstrumentKey(button.dataset.key));
                 });
-            },
-            getNoteName(interval, rootLabel) {
-                const semitoneIndex = (this.selectedRootIndex + interval) % 12;
-                const note = NOTE_NAMES_SHARP[semitoneIndex] || NOTE_NAMES_FLAT[semitoneIndex];
-                return note;
-            },
+
+                document.querySelectorAll('[data-cat]').forEach(button => {
+                    button.addEventListener('click', () => this.setQualityCategory(button.dataset.cat));
+                });
+
+                document.querySelectorAll('[data-mode]').forEach(button => {
+                    button.addEventListener('click', () => this.setVisMode(button.dataset.mode));
+                });
+            }
+
+            toggleShowTargetNotes() {
+                this.showTargetNotes = !this.showTargetNotes;
+                const btn = document.getElementById('btn-toggle-target');
+                if (btn) {
+                    btn.setAttribute('aria-pressed', String(this.showTargetNotes));
+                    btn.classList.toggle('active', this.showTargetNotes);
+                }
+                this.update();
+            }
+
+            toggleShowAvoid() {
+                this.showAvoidNotes = !this.showAvoidNotes;
+                const btn = document.getElementById('btn-toggle-avoid');
+                if (btn) {
+                    btn.setAttribute('aria-pressed', String(this.showAvoidNotes));
+                    btn.classList.toggle('active', this.showAvoidNotes);
+                }
+                this.update();
+            }
+
+            toggleShowCharacteristic() {
+                this.showCharacteristic = !this.showCharacteristic;
+                const btn = document.getElementById('btn-toggle-characteristic');
+                if (btn) {
+                    btn.setAttribute('aria-pressed', String(this.showCharacteristic));
+                    btn.classList.toggle('active', this.showCharacteristic);
+                }
+                this.update();
+            }
+
+            setInstrumentKey(key) {
+                this.instrumentKey = key;
+                const badge = document.getElementById('selected-transposition-badge');
+                if (badge) badge.textContent = key;
+
+                document.querySelectorAll('[data-key]').forEach(btn => {
+                    const isSelected = btn.dataset.key === key;
+                    btn.classList.toggle('active', isSelected);
+                });
+            }
+
+            getAudioNoteName(rootIndex, interval, baseOctave = 3) {
+                const offsets = { C: 0, Bb: -2, Eb: -9 };
+                const offset = offsets[this.instrumentKey] || 0;
+                const absSemis = rootIndex + interval + offset;
+                const normalizedSemi = ((absSemis % 12) + 12) % 12;
+                const octaveOffset = Math.floor(absSemis / 12);
+                const octave = baseOctave + octaveOffset;
+                const rootName = rootLabels[normalizedSemi];
+                return `${rootName}${octave}`;
+            }
+
+            initAudioContextOnInteraction() {
+                const triggerInit = async () => {
+                    if (!this.pianoInstrument) {
+                        await this.loadPiano();
+                    }
+                    window.removeEventListener('click', triggerInit);
+                    window.removeEventListener('keydown', triggerInit);
+                };
+                window.addEventListener('click', triggerInit);
+                window.addEventListener('keydown', triggerInit);
+            }
+
+            async loadPiano() {
+                if (this.pianoInstrument) return this.pianoInstrument;
+                if (this.pianoLoading) return this.pianoLoading;
+
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!this.audioCtx) {
+                    this.audioCtx = new AudioContext();
+                }
+
+                if (this.audioCtx.state === 'suspended') {
+                    await this.audioCtx.resume().catch(() => {});
+                }
+
+                this.reverbInput = this.setupReverb(this.audioCtx);
+
+                this.pianoLoading = Soundfont.instrument(this.audioCtx, 'acoustic_grand_piano', { soundfont: 'FluidR3_GM' })
+                    .then((instr) => {
+                        this.pianoInstrument = instr;
+                        this.pianoLoading = null;
+                        return instr;
+                    })
+                    .catch((err) => {
+                        console.error('Erreur chargement piano:', err);
+                        this.pianoLoading = null;
+                        return null;
+                    });
+
+                return this.pianoLoading;
+            }
+
+            setupReverb(audioCtx) {
+                const convolver = audioCtx.createConvolver();
+                const rate = audioCtx.sampleRate;
+                const length = rate * 2.2;
+                const impulse = audioCtx.createBuffer(2, length, rate);
+                const left = impulse.getChannelData(0);
+                const right = impulse.getChannelData(1);
+
+                for (let i = 0; i < length; i++) {
+                    const decay = Math.exp(-i / (rate * 0.6));
+                    left[i] = (Math.random() * 2 - 1) * decay;
+                    right[i] = (Math.random() * 2 - 1) * decay;
+                }
+
+                convolver.buffer = impulse;
+                const wetGain = audioCtx.createGain();
+                wetGain.gain.value = 0.18;
+                const dryGain = audioCtx.createGain();
+                dryGain.gain.value = 0.85;
+                const masterGain = audioCtx.createGain();
+                masterGain.gain.value = 1.1;
+
+                const inputNode = audioCtx.createGain();
+                inputNode.connect(dryGain);
+                inputNode.connect(convolver);
+                convolver.connect(wetGain);
+                dryGain.connect(masterGain);
+                wetGain.connect(masterGain);
+                masterGain.connect(audioCtx.destination);
+
+                return inputNode;
+            }
+
             renderRootButtons() {
-                this.rootButtonsContainer.innerHTML = '';
-                rootLabels.forEach((label, index) => {
+                const container = document.getElementById('root-buttons-container');
+                if (!container) return;
+                container.innerHTML = '';
+
+                rootLabels.forEach((note, index) => {
                     const btn = document.createElement('button');
                     btn.type = 'button';
-                    btn.textContent = label;
-                    btn.className = 'pill-button py-1.5 rounded-md transition ' + (index === this.selectedRootIndex ? 'active' : '');
+                    btn.className = `pill-button py-3 rounded-lg font-semibold text-sm transition ${index === this.selectedRootIndex ? 'active' : ''}`;
+                    btn.textContent = note;
+                    btn.setAttribute('aria-label', `Choisir la fondamentale ${note}`);
                     btn.addEventListener('click', () => {
                         this.selectedRootIndex = index;
                         this.renderRootButtons();
-                        this.updateChordDisplay();
-                        this.renderScales(this.getCurrentChordObj(), rootLabels[this.selectedRootIndex]);
+                        this.update();
                     });
-                    this.rootButtonsContainer.appendChild(btn);
+                    container.appendChild(btn);
                 });
-            },
+            }
+
+            setQualityCategory(cat) {
+                this.currentCategory = cat;
+                const qualities = chordTypes[cat] || [];
+                this.selectedChordId = qualities[0]?.id ?? null;
+
+                document.querySelectorAll('[data-cat]').forEach(btn => {
+                    const isSelected = btn.dataset.cat === cat;
+                    btn.classList.toggle('active', isSelected);
+                });
+
+                this.renderQualityButtons();
+                this.update();
+            }
+
             renderQualityButtons() {
-                this.qualityButtonsContainer.innerHTML = '';
-                const chordList = chordTypes[this.currentCategory] || chordTypes.maj;
-                chordList.forEach((chord) => {
+                const container = document.getElementById('quality-buttons-container');
+                if (!container) return;
+                container.innerHTML = '';
+
+                const qualities = chordTypes[this.currentCategory] || [];
+                qualities.forEach((quality) => {
                     const btn = document.createElement('button');
                     btn.type = 'button';
-                    btn.textContent = chord.name;
-                    btn.className = 'pill-button py-1.5 rounded-md transition ' + (chord.id === this.selectedChordId ? 'active' : '');
+                    btn.className = `p-2.5 rounded-lg text-left transition border flex flex-col justify-between ${this.selectedChordId === quality.id ? 'chip-active' : 'chip'}`;
+                    btn.innerHTML = `
+                        <span class="font-bold text-xs">${quality.name}</span>
+                        <span class="text-[10px] text-slate-400 mt-0.5 truncate">${quality.fullName}</span>
+                    `;
                     btn.addEventListener('click', () => {
-                        this.selectedChordId = chord.id;
+                        this.selectedChordId = quality.id;
                         this.renderQualityButtons();
-                        this.updateChordDisplay();
-                        this.renderScales(this.getCurrentChordObj(), rootLabels[this.selectedRootIndex]);
+                        this.update();
                     });
-                    this.qualityButtonsContainer.appendChild(btn);
+                    container.appendChild(btn);
                 });
-            },
-            bindGlobalControls() {
-                document.querySelectorAll('[data-key]').forEach((button) => {
-                    button.addEventListener('click', () => {
-                        this.selectedInstrumentKey = button.dataset.key;
-                        document.getElementById('selected-transposition-badge').textContent = this.selectedInstrumentKey;
-                        document.querySelectorAll('[data-key]').forEach((el) => el.classList.toggle('active', el.dataset.key === this.selectedInstrumentKey));
-                    });
-                });
+            }
 
-                document.querySelectorAll('[data-cat]').forEach((button) => {
-                    button.addEventListener('click', () => {
-                        this.currentCategory = button.dataset.cat;
-                        const list = chordTypes[this.currentCategory] || chordTypes.maj;
-                        this.selectedChordId = list[0].id;
-                        document.querySelectorAll('[data-cat]').forEach((el) => el.classList.toggle('active', el.dataset.cat === this.currentCategory));
-                        this.renderQualityButtons();
-                        this.updateChordDisplay();
-                        this.renderScales(this.getCurrentChordObj(), rootLabels[this.selectedRootIndex]);
-                    });
+            setVisMode(mode) {
+                this.visMode = mode;
+                document.querySelectorAll('[data-mode]').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.mode === mode);
                 });
+                this.update();
+            }
 
-                document.querySelectorAll('.mode-button').forEach((button) => {
-                    button.addEventListener('click', () => {
-                        this.visMode = button.dataset.mode;
-                        document.querySelectorAll('.mode-button').forEach(el => el.classList.toggle('active', el.dataset.mode === this.visMode));
-                        this.renderScales(this.getCurrentChordObj(), rootLabels[this.selectedRootIndex]);
-                    });
-                });
-
-                document.getElementById('btn-toggle-target').addEventListener('click', () => {
-                    this.showTargetNotes = !this.showTargetNotes;
-                    this.renderScales(this.getCurrentChordObj(), rootLabels[this.selectedRootIndex]);
-                    document.getElementById('btn-toggle-target').setAttribute('aria-pressed', String(this.showTargetNotes));
-                });
-                document.getElementById('btn-toggle-avoid').addEventListener('click', () => {
-                    this.showAvoidNotes = !this.showAvoidNotes;
-                    this.renderScales(this.getCurrentChordObj(), rootLabels[this.selectedRootIndex]);
-                    document.getElementById('btn-toggle-avoid').setAttribute('aria-pressed', String(this.showAvoidNotes));
-                });
-                document.getElementById('btn-toggle-characteristic').addEventListener('click', () => {
-                    this.showCharacteristic = !this.showCharacteristic;
-                    this.renderScales(this.getCurrentChordObj(), rootLabels[this.selectedRootIndex]);
-                    document.getElementById('btn-toggle-characteristic').setAttribute('aria-pressed', String(this.showCharacteristic));
-                });
-
-                document.getElementById('play-chord-btn').addEventListener('click', () => this.playChord());
-                document.getElementById('play-arp-btn').addEventListener('click', () => this.playArpeggio());
-                document.getElementById('loop-chord-btn').addEventListener('click', () => this.toggleLoopMode());
-            },
-            getAudioNoteName(rootIndex, interval, octave = 3) {
-                const targetSemitone = (rootIndex + interval) % 12;
-                const noteName = NOTE_NAMES_SHARP[targetSemitone] || NOTE_NAMES_FLAT[targetSemitone];
-                return `${noteName}${octave}`;
-            },
-            async loadPiano() {
-                if (this.piano) return this.piano;
-                if (!window.Soundfont) return null;
-                try {
-                    this.piano = await Soundfont.instrument(this.audioCtx || new (window.AudioContext || window.webkitAudioContext)(), 'acoustic_grand_piano');
-                    this.audioCtx = this.audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-                    return this.piano;
-                } catch (error) {
-                    console.error('Piano unavailable:', error);
-                    return null;
+            getCurrentChordObj() {
+                if (this.selectedChordId) {
+                    for (const category of Object.keys(chordTypes)) {
+                        const match = chordTypes[category].find(q => q.id === this.selectedChordId);
+                        if (match) return match;
+                    }
                 }
-            },
-            playSingleNote(interval) {
-                const note = this.getAudioNoteName(this.selectedRootIndex, interval, 3);
-                this.playTone(note, 0.5);
-            },
-            playTone(note, duration = 0.5) {
-                if (!this.audioCtx) this.initAudioContext();
-                if (!this.audioCtx) return;
-                if (this.audioCtx.state === 'suspended') this.audioCtx.resume().catch(() => {});
-                if (!this.piano) return;
-                const node = this.piano.play(note, this.audioCtx.currentTime, { duration, destination: this.reverbInput || undefined });
-                if (node) this.activeAudioNodes.push(node);
-            },
-            playChord() {
-                const chord = this.getCurrentChordObj();
-                chord.notes.forEach((interval, index) => {
-                    setTimeout(() => this.playTone(this.getAudioNoteName(this.selectedRootIndex, interval, 3), 0.8), index * 110);
+                return chordTypes[this.currentCategory]?.[0] || chordTypes.maj[0];
+            }
+
+            update() {
+                const rootName = rootLabels[this.selectedRootIndex];
+                const chordObj = this.getCurrentChordObj();
+                const chordNameFull = `${rootName}${chordObj.name}`;
+
+                const rootBadge = document.getElementById('selected-root-badge');
+                if (rootBadge) rootBadge.textContent = rootName;
+
+                const qualityBadge = document.getElementById('selected-quality-badge');
+                if (qualityBadge) qualityBadge.textContent = this.selectedChordId ? chordObj.name : '-';
+
+                const displayName = document.getElementById('display-chord-name');
+                if (displayName) displayName.textContent = chordNameFull;
+
+                const chordNotesContainer = document.getElementById('display-chord-notes');
+                if (chordNotesContainer) {
+                    chordNotesContainer.innerHTML = '';
+                    const chordSpelled = getSpelledChordNotes(rootName, chordObj);
+                    chordSpelled.forEach((note, idx) => {
+                        const interval = chordObj.notes[idx];
+                        const badge = document.createElement('span');
+                        badge.className = 'px-2 py-0.5 bg-[#2563eb] text-white rounded font-mono font-bold cursor-pointer hover:bg-blue-600 transition shadow-sm';
+                        badge.textContent = note;
+                        badge.type = 'button';
+                        badge.title = `Jouer la note ${note}`;
+                        badge.addEventListener('click', (event) => {
+                            event.stopPropagation();
+                            this.playSingleNote(interval);
+                        });
+                        chordNotesContainer.appendChild(badge);
+                    });
+                }
+
+                this.renderScales(chordObj, rootName);
+            }
+
+            renderScales(chordObj, rootName) {
+                const container = document.getElementById('scales-container');
+                if (!container) return;
+                container.innerHTML = '';
+
+                const scalesList = chordObj.scales || [];
+                const countBadge = document.getElementById('scales-count-badge');
+                if (countBadge) countBadge.textContent = `${scalesList.length} gamme${scalesList.length > 1 ? 's' : ''}`;
+
+                scalesList.forEach((item, index) => {
+                    const scaleDef = scaleDb[item.id];
+                    if (!scaleDef) return;
+
+                    const scaleKey = `${item.id}-${index}`;
+                    const isDesc = !!this.scaleDirections[scaleKey];
+                    const avoidNotes = this.showAvoidNotes ? getAvoidNotes(item.id, chordObj.id) : [];
+                    const characteristicInterval = this.showCharacteristic ? scaleDef.characteristicInterval : null;
+
+                    const card = document.createElement('article');
+                    card.className = 'scale-card';
+
+                    const displayHtml = this.renderScaleVisualization({
+                        scaleDef,
+                        rootName,
+                        chordObj,
+                        scaleKey,
+                        avoidNotes,
+                        characteristicInterval,
+                        isDesc
+                    });
+
+                    card.innerHTML = `
+                        <div class="scale-header">
+                            <div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <h3 class="font-bold text-sm text-white">${rootName} ${scaleDef.name}</h3>
+                                    <span class="scale-badge">${scaleDef.category}</span>
+                                </div>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <span class="text-xs font-medium text-blue-400">${item.role}</span>
+                                    <span class="text-[10px] text-slate-500">• ${isDesc ? 'Descendant' : 'Ascendant'}</span>
+                                </div>
+                            </div>
+                            <button type="button" class="toggle-btn scale-direction-button" data-scale-key="${scaleKey}" aria-label="Inverser le sens">↕</button>
+                        </div>
+                        <p class="text-xs text-slate-400">${scaleDef.desc}</p>
+                        <div class="scale-body">
+                            ${displayHtml}
+                        </div>
+                    `;
+
+                    card.querySelector('.scale-direction-button')?.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        this.toggleScaleDirection(scaleKey);
+                    });
+
+                    container.appendChild(card);
                 });
-            },
-            playArpeggio() {
-                const chord = this.getCurrentChordObj();
-                chord.notes.forEach((interval, index) => {
-                    setTimeout(() => this.playTone(this.getAudioNoteName(this.selectedRootIndex, interval, 3), 0.5), index * 150);
+            }
+
+            renderScaleVisualization({ scaleDef, rootName, chordObj, scaleKey, avoidNotes, characteristicInterval, isDesc }) {
+                const intervals = [...scaleDef.intervals];
+                const spelledNotes = getStrictSpelledNotes(rootName, intervals);
+
+                if (this.visMode === 'staff') {
+                    const notePositions = [];
+                    const lineCount = 5;
+                    const fullWidth = 100;
+                    const marginLeft = 8;
+                    const marginRight = 8;
+                    const usableWidth = fullWidth - marginLeft - marginRight;
+
+                    intervals.forEach((interval, idx) => {
+                        const x = marginLeft + (idx / Math.max(intervals.length - 1, 1)) * usableWidth;
+                        const y = 55 + ((interval % 2 === 0 ? 40 : 10) - (interval * 0.7)) * 0.4;
+                        const isAvoid = avoidNotes.includes(interval);
+                        const isChar = characteristicInterval === interval;
+                        const isTarget = [3, 4, 10, 11].includes(interval) && chordObj.notes.includes(interval);
+
+                        let cls = 'staff-note';
+                        if (isAvoid) cls += ' avoid';
+                        if (isChar) cls += ' char';
+                        if (this.showTargetNotes && isTarget) cls += ' target';
+
+                        notePositions.push(`<span class="${cls}" style="left:${x}%; top:${Math.min(Math.max(y, 20), 100)}%;"></span>`);
+                    });
+
+                    return `
+                        <div class="staff-visual" data-scale-key="${scaleKey}" aria-label="Visualisation de la gamme ${scaleDef.name}" tabindex="0">
+                            <div class="staff-lines">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                            ${notePositions.join('')}
+                        </div>
+                    `;
+                }
+
+                if (this.visMode === 'intervals') {
+                    const intervalNodes = intervals.map((interval) => {
+                        const intervalName = getIntervalLabel(interval, chordObj.notes);
+                        const isMember = chordObj.notes.includes(interval);
+                        const isTarget = [3, 4, 10, 11].includes(interval) && isMember;
+                        const isAvoid = avoidNotes.includes(interval);
+                        const isChar = characteristicInterval === interval;
+                        let klass = 'note-badge';
+                        if (isAvoid) klass += ' avoid';
+                        else if (isChar) klass += ' char';
+                        else if (this.showTargetNotes && isTarget) klass += ' target';
+                        return `<button type="button" class="${klass}" data-interval="${interval}">${intervalName}</button>`;
+                    });
+                    return `<div class="note-badges">${intervalNodes.join('')}</div>`;
+                }
+
+                if (this.visMode === 'notes') {
+                    const noteNodes = [...spelledNotes, getStrictSpelledNotes(rootName, [12])[0]].map((note, i) => {
+                        const interval = i < intervals.length ? intervals[i] : 12;
+                        const checkInterval = interval === 12 ? 0 : interval;
+                        const isMember = chordObj.notes.includes(checkInterval);
+                        const isTarget = [3, 4, 10, 11].includes(checkInterval) && isMember;
+                        const isAvoid = avoidNotes.includes(checkInterval);
+                        const isChar = characteristicInterval === checkInterval;
+                        let klass = 'note-badge';
+                        if (isAvoid) klass += ' avoid';
+                        else if (isChar) klass += ' char';
+                        else if (this.showTargetNotes && isTarget) klass += ' target';
+                        return `<button type="button" class="${klass}" data-interval="${interval}">${note}</button>`;
+                    });
+                    return `<div class="note-badges">${noteNodes.join('')}</div>`;
+                }
+
+                const letters = [...spelledNotes, getStrictSpelledNotes(rootName, [12])[0]].map((note, i) => {
+                    const interval = i < intervals.length ? intervals[i] : 12;
+                    const checkInterval = interval === 12 ? 0 : interval;
+                    const isMember = chordObj.notes.includes(checkInterval);
+                    const isTarget = [3, 4, 10, 11].includes(checkInterval) && isMember;
+                    const isAvoid = avoidNotes.includes(checkInterval);
+                    const isChar = characteristicInterval === checkInterval;
+                    let klass = 'note-badge';
+                    if (isAvoid) klass += ' avoid';
+                    else if (isChar) klass += ' char';
+                    else if (this.showTargetNotes && isTarget) klass += ' target';
+                    return `<button type="button" class="${klass}" data-interval="${interval}">${note}</button>`;
                 });
-            },
+                return `<div class="note-badges">${letters.join('')}</div>`;
+            }
+
+            toggleScaleDirection(scaleKey) {
+                this.scaleDirections[scaleKey] = !this.scaleDirections[scaleKey];
+                this.update();
+            }
+
+            async playSingleNote(interval) {
+                const piano = await this.loadPiano();
+                if (!piano) return;
+                const rootIndex = this.selectedRootIndex;
+                const noteName = this.getAudioNoteName(rootIndex, interval, 3);
+                this.activeAudioNodes.push(piano.play(noteName));
+            }
+
+            async playChord() {
+                const piano = await this.loadPiano();
+                if (!piano) return;
+                const chordObj = this.getCurrentChordObj();
+                const rootIndex = this.selectedRootIndex;
+                const notes = chordObj.notes.map(interval => this.getAudioNoteName(rootIndex, interval, 3));
+                notes.forEach((note, index) => {
+                    setTimeout(() => {
+                        if (this.isLoopMode && this.currentLoopType === 'chord') return;
+                        const node = piano.play(note);
+                        this.activeAudioNodes.push(node);
+                    }, index * 120);
+                });
+            }
+
+            async playArpeggio() {
+                const piano = await this.loadPiano();
+                if (!piano) return;
+                const chordObj = this.getCurrentChordObj();
+                const rootIndex = this.selectedRootIndex;
+                const notes = chordObj.notes.map(interval => this.getAudioNoteName(rootIndex, interval, 3));
+                notes.forEach((note, index) => {
+                    setTimeout(() => {
+                        if (this.isLoopMode && this.currentLoopType === 'arpeggio') return;
+                        const node = piano.play(note);
+                        this.activeAudioNodes.push(node);
+                    }, index * 160);
+                });
+            }
+
             toggleLoopMode() {
-                this.isLoopMode = !this.isLoopMode;
-                const btn = document.getElementById('loop-chord-btn');
-                btn.classList.toggle('active', this.isLoopMode);
                 if (this.isLoopMode) {
-                    this.loopInterval = setInterval(() => this.playChord(), 700);
-                } else if (this.loopInterval) {
+                    this.stopLoop();
+                    return;
+                }
+
+                this.isLoopMode = true;
+                this.currentLoopType = 'chord';
+                const btn = document.getElementById('loop-chord-btn');
+                if (btn) btn.classList.add('active');
+                this.updatePlayButtonStates();
+                this.loopInterval = setInterval(() => {
+                    if (this.currentLoopType === 'chord') {
+                        this.playChord();
+                    } else {
+                        this.playArpeggio();
+                    }
+                }, 900);
+            }
+
+            stopLoop() {
+                this.isLoopMode = false;
+                this.currentLoopType = null;
+                if (this.loopInterval) {
                     clearInterval(this.loopInterval);
                     this.loopInterval = null;
                 }
-            },
-            renderScales(chord, rootLabel) {
-                const container = document.getElementById('scales-container');
-                container.innerHTML = '';
-
-                const compatibleScales = this.getCompatibleScales(chord);
-                document.getElementById('scales-count-badge').textContent = `${compatibleScales.length} gammes`;
-
-                compatibleScales.forEach((scale) => {
-                    const card = document.createElement('article');
-                    card.className = 'scale-card';
-                    card.dataset.scaleKey = `${rootLabel}-${scale.id}`;
-                    card.dataset.scaleIntervals = JSON.stringify(scale.intervals);
-
-                    const header = document.createElement('div');
-                    header.className = 'scale-header';
-                    const left = document.createElement('div');
-                    left.innerHTML = `<div class="text-sm font-semibold text-white">${scale.name}</div><div class="text-[11px] text-slate-400">${scale.category}</div>`;
-                    const badge = document.createElement('span');
-                    badge.className = 'scale-badge';
-                    badge.textContent = scale.category;
-                    header.appendChild(left);
-                    header.appendChild(badge);
-
-                    const body = document.createElement('div');
-                    body.className = 'scale-body';
-
-                    const noteWrap = document.createElement('div');
-                    noteWrap.className = 'note-badges';
-                    const notes = this.getScaleNotesForRoot(rootLabel, scale.intervals);
-                    notes.forEach((note) => {
-                        const button = document.createElement('button');
-                        button.type = 'button';
-                        button.className = 'note-badge';
-                        button.textContent = note;
-                        button.dataset.interval = this.getIntervalFromNote(rootLabel, note);
-                        if (this.showAvoidNotes && this.isAvoidNote(note, scale)) button.classList.add('avoid');
-                        if (this.showTargetNotes && this.isTargetNote(note, chord)) button.classList.add('target');
-                        if (this.showCharacteristic && this.isCharacteristicNote(note, scale)) button.classList.add('char');
-                        button.addEventListener('click', () => this.playSingleNote(Number(button.dataset.interval)));
-                        noteWrap.appendChild(button);
-                    });
-
-                    const visual = document.createElement('div');
-                    visual.className = 'staff-visual';
-                    visual.tabIndex = 0;
-                    visual.setAttribute('role', 'button');
-                    visual.setAttribute('aria-label', `Jouer la gamme ${scale.name}`);
-                    visual.dataset.scaleKey = `${rootLabel}-${scale.id}`;
-                    const lines = document.createElement('div');
-                    lines.className = 'staff-lines';
-                    for (let i = 0; i < 5; i++) lines.appendChild(document.createElement('span'));
-                    visual.appendChild(lines);
-
-                    const generatedNotes = this.getScaleVisualNotes(rootLabel, scale.intervals);
-                    generatedNotes.forEach((note) => {
-                        const dot = document.createElement('span');
-                        dot.className = 'staff-note';
-                        if (this.showAvoidNotes && this.isAvoidNote(note, scale)) dot.classList.add('avoid');
-                        if (this.showCharacteristic && this.isCharacteristicNote(note, scale)) dot.classList.add('char');
-                        dot.style.left = `${note.x}%`;
-                        dot.style.top = `${note.y}%`;
-                        visual.appendChild(dot);
-                    });
-
-                    visual.addEventListener('click', () => {
-                        this.toggleScalePlayback(`${rootLabel}-${scale.id}`, scale.intervals, scale.name, visual);
-                    });
-
-                    body.appendChild(noteWrap);
-                    body.appendChild(visual);
-                    if (this.showCharacteristic) {
-                        const desc = document.createElement('div');
-                        desc.className = 'text-[11px] text-slate-300 mt-2';
-                        desc.textContent = scale.desc;
-                        body.appendChild(desc);
-                    }
-
-                    card.appendChild(header);
-                    card.appendChild(body);
-                    container.appendChild(card);
-                });
-            },
-            getCompatibleScales(chord) {
-                const root = rootLabels[this.selectedRootIndex];
-                return Object.entries(scaleDb)
-                    .map(([id, scale]) => ({ id, ...scale, root, notes: this.getScaleNotesForRoot(root, scale.intervals) }))
-                    .filter((scale) => this.scaleMatchesChord(scale, chord))
-                    .sort((a, b) => a.name.localeCompare(b.name));
-            },
-            scaleMatchesChord(scale, chord) {
-                const root = rootLabels[this.selectedRootIndex];
-                const chordNotes = chord.notes.map((interval) => this.getNoteName(interval, root));
-                const notes = this.getScaleNotesForRoot(root, scale.intervals);
-                const matches = chordNotes.filter((note) => notes.includes(note)).length;
-                return matches >= 2 || scale.id === 'ionian' || scale.id === 'dorian' || scale.id === 'mixolydian';
-            },
-            getScaleNotesForRoot(rootLabel, intervals) {
-                const base = rootLabels.indexOf(rootLabel);
-                return intervals.map((interval) => NOTE_NAMES_SHARP[(base + interval) % 12]);
-            },
-            getScaleVisualNotes(rootLabel, intervals) {
-                const rootIndex = rootLabels.indexOf(rootLabel);
-                return intervals.map((interval, idx) => {
-                    const semitone = (rootIndex + interval) % 12;
-                    const top = 25 + ((11 - semitone) * 4.6);
-                    return { x: 12 + (idx * 13), y: Math.min(80, Math.max(20, top)) };
-                });
-            },
-            isAvoidNote(note, scale) {
-                return scale.id === 'phrygian' && note.includes('F');
-            },
-            isTargetNote(note, chord) {
-                return chord.notes.some(interval => this.getNoteName(interval, rootLabels[this.selectedRootIndex]) === note);
-            },
-            isCharacteristicNote(note, scale) {
-                return this.getScaleNotesForRoot(rootLabels[this.selectedRootIndex], [scale.characteristicInterval]).includes(note);
-            },
-            getIntervalFromNote(rootLabel, note) {
-                const rootIndex = rootLabels.indexOf(rootLabel);
-                const noteIndex = NOTE_NAMES_SHARP.indexOf(note);
-                if (noteIndex === -1) return 0;
-                return (noteIndex - rootIndex + 12) % 12;
-            },
-            toggleScalePlayback(scaleKey, intervals, scaleName, element) {
-                if (typeof window.toggleScalePlayback === 'function') {
-                    return window.toggleScalePlayback(scaleKey, intervals, scaleName, element);
-                }
-                if (typeof this._toggleScalePlayback === 'function') {
-                    return this._toggleScalePlayback(scaleKey, intervals, scaleName, element);
-                }
-                const ordered = [...intervals, 12];
-                const active = this.activePlaybacks[scaleKey];
-                if (active) {
-                    clearTimeout(active);
-                    delete this.activePlaybacks[scaleKey];
-                    return;
-                }
-                const timer = setTimeout(() => {
-                    ordered.forEach((interval, index) => {
-                        setTimeout(() => this.playSingleNote(interval), index * 250);
-                    });
-                    this.activePlaybacks[scaleKey] = setTimeout(() => {
-                        delete this.activePlaybacks[scaleKey];
-                    }, ordered.length * 300 + 250);
-                }, 0);
-                this.activePlaybacks[scaleKey] = timer;
+                const btn = document.getElementById('loop-chord-btn');
+                if (btn) btn.classList.remove('active');
+                this.updatePlayButtonStates();
             }
-        };
 
-        window.app = app;
-        app.mount();
+            updatePlayButtonStates() {
+                const chordBtn = document.getElementById('play-chord-btn');
+                const arpBtn = document.getElementById('play-arp-btn');
+                if (chordBtn) {
+                    chordBtn.classList.toggle('active', this.isLoopMode && this.currentLoopType === 'chord');
+                }
+                if (arpBtn) {
+                    arpBtn.classList.toggle('active', this.isLoopMode && this.currentLoopType === 'arpeggio');
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.app = new ChordScaleApp();
+        });
     </script>
-    <script src="./enhancements.js"></script>
 </body>
 </html>
