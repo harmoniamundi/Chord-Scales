@@ -744,7 +744,7 @@
                 chordSpelled.forEach((n, idx) => {
                     const interval = chordObj.notes[idx];
                     const badge = document.createElement('span');
-                    badge.className = "px-2 py-0.5 bg-[#2563eb] text-white rounded font-mono font-bold cursor-pointer hover:bg-blue-600 transition shadow-sm";
+                    badge.className = "px-2 py-0.5 bg-[#3b82f6] text-white rounded font-mono font-bold cursor-pointer hover:bg-blue-500 transition shadow-sm";
                     badge.textContent = n;
                     badge.onclick = (e) => {
                         e.stopPropagation();
@@ -805,7 +805,7 @@
                             let badgeClass = "bg-[#1a1a1a] text-slate-400 border border-[#333333]";
                             if (isAvoid) badgeClass = "bg-rose-500/20 text-rose-300 border border-rose-500/50";
                             else if (isChar) badgeClass = "bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold";
-                            else if (highlightBlue) badgeClass = "bg-[#2563eb] text-white shadow-sm";
+                            else if (highlightBlue) badgeClass = "bg-[#3b82f6] text-white shadow-sm font-semibold";
 
                             intervalsHtml += `<span onclick="app.playSingleNote(${interval}); event.stopPropagation();" class="px-2.5 py-1.5 text-xs font-mono rounded-lg cursor-pointer transition flex items-center justify-center ${badgeClass}">${intervalName}</span>`;
                         });
@@ -832,7 +832,7 @@
                             let badgeClass = "bg-[#1a1a1a] text-slate-400 border border-[#333333]";
                             if (isAvoid) badgeClass = "bg-rose-500/20 text-rose-300 border border-rose-500/50";
                             else if (isChar) badgeClass = "bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold";
-                            else if (highlightBlue && i < scaleDef.intervals.length) badgeClass = "bg-[#2563eb] text-white shadow-sm";
+                            else if (highlightBlue && i < scaleDef.intervals.length) badgeClass = "bg-[#3b82f6] text-white shadow-sm font-semibold";
 
                             notesHtml += `<span onclick="app.playSingleNote(${interval}); event.stopPropagation();" class="px-2.5 py-1.5 text-xs font-mono rounded-lg cursor-pointer transition flex items-center justify-center ${badgeClass}">${frenchName}</span>`;
                         });
@@ -858,7 +858,7 @@
                             let badgeClass = "bg-[#1a1a1a] text-slate-400 border border-[#333333]";
                             if (isAvoid) badgeClass = "bg-rose-500/20 text-rose-300 border border-rose-500/50";
                             else if (isChar) badgeClass = "bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold";
-                            else if (highlightBlue && i < scaleDef.intervals.length) badgeClass = "bg-[#2563eb] text-white shadow-sm";
+                            else if (highlightBlue && i < scaleDef.intervals.length) badgeClass = "bg-[#3b82f6] text-white shadow-sm font-semibold";
 
                             notesHtml += `<span onclick="app.playSingleNote(${interval}); event.stopPropagation();" class="px-2.5 py-1.5 text-xs font-mono rounded-lg cursor-pointer transition flex items-center justify-center ${badgeClass}">${noteName}</span>`;
                         });
@@ -1010,7 +1010,7 @@
                         } else if (characteristicInterval !== null && characteristicInterval === checkInterval) {
                             note.setStyle({fillStyle: "#f59e0b", strokeStyle: "#f59e0b"});
                         } else if (highlightBlue) {
-                            note.setStyle({fillStyle: "#2563eb", strokeStyle: "#2563eb"});
+                            note.setStyle({fillStyle: "#3b82f6", strokeStyle: "#3b82f6"});
                         }
 
                         return note;
