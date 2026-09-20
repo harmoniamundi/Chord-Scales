@@ -1,334 +1,645 @@
 <!DOCTYPE html>
 <html lang="fr" class="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chord Scales Machine</title>
     <script src="https://cdn.jsdelivr.net/npm/tailwindcss-cdn@3.4.10/tailwindcss.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        mac: {
-                            bg: '#1e1e1e',
-                            sidebar: '#252525',
-                            card: '#2d2d2d',
-                            border: '#383838',
-                            accent: '#0a84ff',
-                            accentHover: '#0071e3'
-                        }
-                    },
-                    fontFamily: {
-                        sans: ['-apple-system', 'BlinkMacSystemFont', "SF Pro Text", "SF Pro Icons", "Helvetica Neue", "Arial", sans-serif],
-                        mono: ['SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace]
-                    }
-                }
-            }
-        }
-    </script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Helvetica Neue", sans-serif; }
+        :root {
+            --bg: #121212;
+            --panel: #1e1e1e;
+            --panel-2: #222222;
+            --panel-3: #252525;
+            --border: #333333;
+            --muted: #94a3b8;
+            --text: #f8fafc;
+            --blue: #2563eb;
+            --blue-soft: rgba(37, 99, 235, 0.2);
+            --rose-soft: rgba(244, 63, 94, 0.18);
+            --amber-soft: rgba(245, 158, 11, 0.18);
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            min-height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background: var(--bg);
+        }
+
+        button {
+            font: inherit;
+        }
+
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.4); }
-        .vf-stavenote { transition: opacity 0.1s; }
-        .vf-stavenote:hover { opacity: 0.7; }
-        #scales-container { grid-auto-rows: max-content; }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        .app-shell {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            background: var(--panel);
+        }
+
+        .titlebar {
+            height: 52px;
+            display: flex;
+            align-items: center;
+            padding: 0 1rem;
+            border-bottom: 1px solid var(--border);
+            background: #282828;
+        }
+
+        .content-shell {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 380px;
+            flex: 0 0 380px;
+            background: var(--panel-2);
+            border-right: 1px solid var(--border);
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .main-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            min-height: 0;
+            background: var(--panel);
+        }
+
+        .panel-card {
+            background: #2c2c2e;
+            border: 1px solid #3a3a3c;
+            border-radius: 16px;
+            padding: 1rem;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+        }
+
+        .muted-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #7dd3fc;
+            font-weight: 700;
+        }
+
+        .section-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #cbd5e1;
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            padding: 0.2rem 0.5rem;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1.4;
+        }
+
+        .tag-blue { background: rgba(37,99,235,0.18); color: #bfdbfe; }
+        .tag-purple { background: rgba(168,85,247,0.18); color: #e9d5ff; }
+        .tag-rose { background: rgba(244,63,94,0.18); color: #fecdd3; }
+        .tag-amber { background: rgba(245,158,11,0.18); color: #fde68a; }
+
+        .chip {
+            border: 1px solid var(--border);
+            border-radius: 0.7rem;
+            background: rgba(255,255,255,0.02);
+            color: #e2e8f0;
+            transition: 160ms ease;
+        }
+
+        .chip:hover {
+            background: rgba(255,255,255,0.04);
+        }
+
+        .chip-active {
+            background: rgba(58, 89, 180, 0.22);
+            color: white;
+            border-color: rgba(59,130,246,0.8);
+            box-shadow: 0 1px 0 rgba(255,255,255,0.04);
+        }
+
+        .btn-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.25rem;
+            height: 2.25rem;
+            border-radius: 0.6rem;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.02);
+            color: #e2e8f0;
+            transition: 160ms ease;
+            cursor: pointer;
+        }
+
+        .btn-icon:hover {
+            background: rgba(255,255,255,0.06);
+        }
+
+        .btn-icon.active {
+            background: rgba(37,99,235,0.75);
+            border-color: rgba(96,165,250,0.9);
+            color: white;
+        }
+
+        .root-grid {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 0.375rem;
+        }
+
+        .quality-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.375rem;
+        }
+
+        .pill-button {
+            border: 1px solid var(--border);
+            border-radius: 0.7rem;
+            background: rgba(255,255,255,0.02);
+            color: #cbd5e1;
+            transition: 140ms ease;
+            cursor: pointer;
+        }
+
+        .pill-button:hover {
+            color: white;
+        }
+
+        .pill-button.active {
+            background: rgba(37,99,235,0.25);
+            color: white;
+            border-color: rgba(96,165,250,0.85);
+        }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.8rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            background: #252525;
+        }
+
+        .toggle-btn {
+            appearance: none;
+            border: 1px solid var(--border);
+            background: rgba(255,255,255,0.03);
+            color: #cbd5e1;
+            border-radius: 0.55rem;
+            padding: 0.15rem 0.5rem;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 120ms ease;
+        }
+
+        .toggle-btn[aria-pressed="true"] {
+            border-color: rgba(96,165,250,0.7);
+            color: #dbeafe;
+            background: rgba(59,130,246,0.18);
+        }
+
+        .mode-group {
+            display: inline-flex;
+            gap: 0.25rem;
+            padding: 0.2rem;
+            border-radius: 0.8rem;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+        }
+
+        .mode-button {
+            border: 0;
+            border-radius: 0.55rem;
+            background: transparent;
+            color: #cbd5e1;
+            padding: 0.35rem 0.7rem;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 120ms ease;
+        }
+
+        .mode-button.active {
+            background: rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        #scales-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1rem;
+            padding: 1.25rem;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .scale-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .scale-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .scale-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            padding: 0.2rem 0.45rem;
+            font-size: 10px;
+            border: 1px solid var(--border);
+            background: rgba(255,255,255,0.03);
+            color: #cbd5e1;
+        }
+
+        .scale-body {
+            border-top: 1px solid var(--border);
+            padding-top: 0.75rem;
+        }
+
+        .note-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+
+        .note-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 2.25rem;
+            padding: 0.35rem 0.45rem;
+            border-radius: 0.5rem;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(15,23,42,0.42);
+            color: #e2e8f0;
+            font-size: 11px;
+            font-weight: 700;
+            font-family: "SF Mono", Menlo, monospace;
+            cursor: pointer;
+            transition: 120ms ease;
+        }
+
+        .note-badge:hover {
+            background: rgba(37,99,235,0.2);
+        }
+
+        .note-badge.avoid {
+            background: rgba(244,63,94,0.18);
+            border-color: rgba(244,63,94,0.42);
+            color: #fecdd3;
+        }
+
+        .note-badge.char { background: rgba(245,158,11,0.18); border-color: rgba(245,158,11,0.42); color: #fde68a; }
+        .note-badge.target { background: rgba(37,99,235,0.25); border-color: rgba(96,165,250,0.8); color: white; }
+
+        .staff-visual {
+            position: relative;
+            border-radius: 0.8rem;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.97);
+            height: 140px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .staff-lines {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .staff-lines span {
+            display: block;
+            height: 1px;
+            background: rgba(15, 23, 42, 0.6);
+            margin: 0 0.75rem;
+        }
+
+        .staff-note {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37,99,235,0.2);
+            transform: translate(-50%, -50%);
+        }
+
+        .staff-note.avoid {
+            background: #ef4444;
+            box-shadow: 0 0 0 2px rgba(239,68,68,0.2);
+        }
+
+        .staff-note.char {
+            background: #f59e0b;
+            box-shadow: 0 0 0 2px rgba(245,158,11,0.2);
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
     </style>
 </head>
 <body class="bg-[#121212] text-slate-100 selection:bg-blue-500 selection:text-white">
-
-    <div class="flex flex-col min-h-screen lg:h-screen lg:overflow-hidden bg-[#1e1e1e]">
-        
-        <header class="bg-[#282828] border-b border-[#333333] px-4 py-3 flex items-center justify-between select-none shrink-0">
+    <div class="app-shell">
+        <header class="titlebar">
             <div class="flex items-center space-x-2">
                 <span class="text-xs font-semibold text-slate-300">Chord Scales Machine</span>
             </div>
         </header>
 
-        <div class="flex-1 flex flex-col lg:flex-row lg:overflow-hidden min-h-0 min-w-0">
-            
-            <aside class="w-full lg:w-[380px] bg-[#222222] border-r border-[#333333] flex flex-col p-4 space-y-5 shrink-0 lg:overflow-y-auto custom-scrollbar">
-                
-                <div class="bg-[#2c2c2e] border border-[#3a3a3c] rounded-lg p-4 shadow-inner relative overflow-hidden shrink-0">
+        <div class="content-shell">
+            <aside class="sidebar custom-scrollbar">
+                <div class="panel-card">
                     <div class="flex justify-between items-start mb-2">
                         <div>
-                            <span class="text-[10px] font-semibold text-blue-400 uppercase tracking-wider">Accord Actuel</span>
-                            <div class="text-2xl font-bold tracking-tight text-white mt-0.5" id="display-chord-name">Cmaj7</div>
+                            <span class="muted-label">Accord actuel</span>
+                            <div id="display-chord-name" class="text-2xl font-bold tracking-tight text-white mt-0.5">Cmaj7</div>
                         </div>
                         <div class="flex items-center gap-1.5">
-                            <button onclick="app.playChord()" id="play-chord-btn" class="bg-[#3a3a3c] hover:bg-[#4a4a4c] text-slate-200 p-2 rounded-md border border-[#4a4a4c] transition flex items-center justify-center" title="Écouter l'accord plaqué">
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            <button id="play-chord-btn" type="button" class="btn-icon" aria-label="Jouer l'accord" title="Jouer l'accord">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
                             </button>
-                            <button onclick="app.playArpeggio()" id="play-arp-btn" class="bg-[#3a3a3c] hover:bg-[#4a4a4c] text-slate-200 p-2 rounded-md border border-[#4a4a4c] transition flex items-center justify-center" title="Écouter l'arpège">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
+                            <button id="play-arp-btn" type="button" class="btn-icon" aria-label="Jouer l'arpège" title="Jouer l'arpège">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13 5v14M5 12h14"/></svg>
                             </button>
-                            <button onclick="app.toggleLoopMode()" id="loop-chord-btn" class="bg-[#3a3a3c] hover:bg-[#4a4a4c] text-slate-200 p-2 rounded-md border border-[#4a4a4c] transition flex items-center justify-center" title="Activer/Désactiver le mode boucle">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            <button id="loop-chord-btn" type="button" class="btn-icon" aria-label="Activer la boucle" title="Activer la boucle">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A7 7 0 0 0 10 4H4m16 16v-5h-.582m-15.356-2A7 7 0 0 0 14 20h6"/></svg>
                             </button>
                         </div>
                     </div>
+
                     <div class="mt-3 pt-2.5 border-t border-[#3a3a3c]">
                         <span class="text-[10px] text-slate-400 block mb-1">Notes :</span>
-                        <div class="flex flex-wrap gap-1" id="display-chord-notes"></div>
+                        <div id="display-chord-notes" class="flex flex-wrap gap-1" aria-live="polite"></div>
                     </div>
                 </div>
 
-                <div class="space-y-2 shrink-0">
+                <div class="space-y-2 mt-5">
                     <div class="flex justify-between items-center px-1">
-                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tonalité Instrumentale</span>
-                        <span id="selected-transposition-badge" class="text-xs px-2.5 py-0.5 bg-purple-500/20 text-purple-300 rounded-md font-mono font-bold shadow">Bb</span>
+                        <span class="section-label">Tonalité instrumentale</span>
+                        <span id="selected-transposition-badge" class="tag tag-purple">Bb</span>
                     </div>
                     <div class="flex bg-[#1a1a1a] p-1 rounded-lg text-xs font-medium border border-[#333333]">
-                        <button onclick="app.setInstrumentKey('Bb')" id="trans-btn-Bb" class="flex-1 py-1 rounded-md transition bg-[#3a3a3c] text-white shadow-sm">Bb</button>
-                        <button onclick="app.setInstrumentKey('C')" id="trans-btn-C" class="flex-1 py-1 rounded-md transition text-slate-400 hover:text-white">C</button>
-                        <button onclick="app.setInstrumentKey('Eb')" id="trans-btn-Eb" class="flex-1 py-1 rounded-md transition text-slate-400 hover:text-white">Eb</button>
+                        <button type="button" class="pill-button flex-1 py-1 rounded-md transition active" data-key="Bb">Bb</button>
+                        <button type="button" class="pill-button flex-1 py-1 rounded-md transition" data-key="C">C</button>
+                        <button type="button" class="pill-button flex-1 py-1 rounded-md transition" data-key="Eb">Eb</button>
                     </div>
                 </div>
 
-                <div class="space-y-2 shrink-0">
+                <div class="space-y-2 mt-5">
                     <div class="flex justify-between items-center px-1">
-                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">1. Fondamentale</span>
-                        <span id="selected-root-badge" class="text-xs px-2.5 py-1 bg-[#2563eb] text-white rounded-md font-mono font-bold shadow">C</span>
+                        <span class="section-label">1. Fondamentale</span>
+                        <span id="selected-root-badge" class="tag tag-blue">C</span>
                     </div>
-                    <div class="grid grid-cols-6 gap-1.5" id="root-buttons-container"></div>
+                    <div id="root-buttons-container" class="root-grid"></div>
                 </div>
 
-                <div class="space-y-2 shrink-0">
+                <div class="space-y-2 mt-5">
                     <div class="flex justify-between items-center px-1">
-                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">2. Qualité</span>
-                        <span id="selected-quality-badge" class="text-xs px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded font-mono font-bold">maj7</span>
+                        <span class="section-label">2. Qualité</span>
+                        <span id="selected-quality-badge" class="tag tag-purple">maj7</span>
                     </div>
-                    
                     <div class="flex bg-[#1a1a1a] p-1 rounded-lg text-xs font-medium border border-[#333333]">
-                        <button onclick="app.setQualityCategory('maj')" id="cat-btn-maj" class="flex-1 py-1 rounded-md transition bg-[#3a3a3c] text-white shadow-sm">Maj</button>
-                        <button onclick="app.setQualityCategory('min')" id="cat-btn-min" class="flex-1 py-1 rounded-md transition text-slate-400 hover:text-white">Min</button>
-                        <button onclick="app.setQualityCategory('dom')" id="cat-btn-dom" class="flex-1 py-1 rounded-md transition text-slate-400 hover:text-white">Dom</button>
-                        <button onclick="app.setQualityCategory('other')" id="cat-btn-other" class="flex-1 py-1 rounded-md transition text-slate-400 hover:text-white">Autre</button>
+                        <button type="button" class="pill-button flex-1 py-1 rounded-md transition active" data-cat="maj">Maj</button>
+                        <button type="button" class="pill-button flex-1 py-1 rounded-md transition" data-cat="min">Min</button>
+                        <button type="button" class="pill-button flex-1 py-1 rounded-md transition" data-cat="dom">Dom</button>
+                        <button type="button" class="pill-button flex-1 py-1 rounded-md transition" data-cat="other">Autre</button>
                     </div>
-
-                    <div class="grid grid-cols-2 gap-1.5 pt-1" id="quality-buttons-container"></div>
+                    <div id="quality-buttons-container" class="quality-grid pt-1"></div>
                 </div>
-
             </aside>
 
-            <main class="flex-1 bg-[#1e1e1e] flex flex-col lg:overflow-hidden min-w-0 min-h-0">
-                
-                <div class="bg-[#252525] border-b border-[#333333] px-6 py-3.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
-                    <div>
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <h2 class="text-sm font-bold text-white">Gammes Compatibles</h2>
-                            <span id="scales-count-badge" class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-500/20 text-blue-300">0 gammes</span>
-                            <button onclick="app.toggleShowTargetNotes()" id="btn-toggle-target" class="px-2 py-0.5 rounded text-[11px] font-semibold transition bg-[#1a1a1a] text-slate-500 border border-[#333333]">Notes cibles</button>
-                            <button onclick="app.toggleShowAvoid()" id="btn-toggle-avoid" class="px-2 py-0.5 rounded text-[11px] font-semibold transition bg-[#1a1a1a] text-slate-500 border border-[#333333]">Notes à éviter</button>
-                            <button onclick="app.toggleShowCharacteristic()" id="btn-toggle-characteristic" class="px-2 py-0.5 rounded text-[11px] font-semibold transition bg-[#1a1a1a] text-slate-500 border border-[#333333]">Note caractéristique</button>
-                        </div>
+            <main class="main-panel">
+                <div class="toolbar">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h2 class="text-sm font-bold text-white">Gammes compatibles</h2>
+                        <span id="scales-count-badge" class="tag tag-blue">0 gammes</span>
+                        <button id="btn-toggle-target" type="button" class="toggle-btn" aria-pressed="false">Notes ciblées</button>
+                        <button id="btn-toggle-avoid" type="button" class="toggle-btn" aria-pressed="false">Notes à éviter</button>
+                        <button id="btn-toggle-characteristic" type="button" class="toggle-btn" aria-pressed="false">Note caractéristique</button>
                     </div>
 
-                    <div class="flex items-center gap-3 w-full sm:w-auto">
-                        <div class="flex bg-[#1a1a1a] p-1 rounded-lg text-xs font-medium border border-[#333333]">
-                            <button onclick="app.setVisMode('staff')" id="vmode-staff" class="py-1 px-2.5 rounded-md transition bg-[#3a3a3c] text-white shadow-sm">Portée</button>
-                            <button onclick="app.setVisMode('intervals')" id="vmode-intervals" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Intervalles</button>
-                            <button onclick="app.setVisMode('notes')" id="vmode-notes" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Notes</button>
-                            <button onclick="app.setVisMode('letters')" id="vmode-letters" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Lettres</button>
+                    <div class="ml-auto">
+                        <div class="mode-group">
+                            <button type="button" class="mode-button active" data-mode="staff">Portée</button>
+                            <button type="button" class="mode-button" data-mode="intervals">Intervalles</button>
+                            <button type="button" class="mode-button" data-mode="notes">Notes</button>
+                            <button type="button" class="mode-button" data-mode="letters">Lettres</button>
                         </div>
                     </div>
                 </div>
 
-                <div id="scales-container" class="flex-1 lg:overflow-y-auto custom-scrollbar p-6 grid grid-cols-1 xl:grid-cols-2 gap-4 content-start"></div>
-
+                <div id="scales-container" class="custom-scrollbar" aria-live="polite"></div>
             </main>
-
         </div>
-
     </div>
 
     <script>
         const rootLabels = ["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
-        
-        const majorScalesSpelling = {
-            "C":  ["C", "D", "E", "F", "G", "A", "B"],
-            "Db": ["Db", "Eb", "F", "Gb", "Ab", "Bb", "C"],
-            "D":  ["D", "E", "F#", "G", "A", "B", "C#"],
-            "Eb": ["Eb", "F", "G", "Ab", "Bb", "C", "D"],
-            "E":  ["E", "F#", "G#", "A", "B", "C#", "D#"],
-            "F":  ["F", "G", "A", "Bb", "C", "D", "E"],
-            "F#": ["F#", "G#", "A#", "B", "C#", "D#", "E#"],
-            "Gb": ["Gb", "Ab", "Bb", "Cb", "Db", "Eb", "F"],
-            "G":  ["G", "A", "B", "C", "D", "E", "F#"],
-            "Ab": ["Ab", "Bb", "C", "Db", "Eb", "F", "G"],
-            "A":  ["A", "B", "C#", "D", "E", "F#", "G#"],
-            "Bb": ["Bb", "C", "D", "Eb", "F", "G", "A"],
-            "B":  ["B", "C#", "D#", "E", "F#", "G#", "A#"]
+        const NOTE_NAMES_SHARP = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const NOTE_NAMES_FLAT = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+        const NATURAL_SEMITONES = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+
+        const scaleDb = {
+            ionian: { name: "Ionien (Gamme majeure)", category: "Diatonique", intervals: [0, 2, 4, 5, 7, 9, 11], characteristicInterval: 11, desc: "Utilisé sur le degré I. La quarte frotte avec la tierce majeure et la dominante en jazz moderne." },
+            lydian: { name: "Lydien", category: "Diatonique / Majeur", intervals: [0, 2, 4, 6, 7, 9, 11], characteristicInterval: 6, desc: "Choix principal en jazz moderne pour éviter la quarte juste dissonante." },
+            lydianAug: { name: "Lydien Augmenté", category: "Mineur Mélodique", intervals: [0, 2, 4, 6, 8, 9, 11], characteristicInterval: 8, desc: "Sur Maj7#5 (degré III du mineur mélodique)." },
+            harmonicMajor: { name: "Majeur Harmonique", category: "Emprunt Modal", intervals: [0, 2, 4, 5, 7, 8, 11], characteristicInterval: 8, desc: "Sert aux emprunts modaux pour apporter une couleur sombre." },
+            majorBebop: { name: "Gamme Bebop Majeure", category: "Bebop", intervals: [0, 2, 4, 5, 7, 8, 9, 11], characteristicInterval: 8, desc: "Ajoute un chromatisme entre la quinte et la septième majeure." },
+            majorPentatonic: { name: "Pentatonique Majeure", category: "Pentatonique", intervals: [0, 2, 4, 7, 9], characteristicInterval: 9, desc: "Retire les demi-tons pour une sonorité ouverte et consonante." },
+            majorBlues: { name: "Gamme Blues Majeure", category: "Blues", intervals: [0, 2, 3, 4, 7, 9], characteristicInterval: 3, desc: "Introduit la tierce mineure comme approche chromatique." },
+            dorian: { name: "Dorien", category: "Diatonique / Mineur", intervals: [0, 2, 3, 5, 7, 9, 10], characteristicInterval: 9, desc: "Degré II. La sixte majeure stabilise l'accord." },
+            melodicMinor: { name: "Mineur Mélodique", category: "Mineur Mélodique", intervals: [0, 2, 3, 5, 7, 9, 11], characteristicInterval: 11, desc: "Sur mMaj7 ou m6. Accord de tonique mineure de référence." },
+            aeolian: { name: "Éolien (Mineur naturel)", category: "Diatonique / Mineur", intervals: [0, 2, 3, 5, 7, 8, 10], characteristicInterval: 8, desc: "Degré VI. La b6 frotte contre la quinte et la dominante." },
+            phrygian: { name: "Phrygien", category: "Diatonique / Mineur", intervals: [0, 1, 3, 5, 7, 8, 10], characteristicInterval: 1, desc: "Degré III. Très dissonant." },
+            harmonicMinor: { name: "Mineur Harmonique", category: "Mineur Harmonique", intervals: [0, 2, 3, 5, 7, 8, 11], characteristicInterval: 11, desc: "Sur mMaj7 avec une couleur classique marquée." },
+            minorBebop: { name: "Bebop Mineure (Dorienne)", category: "Bebop", intervals: [0, 2, 3, 5, 7, 9, 10, 11], characteristicInterval: 11, desc: "Ajoute la septième majeure comme chromatisme de passage." },
+            minorPentatonic: { name: "Pentatonique Mineure", category: "Pentatonique", intervals: [0, 3, 5, 7, 10], characteristicInterval: 3, desc: "Choix standard, élimine les risques de frottement." },
+            bluesScale: { name: "Gamme Blues", category: "Pentatonique / Blues", intervals: [0, 3, 5, 6, 7, 10], characteristicInterval: 6, desc: "L'ajout de la blue note crée de la tension sans changer la nature mineure." },
+            mixolydian: { name: "Mixolydien", category: "Diatonique / Dominant", intervals: [0, 2, 4, 5, 7, 9, 10], characteristicInterval: 10, desc: "Sur un V7 classique non altéré." },
+            lydianDominant: { name: "Lydien Dominant (Lydien b7)", category: "Mineur Mélodique", intervals: [0, 2, 4, 6, 7, 9, 10], characteristicInterval: 6, desc: "Pour les V7 qui ne résolvent pas en quinte juste." },
+            altered: { name: "Altéré (Super Locrien)", category: "Mineur Mélodique", intervals: [0, 1, 3, 4, 6, 8, 10], characteristicInterval: 1, desc: "Pour V7 résolvant sur un I. Contient toutes les altérations de la dominante." },
+            mixolydianFlat13: { name: "Mixolydien b13", category: "Mineur Mélodique", intervals: [0, 2, 4, 5, 7, 8, 10], characteristicInterval: 8, desc: "5e mode du mineur mélodique." },
+            phrygianDominant: { name: "Phrygien Dominant", category: "Mineur Harmonique", intervals: [0, 1, 4, 5, 7, 8, 10], characteristicInterval: 1, desc: "Pour V7 vers un accord mineur." },
+            mixolydianFlat9: { name: "Mixolydien b9", category: "Majeur Harmonique", intervals: [0, 1, 4, 5, 7, 9, 10], characteristicInterval: 1, desc: "5e mode du majeur harmonique." },
+            dominantBebop: { name: "Bebop Dominante", category: "Bebop", intervals: [0, 2, 4, 5, 7, 9, 10, 11], characteristicInterval: 11, desc: "Chromatisme entre la septième mineure et la fondamentale." },
+            halfWholeDim: { name: "Demi-Ton / Ton (Octatonique)", category: "Symétrique", intervals: [0, 1, 3, 4, 6, 7, 9, 10], characteristicInterval: 1, desc: "Sur accords 7b9 ou 7#9, garde la quinte juste et la tension." },
+            wholeTone: { name: "Par Tons (Hexatonique)", category: "Symétrique", intervals: [0, 2, 4, 6, 8, 10], characteristicInterval: 6, desc: "Sur les accords 7#5, sans 9ème altérée." },
+            locrianSharp2: { name: "Locrien bécarre 2", category: "Mineur Mélodique", intervals: [0, 2, 3, 5, 6, 8, 10], characteristicInterval: 2, desc: "Choix moderne par défaut sur le degré II d'un mineur mélodique." },
+            locrian: { name: "Locrien", category: "Diatonique", intervals: [0, 1, 3, 5, 6, 8, 10], characteristicInterval: 1, desc: "Degré VII de la gamme majeure." },
+            minorPentatonicFlat5: { name: "Pentatonique mineure b5", category: "Pentatonique", intervals: [0, 3, 5, 6, 10], characteristicInterval: 6, desc: "Version allégée du Locrien." },
+            wholeHalfDim: { name: "Ton / Demi-Ton (Octatonique)", category: "Symétrique", intervals: [0, 2, 3, 5, 6, 8, 9, 11], characteristicInterval: 9, desc: "Option principale, couvre la structure symétrique d'un accord diminué." }
         };
 
-        function getStrictSpelledNotes(rootName, intervals) {
-            const baseLetters = majorScalesSpelling[rootName] || majorScalesSpelling["C"];
-            const notesSharpRef = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-            const notesFlatRef = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
-            let rootSemi = 0;
-            for(let i=0; i<12; i++) {
-                if(notesSharpRef[i] === rootName || notesFlatRef[i] === rootName) {
-                    rootSemi = i;
-                    break;
-                }
-            }
+        const chordTypes = {
+            maj: [
+                { id: "maj7", name: "maj7", fullName: "Majeur 7", notes: [0, 4, 7, 11], scales: [{ id: "lydian", role: "Principal (Moderne)" }, { id: "ionian", role: "Degré I" }, { id: "harmonicMajor", role: "Emprunt modal" }, { id: "majorBebop", role: "Rythme Bebop" }, { id: "majorPentatonic", role: "Consonance ouverte" }] },
+                { id: "maj9", name: "maj9", fullName: "Majeur 9", notes: [0, 4, 7, 11, 2], scales: [{ id: "lydian", role: "Principal" }, { id: "ionian", role: "Degré I" }] },
+                { id: "6", name: "6", fullName: "Sixte", notes: [0, 4, 7, 9], scales: [{ id: "ionian", role: "Principal" }, { id: "lydian", role: "Moderne" }, { id: "majorBebop", role: "Bebop" }, { id: "majorPentatonic", role: "Consonance" }] },
+                { id: "maj7sharp11", name: "maj7(#11)", fullName: "Majeur 7 dièse 11", notes: [0, 4, 7, 11, 6], scales: [{ id: "lydian", role: "Principal" }, { id: "lydianAug", role: "Avancé" }] },
+                { id: "maj7sharp5", name: "maj7(#5)", fullName: "Majeur 7 quinte augmentée", notes: [0, 4, 8, 11], scales: [{ id: "lydianAug", role: "Principal" }, { id: "majorBebop", role: "Alternatif" }] }
+            ],
+            min: [
+                { id: "m7", name: "m7", fullName: "Mineur 7", notes: [0, 3, 7, 10], scales: [{ id: "dorian", role: "Principal (Degré II)" }, { id: "aeolian", role: "Degré VI (b6 frotte)" }, { id: "phrygian", role: "Désaccord" }, { id: "minorBebop", role: "Approche Bebop" }, { id: "minorPentatonic", role: "Sans frottement" }] },
+                { id: "m9", name: "m9", fullName: "Mineur 9", notes: [0, 3, 7, 10, 2], scales: [{ id: "dorian", role: "Principal" }, { id: "aeolian", role: "Secondaire" }, { id: "minorBebop", role: "Bebop" }] },
+                { id: "m11", name: "m11", fullName: "Mineur 11", notes: [0, 3, 7, 10, 2, 5], scales: [{ id: "dorian", role: "Principal" }, { id: "aeolian", role: "Naturel" }] },
+                { id: "mmaj7", name: "m(maj7)", fullName: "Mineur-Majeur 7", notes: [0, 3, 7, 11], scales: [{ id: "melodicMinor", role: "Principal (Tonique mineure)" }, { id: "harmonicMinor", role: "Classique" }] }
+            ],
+            dom: [
+                { id: "7", name: "7", fullName: "Dominante 7", notes: [0, 4, 7, 10], scales: [{ id: "mixolydian", role: "Principal (Non altéré)" }, { id: "lydianDominant", role: "Sans résolution juste" }, { id: "dominantBebop", role: "Bebop" }, { id: "bluesScale", role: "Blues/Rock/Funk" }, { id: "mixolydianFlat9", role: "Mixolydien b9" }] },
+                { id: "9", name: "9", fullName: "Dominante 9", notes: [0, 4, 7, 10, 2], scales: [{ id: "mixolydian", role: "Principal" }, { id: "lydianDominant", role: "Recommandé (#11)" }, { id: "dominantBebop", role: "Bebop" }] },
+                { id: "7alt", name: "7alt", fullName: "Dominante Altérée", notes: [0, 4, 6, 10], scales: [{ id: "altered", role: "Principal" }, { id: "halfWholeDim", role: "Alternative" }] },
+                { id: "7b9", name: "7(b9)", fullName: "Dominante 9 mineure", notes: [0, 4, 7, 10, 1], scales: [{ id: "halfWholeDim", role: "Principal (Symétrique)" }, { id: "phrygianDominant", role: "Vers accord mineur" }] },
+                { id: "7sharp5", name: "7(#5)", fullName: "Dominante 7 quinte augmentée", notes: [0, 4, 8, 10], scales: [{ id: "wholeTone", role: "Principal (Ton par ton)" }, { id: "altered", role: "Altéré" }] }
+            ],
+            other: [
+                { id: "m7b5", name: "m7b5", fullName: "Semi-diminué (Half-dim)", notes: [0, 3, 6, 10], scales: [{ id: "locrianSharp2", role: "Principal Moderne (Degré II)" }, { id: "locrian", role: "Classique (Degré VII)" }, { id: "minorPentatonicFlat5", role: "Allégée" }] },
+                { id: "dim7", name: "dim7", fullName: "Diminué 7", notes: [0, 3, 6, 9], scales: [{ id: "wholeHalfDim", role: "Principal (Couvre la structure symétrique)" }] },
+                { id: "7sus4", name: "7sus4", fullName: "Dominante Suspendue", notes: [0, 5, 7, 10], scales: [{ id: "mixolydian", role: "Principal" }, { id: "dorian", role: "Aérien" }, { id: "phrygian", role: "Modal / Sus4 b9" }] }
+            ]
+        };
 
-            if (intervals.length === 7) {
-                return intervals.map((interval, idx) => {
-                    const targetSemi = (rootSemi + interval) % 12;
-                    const baseNote = baseLetters[idx];
-                    const baseNoteLetter = baseNote[0];
-                    const naturalSemis = { 'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11 };
-                    const natSemi = naturalSemis[baseNoteLetter];
-                    let diff = targetSemi - natSemi;
-                    if (diff > 6) diff -= 12;
-                    if (diff < -6) diff += 12;
-
-                    let acc = "";
-                    if (diff === 1) acc = "#";
-                    else if (diff === 2) acc = "##";
-                    else if (diff === -1) acc = "b";
-                    else if (diff === -2) acc = "bb";
-
-                    const useFlats = rootName.includes('b') || ['F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb'].includes(rootName);
-                    if (useFlats) {
-                        const flatPreferred = { 1: 'Db', 3: 'Eb', 6: 'Gb', 8: 'Ab', 10: 'Bb' };
-                        if (flatPreferred[targetSemi] && flatPreferred[targetSemi][0] === baseNoteLetter) {
-                            return flatPreferred[targetSemi];
-                        }
-                    }
-                    return baseNoteLetter + acc;
-                });
-            } else {
-                const hasMinorThird = intervals.includes(3);
-                
-                if (hasMinorThird && !intervals.includes(4)) {
-                    const relMajorSemi = (rootSemi + 3) % 12;
-                    const relMajorRootName = rootLabels[relMajorSemi];
-                    const relMajorScale = majorScalesSpelling[relMajorRootName] || majorScalesSpelling["C"];
-                    let rootIdxInMajor = 0;
-                    for (let i = 0; i < 7; i++) {
-                        const noteName = relMajorScale[i];
-                        let semi = 0;
-                        for(let s=0; s<12; s++) {
-                            if(notesSharpRef[s] === noteName || notesFlatRef[s] === noteName) {
-                                semi = s;
-                                break;
-                            }
-                        }
-                        if (semi === rootSemi) {
-                            rootIdxInMajor = i;
-                            break;
-                        }
-                    }
-                    
-                    const minorScaleNotes = [];
-                    for (let i = 0; i < 7; i++) {
-                        minorScaleNotes.push(relMajorScale[(rootIdxInMajor + i) % 7]);
-                    }
-                    
-                    const minorScaleIntervals = [0, 2, 3, 5, 7, 8, 10];
-                    
-                    return intervals.map(interval => {
-                        const exactIdx = minorScaleIntervals.indexOf(interval);
-                        if (exactIdx !== -1) {
-                            return minorScaleNotes[exactIdx];
-                        }
-                        const targetSemi = (rootSemi + interval) % 12;
-                        let deg = 0;
-                        if (interval <= 1) deg = 0;
-                        else if (interval <= 3) deg = 1;
-                        else if (interval <= 4) deg = 2;
-                        else if (interval <= 6) deg = 3;
-                        else if (interval <= 7) deg = 4;
-                        else if (interval <= 9) deg = 5;
-                        else deg = 6;
-
-                        const baseNoteLetter = minorScaleNotes[deg][0];
-                        const naturalSemis = { 'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11 };
-                        const natSemi = naturalSemis[baseNoteLetter];
-                        let diff = targetSemi - natSemi;
-                        if (diff > 6) diff -= 12;
-                        if (diff < -6) diff += 12;
-
-                        let acc = "";
-                        if (diff === 1) acc = "#";
-                        else if (diff === 2) acc = "##";
-                        else if (diff === -1) acc = "b";
-                        else if (diff === -2) acc = "bb";
-
-                        return baseNoteLetter + acc;
-                    });
-                } else if (intervals.length === 5 && intervals.includes(2) && intervals.includes(4) && intervals.includes(7) && intervals.includes(9)) {
-                    const majorIndices = [0, 1, 2, 4, 5];
-                    return majorIndices.map(degIdx => baseLetters[degIdx]);
-                } else {
-                    const useFlats = rootName.includes('b') || ['F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb'].includes(rootName);
-                    return intervals.map(interval => {
-                        const targetSemi = (rootSemi + interval) % 12;
-                        return useFlats ? notesFlatRef[targetSemi] : notesSharpRef[targetSemi];
-                    });
-                }
-            }
+        function getSemiFromNoteName(noteName) {
+            const sharpIndex = NOTE_NAMES_SHARP.indexOf(noteName);
+            if (sharpIndex !== -1) return sharpIndex;
+            const flatIndex = NOTE_NAMES_FLAT.indexOf(noteName);
+            return flatIndex !== -1 ? flatIndex : 0;
         }
 
-        function getSpelledChordNotes(rootName, chordObj) {
-            const baseLetters = majorScalesSpelling[rootName] || majorScalesSpelling["C"];
-            const intervals = chordObj.notes;
-            const naturalSemis = { 'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11 };
-            
-            let rootSemi = 0;
-            const notesSharpRef = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-            const notesFlatRef = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
-            for(let i=0; i<12; i++) {
-                if(notesSharpRef[i] === rootName || notesFlatRef[i] === rootName) {
-                    rootSemi = i;
-                    break;
-                }
-            }
+        function getAccidentalFromDiff(diff) {
+            const map = { 2: '##', 1: '#', 0: '', '-1': 'b', '-2': 'bb' };
+            return map[diff] ?? '';
+        }
 
-            return intervals.map(interval => {
-                let deg = 0;
-                if (interval === 0) deg = 0;
-                else if (interval === 1 || interval === 2) deg = 1;
-                else if (interval === 3 || interval === 4) deg = 2;
-                else if (interval === 5) deg = 3;
-                else if (interval === 6) {
-                    deg = intervals.includes(7) ? 3 : 4;
-                }
-                else if (interval === 7) deg = 4;
-                else if (interval === 8) deg = 4;
-                else if (interval === 9) deg = 5;
-                else if (interval === 10 || interval === 11) deg = 6;
+        function getStrictSpelledNotes(rootName, intervals) {
+            const baseLetters = { ...majorScalesSpelling, C: ["C", "D", "E", "F", "G", "A", "B"] };
+            const notes = [];
+            const rootSemi = getSemiFromNoteName(rootName);
 
+            intervals.forEach((interval, idx) => {
                 const targetSemi = (rootSemi + interval) % 12;
-                const baseNoteLetter = baseLetters[deg][0];
-                const natSemi = naturalSemis[baseNoteLetter];
-                let diff = targetSemi - natSemi;
+                const baseNote = (baseLetters[rootName] || ["C", "D", "E", "F", "G", "A", "B"])[idx] || "C";
+                const baseLetter = baseNote[0];
+                const naturalSemi = NATURAL_SEMITONES[baseLetter] ?? 0;
+                let diff = targetSemi - naturalSemi;
                 if (diff > 6) diff -= 12;
                 if (diff < -6) diff += 12;
-
-                let acc = "";
-                if (diff === 1) acc = "#";
-                else if (diff === 2) acc = "##";
-                else if (diff === -1) acc = "b";
-                else if (diff === -2) acc = "bb";
+                const accidental = getAccidentalFromDiff(diff);
 
                 const useFlats = rootName.includes('b') || ['F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb'].includes(rootName);
                 if (useFlats) {
                     const flatPreferred = { 1: 'Db', 3: 'Eb', 6: 'Gb', 8: 'Ab', 10: 'Bb' };
-                    if (flatPreferred[targetSemi] && flatPreferred[targetSemi][0] === baseNoteLetter) {
-                        return flatPreferred[targetSemi];
+                    if (flatPreferred[targetSemi] && flatPreferred[targetSemi][0] === baseLetter) {
+                        notes.push(flatPreferred[targetSemi]);
+                        return;
                     }
                 }
-                return baseNoteLetter + acc;
+
+                notes.push(baseLetter + accidental);
             });
+
+            return notes;
+        }
+
+        const majorScalesSpelling = {
+            C: ["C", "D", "E", "F", "G", "A", "B"],
+            Db: ["Db", "Eb", "F", "Gb", "Ab", "Bb", "C"],
+            D: ["D", "E", "F#", "G", "A", "B", "C#"],
+            Eb: ["Eb", "F", "G", "Ab", "Bb", "C", "D"],
+            E: ["E", "F#", "G#", "A", "B", "C#", "D#"],
+            F: ["F", "G", "A", "Bb", "C", "D", "E"],
+            "F#": ["F#", "G#", "A#", "B", "C#", "D#", "E#"],
+            Gb: ["Gb", "Ab", "Bb", "Cb", "Db", "Eb", "F"],
+            G: ["G", "A", "B", "C", "D", "E", "F#"],
+            Ab: ["Ab", "Bb", "C", "Db", "Eb", "F", "G"],
+            A: ["A", "B", "C#", "D", "E", "F#", "G#"],
+            Bb: ["Bb", "C", "D", "Eb", "F", "G", "A"],
+            B: ["B", "C#", "D#", "E", "F#", "G#", "A#"]
+        };
+
+        function getSpelledChordNotes(rootName, chordObj) {
+            const baseLetters = majorScalesSpelling[rootName] || majorScalesSpelling.C;
+            const rootSemi = getSemiFromNoteName(rootName);
+            const notes = [];
+
+            chordObj.notes.forEach((interval, idx) => {
+                const targetSemi = (rootSemi + interval) % 12;
+                const baseLetter = baseLetters[Math.min(idx, baseLetters.length - 1)][0];
+                const naturalSemi = NATURAL_SEMITONES[baseLetter] ?? 0;
+                let diff = targetSemi - naturalSemi;
+                if (diff > 6) diff -= 12;
+                if (diff < -6) diff += 12;
+
+                const accidental = getAccidentalFromDiff(diff);
+                const useFlats = rootName.includes('b') || ['F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb'].includes(rootName);
+                if (useFlats) {
+                    const flatPreferred = { 1: 'Db', 3: 'Eb', 6: 'Gb', 8: 'Ab', 10: 'Bb' };
+                    if (flatPreferred[targetSemi] && flatPreferred[targetSemi][0] === baseLetter) {
+                        notes.push(flatPreferred[targetSemi]);
+                        return;
+                    }
+                }
+                notes.push(baseLetter + accidental);
+            });
+
+            return notes;
         }
 
         function getIntervalLabel(interval, chordNotes) {
@@ -339,23 +650,16 @@
             const hasThird = hasMajThird || hasMinThird;
 
             switch (interval) {
-                case 0:  return "1";
-                case 1:  return "b9";
-                case 2:  return "9";
-                case 3:  
-                    if (inChord) return "b3";
-                    return (hasMajThird && has(10)) ? "#9" : "b3";
-                case 4:  return "3";
-                case 5:  
-                    return (inChord && !hasThird) ? "4" : "11";
-                case 6:
-                    if (inChord) return has(7) ? "#11" : "b5";
-                    return hasMinThird ? "b5" : "#11";
-                case 7:  return "5";
-                case 8:  return inChord ? "#5" : "b13";
-                case 9:  
-                    if (inChord) return (hasMinThird && has(6)) ? "bb7" : "6";
-                    return "13";
+                case 0: return "1";
+                case 1: return "b9";
+                case 2: return "9";
+                case 3: return inChord ? "b3" : (hasMajThird && has(10) ? "#9" : "b3");
+                case 4: return "3";
+                case 5: return (inChord && !hasThird) ? "4" : "11";
+                case 6: return inChord ? (has(7) ? "#11" : "b5") : (hasMinThird ? "b5" : "#11");
+                case 7: return "5";
+                case 8: return inChord ? "#5" : "b13";
+                case 9: return inChord ? ((hasMinThird && has(6)) ? "bb7" : "6") : "13";
                 case 10: return "b7";
                 case 11: return "7";
                 case 12: return "8";
@@ -366,78 +670,15 @@
         function getAvoidNotes(scaleId, chordId) {
             const avoids = [];
             const isDom = ['7', '9', '7alt', '7b9', '7sharp5'].includes(chordId);
-            
+
             if (['ionian', 'majorBebop'].includes(scaleId)) avoids.push(5);
             if (['mixolydian', 'mixolydianFlat13', 'phrygianDominant', 'mixolydianFlat9', 'dominantBebop'].includes(scaleId) && chordId !== '7sus4') avoids.push(5);
             if (['aeolian', 'harmonicMinor'].includes(scaleId)) avoids.push(8);
             if (scaleId === 'phrygian') { avoids.push(1); avoids.push(8); }
             if (scaleId === 'locrian') avoids.push(1);
             if (scaleId === 'bluesScale' && isDom) avoids.push(3);
-            
             return avoids;
         }
-
-        const scalesDb = {
-            ionian: { name: "Ionien (Gamme majeure)", category: "Diatonique", intervals: [0, 2, 4, 5, 7, 9, 11], characteristicInterval: 11, desc: "Utilisé sur le degré I. La quarte frotte avec la tierce majeure et doit être traitée comme note de passage." },
-            lydian: { name: "Lydien", category: "Diatonique / Majeur", intervals: [0, 2, 4, 6, 7, 9, 11], characteristicInterval: 6, desc: "Choix principal en jazz moderne pour éviter la quarte juste dissonante (4)." },
-            lydianAug: { name: "Lydien Augmenté", category: "Mineur Mélodique", intervals: [0, 2, 4, 6, 8, 9, 11], characteristicInterval: 8, desc: "Sur Maj7#5 (degré III du mineur mélodique)." },
-            harmonicMajor: { name: "Majeur Harmonique", category: "Emprunt Modal", intervals: [0, 2, 4, 5, 7, 8, 11], characteristicInterval: 8, desc: "Sert aux emprunts modaux pour apporter une couleur sombre." },
-            majorBebop: { name: "Gamme Bebop Majeure", category: "Bebop", intervals: [0, 2, 4, 5, 7, 8, 9, 11], characteristicInterval: 8, desc: "Ajoute un chromatisme (la #5) entre la quinte et la sixte pour caler le phrasé rythmique sur les temps forts." },
-            majorPentatonic: { name: "Pentatonique Majeure", category: "Pentatonique", intervals: [0, 2, 4, 7, 9], characteristicInterval: 9, desc: "Retire les demi-tons pour une sonorité ouverte et consonante." },
-            majorBlues: { name: "Gamme Blues Majeure", category: "Blues", intervals: [0, 2, 3, 4, 7, 9], characteristicInterval: 3, desc: "Introduit la tierce mineure (blue note) comme approche chromatique de la tierce majeure." },
-            dorian: { name: "Dorien", category: "Diatonique / Mineur", intervals: [0, 2, 3, 5, 7, 9, 10], characteristicInterval: 9, desc: "Degré II. La sixte majeure stabilise l'accord." },
-            melodicMinor: { name: "Mineur Mélodique", category: "Mineur Mélodique", intervals: [0, 2, 3, 5, 7, 9, 11], characteristicInterval: 11, desc: "Sur mMaj7 ou m6. Accord de tonique mineur de référence." },
-            aeolian: { name: "Éolien (Mineur naturel)", category: "Diatonique / Mineur", intervals: [0, 2, 3, 5, 7, 8, 10], characteristicInterval: 8, desc: "Degré VI. La b6 frotte contre la quinte, à manier avec prudence." },
-            phrygian: { name: "Phrygien", category: "Diatonique / Mineur", intervals: [0, 1, 3, 5, 7, 8, 10], characteristicInterval: 1, desc: "Degré III. Très dissonant." },
-            harmonicMinor: { name: "Mineur Harmonique", category: "Mineur Harmonique", intervals: [0, 2, 3, 5, 7, 8, 11], characteristicInterval: 11, desc: "Sur mMaj7 avec une couleur classique marquée." },
-            minorBebop: { name: "Bebop Mineure (Dorienne)", category: "Bebop", intervals: [0, 2, 3, 5, 7, 9, 10, 11], characteristicInterval: 11, desc: "Ajoute la septième majeure comme chromatisme de passage vers la tonique." },
-            minorPentatonic: { name: "Pentatonique Mineure", category: "Pentatonique", intervals: [0, 3, 5, 7, 10], characteristicInterval: 3, desc: "Choix standard, élimine les risques de frottements." },
-            bluesScale: { name: "Gamme Blues", category: "Pentatonique / Blues", intervals: [0, 3, 5, 6, 7, 10], characteristicInterval: 6, desc: "L'ajout de la blue note crée de la tension sans changer la nature mineure. Sur dominante, la b3 frotte contre la tierce." },
-            mixolydian: { name: "Mixolydien", category: "Diatonique / Dominant", intervals: [0, 2, 4, 5, 7, 9, 10], characteristicInterval: 10, desc: "Sur un V7 classique non altéré (tensions 9, 13)." },
-            lydianDominant: { name: "Lydien Dominant (Lydien b7)", category: "Mineur Mélodique", intervals: [0, 2, 4, 6, 7, 9, 10], characteristicInterval: 6, desc: "Pour les V7 qui ne résolvent pas en quinte juste (Substituts tritoniques, bVII7)." },
-            altered: { name: "Altéré (Super Locrien)", category: "Mineur Mélodique", intervals: [0, 1, 3, 4, 6, 8, 10], characteristicInterval: 1, desc: "Pour V7 résolvant sur un I. Contient toutes les altérations (b9, #9, #11, b13)." },
-            mixolydianFlat13: { name: "Mixolydien b13", category: "Mineur Mélodique", intervals: [0, 2, 4, 5, 7, 8, 10], characteristicInterval: 8, desc: "5ème mode du mineur mélodique." },
-            phrygianDominant: { name: "Phrygien Dominant", category: "Mineur Harmonique", intervals: [0, 1, 4, 5, 7, 8, 10], characteristicInterval: 1, desc: "For V7 vers un accord mineur." },
-            mixolydianFlat9: { name: "Mixolydien b9", category: "Majeur Harmonique", intervals: [0, 1, 4, 5, 7, 9, 10], characteristicInterval: 1, desc: "5ème mode du majeur harmonique." },
-            dominantBebop: { name: "Bebop Dominante", category: "Bebop", intervals: [0, 2, 4, 5, 7, 9, 10, 11], characteristicInterval: 11, desc: "Chromatisme entre la septième mineure et la fondamentale." },
-            halfWholeDim: { name: "Demi-Ton / Ton (Octatonique)", category: "Symétrique", intervals: [0, 1, 3, 4, 6, 7, 9, 10], characteristicInterval: 1, desc: "Sur accords 7b9 ou 7#9, garde la quinte juste et la 13e majeure." },
-            wholeTone: { name: "Par Tons (Hexatonique)", category: "Symétrique", intervals: [0, 2, 4, 6, 8, 10], characteristicInterval: 6, desc: "Sur les accords 7#5 (dominantes sans 9ème altérée)." },
-            locrianSharp2: { name: "Locrien bécarre 2", category: "Mineur Mélodique", intervals: [0, 2, 3, 5, 6, 8, 10], characteristicInterval: 2, desc: "Choix moderne par défaut sur le degré II d'un ii-V-I mineur. La seconde majeure sonne mieux que la b2." },
-            locrian: { name: "Locrien", category: "Diatonique", intervals: [0, 1, 3, 5, 6, 8, 10], characteristicInterval: 1, desc: "Degré VII de la gamme majeure." },
-            minorPentatonicFlat5: { name: "Pentatonique mineure b5", category: "Pentatonique", intervals: [0, 3, 5, 6, 10], characteristicInterval: 6, desc: "Version allégée du Locrien." },
-            wholeHalfDim: { name: "Ton / Demi-Ton (Octatonique)", category: "Symétrique", intervals: [0, 2, 3, 5, 6, 8, 9, 11], characteristicInterval: 9, desc: "Option principale, couvre la structure symétrique de l'accord diminué et ajoute une note d'approche." }
-        };
-
-        const chordTypes = {
-            maj: [
-                { id: "maj7", name: "maj7", fullName: "Majeur 7", notes: [0, 4, 7, 11], scales: [{ id: "lydian", role: "Principal (Moderne)" }, { id: "ionian", role: "Degré I" }, { id: "harmonicMajor", role: "Emprunt sombre" }, { id: "majorBebop", role: "Rythmique Bebop" }, { id: "majorPentatonic", role: "Consonance ouverte" }, { id: "majorBlues", role: "Approche bluesy" }] },
-                { id: "maj9", name: "maj9", fullName: "Majeur 9", notes: [0, 4, 7, 11, 2], scales: [{ id: "lydian", role: "Principal" }, { id: "ionian", role: "Degré I" }] },
-                { id: "6", name: "6", fullName: "Sixte", notes: [0, 4, 7, 9], scales: [{ id: "ionian", role: "Principal" }, { id: "lydian", role: "Moderne" }, { id: "majorBebop", role: "Bebop" }, { id: "majorPentatonic", role: "Consonance" }, { id: "majorBlues", role: "Bluesy" }] },
-                { id: "maj7sharp11", name: "maj7(#11)", fullName: "Majeur 7 dièse 11", notes: [0, 4, 7, 11, 6], scales: [{ id: "lydian", role: "Principal" }, { id: "lydianAug", role: "Avancé" }] },
-                { id: "maj7sharp5", name: "maj7(#5)", fullName: "Majeur 7 quinte augmentée", notes: [0, 4, 8, 11], scales: [{ id: "lydianAug", role: "Principal (Degré III du mineur mélodique)" }, { id: "majorBebop", role: "Alternative" }] }
-            ],
-            min: [
-                { id: "m7", name: "m7", fullName: "Mineur 7", notes: [0, 3, 7, 10], scales: [{ id: "dorian", role: "Principal (Degré II)" }, { id: "aeolian", role: "Degré VI (b6 frotte)" }, { id: "phrygian", role: "Degré III (Dissonant)" }, { id: "minorBebop", role: "Approche Bebop" }, { id: "minorPentatonic", role: "Sans frottements" }, { id: "bluesScale", role: "Tension Blues" }] },
-                { id: "m9", name: "m9", fullName: "Mineur 9", notes: [0, 3, 7, 10, 2], scales: [{ id: "dorian", role: "Principal" }, { id: "aeolian", role: "Secondaire" }, { id: "minorBebop", role: "Bebop" }] },
-                { id: "m11", name: "m11", fullName: "Mineur 11", notes: [0, 3, 7, 10, 2, 5], scales: [{ id: "dorian", role: "Principal" }, { id: "aeolian", role: "Naturel" }] },
-                { id: "mmaj7", name: "m(maj7)", fullName: "Mineur-Majeur 7", notes: [0, 3, 7, 11], scales: [{ id: "melodicMinor", role: "Principal (Tonique mineure)" }, { id: "harmonicMinor", role: "Classique marqué" }] }
-            ],
-            dom: [
-                { id: "7", name: "7", fullName: "Dominante 7", notes: [0, 4, 7, 10], scales: [{ id: "mixolydian", role: "Principal (Non altéré)" }, { id: "lydianDominant", role: "Sans résolution juste" }, { id: "mixolydianFlat13", role: "Tendu (b13)" }, { id: "dominantBebop", role: "Bebop" }, { id: "bluesScale", role: "Blues/Rock/Funk" }, { id: "mixolydianFlat9", role: "Mixolydien b9 (Spécifique)" }] },
-                { id: "9", name: "9", fullName: "Dominante 9", notes: [0, 4, 7, 10, 2], scales: [{ id: "mixolydian", role: "Principal" }, { id: "lydianDominant", role: "Recommandé (#11)" }, { id: "dominantBebop", role: "Bebop" }] },
-                { id: "7alt", name: "7alt", fullName: "Dominante Altérée", notes: [0, 4, 6, 10], scales: [{ id: "altered", role: "Principal (Résout sur I)" }, { id: "halfWholeDim", role: "Alternative" }] },
-                { id: "7b9", name: "7(b9)", fullName: "Dominante 9 mineure", notes: [0, 4, 7, 10, 1], scales: [{ id: "halfWholeDim", role: "Principal (Symétrique)" }, { id: "phrygianDominant", role: "Vers accord mineur" }] },
-                { id: "7sharp5", name: "7(#5)", fullName: "Dominante 7 quinte aug", notes: [0, 4, 8, 10], scales: [{ id: "wholeTone", role: "Principal (Ton par ton)" }, { id: "altered", role: "Altéré" }] }
-            ],
-            other: [
-                { id: "m7b5", name: "m7b5", fullName: "Semi-diminué (Half-dim)", notes: [0, 3, 6, 10], scales: [{ id: "locrianSharp2", role: "Principal Moderne (Degré II)" }, { id: "locrian", role: "Classique (Degré VII)" }, { id: "minorPentatonicFlat5", role: "Allégé" }] },
-                { id: "dim7", name: "dim7", fullName: "Diminué 7", notes: [0, 3, 6, 9], scales: [{ id: "wholeHalfDim", role: "Principal (Couvre la structure symétrique)" }] },
-                { id: "7sus4", name: "7sus4", fullName: "Dominante Suspendue", notes: [0, 5, 7, 10], scales: [{ id: "mixolydian", role: "Principal" }, { id: "dorian", role: "Aérien" }, { id: "phrygian", role: "Modal / Sus4 b9" }] }
-            ]
-        };
-
-        const NOTE_STEP_SECONDS = 0.35;
-        const PLAY_BASE_OCTAVE = 3;
 
         class ChordScaleApp {
             constructor() {
@@ -446,32 +687,54 @@
                 this.selectedChordId = 'maj7';
                 this.visMode = 'staff';
                 this.instrumentKey = 'Bb';
-                
                 this.showAvoidNotes = false;
                 this.showCharacteristic = false;
                 this.showTargetNotes = false;
-
                 this.audioCtx = null;
                 this.pianoInstrument = null;
+                this.pianoLoading = null;
                 this.reverbInput = null;
                 this.activePlaybacks = {};
                 this.scaleDirections = {};
                 this.activeAudioNodes = [];
-                
                 this.isLoopMode = false;
                 this.currentLoopType = null;
                 this.loopInterval = null;
 
-                this.initUI();
+                this.renderRootButtons();
+                this.renderQualityButtons();
+                this.bindEvents();
                 this.update();
                 this.initAudioContextOnInteraction();
+            }
+
+            bindEvents() {
+                document.getElementById('play-chord-btn')?.addEventListener('click', () => this.playChord());
+                document.getElementById('play-arp-btn')?.addEventListener('click', () => this.playArpeggio());
+                document.getElementById('loop-chord-btn')?.addEventListener('click', () => this.toggleLoopMode());
+                document.getElementById('btn-toggle-target')?.addEventListener('click', () => this.toggleShowTargetNotes());
+                document.getElementById('btn-toggle-avoid')?.addEventListener('click', () => this.toggleShowAvoid());
+                document.getElementById('btn-toggle-characteristic')?.addEventListener('click', () => this.toggleShowCharacteristic());
+
+                document.querySelectorAll('[data-key]').forEach(button => {
+                    button.addEventListener('click', () => this.setInstrumentKey(button.dataset.key));
+                });
+
+                document.querySelectorAll('[data-cat]').forEach(button => {
+                    button.addEventListener('click', () => this.setQualityCategory(button.dataset.cat));
+                });
+
+                document.querySelectorAll('[data-mode]').forEach(button => {
+                    button.addEventListener('click', () => this.setVisMode(button.dataset.mode));
+                });
             }
 
             toggleShowTargetNotes() {
                 this.showTargetNotes = !this.showTargetNotes;
                 const btn = document.getElementById('btn-toggle-target');
                 if (btn) {
-                    btn.className = `px-2 py-0.5 rounded text-[11px] font-semibold transition ${this.showTargetNotes ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40' : 'bg-[#1a1a1a] text-slate-500 border border-[#333333]'}`;
+                    btn.setAttribute('aria-pressed', String(this.showTargetNotes));
+                    btn.classList.toggle('active', this.showTargetNotes);
                 }
                 this.update();
             }
@@ -480,7 +743,8 @@
                 this.showAvoidNotes = !this.showAvoidNotes;
                 const btn = document.getElementById('btn-toggle-avoid');
                 if (btn) {
-                    btn.className = `px-2 py-0.5 rounded text-[11px] font-semibold transition ${this.showAvoidNotes ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-[#1a1a1a] text-slate-500 border border-[#333333]'}`;
+                    btn.setAttribute('aria-pressed', String(this.showAvoidNotes));
+                    btn.classList.toggle('active', this.showAvoidNotes);
                 }
                 this.update();
             }
@@ -489,94 +753,74 @@
                 this.showCharacteristic = !this.showCharacteristic;
                 const btn = document.getElementById('btn-toggle-characteristic');
                 if (btn) {
-                    btn.className = `px-2 py-0.5 rounded text-[11px] font-semibold transition ${this.showCharacteristic ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-[#1a1a1a] text-slate-500 border border-[#333333]'}`;
+                    btn.setAttribute('aria-pressed', String(this.showCharacteristic));
+                    btn.classList.toggle('active', this.showCharacteristic);
                 }
                 this.update();
             }
 
             setInstrumentKey(key) {
                 this.instrumentKey = key;
-                document.getElementById('selected-transposition-badge').textContent = key;
-                ['Bb', 'C', 'Eb'].forEach(k => {
-                    const btn = document.getElementById(`trans-btn-${k}`);
-                    if (k === key) {
-                        btn.className = "flex-1 py-1 rounded-md transition bg-[#3a3a3c] text-white shadow-sm";
-                    } else {
-                        btn.className = "flex-1 py-1 rounded-md transition text-slate-400 hover:text-white";
-                    }
+                const badge = document.getElementById('selected-transposition-badge');
+                if (badge) badge.textContent = key;
+
+                document.querySelectorAll('[data-key]').forEach(btn => {
+                    const isSelected = btn.dataset.key === key;
+                    btn.classList.toggle('active', isSelected);
                 });
             }
 
-            getAudioNoteName(rootIndex, interval, baseOctave = PLAY_BASE_OCTAVE) {
-                const offsets = { 'C': 0, 'Bb': -2, 'Eb': -9 };
+            getAudioNoteName(rootIndex, interval, baseOctave = 3) {
+                const offsets = { C: 0, Bb: -2, Eb: -9 };
                 const offset = offsets[this.instrumentKey] || 0;
-                
                 const absSemis = rootIndex + interval + offset;
                 const normalizedSemi = ((absSemis % 12) + 12) % 12;
                 const octaveOffset = Math.floor(absSemis / 12);
                 const octave = baseOctave + octaveOffset;
-                
                 const rootName = rootLabels[normalizedSemi];
-                return rootName + octave;
-            }
-
-            stopAllSounds() {
-                this.activeAudioNodes.forEach(node => {
-                    if (node && typeof node.stop === 'function') {
-                        node.stop();
-                    }
-                });
-                this.activeAudioNodes = [];
-
-                for (let key in this.activePlaybacks) {
-                    this.activePlaybacks[key].timers.forEach(t => clearTimeout(t));
-                    document.querySelectorAll(`[data-scale-key="${key}"]`).forEach(el => el.classList.remove('ring-2', 'ring-blue-500'));
-                }
-                this.activePlaybacks = {};
-            }
-
-            stopLoop() {
-                if (this.loopInterval) {
-                    clearInterval(this.loopInterval);
-                    this.loopInterval = null;
-                }
-                this.currentLoopType = null;
-                this.isLoopMode = false;
-                const btn = document.getElementById('loop-chord-btn');
-                if (btn) btn.className = "bg-[#3a3a3c] hover:bg-[#4a4a4c] text-slate-200 p-2 rounded-md border border-[#4a4a4c] transition flex items-center justify-center";
-                this.updatePlayButtonStates();
-            }
-
-            updatePlayButtonStates() {
-                const chordBtn = document.getElementById('play-chord-btn');
-                const arpBtn = document.getElementById('play-arp-btn');
-                
-                if (chordBtn) {
-                    if (this.isLoopMode && this.currentLoopType === 'chord') {
-                        chordBtn.className = "bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-md shadow transition flex items-center justify-center border border-blue-500";
-                    } else {
-                        chordBtn.className = "bg-[#3a3a3c] hover:bg-[#4a4a4c] text-slate-200 p-2 rounded-md border border-[#4a4a4c] transition flex items-center justify-center";
-                    }
-                }
-                if (arpBtn) {
-                    if (this.isLoopMode && this.currentLoopType === 'arpeggio') {
-                        arpBtn.className = "bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-md shadow transition flex items-center justify-center border border-blue-500";
-                    } else {
-                        arpBtn.className = "bg-[#3a3a3c] hover:bg-[#4a4a4c] text-slate-200 p-2 rounded-md border border-[#4a4a4c] transition flex items-center justify-center";
-                    }
-                }
+                return `${rootName}${octave}`;
             }
 
             initAudioContextOnInteraction() {
-                const triggerInit = () => {
+                const triggerInit = async () => {
                     if (!this.pianoInstrument) {
-                        this.loadPiano();
+                        await this.loadPiano();
                     }
                     window.removeEventListener('click', triggerInit);
                     window.removeEventListener('keydown', triggerInit);
                 };
                 window.addEventListener('click', triggerInit);
                 window.addEventListener('keydown', triggerInit);
+            }
+
+            async loadPiano() {
+                if (this.pianoInstrument) return this.pianoInstrument;
+                if (this.pianoLoading) return this.pianoLoading;
+
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!this.audioCtx) {
+                    this.audioCtx = new AudioContext();
+                }
+
+                if (this.audioCtx.state === 'suspended') {
+                    await this.audioCtx.resume().catch(() => {});
+                }
+
+                this.reverbInput = this.setupReverb(this.audioCtx);
+
+                this.pianoLoading = Soundfont.instrument(this.audioCtx, 'acoustic_grand_piano', { soundfont: 'FluidR3_GM' })
+                    .then((instr) => {
+                        this.pianoInstrument = instr;
+                        this.pianoLoading = null;
+                        return instr;
+                    })
+                    .catch((err) => {
+                        console.error('Erreur chargement piano:', err);
+                        this.pianoLoading = null;
+                        return null;
+                    });
+
+                return this.pianoLoading;
             }
 
             setupReverb(audioCtx) {
@@ -586,15 +830,16 @@
                 const impulse = audioCtx.createBuffer(2, length, rate);
                 const left = impulse.getChannelData(0);
                 const right = impulse.getChannelData(1);
+
                 for (let i = 0; i < length; i++) {
                     const decay = Math.exp(-i / (rate * 0.6));
                     left[i] = (Math.random() * 2 - 1) * decay;
                     right[i] = (Math.random() * 2 - 1) * decay;
                 }
-                convolver.buffer = impulse;
 
+                convolver.buffer = impulse;
                 const wetGain = audioCtx.createGain();
-                wetGain.gain.value = 0.3;
+                wetGain.gain.value = 0.18;
                 const dryGain = audioCtx.createGain();
                 dryGain.gain.value = 0.85;
                 const masterGain = audioCtx.createGain();
@@ -606,123 +851,81 @@
                 convolver.connect(wetGain);
                 dryGain.connect(masterGain);
                 wetGain.connect(masterGain);
-
-                const mediaStreamDest = audioCtx.createMediaStreamDestination();
-                masterGain.connect(mediaStreamDest);
                 masterGain.connect(audioCtx.destination);
-
-                const relayElement = document.createElement('audio');
-                relayElement.srcObject = mediaStreamDest.stream;
-                relayElement.autoplay = true;
-                relayElement.playsInline = true;
-                relayElement.muted = false;
-                relayElement.style.display = 'none';
-                document.body.appendChild(relayElement);
-
-                const unlockRelay = () => {
-                    relayElement.play().catch(() => {});
-                    window.removeEventListener('click', unlockRelay);
-                    window.removeEventListener('touchstart', unlockRelay);
-                    window.removeEventListener('keydown', unlockRelay);
-                };
-                window.addEventListener('click', unlockRelay);
-                window.addEventListener('touchstart', unlockRelay);
-                window.addEventListener('keydown', unlockRelay);
 
                 return inputNode;
             }
 
-            loadPiano() {
-                if (this.pianoInstrument) return;
-                
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                if (!this.audioCtx) {
-                    this.audioCtx = new AudioContext();
-                }
+            renderRootButtons() {
+                const container = document.getElementById('root-buttons-container');
+                if (!container) return;
+                container.innerHTML = '';
 
-                this.reverbInput = this.setupReverb(this.audioCtx);
-
-                Soundfont.instrument(this.audioCtx, 'acoustic_grand_piano', { soundfont: 'FluidR3_GM' }).then(instr => {
-                    this.pianoInstrument = instr;
-                }).catch(err => {
-                    console.error("Erreur chargement piano:", err);
-                });
-            }
-
-            initUI() {
-                const rootContainer = document.getElementById('root-buttons-container');
-                rootContainer.innerHTML = '';
-                
                 rootLabels.forEach((note, index) => {
                     const btn = document.createElement('button');
-                    btn.className = `py-3 rounded-lg font-semibold text-sm transition border ${index === this.selectedRootIndex ? 'bg-[#2563eb] border-[#2563eb] text-white shadow' : 'bg-[#1a1a1a] border-[#333333] text-slate-300 hover:bg-[#2c2c2e] hover:text-white'}`;
+                    btn.type = 'button';
+                    btn.className = `pill-button py-3 rounded-lg font-semibold text-sm transition ${index === this.selectedRootIndex ? 'active' : ''}`;
                     btn.textContent = note;
-                    btn.onclick = () => {
+                    btn.setAttribute('aria-label', `Choisir la fondamentale ${note}`);
+                    btn.addEventListener('click', () => {
                         this.selectedRootIndex = index;
-                        this.initUI();
+                        this.renderRootButtons();
                         this.update();
-                    };
-                    rootContainer.appendChild(btn);
-                });
-
-                this.renderQualities();
-            }
-
-            setQualityCategory(cat) {
-                this.currentCategory = cat;
-                this.selectedChordId = null;
-                ['maj', 'min', 'dom', 'other'].forEach(c => {
-                    const btn = document.getElementById(`cat-btn-${c}`);
-                    if (c === cat) {
-                        btn.className = "flex-1 py-1 rounded-md transition bg-[#3a3a3c] text-white shadow-sm";
-                    } else {
-                        btn.className = "flex-1 py-1 rounded-md transition text-slate-400 hover:text-white";
-                    }
-                });
-                this.renderQualities();
-                this.update();
-            }
-
-            setVisMode(mode) {
-                this.visMode = mode;
-                ['staff', 'intervals', 'notes', 'letters'].forEach(m => {
-                    const btn = document.getElementById(`vmode-${m}`);
-                    if (m === mode) {
-                        btn.className = "py-1 px-2.5 rounded-md transition bg-[#3a3a3c] text-white shadow-sm";
-                    } else {
-                        btn.className = "py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white";
-                    }
-                });
-                this.update();
-            }
-
-            renderQualities() {
-                const container = document.getElementById('quality-buttons-container');
-                container.innerHTML = '';
-                const qualities = chordTypes[this.currentCategory] || [];
-
-                qualities.forEach(q => {
-                    const isSelected = q.id === this.selectedChordId;
-                    const btn = document.createElement('button');
-                    btn.className = `p-2.5 rounded-lg text-left transition border flex flex-col justify-between ${isSelected ? 'bg-blue-600/20 border-blue-500/80 text-white shadow-sm' : 'bg-[#1a1a1a] border-[#333333] text-slate-300 hover:bg-[#2c2c2e] hover:text-white'}`;
-                    btn.innerHTML = `
-                        <span class="font-bold text-xs">${q.name}</span>
-                        <span class="text-[10px] text-slate-400 mt-0.5 truncate">${q.fullName}</span>
-                    `;
-                    btn.onclick = () => {
-                        this.selectedChordId = q.id;
-                        this.renderQualities();
-                        this.update();
-                    };
+                    });
                     container.appendChild(btn);
                 });
             }
 
+            setQualityCategory(cat) {
+                this.currentCategory = cat;
+                const qualities = chordTypes[cat] || [];
+                this.selectedChordId = qualities[0]?.id ?? null;
+
+                document.querySelectorAll('[data-cat]').forEach(btn => {
+                    const isSelected = btn.dataset.cat === cat;
+                    btn.classList.toggle('active', isSelected);
+                });
+
+                this.renderQualityButtons();
+                this.update();
+            }
+
+            renderQualityButtons() {
+                const container = document.getElementById('quality-buttons-container');
+                if (!container) return;
+                container.innerHTML = '';
+
+                const qualities = chordTypes[this.currentCategory] || [];
+                qualities.forEach((quality) => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = `p-2.5 rounded-lg text-left transition border flex flex-col justify-between ${this.selectedChordId === quality.id ? 'chip-active' : 'chip'}`;
+                    btn.innerHTML = `
+                        <span class="font-bold text-xs">${quality.name}</span>
+                        <span class="text-[10px] text-slate-400 mt-0.5 truncate">${quality.fullName}</span>
+                    `;
+                    btn.addEventListener('click', () => {
+                        this.selectedChordId = quality.id;
+                        this.renderQualityButtons();
+                        this.update();
+                    });
+                    container.appendChild(btn);
+                });
+            }
+
+            setVisMode(mode) {
+                this.visMode = mode;
+                document.querySelectorAll('[data-mode]').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.mode === mode);
+                });
+                this.update();
+            }
+
             getCurrentChordObj() {
                 if (this.selectedChordId) {
-                    for (const cat in chordTypes) {
-                        const found = chordTypes[cat].find(q => q.id === this.selectedChordId);
-                        if (found) return found;
+                    for (const category of Object.keys(chordTypes)) {
+                        const match = chordTypes[category].find(q => q.id === this.selectedChordId);
+                        if (match) return match;
                     }
                 }
                 return chordTypes[this.currentCategory]?.[0] || chordTypes.maj[0];
@@ -733,40 +936,48 @@
                 const chordObj = this.getCurrentChordObj();
                 const chordNameFull = `${rootName}${chordObj.name}`;
 
-                document.getElementById('selected-root-badge').textContent = rootName;
-                document.getElementById('selected-quality-badge').textContent = this.selectedChordId ? chordObj.name : '-';
-                document.getElementById('display-chord-name').textContent = chordNameFull;
+                const rootBadge = document.getElementById('selected-root-badge');
+                if (rootBadge) rootBadge.textContent = rootName;
+
+                const qualityBadge = document.getElementById('selected-quality-badge');
+                if (qualityBadge) qualityBadge.textContent = this.selectedChordId ? chordObj.name : '-';
+
+                const displayName = document.getElementById('display-chord-name');
+                if (displayName) displayName.textContent = chordNameFull;
 
                 const chordNotesContainer = document.getElementById('display-chord-notes');
-                chordNotesContainer.innerHTML = '';
-                
-                const chordSpelled = getSpelledChordNotes(rootName, chordObj);
-                chordSpelled.forEach((n, idx) => {
-                    const interval = chordObj.notes[idx];
-                    const badge = document.createElement('span');
-                    badge.className = "px-2 py-0.5 bg-[#2563eb] text-white rounded font-mono font-bold cursor-pointer hover:bg-blue-600 transition shadow-sm";
-                    badge.textContent = n;
-                    badge.onclick = (e) => {
-                        e.stopPropagation();
-                        this.playSingleNote(interval);
-                    };
-                    chordNotesContainer.appendChild(badge);
-                });
+                if (chordNotesContainer) {
+                    chordNotesContainer.innerHTML = '';
+                    const chordSpelled = getSpelledChordNotes(rootName, chordObj);
+                    chordSpelled.forEach((note, idx) => {
+                        const interval = chordObj.notes[idx];
+                        const badge = document.createElement('span');
+                        badge.className = 'px-2 py-0.5 bg-[#2563eb] text-white rounded font-mono font-bold cursor-pointer hover:bg-blue-600 transition shadow-sm';
+                        badge.textContent = note;
+                        badge.type = 'button';
+                        badge.title = `Jouer la note ${note}`;
+                        badge.addEventListener('click', (event) => {
+                            event.stopPropagation();
+                            this.playSingleNote(interval);
+                        });
+                        chordNotesContainer.appendChild(badge);
+                    });
+                }
 
                 this.renderScales(chordObj, rootName);
             }
 
             renderScales(chordObj, rootName) {
                 const container = document.getElementById('scales-container');
+                if (!container) return;
                 container.innerHTML = '';
 
-                const scalesList = chordObj.scales;
-                document.getElementById('scales-count-badge').textContent = `${scalesList.length} gammes`;
-
-                const pendingStaves = [];
+                const scalesList = chordObj.scales || [];
+                const countBadge = document.getElementById('scales-count-badge');
+                if (countBadge) countBadge.textContent = `${scalesList.length} gamme${scalesList.length > 1 ? 's' : ''}`;
 
                 scalesList.forEach((item, index) => {
-                    const scaleDef = scalesDb[item.id];
+                    const scaleDef = scaleDb[item.id];
                     if (!scaleDef) return;
 
                     const scaleKey = `${item.id}-${index}`;
@@ -774,452 +985,228 @@
                     const avoidNotes = this.showAvoidNotes ? getAvoidNotes(item.id, chordObj.id) : [];
                     const characteristicInterval = this.showCharacteristic ? scaleDef.characteristicInterval : null;
 
-                    const card = document.createElement('div');
-                    card.className = "bg-[#252525] border border-[#333333] hover:border-[#444444] transition rounded-xl p-4 shadow relative group flex flex-col justify-between overflow-hidden";
-                    
-                    const spelledScaleNotes = getStrictSpelledNotes(rootName, scaleDef.intervals);
-                    const fullSpilledNotesWithOctave = [...spelledScaleNotes, getStrictSpelledNotes(rootName, [12])[0]];
+                    const card = document.createElement('article');
+                    card.className = 'scale-card';
 
-                    let visualizationHtml = '';
-                    if (this.visMode === 'staff') {
-                        const canvasId = `vexflow-canvas-${index}-${item.id}`;
-                        visualizationHtml = `
-                            <div class="bg-white border border-slate-300 rounded-lg shadow-sm text-slate-900 w-full mx-auto cursor-pointer select-none transition hover:border-blue-500 h-[140px] flex items-center justify-center overflow-hidden relative"
-                                 data-scale-key="${scaleKey}"
-                                 onclick="app.toggleScalePlayback('${scaleKey}', ${JSON.stringify(scaleDef.intervals)}, '${scaleDef.name}', this)"
-                                 oncontextmenu="app.toggleScaleDirection('${scaleKey}', this.closest('.group')); event.preventDefault();">
-                                <div id="${canvasId}" class="w-full h-full flex items-center justify-center bg-white relative"></div>
-                            </div>
-                        `;
-                        pendingStaves.push({ canvasId, intervals: scaleDef.intervals, rootName, isDesc, avoidNotes, characteristicInterval, chordObj });
-                    } else if (this.visMode === 'intervals') {
-                        let intervalsHtml = '';
-                        scaleDef.intervals.forEach((interval) => {
-                            const intervalName = getIntervalLabel(interval, chordObj.notes);
-                            const isMember = chordObj.notes.includes(interval);
-                            const isTarget = (interval === 3 || interval === 4 || interval === 10 || interval === 11) && isMember;
-                            const highlightBlue = this.showTargetNotes && isTarget;
-                            const isAvoid = avoidNotes.includes(interval);
-                            const isChar = characteristicInterval === interval;
-
-                            let badgeClass = "bg-[#1a1a1a] text-slate-400 border border-[#333333]";
-                            if (isAvoid) badgeClass = "bg-rose-500/20 text-rose-300 border border-rose-500/50";
-                            else if (isChar) badgeClass = "bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold";
-                            else if (highlightBlue) badgeClass = "bg-[#2563eb] text-white shadow-sm";
-
-                            intervalsHtml += `<span onclick="app.playSingleNote(${interval}); event.stopPropagation();" class="px-2.5 py-1.5 text-xs font-mono rounded-lg cursor-pointer transition flex items-center justify-center ${badgeClass}">${intervalName}</span>`;
-                        });
-                        visualizationHtml = `
-                            <div class="bg-transparent border border-[#333333] rounded-lg p-3 shadow-sm text-slate-100 w-full mx-auto cursor-pointer select-none transition hover:border-blue-500"
-                                 data-scale-key="${scaleKey}"
-                                 onclick="app.toggleScalePlayback('${scaleKey}', ${JSON.stringify(scaleDef.intervals)}, '${scaleDef.name}', this)"
-                                 oncontextmenu="app.toggleScaleDirection('${scaleKey}', this.closest('.group')); event.preventDefault();">
-                                <div class="flex flex-wrap gap-1.5">${intervalsHtml}</div>
-                            </div>
-                        `;
-                    } else if (this.visMode === 'notes') {
-                        let notesHtml = '';
-                        fullSpilledNotesWithOctave.forEach((anglo, i) => {
-                            const frenchName = this.angloToFrench(anglo);
-                            const interval = i < scaleDef.intervals.length ? scaleDef.intervals[i] : 12;
-                            const checkInterval = interval === 12 ? 0 : interval;
-                            const isMember = chordObj.notes.includes(checkInterval);
-                            const isTarget = (checkInterval === 3 || checkInterval === 4 || checkInterval === 10 || checkInterval === 11) && isMember;
-                            const highlightBlue = this.showTargetNotes && isTarget;
-                            const isAvoid = avoidNotes.includes(checkInterval);
-                            const isChar = characteristicInterval === checkInterval;
-
-                            let badgeClass = "bg-[#1a1a1a] text-slate-400 border border-[#333333]";
-                            if (isAvoid) badgeClass = "bg-rose-500/20 text-rose-300 border border-rose-500/50";
-                            else if (isChar) badgeClass = "bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold";
-                            else if (highlightBlue && i < scaleDef.intervals.length) badgeClass = "bg-[#2563eb] text-white shadow-sm";
-
-                            notesHtml += `<span onclick="app.playSingleNote(${interval}); event.stopPropagation();" class="px-2.5 py-1.5 text-xs font-mono rounded-lg cursor-pointer transition flex items-center justify-center ${badgeClass}">${frenchName}</span>`;
-                        });
-                        visualizationHtml = `
-                            <div class="bg-transparent border border-[#333333] rounded-lg p-3 shadow-sm text-slate-100 w-full mx-auto cursor-pointer select-none transition hover:border-blue-500"
-                                 data-scale-key="${scaleKey}"
-                                 onclick="app.toggleScalePlayback('${scaleKey}', ${JSON.stringify(scaleDef.intervals)}, '${scaleDef.name}', this)"
-                                 oncontextmenu="app.toggleScaleDirection('${scaleKey}', this.closest('.group')); event.preventDefault();">
-                                <div class="flex flex-wrap gap-1.5">${notesHtml}</div>
-                            </div>
-                        `;
-                    } else if (this.visMode === 'letters') {
-                        let notesHtml = '';
-                        fullSpilledNotesWithOctave.forEach((noteName, i) => {
-                            const interval = i < scaleDef.intervals.length ? scaleDef.intervals[i] : 12;
-                            const checkInterval = interval === 12 ? 0 : interval;
-                            const isMember = chordObj.notes.includes(checkInterval);
-                            const isTarget = (checkInterval === 3 || checkInterval === 4 || checkInterval === 10 || checkInterval === 11) && isMember;
-                            const highlightBlue = this.showTargetNotes && isTarget;
-                            const isAvoid = avoidNotes.includes(checkInterval);
-                            const isChar = characteristicInterval === checkInterval;
-
-                            let badgeClass = "bg-[#1a1a1a] text-slate-400 border border-[#333333]";
-                            if (isAvoid) badgeClass = "bg-rose-500/20 text-rose-300 border border-rose-500/50";
-                            else if (isChar) badgeClass = "bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold";
-                            else if (highlightBlue && i < scaleDef.intervals.length) badgeClass = "bg-[#2563eb] text-white shadow-sm";
-
-                            notesHtml += `<span onclick="app.playSingleNote(${interval}); event.stopPropagation();" class="px-2.5 py-1.5 text-xs font-mono rounded-lg cursor-pointer transition flex items-center justify-center ${badgeClass}">${noteName}</span>`;
-                        });
-                        visualizationHtml = `
-                            <div class="bg-transparent border border-[#333333] rounded-lg p-3 shadow-sm text-slate-100 w-full mx-auto cursor-pointer select-none transition hover:border-blue-500"
-                                 data-scale-key="${scaleKey}"
-                                 onclick="app.toggleScalePlayback('${scaleKey}', ${JSON.stringify(scaleDef.intervals)}, '${scaleDef.name}', this)"
-                                 oncontextmenu="app.toggleScaleDirection('${scaleKey}', this.closest('.group')); event.preventDefault();">
-                                <div class="flex flex-wrap gap-1.5">${notesHtml}</div>
-                            </div>
-                        `;
-                    }
+                    const displayHtml = this.renderScaleVisualization({
+                        scaleDef,
+                        rootName,
+                        chordObj,
+                        scaleKey,
+                        avoidNotes,
+                        characteristicInterval,
+                        isDesc
+                    });
 
                     card.innerHTML = `
-                        <div>
-                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2">
-                                <div>
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        <h3 class="font-bold text-sm text-white">${rootName} ${scaleDef.name}</h3>
-                                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#1a1a1a] text-slate-300 border border-[#333333]">${scaleDef.category}</span>
-                                    </div>
-                                    <div class="flex items-center gap-2 mt-0.5">
-                                        <span class="text-xs font-medium text-blue-400">${item.role}</span>
-                                        <span class="text-[10px] text-slate-500 scale-dir-badge">• ${isDesc ? 'Descendant' : 'Ascendant'}</span>
-                                    </div>
+                        <div class="scale-header">
+                            <div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <h3 class="font-bold text-sm text-white">${rootName} ${scaleDef.name}</h3>
+                                    <span class="scale-badge">${scaleDef.category}</span>
+                                </div>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <span class="text-xs font-medium text-blue-400">${item.role}</span>
+                                    <span class="text-[10px] text-slate-500">• ${isDesc ? 'Descendant' : 'Ascendant'}</span>
                                 </div>
                             </div>
-                            <p class="text-xs text-slate-400 mb-3">${scaleDef.desc}</p>
+                            <button type="button" class="toggle-btn scale-direction-button" data-scale-key="${scaleKey}" aria-label="Inverser le sens">↕</button>
                         </div>
-                        <div class="pt-2.5 border-t border-[#333333]">
-                            ${visualizationHtml}
+                        <p class="text-xs text-slate-400">${scaleDef.desc}</p>
+                        <div class="scale-body">
+                            ${displayHtml}
                         </div>
                     `;
+
+                    card.querySelector('.scale-direction-button')?.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        this.toggleScaleDirection(scaleKey);
+                    });
+
                     container.appendChild(card);
                 });
+            }
 
-                pendingStaves.forEach(task => {
-                    this.renderVexFlowStaff(task.canvasId, task.intervals, task.rootName, task.isDesc, task.avoidNotes, task.characteristicInterval, task.chordObj);
+            renderScaleVisualization({ scaleDef, rootName, chordObj, scaleKey, avoidNotes, characteristicInterval, isDesc }) {
+                const intervals = [...scaleDef.intervals];
+                const spelledNotes = getStrictSpelledNotes(rootName, intervals);
+
+                if (this.visMode === 'staff') {
+                    const notePositions = [];
+                    const lineCount = 5;
+                    const fullWidth = 100;
+                    const marginLeft = 8;
+                    const marginRight = 8;
+                    const usableWidth = fullWidth - marginLeft - marginRight;
+
+                    intervals.forEach((interval, idx) => {
+                        const x = marginLeft + (idx / Math.max(intervals.length - 1, 1)) * usableWidth;
+                        const y = 55 + ((interval % 2 === 0 ? 40 : 10) - (interval * 0.7)) * 0.4;
+                        const isAvoid = avoidNotes.includes(interval);
+                        const isChar = characteristicInterval === interval;
+                        const isTarget = [3, 4, 10, 11].includes(interval) && chordObj.notes.includes(interval);
+
+                        let cls = 'staff-note';
+                        if (isAvoid) cls += ' avoid';
+                        if (isChar) cls += ' char';
+                        if (this.showTargetNotes && isTarget) cls += ' target';
+
+                        notePositions.push(`<span class="${cls}" style="left:${x}%; top:${Math.min(Math.max(y, 20), 100)}%;"></span>`);
+                    });
+
+                    return `
+                        <div class="staff-visual" data-scale-key="${scaleKey}" aria-label="Visualisation de la gamme ${scaleDef.name}" tabindex="0">
+                            <div class="staff-lines">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                            ${notePositions.join('')}
+                        </div>
+                    `;
+                }
+
+                if (this.visMode === 'intervals') {
+                    const intervalNodes = intervals.map((interval) => {
+                        const intervalName = getIntervalLabel(interval, chordObj.notes);
+                        const isMember = chordObj.notes.includes(interval);
+                        const isTarget = [3, 4, 10, 11].includes(interval) && isMember;
+                        const isAvoid = avoidNotes.includes(interval);
+                        const isChar = characteristicInterval === interval;
+                        let klass = 'note-badge';
+                        if (isAvoid) klass += ' avoid';
+                        else if (isChar) klass += ' char';
+                        else if (this.showTargetNotes && isTarget) klass += ' target';
+                        return `<button type="button" class="${klass}" data-interval="${interval}">${intervalName}</button>`;
+                    });
+                    return `<div class="note-badges">${intervalNodes.join('')}</div>`;
+                }
+
+                if (this.visMode === 'notes') {
+                    const noteNodes = [...spelledNotes, getStrictSpelledNotes(rootName, [12])[0]].map((note, i) => {
+                        const interval = i < intervals.length ? intervals[i] : 12;
+                        const checkInterval = interval === 12 ? 0 : interval;
+                        const isMember = chordObj.notes.includes(checkInterval);
+                        const isTarget = [3, 4, 10, 11].includes(checkInterval) && isMember;
+                        const isAvoid = avoidNotes.includes(checkInterval);
+                        const isChar = characteristicInterval === checkInterval;
+                        let klass = 'note-badge';
+                        if (isAvoid) klass += ' avoid';
+                        else if (isChar) klass += ' char';
+                        else if (this.showTargetNotes && isTarget) klass += ' target';
+                        return `<button type="button" class="${klass}" data-interval="${interval}">${note}</button>`;
+                    });
+                    return `<div class="note-badges">${noteNodes.join('')}</div>`;
+                }
+
+                const letters = [...spelledNotes, getStrictSpelledNotes(rootName, [12])[0]].map((note, i) => {
+                    const interval = i < intervals.length ? intervals[i] : 12;
+                    const checkInterval = interval === 12 ? 0 : interval;
+                    const isMember = chordObj.notes.includes(checkInterval);
+                    const isTarget = [3, 4, 10, 11].includes(checkInterval) && isMember;
+                    const isAvoid = avoidNotes.includes(checkInterval);
+                    const isChar = characteristicInterval === checkInterval;
+                    let klass = 'note-badge';
+                    if (isAvoid) klass += ' avoid';
+                    else if (isChar) klass += ' char';
+                    else if (this.showTargetNotes && isTarget) klass += ' target';
+                    return `<button type="button" class="${klass}" data-interval="${interval}">${note}</button>`;
                 });
+                return `<div class="note-badges">${letters.join('')}</div>`;
             }
 
-            angloToFrench(angloNote) {
-                const map = {
-                    'C': 'Do', 'C#': 'Do#', 'Cb': 'Dob', 'C##': 'Do##',
-                    'D': 'Ré', 'D#': 'Ré#', 'Db': 'Réb', 'D##': 'Ré##',
-                    'E': 'Mi', 'E#': 'Mi#', 'Eb': 'Mib', 'E##': 'Mi##',
-                    'F': 'Fa', 'F#': 'Fa#', 'Fb': 'Fab', 'F##': 'Fa##',
-                    'G': 'Sol', 'G#': 'Sol#', 'Gb': 'Solb', 'G##': 'Sol##',
-                    'A': 'La', 'A#': 'La#', 'Ab': 'Lab', 'A##': 'La##',
-                    'B': 'Si', 'B#': 'Si#', 'Bb': 'Sib', 'B##': 'Si##'
-                };
-                return map[angloNote] || angloNote;
-            }
-
-            toggleScaleDirection(scaleKey, cardEl) {
+            toggleScaleDirection(scaleKey) {
                 this.scaleDirections[scaleKey] = !this.scaleDirections[scaleKey];
                 this.update();
             }
 
-            renderVexFlowStaff(containerId, intervals, rootName, isDesc, avoidNotes = [], characteristicInterval = null, chordObj = null) {
-                const container = document.getElementById(containerId);
-                if (!container) return;
-                container.innerHTML = '';
-
-                try {
-                    let scaleIntervals = [...intervals, 12];
-                    let spelledNotes = [
-                        ...getStrictSpelledNotes(rootName, intervals),
-                        getStrictSpelledNotes(rootName, [12])[0]
-                    ];
-                    if (isDesc) {
-                        scaleIntervals = scaleIntervals.reverse();
-                        spelledNotes = spelledNotes.reverse();
-                    }
-
-                    const numNotes = scaleIntervals.length;
-                    const VEX_WIDTH = Math.max(450, numNotes * 42 + 60);
-                    const VEX_HEIGHT = 120;
-
-                    const { Renderer, Stave, StaveNote, Voice, Formatter, Accidental } = Vex.Flow;
-                    
-                    const renderer = new Renderer(container, Renderer.Backends.SVG);
-                    renderer.resize(VEX_WIDTH, VEX_HEIGHT);
-                    const context = renderer.getContext();
-
-                    const svgEl = container.querySelector('svg');
-                    if (svgEl) {
-                        svgEl.style.width = '100%';
-                        svgEl.style.height = '100%';
-                        svgEl.style.display = 'block';
-                        svgEl.style.margin = 'auto';
-                        svgEl.style.overflow = 'visible';
-                        svgEl.setAttribute('viewBox', `0 0 ${VEX_WIDTH} ${VEX_HEIGHT}`);
-                        svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-                    }
-
-                    const staveY = 5;
-                    const stave = new Stave(10, staveY, VEX_WIDTH - 20);
-                    stave.addClef("treble").setContext(context).draw();
-
-                    const CLEF_NOTE_GAP = 22;
-                    if (typeof stave.setNoteStartX === 'function') {
-                        stave.setNoteStartX(stave.getNoteStartX() + CLEF_NOTE_GAP);
-                    }
-
-                    const letterOrder = { 'c': 0, 'd': 1, 'e': 2, 'f': 3, 'g': 4, 'a': 5, 'b': 6 };
-                    let currentOctave = 4;
-                    let prevLetVal = -1;
-
-                    const staveNotes = spelledNotes.map((spelled, idx) => {
-                        const interval = scaleIntervals[idx];
-                        const match = spelled.match(/^([A-Ga-g])([#b]*)$/);
-                        const letter = match[1].toLowerCase();
-                        const accidental = match[2];
-                        const letVal = letterOrder[letter];
-
-                        if (idx === 0) {
-                            prevLetVal = letVal;
-                            currentOctave = isDesc && interval === 12 ? 5 : 4;
-                        } else {
-                            if (!isDesc && interval === 12) {
-                                currentOctave = 5;
-                            } else if (isDesc && interval === 0) {
-                                currentOctave = 4;
-                            } else if (!isDesc && letVal < prevLetVal) {
-                                currentOctave++;
-                            } else if (isDesc && letVal > prevLetVal) {
-                                currentOctave--;
-                            }
-                            prevLetVal = letVal;
-                        }
-
-                        const note = new StaveNote({
-                            keys: [`${letter}/${currentOctave}`],
-                            duration: "q"
-                        });
-
-                        if (accidental) {
-                            note.addModifier(new Accidental(accidental), 0);
-                        }
-
-                        const checkInterval = interval === 12 ? 0 : interval;
-                        const isMember = chordObj ? chordObj.notes.includes(checkInterval) : false;
-                        const isTarget = (checkInterval === 3 || checkInterval === 4 || checkInterval === 10 || checkInterval === 11) && isMember;
-                        const highlightBlue = this.showTargetNotes && isTarget;
-
-                        if (avoidNotes.includes(checkInterval)) {
-                            note.setStyle({fillStyle: "#f43f5e", strokeStyle: "#f43f5e"});
-                        } else if (characteristicInterval !== null && characteristicInterval === checkInterval) {
-                            note.setStyle({fillStyle: "#f59e0b", strokeStyle: "#f59e0b"});
-                        } else if (highlightBlue) {
-                            note.setStyle({fillStyle: "#2563eb", strokeStyle: "#2563eb"});
-                        }
-
-                        return note;
-                    });
-
-                    const voice = new Voice({ num_beats: scaleIntervals.length, beat_value: 4 });
-                    voice.addTickables(staveNotes);
-
-                    const formatter = new Formatter();
-                    formatter.formatToStave([voice], stave);
-                    voice.draw(context, stave);
-
-                    const noteElements = container.querySelectorAll('.vf-stavenote');
-                    noteElements.forEach((el, i) => {
-                        el.style.cursor = 'pointer';
-                        el.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            if (i < scaleIntervals.length) {
-                                this.playSingleNote(scaleIntervals[i]);
-                            }
-                        });
-                    });
-
-                } catch(e) {
-                    console.error("VexFlow render error:", e);
-                    container.innerHTML = `<span class="text-xs text-rose-500">Erreur de rendu</span>`;
-                }
+            async playSingleNote(interval) {
+                const piano = await this.loadPiano();
+                if (!piano) return;
+                const rootIndex = this.selectedRootIndex;
+                const noteName = this.getAudioNoteName(rootIndex, interval, 3);
+                this.activeAudioNodes.push(piano.play(noteName));
             }
 
-            toggleScalePlayback(scaleKey, intervals, scaleName, containerEl) {
-                if (!this.pianoInstrument) {
-                    this.loadPiano();
-                    return;
-                }
-                if (this.audioCtx && this.audioCtx.state === 'suspended') {
-                    this.audioCtx.resume();
-                }
-
-                const wasPlaying = !!this.activePlaybacks[scaleKey];
-
-                if (!this.isLoopMode) {
-                    this.stopAllSounds();
-                } else if (wasPlaying) {
-                    if (this.activePlaybacks[scaleKey]) {
-                        this.activePlaybacks[scaleKey].timers.forEach(t => clearTimeout(t));
-                        delete this.activePlaybacks[scaleKey];
-                    }
-                    if (containerEl) containerEl.classList.remove('ring-2', 'ring-blue-500');
-                    return;
-                }
-
-                if (wasPlaying) {
-                    return;
-                }
-
-                const isDesc = !!this.scaleDirections[scaleKey];
-                let playIntervals = [...intervals, 12];
-                if (isDesc) {
-                    playIntervals = playIntervals.reverse();
-                }
-
-                this.activePlaybacks[scaleKey] = { timers: [] };
-                if (containerEl) {
-                    containerEl.classList.add('ring-2', 'ring-blue-500');
-                }
-
-                playIntervals.forEach((interval, idx) => {
-                    const noteStr = this.getAudioNoteName(this.selectedRootIndex, interval, PLAY_BASE_OCTAVE);
-                    const timer = setTimeout(() => {
-                        try {
-                            if (this.pianoInstrument) {
-                                const node = this.pianoInstrument.play(noteStr, this.audioCtx.currentTime, { duration: 1.0, destination: this.reverbInput });
-                                this.activeAudioNodes.push(node);
-                            }
-                        } catch(e) {}
-                    }, idx * NOTE_STEP_SECONDS * 1000);
-                    this.activePlaybacks[scaleKey].timers.push(timer);
-                });
-
-                const endTimer = setTimeout(() => {
-                    delete this.activePlaybacks[scaleKey];
-                    if (containerEl) containerEl.classList.remove('ring-2', 'ring-blue-500');
-                }, playIntervals.length * NOTE_STEP_SECONDS * 1000);
-                this.activePlaybacks[scaleKey].timers.push(endTimer);
-            }
-
-            playSingleNote(interval) {
-                if (!this.isLoopMode) {
-                    this.stopAllSounds();
-                }
-                if (!this.pianoInstrument) {
-                    this.loadPiano();
-                    return;
-                }
-                if (this.audioCtx && this.audioCtx.state === 'suspended') {
-                    this.audioCtx.resume();
-                }
-                const noteStr = this.getAudioNoteName(this.selectedRootIndex, interval, PLAY_BASE_OCTAVE);
-                try {
-                    const node = this.pianoInstrument.play(noteStr, this.audioCtx.currentTime, { duration: 1.5, destination: this.reverbInput });
-                    this.activeAudioNodes.push(node);
-                } catch(e) {}
-            }
-
-            playChord(skipStop = false) {
-                if (this.isLoopMode && this.currentLoopType === 'chord' && !skipStop) {
-                    this.stopAllSounds();
-                    this.stopLoop();
-                    return;
-                }
-                if (!skipStop) {
-                    this.stopAllSounds();
-                    if (this.currentLoopType) {
-                        this.stopLoop();
-                    }
-                }
-                if (!this.pianoInstrument) {
-                    this.loadPiano();
-                    return;
-                }
-                if (this.audioCtx && this.audioCtx.state === 'suspended') {
-                    this.audioCtx.resume();
-                }
-
+            async playChord() {
+                const piano = await this.loadPiano();
+                if (!piano) return;
                 const chordObj = this.getCurrentChordObj();
-                const now = this.audioCtx ? this.audioCtx.currentTime : 0;
-
-                chordObj.notes.forEach((interval, idx) => {
-                    const noteStr = this.getAudioNoteName(this.selectedRootIndex, interval, PLAY_BASE_OCTAVE);
-                    try {
-                        const node = this.pianoInstrument.play(noteStr, now + (idx * 0.04), { duration: 2.2, destination: this.reverbInput });
+                const rootIndex = this.selectedRootIndex;
+                const notes = chordObj.notes.map(interval => this.getAudioNoteName(rootIndex, interval, 3));
+                notes.forEach((note, index) => {
+                    setTimeout(() => {
+                        if (this.isLoopMode && this.currentLoopType === 'chord') return;
+                        const node = piano.play(note);
                         this.activeAudioNodes.push(node);
-                    } catch(e) {}
+                    }, index * 120);
                 });
-
-                if (this.isLoopMode && !skipStop) {
-                    this.currentLoopType = 'chord';
-                    this.updatePlayButtonStates();
-                    this.loopInterval = setInterval(() => {
-                        if (this.isLoopMode && this.currentLoopType === 'chord') {
-                            this.playChord(true);
-                        } else {
-                            this.stopLoop();
-                        }
-                    }, 2000);
-                }
             }
 
-            playArpeggio(skipStop = false) {
-                if (this.isLoopMode && this.currentLoopType === 'arpeggio' && !skipStop) {
-                    this.stopAllSounds();
-                    this.stopLoop();
-                    return;
-                }
-                if (!skipStop) {
-                    this.stopAllSounds();
-                    if (this.currentLoopType) {
-                        this.stopLoop();
-                    }
-                }
-                if (!this.pianoInstrument) {
-                    this.loadPiano();
-                    return;
-                }
-                if (this.audioCtx && this.audioCtx.state === 'suspended') {
-                    this.audioCtx.resume();
-                }
-
+            async playArpeggio() {
+                const piano = await this.loadPiano();
+                if (!piano) return;
                 const chordObj = this.getCurrentChordObj();
-                const now = this.audioCtx ? this.audioCtx.currentTime : 0;
-
-                const lastIdx = chordObj.notes.length - 1;
-                const arpeggioDurationMs = chordObj.notes.length * NOTE_STEP_SECONDS * 1000;
-
-                chordObj.notes.forEach((interval, idx) => {
-                    const noteStr = this.getAudioNoteName(this.selectedRootIndex, interval, PLAY_BASE_OCTAVE);
-                    try {
-                        const node = this.pianoInstrument.play(noteStr, now + (idx * NOTE_STEP_SECONDS), { duration: idx === lastIdx ? 2.2 : 1.8, destination: this.reverbInput });
+                const rootIndex = this.selectedRootIndex;
+                const notes = chordObj.notes.map(interval => this.getAudioNoteName(rootIndex, interval, 3));
+                notes.forEach((note, index) => {
+                    setTimeout(() => {
+                        if (this.isLoopMode && this.currentLoopType === 'arpeggio') return;
+                        const node = piano.play(note);
                         this.activeAudioNodes.push(node);
-                    } catch(e) {}
+                    }, index * 160);
                 });
-
-                if (this.isLoopMode && !skipStop) {
-                    this.currentLoopType = 'arpeggio';
-                    this.updatePlayButtonStates();
-                    this.loopInterval = setInterval(() => {
-                        if (this.isLoopMode && this.currentLoopType === 'arpeggio') {
-                            this.playArpeggio(true);
-                        } else {
-                            this.stopLoop();
-                        }
-                    }, Math.max(arpeggioDurationMs, 1000));
-                }
             }
 
             toggleLoopMode() {
-                this.isLoopMode = !this.isLoopMode;
-                const btn = document.getElementById('loop-chord-btn');
                 if (this.isLoopMode) {
-                    if (btn) btn.className = "bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-md shadow transition flex items-center justify-center border border-blue-500";
-                } else {
-                    if (btn) btn.className = "bg-[#3a3a3c] hover:bg-[#4a4a4c] text-slate-200 p-2 rounded-md border border-[#4a4a4c] transition flex items-center justify-center";
-                    this.stopAllSounds();
                     this.stopLoop();
+                    return;
+                }
+
+                this.isLoopMode = true;
+                this.currentLoopType = 'chord';
+                const btn = document.getElementById('loop-chord-btn');
+                if (btn) btn.classList.add('active');
+                this.updatePlayButtonStates();
+                this.loopInterval = setInterval(() => {
+                    if (this.currentLoopType === 'chord') {
+                        this.playChord();
+                    } else {
+                        this.playArpeggio();
+                    }
+                }, 900);
+            }
+
+            stopLoop() {
+                this.isLoopMode = false;
+                this.currentLoopType = null;
+                if (this.loopInterval) {
+                    clearInterval(this.loopInterval);
+                    this.loopInterval = null;
+                }
+                const btn = document.getElementById('loop-chord-btn');
+                if (btn) btn.classList.remove('active');
+                this.updatePlayButtonStates();
+            }
+
+            updatePlayButtonStates() {
+                const chordBtn = document.getElementById('play-chord-btn');
+                const arpBtn = document.getElementById('play-arp-btn');
+                if (chordBtn) {
+                    chordBtn.classList.toggle('active', this.isLoopMode && this.currentLoopType === 'chord');
+                }
+                if (arpBtn) {
+                    arpBtn.classList.toggle('active', this.isLoopMode && this.currentLoopType === 'arpeggio');
                 }
             }
         }
 
-        const app = new ChordScaleApp();
+        document.addEventListener('DOMContentLoaded', () => {
+            window.app = new ChordScaleApp();
+        });
     </script>
 </body>
 </html>
