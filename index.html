@@ -1,44 +1,538 @@
 <!doctype html>
 <html lang="fr" class="dark">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Chord Scales Machine</title>
-<script src="https://cdn.jsdelivr.net/npm/tailwindcss-cdn@3.4.10/tailwindcss.min.js"></script>
-<style>
-  :root{color-scheme:dark}*{box-sizing:border-box}html{min-height:100%;background:#1e1e1e}body{margin:0;min-height:100dvh;background:#1e1e1e;color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;overflow:auto;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}.app{min-height:100dvh;display:flex;flex-direction:column}.workspace{display:flex;flex:1;min-height:0}.sidebar{width:380px;flex:none;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}.content{display:flex;flex:1;min-width:0;min-height:0;flex-direction:column}.scales{flex:1;min-height:240px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}.play-button{width:40px;height:40px;min-width:40px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;touch-action:manipulation;appearance:none;-webkit-appearance:none}.play-button:active{transform:scale(.94)}@media(max-width:1023px){.workspace{display:block}.sidebar{width:100%;max-height:none;overflow:visible}.content{min-height:600px}.scales{overflow:visible;min-height:0}.app{overflow:visible}.toolbar{position:sticky;top:0;z-index:5}}button{font:inherit} .card{background:#252525;border:1px solid #383838;border-radius:12px}.note{background:#3b82f6;border-radius:5px;padding:2px 7px;font:700 12px ui-monospace,monospace}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <title>Chord Scales Machine</title>
+  <script src="https://cdn.jsdelivr.net/npm/tailwindcss-cdn@3.4.10/tailwindcss.min.js"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: #1e1e1e;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      overflow: auto;
+      -webkit-text-size-adjust: 100%;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior-y: contain;
+    }
+
+    body {
+      min-height: 100dvh;
+    }
+
+    button {
+      font: inherit;
+      cursor: pointer;
+      touch-action: manipulation;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    .app {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      background: #1e1e1e;
+    }
+
+    .workspace {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .sidebar {
+      width: 380px;
+      background: #222222;
+      border-right: 1px solid #333333;
+      padding: 1rem;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+    }
+
+    .content {
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .toolbar {
+      background: #252525;
+      border-bottom: 1px solid #333333;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .scales {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+      padding: 1rem;
+      display: grid;
+      grid-template-columns: repeat(1, minmax(0, 1fr));
+      gap: 1rem;
+      align-content: start;
+    }
+
+    .card {
+      border: 1px solid #333333;
+      border-radius: 0.9rem;
+      background: #252525;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+    }
+
+    .play-btn {
+      width: 2.5rem;
+      height: 2.5rem;
+      min-width: 2.5rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0.6rem;
+      border: 1px solid #555555;
+      background: #3a3a3c;
+      color: #e2e8f0;
+      transition: transform 0.12s ease;
+    }
+
+    .play-btn:active {
+      transform: scale(0.96);
+    }
+
+    .note-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.45rem;
+      background: #3b82f6;
+      color: white;
+      font-size: 0.7rem;
+      font-weight: 700;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    @media (max-width: 1023px) {
+      .workspace {
+        display: block;
+      }
+
+      .sidebar {
+        width: 100%;
+        max-height: none;
+        border-right: none;
+        border-bottom: 1px solid #333333;
+      }
+
+      .scales {
+        grid-template-columns: 1fr;
+        min-height: 0;
+      }
+    }
+
+    @media (min-width: 1280px) {
+      .scales {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  </style>
 </head>
 <body>
-<div class="app">
-<header class="bg-[#282828] border-b border-[#333] px-4 py-3 shrink-0"><b class="text-xs">Chord Scales Machine</b></header>
-<div class="workspace">
-<aside class="sidebar bg-[#222] p-4 space-y-5">
-<section class="card p-4"><div class="flex justify-between items-start"><div><div class="text-[10px] uppercase tracking-wider text-blue-400">Accord actuel</div><div id="chord-name" class="text-2xl font-bold">Cmaj7</div></div><div class="flex gap-2"><button id="play-chord-btn" class="play-button rounded-md border border-[#555] bg-[#3a3a3c] text-xl" aria-label="Jouer l'accord" type="button">▶</button><button id="play-arp-btn" class="play-button rounded-md border border-[#555] bg-[#3a3a3c] text-lg" aria-label="Jouer l'arpège" type="button">♪</button><button id="loop-btn" class="play-button rounded-md border border-[#555] bg-[#3a3a3c] text-lg" aria-label="Répéter" type="button">↻</button></div></div><div class="mt-3 pt-3 border-t border-[#3a3a3c]"><small class="text-slate-400">Notes :</small><div id="chord-notes" class="flex flex-wrap gap-1 mt-1"></div></div></section>
-<section><label class="text-xs font-semibold text-slate-400 uppercase">Fondamentale</label><div id="roots" class="grid grid-cols-6 gap-1.5 mt-2"></div></section>
-<section><label class="text-xs font-semibold text-slate-400 uppercase">Qualité</label><div id="qualities" class="grid grid-cols-2 gap-1.5 mt-2"></div></section>
-</aside>
-<main class="content">
-<div class="toolbar bg-[#252525] border-b border-[#333] px-4 py-3 flex flex-wrap gap-2 items-center"><b class="text-sm mr-2">Gammes compatibles</b><span id="count" class="text-[11px] rounded-full bg-emerald-500/20 text-emerald-300 px-2 py-1"></span><button data-mode="notes" class="mode px-2 py-1 rounded bg-[#3a3a3c] text-xs">Notes</button><button data-mode="intervals" class="mode px-2 py-1 rounded text-xs text-slate-400">Intervalles</button></div>
-<div id="scales" class="scales p-4 grid grid-cols-1 xl:grid-cols-2 gap-4 content-start"></div>
-</main></div></div>
-<script>
-const roots=['C','Db','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
-const qualities={maj:[['maj7','Majeur 7',[0,4,7,11]],['maj9','Majeur 9',[0,2,4,7,11]],['6','Sixte',[0,4,7,9]]],min:[['m7','Mineur 7',[0,3,7,10]],['m9','Mineur 9',[0,2,3,7,10]],['m11','Mineur 11',[0,2,3,5,7,10]]],dom:[['7','Dominante 7',[0,4,7,10]],['9','Dominante 9',[0,2,4,7,10]],['7b9','Dominante b9',[0,1,4,7,10]]],other:[['m7b5','Semi-diminué',[0,3,6,10]],['dim7','Diminué 7',[0,3,6,9]],['7sus4','Dominante suspendue',[0,5,7,10]]]};
-const scales={maj7:[['Lydien',[0,2,4,6,7,9,11]],['Ionien',[0,2,4,5,7,9,11]]],maj9:[['Lydien',[0,2,4,6,7,9,11]],['Ionien',[0,2,4,5,7,9,11]]],6:[['Ionien',[0,2,4,5,7,9,11]],['Pentatonique majeure',[0,2,4,7,9]]],m7:[['Dorien',[0,2,3,5,7,9,10]],['Éolien',[0,2,3,5,7,8,10]],['Pentatonique mineure',[0,3,5,7,10]]],m9:[['Dorien',[0,2,3,5,7,9,10]],['Éolien',[0,2,3,5,7,8,10]]],m11:[['Dorien',[0,2,3,5,7,9,10]]],7:[['Mixolydien',[0,2,4,5,7,9,10]],['Lydien dominant',[0,2,4,6,7,9,10]],['Bebop dominante',[0,2,4,5,7,9,10,11]]],9:[['Mixolydien',[0,2,4,5,7,9,10]],['Lydien dominant',[0,2,4,6,7,9,10]]],7b9:[['Demi-ton / ton',[0,1,3,4,6,7,9,10]],['Phrygien dominant',[0,1,4,5,7,8,10]]],m7b5:[['Locrien bécarre 2',[0,2,3,5,6,8,10]],['Locrien',[0,1,3,5,6,8,10]]],dim7:[['Ton / demi-ton',[0,2,3,5,6,8,9,11]]],7sus4:[['Mixolydien',[0,2,4,5,7,9,10]],['Dorien',[0,2,3,5,7,9,10]]]};
-let root=0, quality='maj7', mode='notes', audio=null, loopTimer=null;
-const noteAt=(n)=>roots[(root+n+12)%12];
-function chord(){for(const group of Object.values(qualities)){const q=group.find(x=>x[0]===quality);if(q)return q}return qualities.maj[0]}
-function drawRoots(){rootsEl.innerHTML='';roots.forEach((n,i)=>{const b=document.createElement('button');b.textContent=n;b.className='py-3 rounded-lg border text-sm '+(i===root?'bg-blue-600 border-blue-500':'bg-[#1a1a1a] border-[#333]');b.onclick=()=>{root=i;render()};rootsEl.appendChild(b)})}
-function drawQualities(){qualitiesEl.innerHTML='';Object.entries(qualities).forEach(([group,items])=>{items.forEach(q=>{const b=document.createElement('button');b.textContent=q[0];b.title=q[1];b.className='p-3 text-left rounded-lg border text-xs '+(q[0]===quality?'bg-blue-600/30 border-blue-500':'bg-[#1a1a1a] border-[#333]');b.onclick=()=>{quality=q[0];render()};qualitiesEl.appendChild(b)})})}
-function render(){const q=chord(), name=roots[root]+q[0];nameEl.textContent=name;notesEl.innerHTML=q[2].map(n=>`<span class="note">${noteAt(n)}</span>`).join('');const list=scales[quality]||[];countEl.textContent=list.length+' gammes';scalesEl.innerHTML=list.map(([n,ints])=>`<article class="card p-4"><h3 class="font-bold text-sm">${roots[root]} ${n}</h3><div class="text-xs text-slate-400 my-3">${mode==='notes'?ints.map(noteAt).join(' · '):ints.map((x,i)=>i?'+'+(x-ints[i-1]):'1').join(' ')}</div><button class="w-full rounded bg-[#3a3a3c] py-2 text-xs" data-scale="${ints.join(',')}">▶ Jouer la gamme</button></article>`).join('');scalesEl.querySelectorAll('[data-scale]').forEach(b=>b.onclick=()=>playScale(b.dataset.scale.split(',').map(Number)));drawRoots();drawQualities()}
-function ensureAudio(){if(!audio)audio=new(window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume();return audio}
-function tone(semi,when,duration=.6){const ctx=ensureAudio(),osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.value=261.63*Math.pow(2,(semi-0)/12);gain.gain.setValueAtTime(.0001,when);gain.gain.exponentialRampToValueAtTime(.22,when+.02);gain.gain.exponentialRampToValueAtTime(.0001,when+duration);osc.connect(gain).connect(ctx.destination);osc.start(when);osc.stop(when+duration+.05)}
-function playChord(){const ctx=ensureAudio(),now=ctx.currentTime;stopLoop();chord()[2].forEach(n=>tone(root+n,now,.8))}
-function playArpeggio(){const ctx=ensureAudio(),now=ctx.currentTime;stopLoop();chord()[2].forEach((n,i)=>tone(root+n,now+i*.28,.5))}
-function playScale(ints){const ctx=ensureAudio(),now=ctx.currentTime;stopLoop();ints.forEach((n,i)=>tone(root+n,now+i*.18,.32))}
-function stopLoop(){if(loopTimer){clearInterval(loopTimer);loopTimer=null}loopBtn.classList.remove('bg-blue-600')}
-function toggleLoop(){if(loopTimer){stopLoop();return}loopBtn.classList.add('bg-blue-600');playChord();loopTimer=setInterval(playChord,1300)}
-const rootsEl=document.getElementById('roots'),qualitiesEl=document.getElementById('qualities'),nameEl=document.getElementById('chord-name'),notesEl=document.getElementById('chord-notes'),scalesEl=document.getElementById('scales'),countEl=document.getElementById('count'),loopBtn=document.getElementById('loop-btn');document.getElementById('play-chord-btn').onclick=playChord;document.getElementById('play-arp-btn').onclick=playArpeggio;loopBtn.onclick=toggleLoop;document.querySelectorAll('.mode').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('bg-[#3a3a3c]',x===b));render()});render();
-</script>
-</body></html>
+  <div class="app">
+    <header class="bg-[#282828] border-b border-[#333333] px-4 py-3 shrink-0">
+      <div class="text-xs font-semibold text-slate-300">Chord Scales Machine</div>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar">
+        <section class="card p-4">
+          <div class="flex justify-between items-start gap-3">
+            <div>
+              <div class="text-[10px] font-semibold uppercase tracking-wider text-blue-400">Accord actuel</div>
+              <div id="chord-name" class="text-2xl font-bold tracking-tight text-white mt-1">Cmaj7</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button id="play-chord-btn" class="play-btn" type="button" aria-label="Jouer l'accord">▶</button>
+              <button id="play-arp-btn" class="play-btn" type="button" aria-label="Jouer l'arpège">♪</button>
+              <button id="loop-btn" class="play-btn" type="button" aria-label="Répéter l'accord">↻</button>
+            </div>
+          </div>
+
+          <div class="mt-3 pt-3 border-t border-[#3a3a3c]">
+            <div class="text-[10px] text-slate-400 mb-2">Notes :</div>
+            <div id="chord-notes" class="flex flex-wrap gap-1"></div>
+          </div>
+        </section>
+
+        <section class="mt-5">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Fundamentale</div>
+          <div id="roots" class="grid grid-cols-6 gap-1.5 mt-2"></div>
+        </section>
+
+        <section class="mt-5">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Qualité</div>
+          <div id="qualities" class="grid grid-cols-2 gap-1.5 mt-2"></div>
+        </section>
+      </aside>
+
+      <main class="content">
+        <div class="toolbar">
+          <div class="text-sm font-bold text-white">Gammes compatibles</div>
+          <span id="count" class="text-[11px] rounded-full bg-emerald-500/20 text-emerald-300 px-2 py-1"></span>
+          <button type="button" data-mode="notes" class="mode-btn px-2 py-1 rounded text-xs bg-[#3a3a3c] text-white">Notes</button>
+          <button type="button" data-mode="intervals" class="mode-btn px-2 py-1 rounded text-xs text-slate-300">Intervalles</button>
+        </div>
+        <div id="scales" class="scales"></div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const rootLabels = ["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+
+    const qualities = {
+      maj: [
+        ["maj7", "Majeur 7", [0, 4, 7, 11]],
+        ["maj9", "Majeur 9", [0, 2, 4, 7, 11]],
+        ["6", "Sixte", [0, 4, 7, 9]]
+      ],
+      min: [
+        ["m7", "Mineur 7", [0, 3, 7, 10]],
+        ["m9", "Mineur 9", [0, 2, 3, 7, 10]],
+        ["m11", "Mineur 11", [0, 2, 3, 5, 7, 10]]
+      ],
+      dom: [
+        ["7", "Dominante 7", [0, 4, 7, 10]],
+        ["9", "Dominante 9", [0, 2, 4, 7, 10]],
+        ["7b9", "Dominante b9", [0, 1, 4, 7, 10]]
+      ],
+      other: [
+        ["m7b5", "Semi-diminué", [0, 3, 6, 10]],
+        ["dim7", "Diminué 7", [0, 3, 6, 9]],
+        ["7sus4", "Dominante suspendue", [0, 5, 7, 10]]
+      ]
+    };
+
+    const scalesDb = {
+      maj7: [
+        ["Lydien", [0, 2, 4, 6, 7, 9, 11]],
+        ["Ionien", [0, 2, 4, 5, 7, 9, 11]]
+      ],
+      maj9: [
+        ["Lydien", [0, 2, 4, 6, 7, 9, 11]],
+        ["Ionien", [0, 2, 4, 5, 7, 9, 11]]
+      ],
+      6: [
+        ["Ionien", [0, 2, 4, 5, 7, 9, 11]],
+        ["Pentatonique majeure", [0, 2, 4, 7, 9]]
+      ],
+      m7: [
+        ["Dorien", [0, 2, 3, 5, 7, 9, 10]],
+        ["Éolien", [0, 2, 3, 5, 7, 8, 10]],
+        ["Pentatonique mineure", [0, 3, 5, 7, 10]]
+      ],
+      m9: [
+        ["Dorien", [0, 2, 3, 5, 7, 9, 10]],
+        ["Éolien", [0, 2, 3, 5, 7, 8, 10]]
+      ],
+      m11: [
+        ["Dorien", [0, 2, 3, 5, 7, 9, 10]]
+      ],
+      7: [
+        ["Mixolydien", [0, 2, 4, 5, 7, 9, 10]],
+        ["Lydien dominant", [0, 2, 4, 6, 7, 9, 10]],
+        ["Bebop dominante", [0, 2, 4, 5, 7, 9, 10, 11]]
+      ],
+      9: [
+        ["Mixolydien", [0, 2, 4, 5, 7, 9, 10]],
+        ["Lydien dominant", [0, 2, 4, 6, 7, 9, 10]]
+      ],
+      7b9: [
+        ["Demi-ton / ton", [0, 1, 3, 4, 6, 7, 9, 10]],
+        ["Phrygien dominant", [0, 1, 4, 5, 7, 8, 10]]
+      ],
+      m7b5: [
+        ["Locrien bécarre 2", [0, 2, 3, 5, 6, 8, 10]],
+        ["Locrien", [0, 1, 3, 5, 6, 8, 10]]
+      ],
+      dim7: [
+        ["Ton / demi-ton", [0, 2, 3, 5, 6, 8, 9, 11]]
+      ],
+      7sus4: [
+        ["Mixolydien", [0, 2, 4, 5, 7, 9, 10]],
+        ["Dorien", [0, 2, 3, 5, 7, 9, 10]]
+      ]
+    };
+
+    const state = {
+      rootIndex: 0,
+      quality: 'maj7',
+      mode: 'notes',
+      audioCtx: null,
+      loopTimer: null
+    };
+
+    function getCurrentChord() {
+      for (const group of Object.values(qualities)) {
+        const found = group.find(([id]) => id === state.quality);
+        if (found) return found;
+      }
+      return qualities.maj[0];
+    }
+
+    function noteForInterval(interval) {
+      const semis = (state.rootIndex + interval) % 12;
+      return rootLabels[semis];
+    }
+
+    function ensureAudio() {
+      if (!state.audioCtx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return null;
+        state.audioCtx = new AudioCtx();
+      }
+      if (state.audioCtx.state === 'suspended') {
+        state.audioCtx.resume();
+      }
+      return state.audioCtx;
+    }
+
+    function tone(freq, start, duration = 0.5) {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.001, start);
+      gain.gain.exponentialRampToValueAtTime(0.18, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + duration + 0.04);
+    }
+
+    function frequencyForNote(rootIndex, interval) {
+      const note = noteForInterval(interval);
+      const semitone = rootLabels.indexOf(note);
+      const midi = 60 + semitone + (interval >= 0 ? 0 : 0);
+      return 440 * Math.pow(2, (midi - 69) / 12);
+    }
+
+    function playChord() {
+      const chord = getCurrentChord()[2];
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const start = ctx.currentTime;
+      chord.forEach((interval, index) => {
+        const freq = 440 * Math.pow(2, ((60 + state.rootIndex + interval) - 69) / 12);
+        tone(freq, start + index * 0.05, 0.7);
+      });
+    }
+
+    function playArpeggio() {
+      const chord = getCurrentChord()[2];
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const start = ctx.currentTime;
+      chord.forEach((interval, index) => {
+        const freq = 440 * Math.pow(2, ((60 + state.rootIndex + interval) - 69) / 12);
+        tone(freq, start + index * 0.18, 0.32);
+      });
+    }
+
+    function playScale(intervals) {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const start = ctx.currentTime;
+      intervals.forEach((interval, index) => {
+        const freq = 440 * Math.pow(2, ((60 + state.rootIndex + interval) - 69) / 12);
+        tone(freq, start + index * 0.12, 0.25);
+      });
+    }
+
+    function stopLoop() {
+      if (state.loopTimer) {
+        clearInterval(state.loopTimer);
+        state.loopTimer = null;
+      }
+      const loopBtn = document.getElementById('loop-btn');
+      if (loopBtn) {
+        loopBtn.classList.remove('bg-blue-600');
+        loopBtn.classList.add('bg-[#3a3a3c]');
+      }
+    }
+
+    function toggleLoop() {
+      if (state.loopTimer) {
+        stopLoop();
+        return;
+      }
+      const loopBtn = document.getElementById('loop-btn');
+      if (loopBtn) {
+        loopBtn.classList.remove('bg-[#3a3a3c]');
+        loopBtn.classList.add('bg-blue-600');
+      }
+      playChord();
+      state.loopTimer = setInterval(() => playChord(), 1300);
+    }
+
+    function renderRoots() {
+      const rootsEl = document.getElementById('roots');
+      rootsEl.innerHTML = '';
+      rootLabels.forEach((label, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = label;
+        button.className = `py-3 rounded-lg text-sm border transition ${
+          index === state.rootIndex
+            ? 'bg-[#2563eb] border-[#2563eb] text-white shadow-sm'
+            : 'bg-[#1a1a1a] border-[#333333] text-slate-300 hover:text-white'
+        }`;
+        button.addEventListener('click', () => {
+          state.rootIndex = index;
+          render();
+        });
+        rootsEl.appendChild(button);
+      });
+    }
+
+    function renderQualities() {
+      const qualitiesEl = document.getElementById('qualities');
+      qualitiesEl.innerHTML = '';
+      Object.values(qualities).flat().forEach(([id, label]) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = id;
+        button.title = label;
+        button.className = `p-2.5 rounded-lg text-left text-xs border transition ${
+          id === state.quality
+            ? 'bg-blue-600/20 border-blue-500 text-white'
+            : 'bg-[#1a1a1a] border-[#333333] text-slate-300 hover:text-white'
+        }`;
+        button.addEventListener('click', () => {
+          state.quality = id;
+          render();
+        });
+        qualitiesEl.appendChild(button);
+      });
+    }
+
+    function renderScaleCards() {
+      const container = document.getElementById('scales');
+      const chord = getCurrentChord();
+      const list = scalesDb[state.quality] || [];
+      document.getElementById('count').textContent = `${list.length} gammes`;
+
+      container.innerHTML = '';
+      list.forEach(([name, intervals]) => {
+        const article = document.createElement('article');
+        article.className = 'card p-4';
+
+        const title = document.createElement('div');
+        title.className = 'flex justify-between items-center gap-3';
+        title.innerHTML = `<h3 class="font-bold text-sm text-white">${rootLabels[state.rootIndex]} ${name}</h3>`;
+
+        const meta = document.createElement('div');
+        meta.className = 'mt-3 text-xs text-slate-400';
+        if (state.mode === 'notes') {
+          meta.textContent = intervals.map(interval => noteForInterval(interval)).join(' · ');
+        } else {
+          meta.textContent = intervals.map((interval, index) => index === 0 ? '1' : `${interval}`).join(' - ');
+        }
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = '▶ Jouer';
+        button.className = 'mt-3 w-full rounded-lg bg-[#3a3a3c] text-xs py-2 text-white';
+        button.addEventListener('click', () => playScale(intervals));
+
+        article.appendChild(title);
+        article.appendChild(meta);
+        article.appendChild(button);
+        container.appendChild(article);
+      });
+    }
+
+    function renderChordInfo() {
+      const chord = getCurrentChord();
+      const chordName = `${rootLabels[state.rootIndex]}${chord[0]}`;
+      document.getElementById('chord-name').textContent = chordName;
+
+      const notesEl = document.getElementById('chord-notes');
+      notesEl.innerHTML = '';
+      chord[2].forEach((interval) => {
+        const span = document.createElement('span');
+        span.className = 'note-badge';
+        span.textContent = noteForInterval(interval);
+        span.addEventListener('click', () => {
+          const ctx = ensureAudio();
+          if (!ctx) return;
+          const freq = 440 * Math.pow(2, ((60 + state.rootIndex + interval) - 69) / 12);
+          tone(freq, ctx.currentTime, 0.5);
+        });
+        notesEl.appendChild(span);
+      });
+    }
+
+    function render() {
+      renderChordInfo();
+      renderRoots();
+      renderQualities();
+      renderScaleCards();
+
+      document.querySelectorAll('.mode-btn').forEach((button) => {
+        const isActive = button.dataset.mode === state.mode;
+        button.classList.toggle('bg-[#3a3a3c]', isActive);
+        button.classList.toggle('text-white', isActive);
+        button.classList.toggle('text-slate-300', !isActive);
+      });
+    }
+
+    document.getElementById('play-chord-btn').addEventListener('click', () => {
+      stopLoop();
+      playChord();
+    });
+
+    document.getElementById('play-arp-btn').addEventListener('click', () => {
+      stopLoop();
+      playArpeggio();
+    });
+
+    document.getElementById('loop-btn').addEventListener('click', toggleLoop);
+
+    document.querySelectorAll('.mode-btn').forEach((button) => {
+      button.addEventListener('click', () => {
+        state.mode = button.dataset.mode;
+        render();
+      });
+    });
+
+    document.body.addEventListener('pointerdown', ensureAudio, { once: true });
+    document.body.addEventListener('touchstart', ensureAudio, { once: true });
+
+    render();
+  </script>
+</body>
+</html>
