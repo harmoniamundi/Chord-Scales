@@ -57,6 +57,26 @@
            (cases plus basses, symboles plus petits) pour tenir dans la place restante,
            sans jamais dépasser leur taille d'origine. */
         @media (min-width: 1024px) {
+            /* Avant le lancement : la grille d'accords se compresse et défile
+               afin de toujours laisser visible la première ligne des gammes. */
+            #view-jam:not(.jam-playing) #jam-chord-card {
+                flex: 0 1 auto;
+                min-height: 0;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            }
+            #view-jam:not(.jam-playing) #jam-chord-sequence-display {
+                flex: 0 1 auto;
+                min-height: 0;
+                overflow-x: auto;
+                overflow-y: auto;
+            }
+            #view-jam:not(.jam-playing) #jam-scales-card {
+                flex: 1 1 0%;
+                min-height: 300px;
+            }
+
             #view-jam.jam-playing #jam-scales-card { flex: 0 0 auto; }
             #view-jam.jam-playing #jam-scale-visualizer { flex: 0 0 auto; overflow: visible; }
 
@@ -73,11 +93,93 @@
         @container jamrow (max-height: 32px) {
             #view-jam.jam-playing .jam-cell-top { display: none; }
         }
+
+        /* Mode plein écran de la grille d'accords : seul le panneau de grille est affiché. */
+        #jam-chord-card:fullscreen {
+            width: 100vw;
+            height: 100vh;
+            box-sizing: border-box;
+            margin: 0;
+            border-radius: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #jam-chord-card:fullscreen #jam-chord-sequence-display {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+        }
+
+        #jam-chord-card:fullscreen .grid.grid-cols-3 {
+            flex-shrink: 0;
+        }
+
+                /* Impression de la grille d'accords (mode Jam) — grille façon lead sheet traditionnelle */
+        #jam-print-area { display: none; }
+        @media print {
+            @page { size: auto; margin: 1.5cm; }
+            html, body { background: #ffffff !important; height: auto !important; }
+            #app-shell { display: none !important; }
+            #jam-print-area {
+                display: block !important;
+                position: static;
+                width: auto;
+                background: #ffffff;
+                color: #000000;
+                padding: 0;
+                margin: 0;
+            }
+            #jam-print-area .jam-print-title {
+                font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+                font-size: 20pt;
+                font-weight: 800;
+                text-align: center;
+                color: #000000;
+                margin: 0 0 22pt 0;
+                padding-bottom: 10pt;
+                border-bottom: 2px solid #000000;
+                text-transform: uppercase;
+                letter-spacing: 0.02em;
+            }
+            #jam-print-area .jam-print-grid {
+                display: flex;
+                flex-direction: column;
+                gap: 3mm;
+            }
+            #jam-print-area .jam-print-row {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 3mm;
+                page-break-inside: avoid;
+            }
+            #jam-print-area .jam-print-cell {
+                border: 1.75pt solid #000000;
+                min-height: 2.6cm;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 4pt;
+                background: #ffffff;
+            }
+            #jam-print-area .jam-print-cell-empty {
+                visibility: hidden;
+                border: none;
+            }
+            #jam-print-area .jam-print-chord {
+                font-family: "Kalam", cursive;
+                font-size: 24pt;
+                font-weight: 700;
+                color: #000000;
+                line-height: 1;
+            }
+        }
     </style>
 </head>
 <body class="bg-[#121212] text-slate-100 selection:bg-blue-500 selection:text-white">
 
-    <div class="flex flex-col min-h-screen lg:h-screen lg:overflow-hidden bg-[#1e1e1e]">
+    <div id="app-shell" class="flex flex-col min-h-screen lg:h-screen lg:overflow-hidden bg-[#1e1e1e]">
         
         <header class="bg-[#282828] border-b border-[#333333] px-4 py-2.5 flex items-center justify-between select-none shrink-0">
             <div class="flex items-center space-x-3">
@@ -198,11 +300,7 @@
                     </div>
 
                     <div class="flex items-center gap-2">
-                        <button id="jam-play-btn" onclick="app.jam.togglePlay()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3 rounded-lg transition flex items-center justify-center gap-2 shadow text-xs">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                            <span>Jam it!</span>
-                        </button>
-                        <select onchange="app.jam.loadStyle(this.value)" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-2.5 rounded-lg transition text-xs shadow cursor-pointer border-0 outline-none">
+                        <select id="jam-style-select" onchange="app.jam.loadStyle(this.value)" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-2.5 rounded-lg transition text-xs shadow cursor-pointer border-0 outline-none">
                             <option value="ii-v-i" selected>II-V-I</option>
                             <option value="blues">Blues Traditionnel</option>
                             <option value="bebop">BeBop (Rhythm Changes)</option>
@@ -216,6 +314,12 @@
                             <option value="dixieland">Dixieland / Trad</option>
                             <option value="latin">Latin Jazz</option>
                             <option value="fusion">Fusion / Moderne</option>
+                            <option value="baroque">Baroque</option>
+                            <option value="mozart">Mozart / Classique</option>
+                            <option value="trad">Traditionnel</option>
+                        </select>
+                        <select id="jam-key-select" onchange="app.jam.setMainKey(this.value)" title="Tonalité principale" class="bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-2 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
+                            <option value="0">C</option><option value="1">Db</option><option value="2">D</option><option value="3">Eb</option><option value="4">E</option><option value="5">F</option><option value="6">F#</option><option value="7">G</option><option value="8">Ab</option><option value="9">A</option><option value="10">Bb</option><option value="11">B</option>
                         </select>
                     </div>
 
@@ -246,6 +350,17 @@
                     </div>
                 </div>
 
+                <div class="flex items-center gap-1.5 px-1">
+                    <button onclick="app.jam.saveGrid()" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-2.5 py-1 rounded transition whitespace-nowrap">Sauvegarder</button>
+                    <div class="relative flex-1 min-w-0" id="jam-saved-grids-wrapper">
+                        <button type="button" onclick="app.jam.toggleSavedGridsMenu()" class="w-full flex items-center justify-between text-xs bg-[#1a1a1a] border border-[#333333] rounded px-2 py-1 text-slate-300">
+                            <span id="jam-saved-grids-label">Grilles sauvegardées…</span>
+                            <span class="text-slate-500">▾</span>
+                        </button>
+                        <div id="jam-saved-grids-dropdown" class="hidden absolute left-0 right-0 z-20 mt-1 bg-[#1a1a1a] border border-[#333333] rounded shadow-lg max-h-48 overflow-y-auto"></div>
+                    </div>
+                </div>
+
                 <div id="jam-grid-container" class="space-y-2 flex-1"></div>
 
             </aside>
@@ -253,24 +368,37 @@
             <main class="flex-1 bg-[#1e1e1e] flex flex-col lg:overflow-hidden min-w-0 min-h-0 p-6 space-y-4">
                 
                 <div id="jam-chord-card" class="bg-[#252525] border border-[#333333] rounded-xl p-4 shadow space-y-3 shrink-0">
-                    <div class="flex justify-between items-center">
-                        <div class="flex items-center gap-2">
+                    <div class="grid grid-cols-3 items-center">
+                        <div class="flex items-center gap-2 justify-self-start">
                             <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
                             <span class="text-xs font-bold text-blue-400 uppercase tracking-wider">Grille d'accords</span>
                         </div>
-                        <div class="text-right">
+                        <span id="jam-loaded-grid-name" class="text-sm font-bold text-slate-300 uppercase tracking-wide text-center justify-self-center"></span>
+                        <div class="text-right justify-self-end flex items-center justify-end gap-2">
                             <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Gamme active : </span>
                             <span id="jam-current-scale-title" class="text-sm font-bold text-emerald-400">---</span>
+                            <button onclick="app.jam.printCurrentGrid()" title="Imprimer la grille d'accords" class="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-[#333333] transition">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.32 0h1.005c1.045 0 1.897-.816 1.995-1.855a49.663 49.663 0 00-.128-6.078c-.075-.923-.826-1.635-1.751-1.752a48.925 48.925 0 00-15.702 0c-.925.117-1.676.83-1.751 1.752a49.665 49.665 0 00-.128 6.078c.098 1.039.95 1.855 1.995 1.855H5.34" /></svg>
+                            </button>
+                            <button onclick="app.jam.toggleGridFullscreen()" id="jam-grid-fullscreen-btn" title="Plein écran" aria-label="Plein écran" class="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-[#333333] transition">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 3H3v5M16 3h5v5M8 21H3v-5M21 16v5h-5"/>
+                                </svg>
+                            </button>
                         </div>
                     </div>
 
                     <div id="jam-chord-sequence-display" class="py-2 border-y border-[#333333] min-h-[80px] custom-scrollbar overflow-x-auto"></div>
 
-                    <div class="flex items-center justify-between text-xs text-slate-400">
+                    <div class="flex items-center justify-between text-xs text-slate-400 -mt-1 pt-1">
                         <div class="flex items-center gap-2">
                             <span class="font-bold text-white text-sm cursor-pointer select-none hover:text-blue-400 transition" id="jam-current-chord-title" onclick="app.jam.playDisplayedChordArpeggio()" title="Écouter l'arpège">---</span>
                             <div id="jam-current-chord-notes" class="flex gap-1"></div>
                         </div>
+                        <button id="jam-play-btn" onclick="app.jam.togglePlay()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3 rounded-lg transition flex items-center justify-center gap-2 shadow text-xs">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            <span>Jam it!</span>
+                        </button>
                     </div>
                 </div>
 
@@ -555,6 +683,7 @@
 
         const chordTypes = {
             maj: [
+                { id: "majTriad", name: "maj", fullName: "Triade majeure", notes: [0, 4, 7], scales: [{ id: "ionian", role: "Principal" }, { id: "lydian", role: "Alternative" }, { id: "majorPentatonic", role: "Consonance" }] },
                 { id: "maj7", name: "maj7", fullName: "Majeur 7", notes: [0, 4, 7, 11], scales: [{ id: "lydian", role: "Principal (Moderne)" }, { id: "ionian", role: "Degré I" }, { id: "harmonicMajor", role: "Emprunt sombre" }, { id: "majorBebop", role: "Rythmique Bebop" }, { id: "majorPentatonic", role: "Consonance ouverte" }, { id: "majorBlues", role: "Approche bluesy" }] },
                 { id: "maj9", name: "maj9", fullName: "Majeur 9", notes: [0, 4, 7, 11, 2], scales: [{ id: "lydian", role: "Principal" }, { id: "ionian", role: "Degré I" }] },
                 { id: "6", name: "6", fullName: "Sixte", notes: [0, 4, 7, 9], scales: [{ id: "ionian", role: "Principal" }, { id: "lydian", role: "Moderne" }, { id: "majorBebop", role: "Bebop" }, { id: "majorPentatonic", role: "Consonance" }, { id: "majorBlues", role: "Bluesy" }] },
@@ -562,6 +691,7 @@
                 { id: "maj7sharp5", name: "maj7(#5)", fullName: "Majeur 7 quinte augmentée", notes: [0, 4, 8, 11], scales: [{ id: "lydianAug", role: "Principal (Degré III du mineur mélodique)" }, { id: "majorBebop", role: "Alternative" }] }
             ],
             min: [
+                { id: "minTriad", name: "m", fullName: "Triade mineure", notes: [0, 3, 7], scales: [{ id: "dorian", role: "Principal" }, { id: "aeolian", role: "Naturel" }, { id: "minorPentatonic", role: "Consonance" }] },
                 { id: "m7", name: "m7", fullName: "Mineur 7", notes: [0, 3, 7, 10], scales: [{ id: "dorian", role: "Principal (Degré II)" }, { id: "aeolian", role: "Degré VI (b6 frotte)" }, { id: "phrygian", role: "Degré III (Dissonant)" }, { id: "minorBebop", role: "Approche Bebop" }, { id: "minorPentatonic", role: "Sans frottements" }, { id: "bluesScale", role: "Tension Blues" }] },
                 { id: "m9", name: "m9", fullName: "Mineur 9", notes: [0, 3, 7, 10, 2], scales: [{ id: "dorian", role: "Principal" }, { id: "aeolian", role: "Secondaire" }, { id: "minorBebop", role: "Bebop" }] },
                 { id: "m11", name: "m11", fullName: "Mineur 11", notes: [0, 3, 7, 10, 2, 5], scales: [{ id: "dorian", role: "Principal" }, { id: "aeolian", role: "Naturel" }] },
@@ -575,6 +705,8 @@
                 { id: "7sharp5", name: "7(#5)", fullName: "Dominante 7 quinte aug", notes: [0, 4, 8, 10], scales: [{ id: "wholeTone", role: "Principal (Ton par ton)" }, { id: "altered", role: "Altéré" }] }
             ],
             other: [
+                { id: "dimTriad", name: "dim", fullName: "Triade diminuée", notes: [0, 3, 6], scales: [{ id: "wholeHalfDim", role: "Principal" }] },
+                { id: "augTriad", name: "aug", fullName: "Triade augmentée", notes: [0, 4, 8], scales: [{ id: "wholeTone", role: "Principal" }, { id: "lydianAug", role: "Alternative" }] },
                 { id: "m7b5", name: "m7b5", fullName: "Semi-diminué (Half-dim)", notes: [0, 3, 6, 10], scales: [{ id: "locrianSharp2", role: "Principal Moderne (Degré II)" }, { id: "locrian", role: "Classique (Degré VII)" }, { id: "minorPentatonicFlat5", role: "Allégé" }] },
                 { id: "dim7", name: "dim7", fullName: "Diminué 7", notes: [0, 3, 6, 9], scales: [{ id: "wholeHalfDim", role: "Principal (Couvre la structure symétrique)" }] },
                 { id: "7sus4", name: "7sus4", fullName: "Dominante Suspendue", notes: [0, 5, 7, 10], scales: [{ id: "mixolydian", role: "Principal" }, { id: "dorian", role: "Aérien" }, { id: "phrygian", role: "Modal / Sus4 b9" }] }
@@ -592,6 +724,7 @@
                 this.isPlaying = false;
                 this.currentStepIndex = -1;
                 this.currentBeat = 0;
+                this.activeSlot = 0; // créneau (0 = gauche/haut, 1 = droite/bas) occupé par la gamme active
                 this.timer = null;
                 
                 this.volume = 0.8;
@@ -602,14 +735,36 @@
                 this.showAvoidNotes = false;
                 this.showCharacteristic = false;
 
+                this.loadedGridName = null;
+                this.mainKey = 0;
+
                 this.initDefaultGrid();
             }
 
             resetGrid() {
-                const select = document.querySelector('#view-jam select');
-                const styleKey = select ? select.value : '';
-                if (styleKey) this.loadStyle(styleKey);
-                else { this.initDefaultGrid(); this.renderGridUI(); }
+                // Générer remplace entièrement la grille par une nouvelle grille
+                // conforme au style actuellement sélectionné.
+                this.loadedGridName = null;
+                this.currentStepIndex = -1;
+                this.currentBeat = 0;
+                this.activeSlot = 0;
+                this.updateLoadedGridNameDisplay();
+
+                const select = document.getElementById('jam-style-select');
+                const styleKey = select ? select.value : 'ii-v-i';
+
+                if (styleKey) {
+                    this.generationVariant++;
+                    this.loadStyle(styleKey);
+                } else { this.initDefaultGrid(); this.renderGridUI(); }
+            }
+
+            setMainKey(key) {
+                this.mainKey = parseInt(key, 10) || 0;
+                this.loadedGridName = null;
+                this.updateLoadedGridNameDisplay();
+                const styleSelect = document.getElementById('jam-style-select');
+                if (styleSelect) this.loadStyle(styleSelect.value);
             }
 
             setInstrumentKey(key) {
@@ -622,7 +777,7 @@
 
             getJamAudioNoteName(rootIndex, interval, baseOctave = PLAY_BASE_OCTAVE) {
                 const offsets = { 'C': 0, 'Bb': -2, 'Eb': -9 };
-                const absSemis = rootIndex + interval + (offsets[this.instrumentKey] || 0) - 1;
+                const absSemis = rootIndex + interval + (offsets[this.instrumentKey] || 0);
                 const normalizedSemi = ((absSemis % 12) + 12) % 12;
                 const octave = baseOctave + Math.floor(absSemis / 12);
                 return rootLabels[normalizedSemi] + octave;
@@ -630,7 +785,94 @@
 
             clearGrid() {
                 this.grid = [];
+                this.loadedGridName = null;
+                this.updateLoadedGridNameDisplay();
                 this.renderGridUI();
+            }
+
+            getSavedGrids() {
+                try {
+                    return JSON.parse(localStorage.getItem('jamSavedGrids')) || {};
+                } catch (e) {
+                    return {};
+                }
+            }
+
+            saveGrid() {
+                if (this.grid.length === 0) return;
+                const name = prompt('Nom de la grille à sauvegarder :', '');
+                if (!name) return;
+                const saved = this.getSavedGrids();
+                saved[name] = JSON.parse(JSON.stringify(this.grid));
+                localStorage.setItem('jamSavedGrids', JSON.stringify(saved));
+                this.loadedGridName = name;
+                this.renderSavedGridsMenu();
+                this.updateLoadedGridNameDisplay();
+            }
+
+            toggleSavedGridsMenu() {
+                const dropdown = document.getElementById('jam-saved-grids-dropdown');
+                if (!dropdown) return;
+                const isHidden = dropdown.classList.contains('hidden');
+                if (isHidden) {
+                    this.renderSavedGridsMenu();
+                    dropdown.classList.remove('hidden');
+                    if (!this._savedGridsOutsideClickBound) {
+                        this._savedGridsOutsideClickBound = true;
+                        document.addEventListener('click', (e) => {
+                            const wrapper = document.getElementById('jam-saved-grids-wrapper');
+                            const dd = document.getElementById('jam-saved-grids-dropdown');
+                            if (wrapper && dd && !wrapper.contains(e.target)) dd.classList.add('hidden');
+                        });
+                    }
+                } else {
+                    dropdown.classList.add('hidden');
+                }
+            }
+
+            renderSavedGridsMenu() {
+                const dropdown = document.getElementById('jam-saved-grids-dropdown');
+                if (!dropdown) return;
+                const names = Object.keys(this.getSavedGrids());
+                if (names.length === 0) {
+                    dropdown.innerHTML = '<div class="px-2 py-1.5 text-xs text-slate-500">Aucune grille sauvegardée</div>';
+                    return;
+                }
+                dropdown.innerHTML = names.map(n => {
+                    const safe = n.replace(/"/g, '&quot;');
+                    return `<div class="flex items-center justify-between gap-1 px-2 py-1.5 text-xs text-slate-300 hover:bg-[#252525] cursor-pointer" onclick="app.jam.loadSavedGrid('${safe.replace(/'/g, "\\'")}')">
+                        <span class="truncate">${safe}</span>
+                        <span onclick="event.stopPropagation(); app.jam.deleteSavedGrid('${safe.replace(/'/g, "\\'")}')" title="Supprimer" class="text-slate-500 hover:text-rose-400 font-bold px-1">×</span>
+                    </div>`;
+                }).join('');
+            }
+
+            loadSavedGrid(name) {
+                if (!name) return;
+                const saved = this.getSavedGrids();
+                if (!saved[name]) return;
+                this.grid = JSON.parse(JSON.stringify(saved[name]));
+                this.loadedGridName = name;
+                this.renderGridUI();
+                this.updateLoadedGridNameDisplay();
+                const dropdown = document.getElementById('jam-saved-grids-dropdown');
+                if (dropdown) dropdown.classList.add('hidden');
+            }
+
+            updateLoadedGridNameDisplay() {
+                const cardLabel = document.getElementById('jam-loaded-grid-name');
+                if (cardLabel) cardLabel.textContent = this.loadedGridName || '';
+                const menuLabel = document.getElementById('jam-saved-grids-label');
+                if (menuLabel) menuLabel.textContent = this.loadedGridName || 'Grilles sauvegardées…';
+            }
+
+            deleteSavedGrid(name) {
+                if (!name) return;
+                if (!confirm(`Supprimer la grille « ${name} » ?`)) return;
+                const saved = this.getSavedGrids();
+                delete saved[name];
+                localStorage.setItem('jamSavedGrids', JSON.stringify(saved));
+                this.renderSavedGridsMenu();
             }
 
             setVolume(val) {
@@ -728,7 +970,134 @@
                 return chordTypes.maj[0];
             }
 
+            // Pendant la jam, un accord doit toujours être joué avec 4 notes,
+            // quel que soit le nombre de notes qui le composent.
+            // Convention des données : notes = [fondamentale, tierce, quinte, septième, ...tensions]
+            // On garde fondamentale, tierce, septième et la tension la plus haute (la dernière listée),
+            // en retirant la quinte et les éventuelles tensions intermédiaires.
+            getJamChordPlaybackNotes(chordObj) {
+                const notes = chordObj.notes;
+                if (notes.length <= 4) return notes;
+                return [notes[0], notes[1], notes[3], notes[notes.length - 1]];
+            }
+
+            // Compteur de génération : le bouton « Générer » produit une nouvelle grille.
+            generationVariant = 0;
+            lastGeneratedSignature = null;
+
+            getGridSignature(grid) {
+                return grid.map(item => `${item.rootIndex}:${item.chordId}:${item.measures}:${item.scaleId}`).join('|');
+            }
+
+            createStyleVariation(template, styleKey, keyRoot) {
+                if (!template.length) return template;
+                const variant = this.generationVariant;
+                const out = template.map(item => ({ ...item }));
+
+                if (variant > 0) {
+                    switch (styleKey) {
+                        case 'ii-v-i':
+                            if (variant % 2) {
+                                out.splice(0, out.length,
+                                    {r:(keyRoot+9)%12,c:'m7',m:1,s:'dorian'},
+                                    {r:(keyRoot+2)%12,c:'m7',m:1,s:'dorian'},
+                                    {r:(keyRoot+7)%12,c:'7',m:1,s:'mixolydian'},
+                                    {r:keyRoot,c:'maj7',m:2,s:'lydian'});
+                            } else {
+                                out.splice(0, out.length,
+                                    {r:(keyRoot+2)%12,c:'m7',m:2,s:'dorian'},
+                                    {r:(keyRoot+7)%12,c:'7alt',m:1,s:'altered'},
+                                    {r:keyRoot,c:'maj7',m:1,s:'lydian'},
+                                    {r:(keyRoot+5)%12,c:'maj7',m:1,s:'lydian'});
+                            }
+                            break;
+                        case 'baroque':
+                        case 'mozart':
+                        case 'trad':
+                            if (variant % 3 === 1) {
+                                out.splice(0, out.length,
+                                    {r:keyRoot,c:'maj7',m:2,s:'ionian'}, {r:(keyRoot+2)%12,c:'m7',m:1,s:'dorian'},
+                                    {r:(keyRoot+7)%12,c:'7',m:1,s:'mixolydian'}, {r:keyRoot,c:'maj7',m:2,s:'ionian'},
+                                    {r:(keyRoot+5)%12,c:'maj7',m:1,s:'lydian'}, {r:(keyRoot+9)%12,c:'m7',m:1,s:'aeolian'},
+                                    {r:(keyRoot+2)%12,c:'m7',m:1,s:'dorian'}, {r:(keyRoot+7)%12,c:'7',m:1,s:'mixolydian'},
+                                    {r:keyRoot,c:'maj7',m:2,s:'ionian'});
+                            } else if (variant % 3 === 2) {
+                                out.splice(0, out.length,
+                                    {r:keyRoot,c:'maj7',m:1,s:'ionian'}, {r:(keyRoot+5)%12,c:'maj7',m:1,s:'lydian'},
+                                    {r:(keyRoot+9)%12,c:'m7',m:1,s:'aeolian'}, {r:(keyRoot+2)%12,c:'m7',m:1,s:'dorian'},
+                                    {r:(keyRoot+7)%12,c:'7',m:1,s:'mixolydian'}, {r:keyRoot,c:'maj7',m:2,s:'ionian'},
+                                    {r:(keyRoot+3)%12,c:'7',m:1,s:'mixolydian'}, {r:(keyRoot+5)%12,c:'maj7',m:1,s:'lydian'},
+                                    {r:(keyRoot+7)%12,c:'7',m:1,s:'mixolydian'}, {r:keyRoot,c:'maj7',m:2,s:'ionian'});
+                            }
+                            break;
+                        case 'blues':
+                            if (variant % 2) {
+                                out.splice(0, out.length,
+                                    {r:keyRoot,c:'7',m:4,s:'mixolydian'}, {r:(keyRoot+5)%12,c:'7',m:2,s:'mixolydian'},
+                                    {r:keyRoot,c:'7',m:2,s:'mixolydian'}, {r:(keyRoot+7)%12,c:'7',m:1,s:'mixolydian'},
+                                    {r:(keyRoot+5)%12,c:'7',m:1,s:'mixolydian'}, {r:(keyRoot+7)%12,c:'7',m:1,s:'mixolydian'},
+                                    {r:keyRoot,c:'7alt',m:1,s:'altered'});
+                            } else {
+                                out[1].m=1; out[2].m=3;
+                                out.splice(3,1,{r:(keyRoot+7)%12,c:'7',m:1,s:'mixolydian'},{r:(keyRoot+2)%12,c:'7',m:1,s:'mixolydian'});
+                            }
+                            break;
+                        default:
+                            out.forEach((item,i) => {
+                                const chordObj=this.findChordObj(item.c);
+                                if (variant%2 && chordObj?.scales?.length>1 && i%2===0) {
+                                    item.s=chordObj.scales[(variant+i)%chordObj.scales.length].id;
+                                }
+                            });
+                            // Une petite substitution diatonique pour les progressions
+                            // qui contiennent des fonctions répétées.
+                            if (variant%3===2) {
+                                for (let i=1;i<out.length-1;i++) {
+                                    if (out[i].c==='m7' && out[i-1].c==='maj7') {
+                                        const alt=(out[i].r-keyRoot+12)%12===2 ? 9 : 2;
+                                        out[i]={...out[i],r:(keyRoot+alt)%12,s:'dorian'};
+                                        break;
+                                    }
+                                }
+                            }
+                            break;
+                    }
+                }
+                return out;
+            }
+
+            normalizeGeneratedGrid(template, styleKey) {
+                const phraseMeasures = {
+                    'ii-v-i': 4, 'blues': 12, 'bebop': 32, 'swing': 32,
+                    'modal': 16, 'bossa': 16, 'pop': 8, 'ballad': 16, 'funk': 16,
+                    'hardbop': 16, 'dixieland': 16, 'latin': 16, 'fusion': 16,
+                    'baroque': 16, 'mozart': 16, 'trad': 16
+                };
+                const targetMeasures = phraseMeasures[styleKey] || 16;
+                if (!template.length) return template;
+                const normalized = [];
+                let measures = 0, sourceIndex = 0;
+                while (measures < targetMeasures) {
+                    const source = template[sourceIndex % template.length];
+                    const remaining = targetMeasures - measures;
+                    const item = { ...source, m: Math.min(Math.max(1, source.m || 1), remaining) };
+                    normalized.push(item); measures += item.m; sourceIndex++;
+                }
+                if (normalized.length % 2 !== 0) {
+                    const splitIndex = normalized.findIndex(item => item.m >= 2);
+                    if (splitIndex >= 0) {
+                        const item = normalized[splitIndex];
+                        const firstMeasures = Math.floor(item.m / 2);
+                        const secondMeasures = item.m - firstMeasures;
+                        normalized.splice(splitIndex, 1, { ...item, m: firstMeasures }, { ...item, m: secondMeasures });
+                    }
+                }
+                return normalized;
+            }
+
             getJazzChordNotation(chordId) {
+                // En mode Jam, une triade majeure s'écrit avec la fondamentale seule (D, C, F#...)
+                if (chordId === 'majTriad') return '';
                 const notation = {
                     maj7: 'Δ',
                     maj9: 'Δ9',
@@ -752,8 +1121,23 @@
             }
 
             loadStyle(styleKey) {
-                const keyRoot = Math.floor(Math.random() * 12);
+                const keyRoot = Number.isInteger(this.mainKey) ? this.mainKey : 0;
                 let template = [];
+
+                // Harmonie majoritairement diatonique. Les styles peuvent ajouter
+                // ponctuellement des dominantes secondaires ou des couleurs de passage.
+                const D = {
+                    I:   { r: 0, c: 'maj7', s: 'ionian' }, ii: { r: 2, c: 'm7', s: 'dorian' },
+                    iii: { r: 4, c: 'm7', s: 'dorian' }, IV: { r: 5, c: 'maj7', s: 'lydian' },
+                    V:   { r: 7, c: '7', s: 'mixolydian' }, vi: { r: 9, c: 'm7', s: 'aeolian' },
+                    vii: { r: 11, c: 'm7b5', s: 'locrianSharp2' }
+                };
+                const chord = (degree, measures = 1) => ({ r: (keyRoot + D[degree].r) % 12, c: D[degree].c, m: measures, s: D[degree].s });
+                const secondary = (degree, measures = 1) => {
+                    const targets = { ii: 2, iii: 4, IV: 5, V: 7, vi: 9 };
+                    const target = targets[degree] ?? 0;
+                    return { r: (keyRoot + target + 7) % 12, c: '7', m: measures, s: 'mixolydian' };
+                };
 
                 switch (styleKey) {
                     case 'blues':
@@ -888,6 +1272,15 @@
                             { r: (keyRoot + 1) % 12, c: 'mmaj7', m: 2, s: 'melodicMinor' }
                         ];
                         break;
+                    case 'baroque':
+                        template = [chord('I',2), chord('IV'), chord('V'), chord('I',2), chord('vi'), chord('ii'), secondary('V'), chord('V'), chord('I',2), chord('IV'), chord('ii'), chord('V'), chord('I',2)];
+                        break;
+                    case 'mozart':
+                        template = [chord('I',2), chord('IV'), chord('V'), chord('I',2), chord('ii'), secondary('V'), chord('V'), chord('I'), chord('vi'), chord('ii'), chord('V'), chord('I',2), chord('IV'), chord('V'), chord('I',2)];
+                        break;
+                    case 'trad':
+                        template = [chord('I',2), chord('IV'), chord('I'), chord('V'), chord('I'), chord('vi'), chord('ii'), chord('V'), chord('I',2), chord('IV'), chord('I'), chord('V'), chord('I',2)];
+                        break;
                     case 'ii-v-i':
                         template = [
                             { r: (keyRoot + 2) % 12, c: 'm7', m: 1, s: 'dorian' },
@@ -902,15 +1295,33 @@
                         break;
                 }
 
-                this.grid = template.map(item => {
-                    return {
-                        rootIndex: item.r,
-                        chordId: item.c,
-                        measures: item.m,
-                        scaleId: item.s
-                    };
-                });
+                const sourceTemplate = template.map(item => ({ ...item }));
+                if (this.generationVariant > 0) {
+                    template = this.createStyleVariation(sourceTemplate, styleKey, keyRoot);
+                }
 
+                template = this.normalizeGeneratedGrid(template, styleKey);
+
+                let generated = template.map(item => ({
+                    rootIndex: item.r,
+                    chordId: item.c,
+                    measures: item.m,
+                    scaleId: item.s
+                }));
+
+                // Garantie qu'un clic successif ne restitue jamais exactement
+                // la grille précédente.
+                let signature = this.getGridSignature(generated);
+                if (this.lastGeneratedSignature && signature === this.lastGeneratedSignature) {
+                    this.generationVariant++;
+                    generated = this.createStyleVariation(sourceTemplate, styleKey, keyRoot).map(item => ({
+                        rootIndex: item.r, chordId: item.c, measures: item.m, scaleId: item.s
+                    }));
+                    signature = this.getGridSignature(generated);
+                }
+
+                this.grid = generated;
+                this.lastGeneratedSignature = signature;
                 this.renderGridUI();
             }
 
@@ -1033,13 +1444,83 @@
                 }
             }
 
+            toggleGridFullscreen() {
+                const card = document.getElementById('jam-chord-card');
+                if (!card) return;
+
+                if (document.fullscreenElement === card) {
+                    document.exitFullscreen();
+                    return;
+                }
+
+                if (card.requestFullscreen) {
+                    card.requestFullscreen();
+                }
+            }
+
+            // Imprime uniquement la grille d'accords en cours (mode Jam), sur une page,
+            // façon grille de lead sheet traditionnelle : titre en en-tête, cases blanches
+            // entourées de traits noirs.
+            printCurrentGrid() {
+                const printArea = document.getElementById('jam-print-area');
+                if (!printArea) return;
+
+                const flatMeasures = this.getFlatMeasureList();
+                if (flatMeasures.length === 0) {
+                    alert("Aucune grille d'accords à imprimer.");
+                    return;
+                }
+
+                const systems = [];
+                for (let i = 0; i < flatMeasures.length; i += 4) {
+                    systems.push(flatMeasures.slice(i, i + 4));
+                }
+
+                let rowsHtml = '';
+                systems.forEach((systemMeasures) => {
+                    let cellsHtml = '';
+                    systemMeasures.forEach((m) => {
+                        const rootName = rootLabels[m.rootIndex];
+                        const chordSymbol = `${rootName}${this.getJazzChordNotation(m.chordId)}`;
+                        const previousMeasure = flatMeasures[m.measureNumber - 2];
+                        const previousChordSymbol = previousMeasure
+                            ? `${rootLabels[previousMeasure.rootIndex]}${this.getJazzChordNotation(previousMeasure.chordId)}`
+                            : null;
+                        const displayChordSymbol = previousChordSymbol === chordSymbol ? '%' : chordSymbol;
+                        cellsHtml += `<div class="jam-print-cell"><span class="jam-print-chord" data-symbol="${encodeURIComponent(displayChordSymbol)}"></span></div>`;
+                    });
+                    for (let k = systemMeasures.length; k < 4; k++) {
+                        cellsHtml += `<div class="jam-print-cell jam-print-cell-empty"></div>`;
+                    }
+                    rowsHtml += `<div class="jam-print-row">${cellsHtml}</div>`;
+                });
+
+                printArea.innerHTML = `
+                    <div class="jam-print-title"></div>
+                    <div class="jam-print-grid">${rowsHtml}</div>
+                `;
+
+                printArea.querySelector('.jam-print-title').textContent = this.loadedGridName || "Grille d'accords";
+                printArea.querySelectorAll('.jam-print-chord[data-symbol]').forEach((el) => {
+                    el.textContent = decodeURIComponent(el.getAttribute('data-symbol'));
+                });
+
+                window.print();
+            }
+
             renderGridUI() {
                 const container = document.getElementById('jam-grid-container');
                 if (!container) return;
                 container.innerHTML = '';
 
                 if (this.grid.length === 0) {
-                    container.innerHTML = '<div class="text-slate-500 text-xs p-2 text-center">Grille vide. Cliquez sur "+ Ajouter" pour commencer.</div>';
+                    container.innerHTML = '<div class="text-slate-500 text-xs p-2 text-center">Grille vide. Cliquez dans la zone grise ci-dessous pour ajouter un accord.</div>';
+                    const addZone = document.createElement('div');
+                    addZone.className = 'mt-auto min-h-[42px] rounded-lg border border-[#383838] bg-[#2a2a2c] hover:bg-[#333333] transition cursor-pointer flex items-center justify-center text-xs text-slate-500 hover:text-slate-300 select-none';
+                    addZone.title = 'Ajouter un accord';
+                    addZone.textContent = '+ Ajouter un accord';
+                    addZone.addEventListener('click', () => this.addChordStep());
+                    container.appendChild(addZone);
                     this.renderSequenceUI();
                     this.renderJamScales();
                     return;
@@ -1055,7 +1536,7 @@
                     let chordOptionsHtml = '';
                     for (const cat in chordTypes) {
                         chordTypes[cat].forEach(c => {
-                            chordOptionsHtml += `<option value="${c.id}" ${c.id === step.chordId ? 'selected' : ''}>${c.name} (${c.fullName})</option>`;
+                            chordOptionsHtml += `<option value="${c.id}" ${c.id === step.chordId ? 'selected' : ''}>${c.name.replace(/[()]/g, '')}</option>`;
                         });
                     }
 
@@ -1099,6 +1580,14 @@
                     container.appendChild(card);
                 });
 
+                // Zone grise en bas de l'éditeur : un clic ajoute directement un accord.
+                const addZone = document.createElement('div');
+                addZone.className = 'mt-auto min-h-[42px] rounded-lg border border-[#383838] bg-[#2a2a2c] hover:bg-[#333333] transition cursor-pointer flex items-center justify-center text-xs text-slate-500 hover:text-slate-300 select-none';
+                addZone.title = 'Ajouter un accord';
+                addZone.textContent = '+ Ajouter un accord';
+                addZone.addEventListener('click', () => this.addChordStep());
+                container.appendChild(addZone);
+
                 this.renderSequenceUI();
                 this.renderJamScales();
             }
@@ -1119,9 +1608,14 @@
                 if (this.isPlaying && this.grid.length > 0) {
                     const currentIdx = this.currentStepIndex >= 0 ? this.currentStepIndex : 0;
                     const nextIdx = (currentIdx + 1) % this.grid.length;
-                    indicesToRender = [currentIdx, nextIdx];
                     if (this.grid.length === 1) {
                         indicesToRender = [0];
+                    } else {
+                        // La place à l'écran est liée au créneau (this.activeSlot), pas au rôle :
+                        // la gamme qui devient active reste dans le créneau qu'elle occupait déjà
+                        // en tant que "suivante" ; seule la nouvelle "suivante" prend la place
+                        // laissée libre par l'ancienne gamme active.
+                        indicesToRender = this.activeSlot === 0 ? [currentIdx, nextIdx] : [nextIdx, currentIdx];
                     }
                 } else {
                     indicesToRender = this.grid.map((_, i) => i);
@@ -1257,6 +1751,7 @@
                 this.isPlaying = true;
                 this.currentStepIndex = 0;
                 this.currentBeat = 0;
+                this.activeSlot = 0;
                 document.getElementById('view-jam')?.classList.add('jam-playing');
 
                 const btn = document.getElementById('jam-play-btn');
@@ -1324,6 +1819,7 @@
                 if (this.currentBeat >= totalBeatsInStep) {
                     this.currentBeat = 0;
                     this.currentStepIndex = (this.currentStepIndex + 1) % this.grid.length;
+                    this.activeSlot = 1 - this.activeSlot;
                     this.renderJamScales();
                 }
 
@@ -1335,11 +1831,14 @@
                 this.initGainNode();
 
                 const chordObj = this.findChordObj(step.chordId);
+                // En jam, on joue toujours exactement 4 notes (les plus significatives),
+                // pour une durée de lecture constante quel que soit l'accord.
+                const playedNotes = this.getJamChordPlaybackNotes(chordObj);
                 const now = this.app.audioCtx.currentTime;
                 const beatSec = 60 / this.bpm;
-                const spacing = Math.min(beatSec, (beatSec * 4) / chordObj.notes.length);
+                const spacing = beatSec;
 
-                chordObj.notes.forEach((interval) => {
+                playedNotes.forEach((interval) => {
                     const noteStr = this.getJamAudioNoteName(step.rootIndex, interval, PLAY_BASE_OCTAVE);
                     try {
                         const node = this.app.pianoInstrument.play(
@@ -1351,7 +1850,7 @@
                     } catch(e) {}
                 });
 
-                chordObj.notes.forEach((interval, idx) => {
+                playedNotes.forEach((interval, idx) => {
                     const noteStr = this.getJamAudioNoteName(step.rootIndex, interval, PLAY_BASE_OCTAVE);
                     try {
                         const node = this.app.pianoInstrument.play(
@@ -1431,6 +1930,18 @@
             }
         }
 
+        document.addEventListener('fullscreenchange', () => {
+            const btn = document.getElementById('jam-grid-fullscreen-btn');
+            if (!btn) return;
+
+            const isFullscreen = document.fullscreenElement === document.getElementById('jam-chord-card');
+            btn.title = isFullscreen ? 'Quitter le plein écran' : 'Plein écran';
+            btn.setAttribute('aria-label', btn.title);
+            btn.innerHTML = isFullscreen
+                ? `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H3v6M15 3h6v6M9 21H3v-6M21 15v6h-6"/></svg>`
+                : `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 3H3v5M16 3h5v5M8 21H3v-5M21 16v5h-5"/></svg>`;
+        });
+
         class ChordScaleApp {
             constructor() {
                 this.selectedRootIndex = 0;
@@ -1462,6 +1973,7 @@
                 this.initUI();
                 this.update();
                 this.jam.renderGridUI();
+                this.jam.renderSavedGridsMenu();
                 this.initAudioContextOnInteraction();
                 this.initWakeLock();
             }
@@ -1569,7 +2081,7 @@
                 const offsets = { 'C': 0, 'Bb': -2, 'Eb': -9 };
                 const offset = offsets[this.instrumentKey] || 0;
                 
-                const absSemis = rootIndex + interval + offset - 1;
+                const absSemis = rootIndex + interval + offset;
                 const normalizedSemi = ((absSemis % 12) + 12) % 12;
                 const octaveOffset = Math.floor(absSemis / 12);
                 const octave = baseOctave + octaveOffset;
@@ -1606,6 +2118,10 @@
                     this.activePlaybacks[key].timers.forEach(t => clearTimeout(t));
                 }
                 this.activePlaybacks = {};
+
+                // En mode Jam, le liseré bleu ne reste visible que pendant la lecture réelle.
+                document.querySelectorAll('#jam-scale-visualizer [data-jam-step-index].ring-2.ring-blue-500')
+                    .forEach(card => card.classList.remove('ring-2', 'ring-blue-500'));
             }
 
             isLoopRunning() {
@@ -2243,9 +2759,17 @@
             }
 
             toggleScalePlayback(scaleKey, intervals, scaleName, cardElement, customRootIndex = null, isJam = false) {
+                // En mode Jam, le liseré bleu doit toujours suivre la gamme réellement jouée,
+                // y compris au premier clic lorsque le piano doit encore être chargé.
                 if (!this.pianoInstrument) {
                     this.loadPiano();
                     return;
+                }
+
+                if (isJam) {
+                    document.querySelectorAll('#jam-scale-visualizer [data-jam-step-index].ring-2.ring-blue-500')
+                        .forEach(card => card.classList.remove('ring-2', 'ring-blue-500'));
+                    cardElement.classList.add('ring-2', 'ring-blue-500');
                 }
                 if (this.audioCtx && this.audioCtx.state === 'suspended') {
                     this.audioCtx.resume();
@@ -2262,7 +2786,7 @@
                 const now = this.audioCtx.currentTime;
                 const stepSec = 0.28;
 
-                cardElement.classList.add('ring-2', 'ring-blue-500');
+                if (!isJam) cardElement.classList.add('ring-2', 'ring-blue-500');
 
                 const timers = [];
                 activeIntervals.forEach((interval, idx) => {
@@ -2292,5 +2816,7 @@
 
         const app = new ChordScaleApp();
     </script>
+    <div id="jam-print-area"></div>
+
 </body>
 </html>
