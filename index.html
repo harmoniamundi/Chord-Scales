@@ -86,6 +86,14 @@
             #view-jam.jam-playing #jam-chord-sequence-display .jam-row { flex: 0 1 78px; min-height: 40px; container-type: size; container-name: jamrow; grid-template-rows: minmax(0, 1fr); }
             #view-jam.jam-playing #jam-chord-sequence-display .jam-cell { height: auto; min-height: 0; overflow: hidden; padding: clamp(1px, 5cqh, 8px) 8px; }
             #view-jam.jam-playing #jam-chord-sequence-display .jam-realbook-chord { font-size: clamp(0.7rem, 40cqh, 1.35rem); }
+
+            /* Plein écran de la grille (bouton dédié), jam lancée : la grille se comprime comme en
+               mode normal pour laisser la place à la carte des gammes, déplacée dans la carte plein écran. */
+            #view-jam.jam-playing #jam-chord-card:fullscreen #jam-chord-sequence-display {
+                flex: 0 1 auto;
+                min-height: 0;
+                overflow-y: auto;
+            }
         }
         @container jamrow (max-height: 56px) {
             #view-jam.jam-playing .jam-cell-bottom { display: none; }
@@ -94,7 +102,8 @@
             #view-jam.jam-playing .jam-cell-top { display: none; }
         }
 
-        /* Mode plein écran de la grille d'accords : seul le panneau de grille est affiché. */
+        /* Mode plein écran de la grille d'accords : hors lecture, seul le panneau de grille est affiché ;
+           jam lancée, la carte des gammes actives/suivantes y est déplacée et reste visible. */
         #jam-chord-card:fullscreen {
             width: 100vw;
             height: 100vh;
@@ -114,6 +123,12 @@
 
         #jam-chord-card:fullscreen .grid.grid-cols-3 {
             flex-shrink: 0;
+        }
+
+        /* Hors lecture, le plein écran de la grille reste centré sur la grille seule (comportement d'origine) ;
+           la carte des gammes (déplacée ici en plein écran) ne doit s'afficher que si la jam est lancée. */
+        #view-jam:not(.jam-playing) #jam-chord-card:fullscreen #jam-scales-card {
+            display: none;
         }
 
                 /* Impression de la grille d'accords (mode Jam) — grille façon lead sheet traditionnelle */
@@ -302,6 +317,7 @@
                     <div class="flex items-center gap-2">
                         <select id="jam-style-select" onchange="app.jam.loadStyle(this.value)" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-2.5 rounded-lg transition text-xs shadow cursor-pointer border-0 outline-none">
                             <option value="ii-v-i" selected>II-V-I</option>
+                            <option value="anatole">Anatole (I-VI-II-V)</option>
                             <option value="blues">Blues Traditionnel</option>
                             <option value="bebop">BeBop (Rhythm Changes)</option>
                             <option value="swing">Swing / Standard</option>
@@ -329,6 +345,10 @@
                             <input type="range" id="jam-bpm-slider" min="50" max="220" value="120" oninput="app.jam.setBpm(this.value)" class="w-full accent-blue-500">
                             <span id="jam-bpm-display" class="text-xs font-mono font-bold text-slate-200 min-w-[32px]">120</span>
                         </div>
+                        <button onclick="app.jam.openBandModal()" title="Orchestration de la jam" class="flex items-center gap-1.5 text-xs bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-2 px-2.5 rounded-lg transition shadow shrink-0">
+                            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1014 17V7h4V3h-6z"/></svg>
+                            <span id="band-btn-label">Swing</span>
+                        </button>
                     </div>
                 </div>
 
@@ -390,10 +410,10 @@
 
                     <div id="jam-chord-sequence-display" class="py-2 border-y border-[#333333] min-h-[80px] custom-scrollbar overflow-x-auto"></div>
 
-                    <div class="flex items-center justify-between text-xs text-slate-400 -mt-1 pt-1">
-                        <div class="flex items-center gap-2">
-                            <span class="font-bold text-white text-sm cursor-pointer select-none hover:text-blue-400 transition" id="jam-current-chord-title" onclick="app.jam.playDisplayedChordArpeggio()" title="Écouter l'arpège">---</span>
-                            <div id="jam-current-chord-notes" class="flex gap-1"></div>
+                    <div class="flex items-center justify-between -mt-1 pt-1">
+                        <div class="flex items-center gap-3">
+                            <span class="font-bold text-white text-2xl cursor-pointer select-none hover:text-blue-400 transition" id="jam-current-chord-title" onclick="app.jam.playDisplayedChordArpeggio()" title="Écouter l'arpège">---</span>
+                            <div id="jam-current-chord-notes" class="flex gap-1.5"></div>
                         </div>
                         <button id="jam-play-btn" onclick="app.jam.togglePlay()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3 rounded-lg transition flex items-center justify-center gap-2 shadow text-xs">
                             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
@@ -731,6 +751,17 @@
                 this.gainNode = null;
                 this.instrumentKey = 'Bb';
 
+                // Orchestration de la jam : "arpeges" (comportement historique accord+arpège)
+                // ou "orchestre" (bande son piano + basse + batterie).
+                this.orchestrationMode = 'orchestra';
+                this.bandStyle = 'swing';
+                this.bandVolumes = { piano: 0.8, bass: 0.85, drums: 0.7 };
+                this.bandGains = { piano: null, bass: null, drums: null };
+                this.bassInstrument = null;
+                this.bandAudioNodes = [];
+                this._noiseBuffer = null;
+                this._bandMeasureCounter = 0;
+
                 this.showTargetNotes = false;
                 this.showAvoidNotes = false;
                 this.showCharacteristic = false;
@@ -929,7 +960,331 @@
             setBpm(val) {
                 this.bpm = parseInt(val, 10);
                 document.getElementById('jam-bpm-display').textContent = this.bpm;
+                const slider1 = document.getElementById('jam-bpm-slider');
+                const slider2 = document.getElementById('band-bpm-slider');
+                const display2 = document.getElementById('band-bpm-display');
+                if (slider1) slider1.value = this.bpm;
+                if (slider2) slider2.value = this.bpm;
+                if (display2) display2.textContent = this.bpm;
             }
+
+            // --- Popup Band : choix de l'orchestration (Arpèges / Orchestre) ---
+
+            openBandModal() {
+                if (!this.app.pianoInstrument) this.app.loadPiano();
+                this.ensureBandAudio();
+                this.updateBandModalUI();
+                const modal = document.getElementById('band-modal');
+                if (modal) modal.classList.remove('hidden');
+            }
+
+            closeBandModal() {
+                const modal = document.getElementById('band-modal');
+                if (modal) modal.classList.add('hidden');
+            }
+
+            updateBandModalUI() {
+                const isOrchestra = this.orchestrationMode === 'orchestra';
+                const btnArp = document.getElementById('band-mode-btn-arpeges');
+                const btnOrch = document.getElementById('band-mode-btn-orchestra');
+                const activeClass = "flex-1 py-1.5 rounded-md transition bg-[#3a3a3c] text-white shadow-sm";
+                const inactiveClass = "flex-1 py-1.5 rounded-md transition text-slate-400 hover:text-white";
+                if (btnArp) btnArp.className = isOrchestra ? inactiveClass : activeClass;
+                if (btnOrch) btnOrch.className = isOrchestra ? activeClass : inactiveClass;
+
+                const options = document.getElementById('band-orchestra-options');
+                if (options) options.classList.toggle('opacity-40', !isOrchestra);
+                ['band-style-select', 'band-vol-piano', 'band-vol-bass', 'band-vol-drums'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.disabled = !isOrchestra;
+                });
+
+                const styleSelect = document.getElementById('band-style-select');
+                if (styleSelect) styleSelect.value = this.bandStyle;
+
+                const bpmSlider = document.getElementById('band-bpm-slider');
+                const bpmDisplay = document.getElementById('band-bpm-display');
+                if (bpmSlider) bpmSlider.value = this.bpm;
+                if (bpmDisplay) bpmDisplay.textContent = this.bpm;
+
+                document.getElementById('band-vol-piano').value = Math.round(this.bandVolumes.piano * 100);
+                document.getElementById('band-vol-bass').value = Math.round(this.bandVolumes.bass * 100);
+                document.getElementById('band-vol-drums').value = Math.round(this.bandVolumes.drums * 100);
+            }
+
+            setOrchestrationMode(mode) {
+                this.orchestrationMode = mode === 'orchestra' ? 'orchestra' : 'arpeges';
+                if (this.orchestrationMode === 'orchestra') this.ensureBandAudio();
+                this.updateBandModalUI();
+                this.updateBandButtonLabel();
+            }
+
+            setBandStyle(style) {
+                this.bandStyle = style;
+                this.updateBandButtonLabel();
+            }
+
+            // Le bouton affiche le mode d'orchestration actif : « Arpège » ou le style
+            // en cours (Swing / Pop / Latin) quand la bande son "Orchestre" est active.
+            updateBandButtonLabel() {
+                const label = document.getElementById('band-btn-label');
+                if (!label) return;
+                if (this.orchestrationMode !== 'orchestra') {
+                    label.textContent = 'Arpège';
+                } else {
+                    const names = { swing: 'Swing', pop: 'Pop', latin: 'Latin' };
+                    label.textContent = names[this.bandStyle] || 'Swing';
+                }
+            }
+
+            setBandVolume(instrument, val) {
+                const v = parseInt(val, 10) / 100;
+                this.bandVolumes[instrument] = v;
+                if (this.bandGains[instrument]) this.bandGains[instrument].gain.value = v;
+            }
+
+            // --- Bande son "Orchestre" : piano (comping), basse et batterie synthétisées ---
+
+            ensureBandAudio() {
+                if (!this.app.audioCtx) return;
+                const dest = this.app.reverbInput || this.app.audioCtx.destination;
+                if (!this.bandGains.piano) {
+                    this.bandGains.piano = this.app.audioCtx.createGain();
+                    this.bandGains.piano.gain.value = this.bandVolumes.piano;
+                    this.bandGains.piano.connect(dest);
+                }
+                if (!this.bandGains.bass) {
+                    this.bandGains.bass = this.app.audioCtx.createGain();
+                    this.bandGains.bass.gain.value = this.bandVolumes.bass;
+                    this.bandGains.bass.connect(dest);
+                }
+                if (!this.bandGains.drums) {
+                    this.bandGains.drums = this.app.audioCtx.createGain();
+                    this.bandGains.drums.gain.value = this.bandVolumes.drums;
+                    this.bandGains.drums.connect(this.app.audioCtx.destination);
+                }
+                if (!this.bassInstrument) this.loadBass();
+            }
+
+            loadBass() {
+                if (this.bassInstrument || !this.app.audioCtx) return;
+                Soundfont.instrument(this.app.audioCtx, 'acoustic_bass', { soundfont: 'FluidR3_GM' })
+                    .then(instr => { this.bassInstrument = instr; })
+                    .catch(() => {});
+            }
+
+            getNoiseBuffer() {
+                if (this._noiseBuffer) return this._noiseBuffer;
+                const ctx = this.app.audioCtx;
+                const buffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+                this._noiseBuffer = buffer;
+                return buffer;
+            }
+
+            synthKick(time, destination) {
+                const ctx = this.app.audioCtx;
+                if (!ctx || !destination) return;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, time);
+                osc.frequency.exponentialRampToValueAtTime(45, time + 0.12);
+                gain.gain.setValueAtTime(1, time);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.28);
+                osc.connect(gain); gain.connect(destination);
+                osc.start(time); osc.stop(time + 0.3);
+                this.bandAudioNodes.push(osc);
+            }
+
+            synthSnare(time, destination, soft = false) {
+                const ctx = this.app.audioCtx;
+                if (!ctx || !destination) return;
+                const dur = soft ? 0.09 : 0.16;
+                const noise = ctx.createBufferSource();
+                noise.buffer = this.getNoiseBuffer();
+                const hp = ctx.createBiquadFilter();
+                hp.type = 'highpass'; hp.frequency.value = 1000;
+                const noiseGain = ctx.createGain();
+                noiseGain.gain.setValueAtTime(soft ? 0.25 : 0.55, time);
+                noiseGain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+                noise.connect(hp); hp.connect(noiseGain); noiseGain.connect(destination);
+                noise.start(time); noise.stop(time + dur + 0.02);
+                this.bandAudioNodes.push(noise);
+
+                const osc = ctx.createOscillator();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(180, time);
+                const oGain = ctx.createGain();
+                oGain.gain.setValueAtTime(soft ? 0.15 : 0.3, time);
+                oGain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+                osc.connect(oGain); oGain.connect(destination);
+                osc.start(time); osc.stop(time + dur + 0.02);
+                this.bandAudioNodes.push(osc);
+            }
+
+            synthHihat(time, destination, open = false) {
+                const ctx = this.app.audioCtx;
+                if (!ctx || !destination) return;
+                const dur = open ? 0.28 : 0.06;
+                const noise = ctx.createBufferSource();
+                noise.buffer = this.getNoiseBuffer();
+                const hp = ctx.createBiquadFilter();
+                hp.type = 'highpass'; hp.frequency.value = 7000;
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0.4, time);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+                noise.connect(hp); hp.connect(gain); gain.connect(destination);
+                noise.start(time); noise.stop(time + dur + 0.02);
+                this.bandAudioNodes.push(noise);
+            }
+
+            playBassAbs(absSemi, time, duration) {
+                if (!this.bassInstrument) return;
+                const noteStr = this.getJamAudioNoteName(absSemi, 0, PLAY_BASE_OCTAVE - 1);
+                try {
+                    const node = this.bassInstrument.play(noteStr, time, { duration, destination: this.bandGains.bass });
+                    this.bandAudioNodes.push(node);
+                } catch (e) {}
+            }
+
+            playPianoComp(step, time, duration) {
+                if (!this.app.pianoInstrument) return;
+                const chordObj = this.findChordObj(step.chordId);
+                const notes = this.getJamChordPlaybackNotes(chordObj);
+                notes.forEach(interval => {
+                    const noteStr = this.getJamAudioNoteName(step.rootIndex, interval, PLAY_BASE_OCTAVE);
+                    try {
+                        const node = this.app.pianoInstrument.play(noteStr, time, { duration, destination: this.bandGains.piano });
+                        this.bandAudioNodes.push(node);
+                    } catch (e) {}
+                });
+            }
+
+            // Une seule note piquée (détachée), pour varier le jeu du piano face à l'accord plaqué.
+            playPianoNote(step, interval, time, duration) {
+                if (!this.app.pianoInstrument) return;
+                const noteStr = this.getJamAudioNoteName(step.rootIndex, interval, PLAY_BASE_OCTAVE);
+                try {
+                    const node = this.app.pianoInstrument.play(noteStr, time, { duration, destination: this.bandGains.piano });
+                    this.bandAudioNodes.push(node);
+                } catch (e) {}
+            }
+
+            // Note « guide » utilisée pour les interventions en notes détachées du piano :
+            // on fait tourner tierce / quinte / septième (ou tension la plus haute) pour que
+            // la ligne reste mélodique et ne retombe pas toujours sur la même couleur.
+            getPianoGuideInterval(chordObj, which) {
+                const t = chordObj.notes;
+                if (which === 'third') return t[1] !== undefined ? t[1] : t[0];
+                if (which === 'fifth') return t[2] !== undefined ? t[2] : 7;
+                return t.length >= 4 ? t[3] : t[t.length - 1]; // 'color' (7e / tension la plus haute)
+            }
+
+            // Ligne de basse walking (style Swing) : fondamentale, tierce, quinte, puis
+            // note d'approche chromatique vers l'accord suivant en fin de séquence.
+            getWalkingBassAbs(step, beatInMeasure, isLastBeatOfStep, nextStep) {
+                const tones = this.findChordObj(step.chordId).notes;
+                if (beatInMeasure === 0) return step.rootIndex + tones[0];
+                if (beatInMeasure === 1) return step.rootIndex + (tones[1] !== undefined ? tones[1] : 4);
+                if (beatInMeasure === 2) return step.rootIndex + (tones[2] !== undefined ? tones[2] : 7);
+                if (isLastBeatOfStep && nextStep) return nextStep.rootIndex - 1;
+                return step.rootIndex + (tones[3] !== undefined ? tones[3] : tones[0] + 12);
+            }
+
+            playBandBeat(step, beatInMeasure) {
+                if (!this.app.audioCtx) return;
+                this.ensureBandAudio();
+                const now = this.app.audioCtx.currentTime;
+                const beatSec = 60 / this.bpm;
+                const drumsDest = this.bandGains.drums;
+                const totalBeatsInStep = step.measures * 4;
+                const isLastBeatOfStep = (this.currentBeat + 1) >= totalBeatsInStep;
+                const nextStep = this.grid[(this.currentStepIndex + 1) % this.grid.length];
+                const chordObj = this.findChordObj(step.chordId);
+                const tones = chordObj.notes;
+                const guide = (which) => this.getPianoGuideInterval(chordObj, which);
+
+                // Le jeu du piano tourne sur un cycle de 4 mesures (accord seul, note seule,
+                // deux notes détachées, accord + note supplémentaire) pour rester varié et
+                // peu répétitif tout en restant calé sur le rythme et l'harmonie de la grille.
+                if (beatInMeasure === 0) this._bandMeasureCounter = (this._bandMeasureCounter + 1) % 1000000;
+                const variant = this._bandMeasureCounter % 4;
+
+                if (this.bandStyle === 'pop') {
+                    this.synthHihat(now, drumsDest, false);
+                    this.synthHihat(now + beatSec * 0.5, drumsDest, false);
+                    if (beatInMeasure === 0 || beatInMeasure === 2) this.synthKick(now, drumsDest);
+                    if (beatInMeasure === 1 || beatInMeasure === 3) this.synthSnare(now, drumsDest, false);
+
+                    let bassAbs;
+                    if (beatInMeasure === 2) bassAbs = step.rootIndex + (tones[2] !== undefined ? tones[2] : 7);
+                    else bassAbs = step.rootIndex + tones[0];
+                    this.playBassAbs(bassAbs, now, beatSec * 0.9);
+
+                    if (beatInMeasure === 0) {
+                        if (variant === 0 || variant === 3) this.playPianoComp(step, now, beatSec * 1.8);
+                        else this.playPianoNote(step, guide(variant === 1 ? 'third' : 'fifth'), now, beatSec * 0.5);
+                    }
+                    if (beatInMeasure === 2) {
+                        if (variant === 1) this.playPianoComp(step, now, beatSec * 1.8);
+                        else this.playPianoNote(step, guide(variant === 0 ? 'color' : variant === 2 ? 'fifth' : 'third'), now, beatSec * 0.5);
+                    }
+                    if (variant === 3 && beatInMeasure === 3) {
+                        this.playPianoNote(step, guide('third'), now + beatSec * 0.5, beatSec * 0.35);
+                    }
+
+                } else if (this.bandStyle === 'latin') {
+                    this.synthHihat(now, drumsDest, false);
+                    this.synthHihat(now + beatSec * 0.5, drumsDest, false);
+                    if (beatInMeasure === 0) this.synthKick(now, drumsDest);
+                    if (beatInMeasure === 1) this.synthKick(now + beatSec * 0.5, drumsDest);
+                    if (beatInMeasure === 2) this.synthSnare(now, drumsDest, true);
+                    if (beatInMeasure === 3) this.synthSnare(now + beatSec * 0.5, drumsDest, true);
+
+                    if (beatInMeasure === 1) this.playBassAbs(step.rootIndex + tones[0], now, beatSec * 0.9);
+                    if (beatInMeasure === 3) {
+                        this.playBassAbs(step.rootIndex + (tones[2] !== undefined ? tones[2] : 7), now, beatSec * 0.5);
+                        const nextRootAbs = isLastBeatOfStep && nextStep ? nextStep.rootIndex + this.findChordObj(nextStep.chordId).notes[0] : step.rootIndex + tones[0];
+                        this.playBassAbs(nextRootAbs, now + beatSec * 0.5, beatSec * 0.9);
+                    }
+
+                    if (beatInMeasure === 0) {
+                        if (variant === 0 || variant === 3) this.playPianoComp(step, now + beatSec * 0.5, beatSec * 0.55);
+                        else this.playPianoNote(step, guide(variant === 1 ? 'color' : 'fifth'), now + beatSec * 0.5, beatSec * 0.3);
+                    }
+                    if (beatInMeasure === 1 && variant === 3) {
+                        this.playPianoNote(step, guide('fifth'), now, beatSec * 0.3);
+                    }
+                    if (beatInMeasure === 2) {
+                        if (variant === 1) this.playPianoComp(step, now + beatSec * 0.5, beatSec * 0.55);
+                        else this.playPianoNote(step, guide(variant === 0 ? 'color' : variant === 2 ? 'third' : 'fifth'), now + beatSec * 0.5, beatSec * 0.3);
+                    }
+
+                } else { // swing (par défaut)
+                    this.synthHihat(now, drumsDest, false);
+                    this.synthHihat(now + beatSec * (2 / 3), drumsDest, false);
+                    if (beatInMeasure === 0) this.synthKick(now, drumsDest);
+                    if (beatInMeasure === 1 || beatInMeasure === 3) this.synthSnare(now, drumsDest, true);
+
+                    const bassAbs = this.getWalkingBassAbs(step, beatInMeasure, isLastBeatOfStep, nextStep);
+                    this.playBassAbs(bassAbs, now, beatSec * 0.95);
+
+                    if (beatInMeasure === 0 && variant === 3) {
+                        this.playPianoNote(step, guide('fifth'), now + beatSec * (2 / 3), beatSec * 0.3);
+                    }
+                    if (beatInMeasure === 1) {
+                        if (variant === 0 || variant === 3) this.playPianoComp(step, now + beatSec * (2 / 3), beatSec * 0.6);
+                        else this.playPianoNote(step, guide(variant === 1 ? 'third' : 'color'), now + beatSec * (2 / 3), beatSec * 0.35);
+                    }
+                    if (beatInMeasure === 3) {
+                        if (variant === 1) this.playPianoComp(step, now, beatSec * 0.8);
+                        else this.playPianoNote(step, guide(variant === 0 ? 'color' : variant === 2 ? 'fifth' : 'third'), now, beatSec * 0.35);
+                    }
+                }
+            }
+
 
             addChordStep() {
                 this.grid.push({ rootIndex: 0, chordId: 'maj7', measures: 1, scaleId: 'lydian' });
@@ -989,86 +1344,96 @@
                 return grid.map(item => `${item.rootIndex}:${item.chordId}:${item.measures}:${item.scaleId}`).join('|');
             }
 
+            // Générateur pseudo-aléatoire déterministe (PCG-like), seedé par le compteur de
+            // génération et le style : reproductible pour un même clic, mais différent à chaque
+            // nouvel appui sur « Générer ».
+            makeVariationRng(variant, styleKey) {
+                let seed = (variant * 2654435761 + [...styleKey].reduce((a, ch) => a + ch.charCodeAt(0), 0)) >>> 0;
+                return () => {
+                    seed = (seed * 1664525 + 1013904223) >>> 0;
+                    return seed / 4294967296;
+                };
+            }
+
+            // Renouvellement d'une grille de style : appliqué de la même façon à tous les styles,
+            // afin que « Générer » brasse beaucoup plus les accords, quel que soit le style choisi.
+            // Techniques utilisées, choisies accord par accord : substitution tritonique sur les
+            // dominantes, substitution relative majeur/mineur, glissement chromatique, changement de
+            // couleur (extension) au sein d'une même famille d'accord, et insertion ponctuelle d'une
+            // dominante secondaire devant un accord assez long pour la recevoir.
             createStyleVariation(template, styleKey, keyRoot) {
                 if (!template.length) return template;
                 const variant = this.generationVariant;
-                const out = template.map(item => ({ ...item }));
+                if (variant <= 0) return template.map(item => ({ ...item }));
 
-                if (variant > 0) {
-                    switch (styleKey) {
-                        case 'ii-v-i':
-                            if (variant % 2) {
-                                out.splice(0, out.length,
-                                    {r:(keyRoot+9)%12,c:'m7',m:1,s:'dorian'},
-                                    {r:(keyRoot+2)%12,c:'m7',m:1,s:'dorian'},
-                                    {r:(keyRoot+7)%12,c:'7',m:1,s:'mixolydian'},
-                                    {r:keyRoot,c:'maj7',m:2,s:'lydian'});
-                            } else {
-                                out.splice(0, out.length,
-                                    {r:(keyRoot+2)%12,c:'m7',m:2,s:'dorian'},
-                                    {r:(keyRoot+7)%12,c:'7alt',m:1,s:'altered'},
-                                    {r:keyRoot,c:'maj7',m:1,s:'lydian'},
-                                    {r:(keyRoot+5)%12,c:'maj7',m:1,s:'lydian'});
-                            }
-                            break;
-                        case 'baroque':
-                        case 'mozart':
-                        case 'trad':
-                            if (variant % 3 === 1) {
-                                out.splice(0, out.length,
-                                    {r:keyRoot,c:'maj7',m:2,s:'ionian'}, {r:(keyRoot+2)%12,c:'m7',m:1,s:'dorian'},
-                                    {r:(keyRoot+7)%12,c:'7',m:1,s:'mixolydian'}, {r:keyRoot,c:'maj7',m:2,s:'ionian'},
-                                    {r:(keyRoot+5)%12,c:'maj7',m:1,s:'lydian'}, {r:(keyRoot+9)%12,c:'m7',m:1,s:'aeolian'},
-                                    {r:(keyRoot+2)%12,c:'m7',m:1,s:'dorian'}, {r:(keyRoot+7)%12,c:'7',m:1,s:'mixolydian'},
-                                    {r:keyRoot,c:'maj7',m:2,s:'ionian'});
-                            } else if (variant % 3 === 2) {
-                                out.splice(0, out.length,
-                                    {r:keyRoot,c:'maj7',m:1,s:'ionian'}, {r:(keyRoot+5)%12,c:'maj7',m:1,s:'lydian'},
-                                    {r:(keyRoot+9)%12,c:'m7',m:1,s:'aeolian'}, {r:(keyRoot+2)%12,c:'m7',m:1,s:'dorian'},
-                                    {r:(keyRoot+7)%12,c:'7',m:1,s:'mixolydian'}, {r:keyRoot,c:'maj7',m:2,s:'ionian'},
-                                    {r:(keyRoot+3)%12,c:'7',m:1,s:'mixolydian'}, {r:(keyRoot+5)%12,c:'maj7',m:1,s:'lydian'},
-                                    {r:(keyRoot+7)%12,c:'7',m:1,s:'mixolydian'}, {r:keyRoot,c:'maj7',m:2,s:'ionian'});
-                            }
-                            break;
-                        case 'blues':
-                            if (variant % 2) {
-                                out.splice(0, out.length,
-                                    {r:keyRoot,c:'7',m:4,s:'mixolydian'}, {r:(keyRoot+5)%12,c:'7',m:2,s:'mixolydian'},
-                                    {r:keyRoot,c:'7',m:2,s:'mixolydian'}, {r:(keyRoot+7)%12,c:'7',m:1,s:'mixolydian'},
-                                    {r:(keyRoot+5)%12,c:'7',m:1,s:'mixolydian'}, {r:(keyRoot+7)%12,c:'7',m:1,s:'mixolydian'},
-                                    {r:keyRoot,c:'7alt',m:1,s:'altered'});
-                            } else {
-                                out[1].m=1; out[2].m=3;
-                                out.splice(3,1,{r:(keyRoot+7)%12,c:'7',m:1,s:'mixolydian'},{r:(keyRoot+2)%12,c:'7',m:1,s:'mixolydian'});
-                            }
-                            break;
-                        default:
-                            out.forEach((item,i) => {
-                                const chordObj=this.findChordObj(item.c);
-                                if (variant%2 && chordObj?.scales?.length>1 && i%2===0) {
-                                    item.s=chordObj.scales[(variant+i)%chordObj.scales.length].id;
-                                }
-                            });
-                            // Une petite substitution diatonique pour les progressions
-                            // qui contiennent des fonctions répétées.
-                            if (variant%3===2) {
-                                for (let i=1;i<out.length-1;i++) {
-                                    if (out[i].c==='m7' && out[i-1].c==='maj7') {
-                                        const alt=(out[i].r-keyRoot+12)%12===2 ? 9 : 2;
-                                        out[i]={...out[i],r:(keyRoot+alt)%12,s:'dorian'};
-                                        break;
-                                    }
-                                }
-                            }
-                            break;
+                const rand = this.makeVariationRng(variant, styleKey);
+                const categoryOf = (chordId) => {
+                    for (const cat in chordTypes) {
+                        if (chordTypes[cat].some(c => c.id === chordId)) return cat;
                     }
-                }
+                    return 'other';
+                };
+                const defaultScaleFor = (chordId) => {
+                    const scales = this.findChordObj(chordId).scales;
+                    return (scales && scales[0] && scales[0].id) || 'ionian';
+                };
+                const idsOfCategory = (cat) => chordTypes[cat].map(c => c.id);
+                const relativeSub = (item, cat) => {
+                    if (cat === 'maj') {
+                        const majToMin = { maj7: 'm7', maj9: 'm9', '6': 'm7', maj7sharp11: 'm11', maj7sharp5: 'mmaj7', majTriad: 'minTriad' };
+                        return { r: (item.r + 9) % 12, c: majToMin[item.c] || 'm7' };
+                    }
+                    if (cat === 'min') {
+                        const minToMaj = { m7: 'maj7', m9: 'maj9', m11: 'maj9', mmaj7: 'maj7sharp5', minTriad: 'majTriad' };
+                        return { r: (item.r + 3) % 12, c: minToMaj[item.c] || 'maj7' };
+                    }
+                    return null;
+                };
+
+                const out = [];
+                template.forEach((source, i) => {
+                    const item = { ...source };
+                    const cat = categoryOf(item.c);
+                    const isEdge = (i === 0 || i === template.length - 1);
+                    const roll = rand();
+
+                    if (cat === 'dom' && roll < 0.3) {
+                        // Substitution tritonique : la couleur la plus caractéristique du
+                        // renouvellement d'une grille de jazz sur les accords de dominante.
+                        item.r = (item.r + 6) % 12;
+                        if (rand() < 0.5) item.c = '7alt';
+                    } else if ((cat === 'maj' || cat === 'min') && !isEdge && roll < 0.55) {
+                        // Substitution relative majeur/mineur : change la fondamentale tout en
+                        // gardant une fonction harmonique voisine.
+                        const sub = relativeSub(item, cat);
+                        if (sub) { item.r = sub.r; item.c = sub.c; }
+                    } else if (!isEdge && roll < 0.68) {
+                        // Glissement chromatique d'un demi-ton : casse la répétition d'une même
+                        // fondamentale sans justification tonale particulière.
+                        item.r = (item.r + (rand() < 0.5 ? 1 : 11)) % 12;
+                    } else if (roll < 0.9) {
+                        // Changement de couleur au sein de la même famille d'accord (garde la
+                        // fondamentale et la fonction, renouvelle l'extension).
+                        const options = idsOfCategory(cat).filter(id => id !== item.c);
+                        if (options.length) item.c = options[Math.floor(rand() * options.length)];
+                    }
+                    item.s = defaultScaleFor(item.c);
+
+                    if (item.m >= 2 && rand() < 0.35) {
+                        // Dominante secondaire insérée devant l'accord, si sa durée le permet :
+                        // multiplie les mouvements harmoniques de la grille.
+                        out.push({ r: (item.r + 7) % 12, c: '7', m: 1, s: 'mixolydian' });
+                        item.m -= 1;
+                    }
+                    out.push(item);
+                });
+
                 return out;
             }
 
             normalizeGeneratedGrid(template, styleKey) {
                 const phraseMeasures = {
-                    'ii-v-i': 4, 'blues': 12, 'bebop': 32, 'swing': 32,
+                    'ii-v-i': 4, 'anatole': 4, 'blues': 12, 'bebop': 32, 'swing': 32,
                     'modal': 16, 'bossa': 16, 'pop': 8, 'ballad': 16, 'funk': 16,
                     'hardbop': 16, 'dixieland': 16, 'latin': 16, 'fusion': 16,
                     'baroque': 16, 'mozart': 16, 'trad': 16
@@ -1287,6 +1652,9 @@
                             { r: (keyRoot + 7) % 12, c: '7', m: 1, s: 'mixolydian' },
                             { r: keyRoot, c: 'maj7', m: 2, s: 'lydian' }
                         ];
+                        break;
+                    case 'anatole':
+                        template = [chord('I'), chord('vi'), chord('ii'), chord('V')];
                         break;
                     default:
                         template = [
@@ -1635,7 +2003,7 @@
                     if (!scaleDef) return;
 
                     const scaleKey = `jam-scale-${idx}-${step.scaleId}`;
-                    const isActive = (idx === this.currentStepIndex && this.isPlaying);
+                    const isActive = (idx === this.currentStepIndex);
                     const canvasId = `jam-vexflow-canvas-${idx}`;
 
                     const card = document.createElement('div');
@@ -1704,6 +2072,13 @@
                         true
                     );
                 });
+
+                // Hors lecture, un accord sélectionné dans la grille doit amener sa gamme
+                // à l'écran, même si elle se trouve plus bas dans le panneau.
+                if (!this.isPlaying && this.currentStepIndex >= 0) {
+                    const activeCard = document.getElementById(`jam-scale-card-${this.currentStepIndex}`);
+                    if (activeCard) activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
             }
 
             updateActiveJamScaleHighlight() {
@@ -1747,11 +2122,13 @@
                     this.app.loadPiano();
                 }
                 this.initGainNode();
+                if (this.orchestrationMode === 'orchestra') this.ensureBandAudio();
 
                 this.isPlaying = true;
                 this.currentStepIndex = 0;
                 this.currentBeat = 0;
                 this.activeSlot = 0;
+                this._bandMeasureCounter = 0;
                 document.getElementById('view-jam')?.classList.add('jam-playing');
 
                 const btn = document.getElementById('jam-play-btn');
@@ -1782,6 +2159,11 @@
                 this.currentStepIndex = -1;
                 this.currentBeat = 0;
 
+                this.bandAudioNodes.forEach(node => {
+                    try { if (node && typeof node.stop === 'function') node.stop(); } catch (e) {}
+                });
+                this.bandAudioNodes = [];
+
                 const btn = document.getElementById('jam-play-btn');
                 if (btn) {
                     btn.className = "bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3 rounded-lg transition flex items-center justify-center gap-2 shadow text-xs";
@@ -1807,7 +2189,11 @@
                 if (this.currentBeat % 4 === 0) {
                     this.renderSequenceUI();
                     this.updateActiveJamScaleHighlight();
-                    this.playStepArpeggio(step);
+                    if (this.orchestrationMode !== 'orchestra') this.playStepArpeggio(step);
+                }
+
+                if (this.orchestrationMode === 'orchestra') {
+                    this.playBandBeat(step, this.currentBeat % 4);
                 }
 
                 const currentMeasureInStep = Math.floor(this.currentBeat / 4) + 1;
@@ -1922,7 +2308,7 @@
                 const chordSpelled = getSpelledChordNotes(rootName, chordObj);
                 chordSpelled.forEach((n, noteIdx) => {
                     const badge = document.createElement('span');
-                    badge.className = "px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-bold rounded cursor-pointer select-none transition";
+                    badge.className = "px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white text-sm font-mono font-bold rounded cursor-pointer select-none transition";
                     badge.textContent = n;
                     badge.onclick = () => this.playDisplayedChordNote(chordObj.notes[noteIdx]);
                     notesContainer.appendChild(badge);
@@ -1934,12 +2320,25 @@
             const btn = document.getElementById('jam-grid-fullscreen-btn');
             if (!btn) return;
 
-            const isFullscreen = document.fullscreenElement === document.getElementById('jam-chord-card');
+            const chordCard = document.getElementById('jam-chord-card');
+            const isFullscreen = document.fullscreenElement === chordCard;
             btn.title = isFullscreen ? 'Quitter le plein écran' : 'Plein écran';
             btn.setAttribute('aria-label', btn.title);
             btn.innerHTML = isFullscreen
                 ? `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H3v6M15 3h6v6M9 21H3v-6M21 15v6h-6"/></svg>`
                 : `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 3H3v5M16 3h5v5M8 21H3v-5M21 16v5h-5"/></svg>`;
+
+            // Le plein écran natif masque tout ce qui est hors de l'élément mis en plein écran :
+            // on déplace la carte des gammes dans la carte de la grille pour qu'elle reste visible
+            // pendant la jam, et on la remet à sa place d'origine à la sortie du plein écran.
+            const scalesCard = document.getElementById('jam-scales-card');
+            if (chordCard && scalesCard) {
+                if (isFullscreen) {
+                    chordCard.appendChild(scalesCard);
+                } else if (scalesCard.parentElement === chordCard) {
+                    chordCard.parentElement.insertBefore(scalesCard, chordCard.nextSibling);
+                }
+            }
         });
 
         class ChordScaleApp {
@@ -2818,5 +3217,54 @@
     </script>
     <div id="jam-print-area"></div>
 
+    <!-- Popup Band : choix de l'orchestration de la jam (Arpèges / Orchestre) -->
+    <div id="band-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="if(event.target.id==='band-modal') app.jam.closeBandModal()">
+        <div class="bg-[#222222] border border-[#3a3a3c] rounded-xl shadow-2xl w-full max-w-sm p-4 space-y-4">
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-bold text-white uppercase tracking-wider">Bande son de la jam</span>
+                <button onclick="app.jam.closeBandModal()" class="text-slate-400 hover:text-white p-1 rounded transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <div class="flex bg-[#1a1a1a] p-1 rounded-lg text-xs font-medium border border-[#333333]">
+                <button id="band-mode-btn-arpeges" onclick="app.jam.setOrchestrationMode('arpeges')" class="flex-1 py-1.5 rounded-md transition">Arpèges</button>
+                <button id="band-mode-btn-orchestra" onclick="app.jam.setOrchestrationMode('orchestra')" class="flex-1 py-1.5 rounded-md transition">Orchestre</button>
+            </div>
+
+            <div id="band-orchestra-options" class="space-y-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Style</span>
+                    <select id="band-style-select" onchange="app.jam.setBandStyle(this.value)" class="w-full bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-1.5 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
+                        <option value="swing">Swing</option>
+                        <option value="pop">Pop</option>
+                        <option value="latin">Latin</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">BPM</span>
+                    <input type="range" id="band-bpm-slider" min="50" max="220" value="120" oninput="app.jam.setBpm(this.value)" class="w-full accent-blue-500">
+                    <span id="band-bpm-display" class="text-xs font-mono font-bold text-slate-200 min-w-[32px] text-right">120</span>
+                </div>
+
+                <div class="pt-1 space-y-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Piano</span>
+                        <input type="range" id="band-vol-piano" min="0" max="100" value="80" oninput="app.jam.setBandVolume('piano', this.value)" class="w-full accent-emerald-500">
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Basse</span>
+                        <input type="range" id="band-vol-bass" min="0" max="100" value="85" oninput="app.jam.setBandVolume('bass', this.value)" class="w-full accent-emerald-500">
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Batterie</span>
+                        <input type="range" id="band-vol-drums" min="0" max="100" value="70" oninput="app.jam.setBandVolume('drums', this.value)" class="w-full accent-emerald-500">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </body>
-</html>
+</html> 
