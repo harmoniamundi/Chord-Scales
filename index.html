@@ -2390,7 +2390,7 @@
                 const now = this.audioCtx ? this.audioCtx.currentTime : 0;
 
                 chordObj.notes.forEach((interval, idx) => {
-                    const noteStr = this.getAudioNoteName(rootIndex, interval, PLAY_BASE_OCTAVE);
+                    const noteStr = this.jam.getJamAudioNoteName(rootIndex, interval, PLAY_BASE_OCTAVE);
                     try {
                         const node = this.pianoInstrument.play(noteStr, now + (idx * 0.04), { duration: 2.2, destination: this.jam.gainNode });
                         this.activeAudioNodes.push(node);
