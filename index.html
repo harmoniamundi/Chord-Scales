@@ -745,6 +745,98 @@
         const NOTE_STEP_SECONDS = 0.35;
         const PLAY_BASE_OCTAVE = 3;
 
+        // --- Patterns rythmiques de l'orchestre de la jam ---
+        // Positions en temps dans la mesure (0 à 4) ; les croches "après le temps" (x.5) sont
+        // décalées en triolet pour le swing. Une frappe de piano = [position, durée (temps), type, vélocité]
+        // avec type : 'C' accord plaqué, 'S' dyade tierce + septième, 'N' note guide isolée,
+        // ou un nombre 0-3 = note d'arpège (index dans l'accord).
+        // Une frappe de basse = [position, degré, durée (temps), vélocité] avec degré : 'R' fondamentale,
+        // '3', '5', '7', 'O' octave, 'A' note d'approche chromatique vers l'accord suivant,
+        // 'nR' / 'n5' = note anticipée de l'accord suivant (si la mesure est la dernière de l'accord).
+        // w = poids de tirage du pattern.
+        const bandCell = (w, hits) => ({ w, hits });
+        const BAND_PATTERNS = {
+            swing: {
+                rootlessProb: 0.6,
+                fillProb: 0.45,
+                piano: [
+                    bandCell(3, [[0, 1.25, 'C', 0.9], [1.5, 0.6, 'S', 0.72]]),
+                    bandCell(2, [[0.5, 0.9, 'C', 0.8], [2.5, 0.6, 'S', 0.72]]),
+                    bandCell(3, [[1.5, 0.6, 'C', 0.82], [3.5, 0.6, 'S', 0.72]]),
+                    bandCell(2, [[0, 0.5, 'S', 0.72], [1.5, 0.5, 'C', 0.85], [3, 0.5, 'N', 0.65]]),
+                    bandCell(2, [[1, 0.9, 'C', 0.8], [2.5, 0.5, 'S', 0.7], [3.5, 0.6, 'C', 0.8]]),
+                    bandCell(2, [[0.5, 0.4, 'N', 0.62], [1.5, 0.9, 'C', 0.85], [3, 0.5, 'S', 0.7]]),
+                    bandCell(2, [[2, 0.6, 'C', 0.85], [3.5, 0.6, 'S', 0.72]]),
+                    bandCell(1, [[1.5, 0.6, 'C', 0.8]]),
+                    bandCell(1, [[0, 3.2, 'C', 0.72]]),
+                    bandCell(1, [[0, 0.8, 'S', 0.55], [1, 0.8, 'S', 0.6], [2, 0.8, 'S', 0.55], [3, 0.8, 'S', 0.6]])
+                ],
+                turn: [
+                    bandCell(2, [[0, 1, 'C', 0.85], [1.5, 0.5, 'S', 0.7], [2.5, 0.4, 'N', 0.65], [3, 0.4, 'N', 0.7], [3.5, 0.7, 'C', 0.88]]),
+                    bandCell(2, [[1.5, 0.6, 'C', 0.85], [2.5, 0.5, 'S', 0.7], [3.5, 0.6, 'C', 0.92]])
+                ]
+            },
+            pop: {
+                rootlessProb: 0.2,
+                fillProb: 0.5,
+                kicks: [[0, 2], [0, 2, 2.5], [0, 0.5, 2], [0, 1.5, 2.5], [0, 2, 3.5], [0, 0.75, 2, 2.75]],
+                piano: [
+                    bandCell(3, [[0, 1.4, 'C', 0.9], [1.5, 0.9, 'C', 0.75], [3, 0.9, 'C', 0.8]]),
+                    bandCell(2, [[0, 0.9, 'C', 0.9], [1.5, 0.4, 'S', 0.7], [2.5, 0.4, 'S', 0.75], [3.5, 0.4, 'C', 0.8]]),
+                    bandCell(2, [[0, 0.4, 'C', 0.85], [0.75, 0.4, 'S', 0.65], [1.5, 0.9, 'C', 0.8], [2.75, 0.4, 'S', 0.65], [3, 0.9, 'C', 0.85]]),
+                    bandCell(1, [[0, 3.4, 'C', 0.75], [3.5, 0.4, 'S', 0.7]]),
+                    bandCell(2, [[0, 0.5, 0, 0.8], [0.5, 0.5, 1, 0.65], [1, 0.5, 2, 0.7], [1.5, 0.5, 3, 0.65],
+                                 [2, 0.5, 2, 0.7], [2.5, 0.5, 1, 0.65], [3, 0.5, 0, 0.7], [3.5, 0.5, 1, 0.65]]),
+                    bandCell(2, [[0.5, 0.4, 'C', 0.8], [1.5, 0.4, 'C', 0.8], [2.5, 0.4, 'C', 0.8], [3.5, 0.4, 'C', 0.85]]),
+                    bandCell(2, [[0, 1.2, 'C', 0.9], [1.5, 0.4, 'S', 0.7], [2, 0.9, 'C', 0.85], [3.25, 0.4, 'S', 0.65], [3.5, 0.4, 'C', 0.75]])
+                ],
+                turn: [
+                    bandCell(2, [[0, 0.9, 'C', 0.9], [1.5, 0.4, 'C', 0.75], [2.5, 0.4, 'S', 0.7], [3, 0.4, 'C', 0.8], [3.5, 0.4, 'C', 0.92]]),
+                    bandCell(2, [[0, 1.2, 'C', 0.9], [2, 0.4, 'C', 0.8], [2.5, 0.4, 'S', 0.7], [3.25, 0.3, 'S', 0.75], [3.5, 0.5, 'C', 0.92]])
+                ],
+                bass: [
+                    bandCell(3, [[0, 'R', 0.9, 0.9], [2, '5', 0.9, 0.8]]),
+                    bandCell(2, [[0, 'R', 1.4, 0.9], [1.5, 'R', 0.4, 0.65], [2, '5', 0.9, 0.8], [3.5, 'A', 0.45, 0.7]]),
+                    bandCell(2, [[0, 'R', 0.45, 0.9], [0.5, 'R', 0.45, 0.6], [1, 'R', 0.45, 0.75], [1.5, 'R', 0.45, 0.6],
+                                 [2, 'R', 0.45, 0.8], [2.5, 'R', 0.45, 0.6], [3, 'R', 0.45, 0.75], [3.5, 'R', 0.45, 0.6]]),
+                    bandCell(2, [[0, 'R', 1.4, 0.9], [1.5, 'R', 0.4, 0.65], [2.5, '5', 0.4, 0.7], [3, 'R', 0.4, 0.75], [3.5, 'A', 0.45, 0.7]]),
+                    bandCell(1, [[0, 'R', 0.45, 0.9], [0.5, 'O', 0.45, 0.65], [1, 'R', 0.45, 0.75], [1.5, 'O', 0.45, 0.65],
+                                 [2, 'R', 0.45, 0.8], [2.5, 'O', 0.45, 0.65], [3, 'R', 0.45, 0.75], [3.5, 'O', 0.45, 0.65]]),
+                    bandCell(2, [[0, 'R', 0.4, 0.9], [0.75, 'R', 0.2, 0.5], [1.5, 'R', 0.4, 0.7], [2, '5', 0.9, 0.8], [3.25, 'R', 0.2, 0.5], [3.5, '3', 0.4, 0.7]])
+                ],
+                bassTurn: [
+                    bandCell(2, [[0, 'R', 0.9, 0.9], [1.5, 'R', 0.4, 0.65], [2, '5', 0.9, 0.8], [3, '3', 0.4, 0.7], [3.5, 'A', 0.45, 0.8]]),
+                    bandCell(1, [[0, 'R', 1.4, 0.9], [2, '5', 0.9, 0.8], [3, 'R', 0.4, 0.7], [3.5, 'A', 0.45, 0.85]])
+                ]
+            },
+            latin: {
+                rootlessProb: 0.3,
+                fillProb: 0.35,
+                piano: [
+                    bandCell(3, [[0, 0.9, 'C', 0.85], [1.5, 0.5, 'S', 0.75], [3, 0.9, 'C', 0.8]]),
+                    bandCell(2, [[0.5, 0.4, 'S', 0.7], [1.5, 0.5, 'C', 0.85], [2.5, 0.4, 'S', 0.7], [3.5, 0.5, 'C', 0.8]]),
+                    bandCell(2, [[0, 0.4, 'C', 0.85], [0.75, 0.4, 'S', 0.7], [1.5, 0.4, 'C', 0.8], [2, 0.4, 'S', 0.65], [3, 0.4, 'C', 0.8], [3.5, 0.4, 'S', 0.7]]),
+                    bandCell(2, [[1.5, 0.4, 'C', 0.85], [2, 0.4, 'S', 0.7], [3.5, 0.4, 'C', 0.85]]),
+                    bandCell(2, [[0, 0.4, 'S', 0.7], [1, 0.4, 'C', 0.8], [1.5, 0.4, 'S', 0.7], [2.5, 0.9, 'C', 0.85], [3.5, 0.4, 'S', 0.7]]),
+                    bandCell(2, [[0, 0.5, 'S', 0.7], [0.5, 0.4, 'N', 0.6], [1.5, 0.5, 'C', 0.85], [2, 0.4, 'N', 0.6], [2.5, 0.5, 'S', 0.7], [3.5, 0.5, 'C', 0.85]])
+                ],
+                turn: [
+                    bandCell(2, [[0, 0.6, 'C', 0.85], [1.5, 0.4, 'S', 0.75], [2, 0.4, 'C', 0.8], [3, 0.4, 'S', 0.7], [3.5, 0.5, 'C', 0.9]]),
+                    bandCell(1, [[0, 0.9, 'C', 0.85], [1.5, 0.4, 'C', 0.8], [2.5, 0.4, 'S', 0.7], [3, 0.4, 'C', 0.8], [3.5, 0.5, 'C', 0.92]])
+                ],
+                bass: [
+                    bandCell(3, [[0, 'R', 1.4, 0.9], [1.5, '5', 0.45, 0.75], [2, 'R', 1.4, 0.85], [3.5, '5', 0.45, 0.75]]),
+                    bandCell(2, [[0, 'R', 1.4, 0.9], [1.5, '5', 0.45, 0.75], [2, 'R', 0.9, 0.85], [3, '3', 0.4, 0.7], [3.5, '5', 0.4, 0.7]]),
+                    bandCell(2, [[0, 'R', 0.9, 0.9], [1.5, 'O', 0.45, 0.7], [2, '5', 0.9, 0.85], [3.5, 'nR', 0.45, 0.8]]),
+                    bandCell(1, [[1.5, 'R', 0.4, 0.85], [2, '5', 0.9, 0.8], [3.5, 'nR', 0.45, 0.85]])
+                ],
+                bassTurn: [
+                    bandCell(2, [[0, 'R', 1.4, 0.9], [1.5, '5', 0.45, 0.75], [2, 'R', 0.9, 0.85], [3, '3', 0.4, 0.7], [3.5, 'A', 0.45, 0.85]]),
+                    bandCell(1, [[0, 'R', 0.9, 0.9], [1.5, '5', 0.45, 0.75], [2, '5', 0.9, 0.8], [3.5, 'A', 0.45, 0.85]])
+                ]
+            }
+        };
+
         class JamEngine {
             constructor(parentApp) {
                 this.app = parentApp;
@@ -770,6 +862,10 @@
                 this.bandAudioNodes = [];
                 this._noiseBuffer = null;
                 this._bandMeasureCounter = 0;
+                this._bandSeed = 0;
+                this._bandPhrase = null;
+                this._bandPlan = null;
+                this._bandLastFill = false;
 
                 this.showTargetNotes = false;
                 this.showAvoidNotes = false;
@@ -1101,7 +1197,7 @@
                 return buffer;
             }
 
-            synthKick(time, destination) {
+            synthKick(time, destination, vel = 1) {
                 const ctx = this.app.audioCtx;
                 if (!ctx || !destination) return;
                 const osc = ctx.createOscillator();
@@ -1109,14 +1205,14 @@
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(150, time);
                 osc.frequency.exponentialRampToValueAtTime(45, time + 0.12);
-                gain.gain.setValueAtTime(1, time);
+                gain.gain.setValueAtTime(vel, time);
                 gain.gain.exponentialRampToValueAtTime(0.001, time + 0.28);
                 osc.connect(gain); gain.connect(destination);
                 osc.start(time); osc.stop(time + 0.3);
                 this.bandAudioNodes.push(osc);
             }
 
-            synthSnare(time, destination, soft = false) {
+            synthSnare(time, destination, soft = false, vel = 1) {
                 const ctx = this.app.audioCtx;
                 if (!ctx || !destination) return;
                 const dur = soft ? 0.09 : 0.16;
@@ -1125,7 +1221,7 @@
                 const hp = ctx.createBiquadFilter();
                 hp.type = 'highpass'; hp.frequency.value = 1000;
                 const noiseGain = ctx.createGain();
-                noiseGain.gain.setValueAtTime(soft ? 0.25 : 0.55, time);
+                noiseGain.gain.setValueAtTime((soft ? 0.25 : 0.55) * vel, time);
                 noiseGain.gain.exponentialRampToValueAtTime(0.001, time + dur);
                 noise.connect(hp); hp.connect(noiseGain); noiseGain.connect(destination);
                 noise.start(time); noise.stop(time + dur + 0.02);
@@ -1135,14 +1231,14 @@
                 osc.type = 'triangle';
                 osc.frequency.setValueAtTime(180, time);
                 const oGain = ctx.createGain();
-                oGain.gain.setValueAtTime(soft ? 0.15 : 0.3, time);
+                oGain.gain.setValueAtTime((soft ? 0.15 : 0.3) * vel, time);
                 oGain.gain.exponentialRampToValueAtTime(0.001, time + dur);
                 osc.connect(oGain); oGain.connect(destination);
                 osc.start(time); osc.stop(time + dur + 0.02);
                 this.bandAudioNodes.push(osc);
             }
 
-            synthHihat(time, destination, open = false) {
+            synthHihat(time, destination, open = false, vel = 1) {
                 const ctx = this.app.audioCtx;
                 if (!ctx || !destination) return;
                 const dur = open ? 0.28 : 0.06;
@@ -1151,48 +1247,195 @@
                 const hp = ctx.createBiquadFilter();
                 hp.type = 'highpass'; hp.frequency.value = 7000;
                 const gain = ctx.createGain();
-                gain.gain.setValueAtTime(0.4, time);
+                gain.gain.setValueAtTime(0.4 * vel, time);
                 gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
                 noise.connect(hp); hp.connect(gain); gain.connect(destination);
                 noise.start(time); noise.stop(time + dur + 0.02);
                 this.bandAudioNodes.push(noise);
             }
 
-            playBassAbs(absSemi, time, duration) {
-                if (!this.bassInstrument) return;
-                const noteStr = this.getJamAudioNoteName(absSemi, 0, PLAY_BASE_OCTAVE - 1);
-                try {
-                    const node = this.bassInstrument.play(noteStr, time, { duration, destination: this.bandGains.bass });
-                    this.bandAudioNodes.push(node);
-                } catch (e) {}
-            }
+            // --- Synthèse batterie complémentaire (cymbales, cross-stick, toms) ---
 
-            playPianoComp(step, time, duration) {
-                if (!this.app.pianoInstrument) return;
-                const chordObj = this.findChordObj(step.chordId);
-                const notes = this.getJamChordPlaybackNotes(chordObj);
-                notes.forEach(interval => {
-                    const noteStr = this.getJamAudioNoteName(step.rootIndex, interval, PLAY_BASE_OCTAVE);
-                    try {
-                        const node = this.app.pianoInstrument.play(noteStr, time, { duration, destination: this.bandGains.piano });
-                        this.bandAudioNodes.push(node);
-                    } catch (e) {}
+            synthCymbal(time, destination, dur = 0.45, vel = 1, hpFreq = 5500) {
+                const ctx = this.app.audioCtx;
+                if (!ctx || !destination) return;
+                const noise = ctx.createBufferSource();
+                noise.buffer = this.getNoiseBuffer();
+                const hp = ctx.createBiquadFilter();
+                hp.type = 'highpass'; hp.frequency.value = hpFreq;
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0.32 * vel, time);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+                noise.connect(hp); hp.connect(gain); gain.connect(destination);
+                noise.start(time); noise.stop(time + dur + 0.02);
+                this.bandAudioNodes.push(noise);
+
+                // Deux partiels métalliques pour donner un peu de "bell" à la cymbale
+                [3150, 4720].forEach(freq => {
+                    const osc = ctx.createOscillator();
+                    osc.type = 'triangle';
+                    osc.frequency.value = freq;
+                    const oGain = ctx.createGain();
+                    oGain.gain.setValueAtTime(0.05 * vel, time);
+                    oGain.gain.exponentialRampToValueAtTime(0.001, time + dur * 0.6);
+                    osc.connect(oGain); oGain.connect(destination);
+                    osc.start(time); osc.stop(time + dur * 0.6 + 0.02);
+                    this.bandAudioNodes.push(osc);
                 });
             }
 
-            // Une seule note piquée (détachée), pour varier le jeu du piano face à l'accord plaqué.
-            playPianoNote(step, interval, time, duration) {
-                if (!this.app.pianoInstrument) return;
-                const noteStr = this.getJamAudioNoteName(step.rootIndex, interval, PLAY_BASE_OCTAVE);
+            synthRim(time, destination, vel = 1) {
+                const ctx = this.app.audioCtx;
+                if (!ctx || !destination) return;
+                const noise = ctx.createBufferSource();
+                noise.buffer = this.getNoiseBuffer();
+                const bp = ctx.createBiquadFilter();
+                bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 1.2;
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0.5 * vel, time);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+                noise.connect(bp); bp.connect(gain); gain.connect(destination);
+                noise.start(time); noise.stop(time + 0.07);
+                this.bandAudioNodes.push(noise);
+
+                const osc = ctx.createOscillator();
+                osc.type = 'triangle';
+                osc.frequency.value = 500;
+                const oGain = ctx.createGain();
+                oGain.gain.setValueAtTime(0.25 * vel, time);
+                oGain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+                osc.connect(oGain); oGain.connect(destination);
+                osc.start(time); osc.stop(time + 0.07);
+                this.bandAudioNodes.push(osc);
+            }
+
+            synthTom(time, destination, freq = 150, vel = 1) {
+                const ctx = this.app.audioCtx;
+                if (!ctx || !destination) return;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq * 1.6, time);
+                osc.frequency.exponentialRampToValueAtTime(freq, time + 0.08);
+                gain.gain.setValueAtTime(0.7 * vel, time);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.24);
+                osc.connect(gain); gain.connect(destination);
+                osc.start(time); osc.stop(time + 0.26);
+                this.bandAudioNodes.push(osc);
+            }
+
+            playBandDrum(e, time) {
+                const dest = this.bandGains.drums;
+                if (!dest) return;
+                const v = e.vel * (0.92 + Math.random() * 0.16);
+                switch (e.drum) {
+                    case 'kick': this.synthKick(time, dest, v); break;
+                    case 'snare': this.synthSnare(time, dest, false, v); break;
+                    case 'ghost': this.synthSnare(time, dest, true, v); break;
+                    case 'hat': this.synthHihat(time, dest, false, v); break;
+                    case 'pedal': this.synthHihat(time, dest, false, v * 0.8); break;
+                    case 'ohat': this.synthHihat(time, dest, true, v); break;
+                    case 'ride': this.synthCymbal(time, dest, 0.45, v, 5500); break;
+                    case 'crash': this.synthCymbal(time, dest, 1.4, v, 3500); break;
+                    case 'rim': this.synthRim(time, dest, v); break;
+                    case 'tom1': this.synthTom(time, dest, 200, v); break;
+                    case 'tom2': this.synthTom(time, dest, 150, v); break;
+                    case 'tom3': this.synthTom(time, dest, 110, v); break;
+                }
+            }
+
+            // --- Basse ---
+
+            playBassAbs(absSemi, time, duration, vel = 0.85) {
+                if (!this.bassInstrument) return;
+                const noteStr = this.getJamAudioNoteName(absSemi, 0, PLAY_BASE_OCTAVE - 1);
                 try {
-                    const node = this.app.pianoInstrument.play(noteStr, time, { duration, destination: this.bandGains.piano });
+                    const node = this.bassInstrument.play(noteStr, time, {
+                        duration,
+                        gain: Math.min(1.05, 0.6 + 0.45 * vel),
+                        destination: this.bandGains.bass
+                    });
                     this.bandAudioNodes.push(node);
                 } catch (e) {}
             }
 
+            // Note de basse (hauteur absolue en demi-tons) pour un "degré" de pattern.
+            resolveBassToken(tok, step, nextStep, isLastMeasureOfStep, rng) {
+                const useNext = tok.charAt(0) === 'n';
+                const t = useNext ? tok.slice(1) : tok;
+                const cs = (useNext && isLastMeasureOfStep && nextStep) ? nextStep : step;
+                const tones = this.findChordObj(cs.chordId).notes;
+                const base = cs.rootIndex;
+                const fifth = base + (tones[2] !== undefined ? tones[2] : 7);
+                switch (t) {
+                    case '3': return base + (tones[1] !== undefined ? tones[1] : 4);
+                    case '5': return fifth;
+                    case '7': return base + (tones[3] !== undefined ? tones[3] : (tones[2] !== undefined ? tones[2] : 7));
+                    case 'O': { const r = base + tones[0]; return r > 5 ? r - 12 : r + 12; }
+                    case 'A': {
+                        if (isLastMeasureOfStep && nextStep) {
+                            const target = nextStep.rootIndex + this.findChordObj(nextStep.chordId).notes[0];
+                            return target + (rng() < 0.65 ? -1 : 1);
+                        }
+                        return fifth;
+                    }
+                    default: return base + tones[0];
+                }
+            }
+
+            // Ligne de basse walking (swing) : varie à chaque mesure — quatre noires (fondamentale, puis
+            // tierce / seconde / quinte / septième), "deux temps" occasionnel, note de passage chromatique
+            // en croche swinguée, et note d'approche chromatique vers l'accord suivant en fin d'accord.
+            buildWalkingBass(step, nextStep, isLastMeasureOfStep, rng, swing) {
+                const tones = this.findChordObj(step.chordId).notes;
+                const rt = step.rootIndex;
+                const root = rt + tones[0];
+                const third = rt + (tones[1] !== undefined ? tones[1] : 4);
+                const fifth = rt + (tones[2] !== undefined ? tones[2] : 7);
+                const seventh = rt + (tones[3] !== undefined ? tones[3] : 12);
+                const sc = (typeof scalesDb !== 'undefined' && scalesDb[step.scaleId] && scalesDb[step.scaleId].intervals) || [0, 2, 4, 5, 7, 9, 11];
+                const second = rt + (sc[1] !== undefined ? sc[1] : 2);
+                const pick = (opts) => opts[Math.floor(rng() * opts.length)];
+
+                let approach = null;
+                if (isLastMeasureOfStep && nextStep) {
+                    const target = nextStep.rootIndex + this.findChordObj(nextStep.chordId).notes[0];
+                    approach = target + (rng() < 0.65 ? -1 : 1);
+                }
+
+                const hits = [];
+                if (rng() < 0.15) { // feeling "à deux temps"
+                    hits.push({ pos: 0, abs: root, dur: 1.9, vel: 0.9 });
+                    hits.push({ pos: 2, abs: pick([fifth, third, fifth]), dur: approach !== null ? 1.4 : 1.9, vel: 0.8 });
+                    if (approach !== null) hits.push({ pos: 3 + swing, abs: approach, dur: 0.3, vel: 0.6 });
+                    return hits;
+                }
+
+                const b1 = pick([third, second, fifth, third]);
+                const c2 = [fifth, third, seventh, fifth].filter(n => n !== b1);
+                const b2 = c2.length ? pick(c2) : fifth;
+                let b3;
+                if (approach !== null) b3 = approach;
+                else {
+                    const c3 = [fifth, seventh, third].filter(n => n !== b2);
+                    b3 = c3.length ? pick(c3) : fifth;
+                }
+                hits.push({ pos: 0, abs: root, dur: 0.95, vel: 0.95 });
+                hits.push({ pos: 1, abs: b1, dur: 0.95, vel: 0.8 });
+                hits.push({ pos: 2, abs: b2, dur: 0.95, vel: 0.88 });
+                hits.push({ pos: 3, abs: b3, dur: 0.95, vel: 0.8 });
+
+                if (rng() < 0.18) { // note de passage chromatique (croche swinguée) vers le temps 3
+                    hits[1].dur = 0.6;
+                    hits.push({ pos: 1 + swing, abs: b2 + (b2 > b1 ? -1 : 1), dur: 0.3, vel: 0.55 });
+                }
+                return hits;
+            }
+
+            // --- Piano ---
+
             // Note « guide » utilisée pour les interventions en notes détachées du piano :
-            // on fait tourner tierce / quinte / septième (ou tension la plus haute) pour que
-            // la ligne reste mélodique et ne retombe pas toujours sur la même couleur.
+            // tierce / quinte / septième (ou tension la plus haute).
             getPianoGuideInterval(chordObj, which) {
                 const t = chordObj.notes;
                 if (which === 'third') return t[1] !== undefined ? t[1] : t[0];
@@ -1200,107 +1443,265 @@
                 return t.length >= 4 ? t[3] : t[t.length - 1]; // 'color' (7e / tension la plus haute)
             }
 
-            // Ligne de basse walking (style Swing) : fondamentale, tierce, quinte, puis
-            // note d'approche chromatique vers l'accord suivant en fin de séquence.
-            getWalkingBassAbs(step, beatInMeasure, isLastBeatOfStep, nextStep) {
-                const tones = this.findChordObj(step.chordId).notes;
-                if (beatInMeasure === 0) return step.rootIndex + tones[0];
-                if (beatInMeasure === 1) return step.rootIndex + (tones[1] !== undefined ? tones[1] : 4);
-                if (beatInMeasure === 2) return step.rootIndex + (tones[2] !== undefined ? tones[2] : 7);
-                if (isLastBeatOfStep && nextStep) return nextStep.rootIndex - 1;
-                return step.rootIndex + (tones[3] !== undefined ? tones[3] : tones[0] + 12);
+            // Intervalles (au-dessus de la fondamentale) joués pour une frappe de piano.
+            // Les notes sont empilées vers l'aigu (une 9e est jouée au-dessus de la 7e, pas en cluster).
+            getPianoHitIntervals(chordObj, kind, voicing, rng) {
+                const stack = (arr) => {
+                    let prev = -99;
+                    return arr.map(iv => { let v = iv; while (v <= prev) v += 12; prev = v; return v; });
+                };
+                const full = this.getJamChordPlaybackNotes(chordObj);
+                if (kind === 'C') {
+                    if (voicing === 'rootless') { // position sans fondamentale : la basse la joue déjà
+                        const a = full.slice(1);
+                        if (a.length < 3) a.push(full[0] + 12);
+                        return stack(a);
+                    }
+                    return stack(full);
+                }
+                if (kind === 'S') {
+                    return stack([this.getPianoGuideInterval(chordObj, 'third'), this.getPianoGuideInterval(chordObj, 'color')]);
+                }
+                if (kind === 'N') {
+                    const which = ['third', 'fifth', 'color'][Math.floor(rng() * 3)];
+                    return [this.getPianoGuideInterval(chordObj, which) + (rng() < 0.3 ? 12 : 0)];
+                }
+                if (typeof kind === 'number') return [stack(full)[kind % full.length]];
+                return stack(full);
+            }
+
+            playPianoHit(e, time, beatSec) {
+                if (!this.app.pianoInstrument || !this.app.audioCtx) return;
+                const vel = e.vel * (0.94 + Math.random() * 0.12);
+                const gain = Math.min(1.05, 0.5 + 0.6 * vel);
+                const dur = Math.max(0.12, e.dur * beatSec);
+                e.intervals.forEach((interval, idx) => {
+                    const noteStr = this.getJamAudioNoteName(e.rootIndex, interval, PLAY_BASE_OCTAVE);
+                    try {
+                        const when = Math.max(this.app.audioCtx.currentTime, time + idx * 0.006); // léger "roulé"
+                        const node = this.app.pianoInstrument.play(noteStr, when, { duration: dur, gain, destination: this.bandGains.piano });
+                        this.bandAudioNodes.push(node);
+                    } catch (err) {}
+                });
+            }
+
+            // --- Planification rythmique ---
+            // Chaque mesure est planifiée au premier temps (buildBandPlan) : le plan liste toutes les
+            // frappes (piano, basse, batterie) avec leur position en temps (0 à 4). playBandBeat joue
+            // ensuite, à chaque temps, les frappes qui tombent dans ce temps.
+            // Les patterns sont organisés en phrases (4 mesures en général) : motif, reprise, variation,
+            // puis mesure de « turnaround » qui anticipe l'accord suivant et peut se terminer par un fill.
+
+            // Rapport de swing : triolet au départ, qui se rapproche des croches droites quand le tempo monte.
+            getBandSwing() {
+                if (this.bandStyle !== 'swing') return 0.5;
+                return Math.max(0.58, Math.min(0.667, 0.667 - (this.bpm - 140) * 0.001));
+            }
+
+            swingPos(pos, swing) {
+                const base = Math.floor(pos + 1e-6);
+                return Math.abs(pos - base - 0.5) < 1e-6 ? base + swing : pos;
+            }
+
+            pickWeighted(list, rng) {
+                const total = list.reduce((s, c) => s + c.w, 0);
+                let r = rng() * total;
+                for (const c of list) { r -= c.w; if (r <= 0) return c; }
+                return list[list.length - 1];
+            }
+
+            // Longueur de phrase : 4 mesures si la grille s'y prête, sinon 3 ou 2.
+            getBandPhraseLength() {
+                const formLen = this.grid.reduce((s, it) => s + (it.measures || 1), 0);
+                return [4, 3, 2].find(n => formLen >= n && formLen % n === 0) || 4;
+            }
+
+            // Variation d'un pattern de piano : une frappe décalée d'une croche, une frappe retirée,
+            // ou une note de couleur ajoutée sur un temps libre.
+            varyCell(hits, rng) {
+                const out = hits.map(h => h.slice());
+                const taken = () => new Set(out.map(h => h[0]));
+                const r = rng();
+                if (r < 0.35 && out.length > 1) {
+                    const h = out[Math.floor(rng() * out.length)];
+                    const np = h[0] + (rng() < 0.6 ? -0.5 : 0.5);
+                    if (np >= 0 && np <= 3.5 && !taken().has(np)) h[0] = np;
+                } else if (r < 0.55 && out.length > 2) {
+                    out.splice(Math.floor(rng() * out.length), 1);
+                } else if (r < 0.9) {
+                    const free = [0.5, 1, 1.5, 2.5, 3, 3.5].filter(p => !taken().has(p));
+                    if (free.length) out.push([free[Math.floor(rng() * free.length)], 0.4, 'N', 0.6]);
+                }
+                return out.sort((a, b) => a[0] - b[0]);
+            }
+
+            buildBandPhrase(index, style) {
+                const lib = BAND_PATTERNS[style];
+                const rng = this.makeVariationRng(this._bandSeed + index * 7919 + 1, style);
+                const prev = this._bandPhrase;
+                // Une phrase sur trois environ reprend le motif de la précédente (effet "question / réponse")
+                const keep = !!(prev && prev.style === style && rng() < 0.35);
+                const motif = keep ? prev.motif : this.pickWeighted(lib.piano, rng).hits;
+                return {
+                    index, style, rng,
+                    motif,
+                    second: rng() < 0.5 ? motif : this.varyCell(motif, rng),
+                    varied: this.varyCell(motif, rng),
+                    turn: this.pickWeighted(lib.turn, rng).hits,
+                    bassMotif: lib.bass ? ((keep && prev.bassMotif) || this.pickWeighted(lib.bass, rng).hits) : null,
+                    bassAlt: lib.bass ? this.pickWeighted(lib.bass, rng).hits : null,
+                    bassTurn: lib.bassTurn ? this.pickWeighted(lib.bassTurn, rng).hits : null,
+                    voicing: rng() < lib.rootlessProb ? 'rootless' : 'closed',
+                    density: 0.4 + rng() * 0.55,
+                    feather: rng() < 0.65,
+                    kickPattern: lib.kicks ? lib.kicks[Math.floor(rng() * lib.kicks.length)] : null,
+                    hat16: rng() < 0.3,
+                    fill: rng() < lib.fillProb,
+                    fillKind: Math.floor(rng() * 2)
+                };
+            }
+
+            buildBandPlan(step, nextStep, measureInStep, isLastMeasureOfStep) {
+                const style = BAND_PATTERNS[this.bandStyle] ? this.bandStyle : 'swing';
+                const L = this.getBandPhraseLength();
+                const m = this._bandMeasureCounter - 1; // index de mesure depuis le début de la jam
+                const phraseIndex = Math.floor(m / L);
+                const i = m % L;
+                if (!this._bandPhrase || this._bandPhrase.index !== phraseIndex || this._bandPhrase.style !== style) {
+                    this._bandPhrase = this.buildBandPhrase(phraseIndex, style);
+                }
+                const ph = this._bandPhrase;
+                const rng = ph.rng;
+                const swing = this.getBandSwing();
+                const sw = (p) => this.swingPos(p, swing);
+                const isTurn = L > 1 && i === L - 1;
+                const cell = isTurn ? ph.turn : (i === 0 ? ph.motif : (i === 1 ? ph.second : ph.varied));
+                const tension = 0.92 + 0.08 * (L > 1 ? i / (L - 1) : 0);
+                // Une frappe tombant sur le "et" du temps 4 de la dernière mesure d'un accord
+                // annonce déjà l'accord suivant (anticipation).
+                const chordFor = (pos) => (isLastMeasureOfStep && pos >= 3.5 && nextStep) ? nextStep : step;
+
+                const piano = cell.map((h, k) => {
+                    const [pos, dur, kind, vel] = h;
+                    const cs = chordFor(pos);
+                    const nextPos = k + 1 < cell.length ? cell[k + 1][0] : 4;
+                    const room = cs !== step ? (4 - pos + 0.6) : Math.max(0.2, nextPos - pos + 0.15);
+                    return {
+                        pos: sw(pos),
+                        dur: Math.min(dur, room),
+                        vel: Math.min(1, vel * tension),
+                        rootIndex: cs.rootIndex,
+                        intervals: this.getPianoHitIntervals(this.findChordObj(cs.chordId), kind, ph.voicing, rng)
+                    };
+                });
+
+                let bass;
+                if (style === 'swing') {
+                    bass = this.buildWalkingBass(step, nextStep, isLastMeasureOfStep, rng, swing);
+                } else {
+                    const bcell = (isTurn && ph.bassTurn) ? ph.bassTurn : (i === 2 ? ph.bassAlt : ph.bassMotif);
+                    bass = bcell.map(([pos, tok, dur, vel]) => ({
+                        pos: sw(pos),
+                        abs: this.resolveBassToken(tok, step, nextStep, isLastMeasureOfStep, rng),
+                        dur, vel
+                    }));
+                }
+
+                const drums = this.buildBandDrums(style, ph, i, L, piano, rng, swing, m);
+                return { piano, bass, drums };
+            }
+
+            // Batterie : ride / charleston / grosse caisse selon le style, avec ghost notes qui suivent
+            // parfois les syncopes du piano, et fill à la fin de certaines phrases (suivi d'un crash).
+            buildBandDrums(style, ph, i, L, piano, rng, swing, m) {
+                const d = [];
+                const add = (pos, drum, vel) => d.push({ pos, drum, vel });
+                const pick = (arr) => arr[Math.floor(rng() * arr.length)];
+                const isTurn = L > 1 && i === L - 1;
+                const doFill = isTurn && ph.fill;
+                const fillFrom = doFill ? 3 : 99;
+                const dens = ph.density;
+                const syncop = piano.filter(e => Math.abs(e.pos - Math.round(e.pos)) > 0.05 && e.pos < fillFrom);
+
+                if (i === 0 && this._bandLastFill) {
+                    if (rng() < 0.6) add(0, 'crash', 0.9);
+                    this._bandLastFill = false;
+                }
+                if (isTurn) this._bandLastFill = doFill;
+
+                if (style === 'swing') {
+                    [0, 1, 2, 3].forEach(b => { if (b < fillFrom) add(b, 'ride', b % 2 === 0 ? 0.62 : 0.5); });
+                    [1, 3].forEach(b => { if (b < fillFrom) add(b + swing, 'ride', 0.36); });
+                    if (rng() < 0.18 * dens) add((rng() < 0.5 ? 0 : 2) + swing, 'ride', 0.33);
+                    [1, 3].forEach(b => { if (b < fillFrom) add(b, 'pedal', 0.5); });
+                    if (ph.feather) [0, 1, 2, 3].forEach(b => { if (b < fillFrom) add(b, 'kick', 0.16 + rng() * 0.06); });
+                    else [0, 2].forEach(b => add(b, 'kick', 0.35));
+                    syncop.forEach(e => {
+                        if (rng() < 0.4 * dens) rng() < 0.7 ? add(e.pos, 'ghost', 0.7) : add(e.pos, 'kick', 0.55);
+                    });
+                    if (rng() < 0.15 * dens) add(this.swingPos(0.5 + Math.floor(rng() * 3), swing), 'ghost', 0.6);
+                    if (doFill) {
+                        if (ph.fillKind === 0) { add(3, 'snare', 0.5); add(3 + 1 / 3, 'tom1', 0.6); add(3 + 2 / 3, 'tom3', 0.72); }
+                        else { add(3, 'snare', 0.5); add(3 + swing, 'snare', 0.7); add(3 + swing, 'kick', 0.6); }
+                    }
+                } else if (style === 'pop') {
+                    for (let p = 0; p < 4; p += 0.5) {
+                        if (p >= fillFrom) break;
+                        const open = p === 3.5 && rng() < 0.25 * dens;
+                        add(p, open ? 'ohat' : 'hat', Number.isInteger(p) ? 0.6 : 0.38);
+                    }
+                    if (ph.hat16) for (let p = 0.25; p < 4; p += 0.5) if (p < fillFrom) add(p, 'hat', 0.2);
+                    ph.kickPattern.forEach(p => { if (p < fillFrom) add(p, 'kick', p === 0 ? 1 : 0.85); });
+                    if (isTurn && !doFill && !ph.kickPattern.includes(3.5)) add(3.5, 'kick', 0.8);
+                    [1, 3].forEach(p => { if (p < fillFrom) add(p, 'snare', 0.9); });
+                    const ghostSlots = [1.75, 2.75, 3.75].filter(p => p < fillFrom);
+                    if (ghostSlots.length && rng() < 0.3 * dens) add(pick(ghostSlots), 'ghost', 0.6);
+                    syncop.forEach(e => { if (rng() < 0.25 * dens) add(e.pos, 'kick', 0.7); });
+                    if (doFill) {
+                        const drumsSeq = ph.fillKind === 0 ? ['snare', 'tom1', 'tom2', 'tom3'] : ['snare', 'snare', 'snare', 'snare'];
+                        [0.5, 0.55, 0.7, 0.85].forEach((v, k) => add(3 + k * 0.25, drumsSeq[k], v));
+                    }
+                } else { // latin (bossa) : charleston en croches, grosse caisse en "dotted", clave au cross-stick
+                    for (let p = 0; p < 4; p += 0.5) {
+                        if (p >= fillFrom) break;
+                        const open = p === 3.5 && rng() < 0.2 * dens;
+                        add(p, open ? 'ohat' : 'hat', Number.isInteger(p) ? 0.5 : 0.32);
+                    }
+                    if (0 < fillFrom) add(0, 'kick', 0.8);
+                    if (2 < fillFrom) add(2, 'kick', 0.7);
+                    [1.5, 3.5].forEach(p => { if (p < fillFrom && rng() < 0.8) add(p, 'kick', 0.55); });
+                    (m % 2 === 0 ? [0, 1.5, 3] : [1, 2]).forEach(p => { if (p < fillFrom) add(p, 'rim', 0.55); });
+                    if (doFill) {
+                        if (ph.fillKind === 0) { add(3, 'tom1', 0.5); add(3.5, 'tom2', 0.6); add(3.75, 'tom3', 0.72); }
+                        else { add(3, 'rim', 0.55); add(3.25, 'rim', 0.5); add(3.5, 'snare', 0.5); }
+                    }
+                }
+                return d;
             }
 
             playBandBeat(step, beatInMeasure) {
                 if (!this.app.audioCtx) return;
                 this.ensureBandAudio();
+                // Les frappes sont plus nombreuses qu'avant : on purge régulièrement les nœuds déjà terminés.
+                if (this.bandAudioNodes.length > 600) this.bandAudioNodes.splice(0, this.bandAudioNodes.length - 300);
                 const now = this.app.audioCtx.currentTime;
                 const beatSec = 60 / this.bpm;
-                const drumsDest = this.bandGains.drums;
-                const totalBeatsInStep = step.measures * 4;
-                const isLastBeatOfStep = (this.currentBeat + 1) >= totalBeatsInStep;
-                const nextStep = this.grid[(this.currentStepIndex + 1) % this.grid.length];
-                const chordObj = this.findChordObj(step.chordId);
-                const tones = chordObj.notes;
-                const guide = (which) => this.getPianoGuideInterval(chordObj, which);
 
-                // Le jeu du piano tourne sur un cycle de 4 mesures (accord seul, note seule,
-                // deux notes détachées, accord + note supplémentaire) pour rester varié et
-                // peu répétitif tout en restant calé sur le rythme et l'harmonie de la grille.
-                if (beatInMeasure === 0) this._bandMeasureCounter = (this._bandMeasureCounter + 1) % 1000000;
-                const variant = this._bandMeasureCounter % 4;
-
-                if (this.bandStyle === 'pop') {
-                    this.synthHihat(now, drumsDest, false);
-                    this.synthHihat(now + beatSec * 0.5, drumsDest, false);
-                    if (beatInMeasure === 0 || beatInMeasure === 2) this.synthKick(now, drumsDest);
-                    if (beatInMeasure === 1 || beatInMeasure === 3) this.synthSnare(now, drumsDest, false);
-
-                    let bassAbs;
-                    if (beatInMeasure === 2) bassAbs = step.rootIndex + (tones[2] !== undefined ? tones[2] : 7);
-                    else bassAbs = step.rootIndex + tones[0];
-                    this.playBassAbs(bassAbs, now, beatSec * 0.9);
-
-                    if (beatInMeasure === 0) {
-                        if (variant === 0 || variant === 3) this.playPianoComp(step, now, beatSec * 1.8);
-                        else this.playPianoNote(step, guide(variant === 1 ? 'third' : 'fifth'), now, beatSec * 0.5);
-                    }
-                    if (beatInMeasure === 2) {
-                        if (variant === 1) this.playPianoComp(step, now, beatSec * 1.8);
-                        else this.playPianoNote(step, guide(variant === 0 ? 'color' : variant === 2 ? 'fifth' : 'third'), now, beatSec * 0.5);
-                    }
-                    if (variant === 3 && beatInMeasure === 3) {
-                        this.playPianoNote(step, guide('third'), now + beatSec * 0.5, beatSec * 0.35);
-                    }
-
-                } else if (this.bandStyle === 'latin') {
-                    this.synthHihat(now, drumsDest, false);
-                    this.synthHihat(now + beatSec * 0.5, drumsDest, false);
-                    if (beatInMeasure === 0) this.synthKick(now, drumsDest);
-                    if (beatInMeasure === 1) this.synthKick(now + beatSec * 0.5, drumsDest);
-                    if (beatInMeasure === 2) this.synthSnare(now, drumsDest, true);
-                    if (beatInMeasure === 3) this.synthSnare(now + beatSec * 0.5, drumsDest, true);
-
-                    if (beatInMeasure === 1) this.playBassAbs(step.rootIndex + tones[0], now, beatSec * 0.9);
-                    if (beatInMeasure === 3) {
-                        this.playBassAbs(step.rootIndex + (tones[2] !== undefined ? tones[2] : 7), now, beatSec * 0.5);
-                        const nextRootAbs = isLastBeatOfStep && nextStep ? nextStep.rootIndex + this.findChordObj(nextStep.chordId).notes[0] : step.rootIndex + tones[0];
-                        this.playBassAbs(nextRootAbs, now + beatSec * 0.5, beatSec * 0.9);
-                    }
-
-                    if (beatInMeasure === 0) {
-                        if (variant === 0 || variant === 3) this.playPianoComp(step, now + beatSec * 0.5, beatSec * 0.55);
-                        else this.playPianoNote(step, guide(variant === 1 ? 'color' : 'fifth'), now + beatSec * 0.5, beatSec * 0.3);
-                    }
-                    if (beatInMeasure === 1 && variant === 3) {
-                        this.playPianoNote(step, guide('fifth'), now, beatSec * 0.3);
-                    }
-                    if (beatInMeasure === 2) {
-                        if (variant === 1) this.playPianoComp(step, now + beatSec * 0.5, beatSec * 0.55);
-                        else this.playPianoNote(step, guide(variant === 0 ? 'color' : variant === 2 ? 'third' : 'fifth'), now + beatSec * 0.5, beatSec * 0.3);
-                    }
-
-                } else { // swing (par défaut)
-                    this.synthHihat(now, drumsDest, false);
-                    this.synthHihat(now + beatSec * (2 / 3), drumsDest, false);
-                    if (beatInMeasure === 0) this.synthKick(now, drumsDest);
-                    if (beatInMeasure === 1 || beatInMeasure === 3) this.synthSnare(now, drumsDest, true);
-
-                    const bassAbs = this.getWalkingBassAbs(step, beatInMeasure, isLastBeatOfStep, nextStep);
-                    this.playBassAbs(bassAbs, now, beatSec * 0.95);
-
-                    if (beatInMeasure === 0 && variant === 3) {
-                        this.playPianoNote(step, guide('fifth'), now + beatSec * (2 / 3), beatSec * 0.3);
-                    }
-                    if (beatInMeasure === 1) {
-                        if (variant === 0 || variant === 3) this.playPianoComp(step, now + beatSec * (2 / 3), beatSec * 0.6);
-                        else this.playPianoNote(step, guide(variant === 1 ? 'third' : 'color'), now + beatSec * (2 / 3), beatSec * 0.35);
-                    }
-                    if (beatInMeasure === 3) {
-                        if (variant === 1) this.playPianoComp(step, now, beatSec * 0.8);
-                        else this.playPianoNote(step, guide(variant === 0 ? 'color' : variant === 2 ? 'fifth' : 'third'), now, beatSec * 0.35);
-                    }
+                if (beatInMeasure === 0) {
+                    this._bandMeasureCounter = (this._bandMeasureCounter + 1) % 1000000;
+                    const nextStep = this.grid[(this.currentStepIndex + 1) % this.grid.length];
+                    const measureInStep = Math.floor(this.currentBeat / 4);
+                    this._bandPlan = this.buildBandPlan(step, nextStep, measureInStep, measureInStep === step.measures - 1);
                 }
+                const plan = this._bandPlan;
+                if (!plan) return;
+
+                const inBeat = (e) => e.pos >= beatInMeasure - 1e-6 && e.pos < beatInMeasure + 1 - 1e-6;
+                // Léger jitter d'humanisation (±6 ms), jamais dans le passé
+                const at = (e) => Math.max(now, now + (e.pos - beatInMeasure) * beatSec + (Math.random() - 0.5) * 0.012);
+                plan.drums.filter(inBeat).forEach(e => this.playBandDrum(e, at(e)));
+                plan.bass.filter(inBeat).forEach(e => this.playBassAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12)));
+                plan.piano.filter(inBeat).forEach(e => this.playPianoHit(e, at(e), beatSec));
             }
 
 
@@ -1456,9 +1857,10 @@
                     'hardbop': 16, 'dixieland': 16, 'latin': 16, 'fusion': 16,
                     'baroque': 16, 'mozart': 16, 'trad': 16
                 };
-                const targetMeasures = phraseMeasures[styleKey] || 16;
+                // Une grille générée ne dépasse jamais 16 mesures.
+                const targetMeasures = Math.min(phraseMeasures[styleKey] || 16, 16);
                 if (!template.length) return template;
-                const normalized = [];
+                let normalized = [];
                 let measures = 0, sourceIndex = 0;
                 while (measures < targetMeasures) {
                     const source = template[sourceIndex % template.length];
@@ -1466,6 +1868,7 @@
                     const item = { ...source, m: Math.min(Math.max(1, source.m || 1), remaining) };
                     normalized.push(item); measures += item.m; sourceIndex++;
                 }
+                normalized = this.enforceChordRepeatLimits(normalized);
                 if (normalized.length % 2 !== 0) {
                     const splitIndex = normalized.findIndex(item => item.m >= 2);
                     if (splitIndex >= 0) {
@@ -1476,6 +1879,81 @@
                     }
                 }
                 return normalized;
+            }
+
+            // Limites de répétition d'un même accord (compté en mesures consécutives) dans une grille générée :
+            //  - un accord n'est jamais répété plus de 4 fois d'affilée ;
+            //  - si le premier accord de la grille est répété 4 fois, ce même accord ne peut pas
+            //    être répété plus de 2 fois à la fin de la grille.
+            // Les mesures en excès sont remplacées par un accord voisin : substitution tritonique sur une
+            // dominante, relatif mineur sur un accord majeur, relatif majeur sur un accord mineur.
+            enforceChordRepeatLimits(items) {
+                const key = (it) => it.r + ':' + it.c;
+                const categoryOf = (chordId) => {
+                    for (const cat in chordTypes) {
+                        if (chordTypes[cat].some(c => c.id === chordId)) return cat;
+                    }
+                    return 'other';
+                };
+                const dominantIds = ['7', '9', '7alt', '7b9', '7sharp5', '7sus4'];
+                const alternate = (it) => {
+                    let r, c;
+                    if (dominantIds.includes(it.c)) { r = (it.r + 6) % 12; c = it.c; }
+                    else if (categoryOf(it.c) === 'maj') { r = (it.r + 9) % 12; c = 'm7'; }
+                    else if (categoryOf(it.c) === 'min') { r = (it.r + 3) % 12; c = 'maj7'; }
+                    else { r = (it.r + 7) % 12; c = '7'; }
+                    const scales = this.findChordObj(c).scales;
+                    return { r, c, s: (scales && scales[0] && scales[0].id) || 'ionian' };
+                };
+
+                const list = [];
+                items.forEach(it => { for (let k = 0; k < Math.max(1, it.m || 1); k++) list.push({ r: it.r, c: it.c, s: it.s }); });
+                const runs = () => {
+                    const out = [];
+                    list.forEach((x, idx) => {
+                        const last = out[out.length - 1];
+                        if (last && key(last.item) === key(x)) last.len++;
+                        else out.push({ start: idx, len: 1, item: x });
+                    });
+                    return out;
+                };
+
+                let changed = false;
+                for (let pass = 0; pass < 12; pass++) {
+                    let passChanged = false;
+                    // Règle 1 : pas plus de 4 mesures d'affilée. Au-delà, on alterne par blocs de 2 mesures
+                    // entre l'accord d'origine et son accord voisin.
+                    runs().forEach(run => {
+                        if (run.len <= 4) return;
+                        const alt = alternate(run.item);
+                        for (let k = 4; k < run.len; k++) {
+                            if (Math.floor((k - 4) / 2) % 2 === 0) list[run.start + k] = { ...alt };
+                        }
+                        passChanged = true;
+                    });
+                    if (!passChanged) {
+                        // Règle 2 : premier accord répété 4 fois => au plus 2 répétitions du même accord en fin de grille.
+                        const rs = runs();
+                        const first = rs[0], last = rs[rs.length - 1];
+                        if (rs.length > 1 && first.len >= 4 && key(first.item) === key(last.item) && last.len > 2) {
+                            const alt = alternate(last.item);
+                            for (let k = 0; k < last.len - 2; k++) list[last.start + k] = { ...alt };
+                            passChanged = true;
+                        }
+                    }
+                    if (!passChanged) break;
+                    changed = true;
+                }
+                if (!changed) return items;
+
+                // Regroupe les mesures consécutives identiques en pas de grille.
+                const merged = [];
+                list.forEach(x => {
+                    const last = merged[merged.length - 1];
+                    if (last && key(last) === key(x)) last.m++;
+                    else merged.push({ r: x.r, c: x.c, s: x.s, m: 1 });
+                });
+                return merged;
             }
 
             getJazzChordNotation(chordId) {
@@ -2171,6 +2649,10 @@
                 this.currentBeat = 0;
                 this.activeSlot = 0;
                 this._bandMeasureCounter = 0;
+                this._bandSeed = Math.floor(Math.random() * 1000000);
+                this._bandPhrase = null;
+                this._bandPlan = null;
+                this._bandLastFill = false;
                 document.getElementById('view-jam')?.classList.add('jam-playing');
 
                 const btn = document.getElementById('jam-play-btn');
