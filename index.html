@@ -834,7 +834,10 @@
                 this.orchestrationMode = 'orchestra';
                 this.bandStyle = 'swing';
                 this.bandVolumes = { piano: 0.5, bass: 0.85, drums: 0.25 };
+                this.bandReverb = 0.25;
                 this.bandGains = { piano: null, bass: null, drums: null };
+                this.bandReverbInput = null;
+                this.bandReverbWet = null;
                 this.bassInstrument = null;
                 this.bandAudioNodes = [];
                 this._noiseBuffer = null;
@@ -1085,7 +1088,7 @@
 
                 const options = document.getElementById('band-orchestra-options');
                 if (options) options.classList.toggle('opacity-40', !isOrchestra);
-                ['band-style-select', 'band-vol-piano', 'band-vol-bass', 'band-vol-drums'].forEach(id => {
+                ['band-style-select', 'band-vol-piano', 'band-vol-bass', 'band-vol-drums', 'band-reverb-slider'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.disabled = !isOrchestra;
                 });
@@ -1101,6 +1104,10 @@
                 document.getElementById('band-vol-piano').value = Math.round(this.bandVolumes.piano * 100);
                 document.getElementById('band-vol-bass').value = Math.round(this.bandVolumes.bass * 100);
                 document.getElementById('band-vol-drums').value = Math.round(this.bandVolumes.drums * 100);
+                const reverbSlider = document.getElementById('band-reverb-slider');
+                const reverbDisplay = document.getElementById('band-reverb-display');
+                if (reverbSlider) reverbSlider.value = Math.round(this.bandReverb * 100);
+                if (reverbDisplay) reverbDisplay.textContent = `${Math.round(this.bandReverb * 100)}%`;
             }
 
             setOrchestrationMode(mode) {
@@ -1134,32 +1141,73 @@
                 if (this.bandGains[instrument]) this.bandGains[instrument].gain.value = v;
             }
 
+            setBandReverb(val) {
+                this.bandReverb = Math.max(0, Math.min(1, parseInt(val, 10) / 100));
+                if (this.bandReverbWet) this.bandReverbWet.gain.value = this.bandReverb * 2;
+                const display = document.getElementById('band-reverb-display');
+                if (display) display.textContent = `${Math.round(this.bandReverb * 100)}%`;
+            }
+
             // --- Bande son "Orchestre" : piano (comping), basse et batterie synthétisées ---
 
             ensureBandAudio() {
                 if (!this.app.audioCtx) return;
-                const dest = this.app.reverbInput || this.app.audioCtx.destination;
+                const ctx = this.app.audioCtx;
+
+                if (!this.bandReverbInput) {
+                    const convolver = ctx.createConvolver();
+                    const rate = ctx.sampleRate;
+                    const length = Math.floor(rate * 2.2);
+                    const impulse = ctx.createBuffer(2, length, rate);
+                    for (let ch = 0; ch < 2; ch++) {
+                        const data = impulse.getChannelData(ch);
+                        for (let i = 0; i < length; i++) {
+                            const decay = Math.exp(-i / (rate * 0.6));
+                            data[i] = (Math.random() * 2 - 1) * decay;
+                        }
+                    }
+                    convolver.buffer = impulse;
+                    const dry = ctx.createGain();
+                    const wet = ctx.createGain();
+                    dry.gain.value = 1;
+                    wet.gain.value = this.bandReverb * 2;
+                    const output = ctx.createGain();
+                    output.gain.value = 1;
+                    this.bandReverbInput = ctx.createGain();
+                    this.bandReverbWet = wet;
+                    this.bandReverbInput.connect(dry);
+                    this.bandReverbInput.connect(convolver);
+                    dry.connect(output);
+                    convolver.connect(wet);
+                    wet.connect(output);
+                    output.connect(ctx.destination);
+                }
+
+                const dest = this.bandReverbInput;
                 if (!this.bandGains.piano) {
-                    this.bandGains.piano = this.app.audioCtx.createGain();
+                    this.bandGains.piano = ctx.createGain();
                     this.bandGains.piano.gain.value = this.bandVolumes.piano;
                     this.bandGains.piano.connect(dest);
                 }
                 if (!this.bandGains.bass) {
-                    this.bandGains.bass = this.app.audioCtx.createGain();
+                    this.bandGains.bass = ctx.createGain();
                     this.bandGains.bass.gain.value = this.bandVolumes.bass;
                     this.bandGains.bass.connect(dest);
                 }
                 if (!this.bandGains.drums) {
-                    this.bandGains.drums = this.app.audioCtx.createGain();
+                    this.bandGains.drums = ctx.createGain();
                     this.bandGains.drums.gain.value = this.bandVolumes.drums;
-                    this.bandGains.drums.connect(this.app.audioCtx.destination);
+                    this.bandGains.drums.connect(dest);
                 }
                 if (!this.bassInstrument) this.loadBass();
             }
 
             loadBass() {
                 if (this.bassInstrument || !this.app.audioCtx) return;
-                Soundfont.instrument(this.app.audioCtx, 'acoustic_bass', { soundfont: 'FluidR3_GM' })
+                Soundfont.instrument(this.app.audioCtx, 'acoustic_bass', {
+                    soundfont: 'FluidR3_GM',
+                    destination: this.bandGains.bass || this.app.audioCtx.destination
+                })
                     .then(instr => { this.bassInstrument = instr; })
                     .catch(() => {});
             }
@@ -1653,7 +1701,7 @@
                     const noteStr = this.getJamAudioNoteName(e.rootIndex, interval, PLAY_BASE_OCTAVE);
                     try {
                         const when = Math.max(this.app.audioCtx.currentTime, time + idx * 0.006); // léger "roulé"
-                        const node = this.app.pianoInstrument.play(noteStr, when, { duration: dur, gain });
+                        const node = this.app.pianoInstrument.play(noteStr, when, { duration: dur, gain, destination: this.bandGains.piano || this.app.audioCtx.destination });
                         this.bandAudioNodes.push(node);
                     } catch (err) {}
                 });
@@ -1948,186 +1996,197 @@
                 };
             }
 
-            // Renouvellement d'une grille de style : appliqué de la même façon à tous les styles,
-            // afin que « Générer » brasse beaucoup plus les accords, quel que soit le style choisi.
-            // Techniques utilisées, choisies accord par accord : substitution tritonique sur les
-            // dominantes, substitution relative majeur/mineur, glissement chromatique, changement de
-            // couleur (extension) au sein d'une même famille d'accord, et insertion ponctuelle d'une
-            // dominante secondaire devant un accord assez long pour la recevoir.
+            // Génération harmonique par grammaire : les variations se font au niveau des
+            // fonctions et des phrases, jamais par déplacement chromatique arbitraire d'un accord.
             createStyleVariation(template, styleKey, keyRoot) {
-                if (!template.length) return template;
-                const variant = this.generationVariant;
-                if (variant <= 0) return template.map(item => ({ ...item }));
-
-                const rand = this.makeVariationRng(variant, styleKey);
-                const categoryOf = (chordId) => {
-                    for (const cat in chordTypes) {
-                        if (chordTypes[cat].some(c => c.id === chordId)) return cat;
-                    }
-                    return 'other';
-                };
-                const defaultScaleFor = (chordId) => {
-                    const scales = this.findChordObj(chordId).scales;
-                    return (scales && scales[0] && scales[0].id) || 'ionian';
-                };
-                const idsOfCategory = (cat) => chordTypes[cat].map(c => c.id);
-                const relativeSub = (item, cat) => {
-                    if (cat === 'maj') {
-                        const majToMin = { maj7: 'm7', maj9: 'm9', '6': 'm7', maj7sharp11: 'm11', maj7sharp5: 'mmaj7', majTriad: 'minTriad' };
-                        return { r: (item.r + 9) % 12, c: majToMin[item.c] || 'm7' };
-                    }
-                    if (cat === 'min') {
-                        const minToMaj = { m7: 'maj7', m9: 'maj9', m11: 'maj9', mmaj7: 'maj7sharp5', minTriad: 'majTriad' };
-                        return { r: (item.r + 3) % 12, c: minToMaj[item.c] || 'maj7' };
-                    }
-                    return null;
-                };
-
-                const out = [];
-                template.forEach((source, i) => {
-                    const item = { ...source };
-                    const cat = categoryOf(item.c);
-                    const isEdge = (i === 0 || i === template.length - 1);
-                    const roll = rand();
-
-                    if (cat === 'dom' && roll < 0.3) {
-                        // Substitution tritonique : la couleur la plus caractéristique du
-                        // renouvellement d'une grille de jazz sur les accords de dominante.
-                        item.r = (item.r + 6) % 12;
-                        if (rand() < 0.5) item.c = '7alt';
-                    } else if ((cat === 'maj' || cat === 'min') && !isEdge && roll < 0.55) {
-                        // Substitution relative majeur/mineur : change la fondamentale tout en
-                        // gardant une fonction harmonique voisine.
-                        const sub = relativeSub(item, cat);
-                        if (sub) { item.r = sub.r; item.c = sub.c; }
-                    } else if (!isEdge && roll < 0.68) {
-                        // Glissement chromatique d'un demi-ton : casse la répétition d'une même
-                        // fondamentale sans justification tonale particulière.
-                        item.r = (item.r + (rand() < 0.5 ? 1 : 11)) % 12;
-                    } else if (roll < 0.9) {
-                        // Changement de couleur au sein de la même famille d'accord (garde la
-                        // fondamentale et la fonction, renouvelle l'extension).
-                        const options = idsOfCategory(cat).filter(id => id !== item.c);
-                        if (options.length) item.c = options[Math.floor(rand() * options.length)];
-                    }
-                    item.s = defaultScaleFor(item.c);
-
-                    if (item.m >= 2 && rand() < 0.35) {
-                        // Dominante secondaire insérée devant l'accord, si sa durée le permet :
-                        // multiplie les mouvements harmoniques de la grille.
-                        out.push({ r: (item.r + 7) % 12, c: '7', m: 1, s: 'mixolydian' });
-                        item.m -= 1;
-                    }
-                    out.push(item);
+                if (!template.length || this.generationVariant <= 0) return template.map(item => ({ ...item }));
+                const rand = this.makeVariationRng(this.generationVariant, styleKey);
+                const out = template.map(item => ({ ...item }));
+                const byPhrase = new Map();
+                out.forEach((item, i) => {
+                    const key = item.phrase || `p${i}`;
+                    if (!byPhrase.has(key)) byPhrase.set(key, []);
+                    byPhrase.get(key).push(i);
                 });
 
+                const chordCategory = (id) => {
+                    for (const cat in chordTypes) if (chordTypes[cat].some(c => c.id === id)) return cat;
+                    return 'other';
+                };
+                const scaleFor = (id) => {
+                    const obj = this.findChordObj(id);
+                    return obj && obj.scales && obj.scales[0] ? obj.scales[0].id : 'ionian';
+                };
+                const setChord = (i, r, c, s) => {
+                    out[i].r = (r + 12) % 12;
+                    out[i].c = c;
+                    out[i].s = s || scaleFor(c);
+                };
+                const isDominant = id => ['7','9','7alt','7b9','7sharp5','7sus4'].includes(id);
+                const dominantOf = target => ({ r: (target + 7) % 12, c: '7', s: 'mixolydian' });
+
+                // Une même cellule est modifiée de manière cohérente dans toutes ses occurrences
+                // quand elle constitue une phrase répétée (A1/A2/A3, refrain, etc.).
+                byPhrase.forEach((indices, phraseKey) => {
+                    const roll = rand();
+                    const first = out[indices[0]];
+                    const next = out[indices[indices.length - 1] + 1];
+
+                    // ii-V : couleur altérée sur la dominante, sans modifier sa fonction.
+                    if (styleKey !== 'pop' && styleKey !== 'funk' && styleKey !== 'modal' && roll < 0.24) {
+                        indices.forEach(i => {
+                            if (out[i].function === 'dominant' && isDominant(out[i].c) && rand() < 0.8) {
+                                out[i].c = rand() < 0.5 ? '7alt' : '7b9';
+                                out[i].s = scaleFor(out[i].c);
+                            }
+                        });
+                    }
+
+                    // Dominante secondaire : uniquement lorsqu'une cible diatonique existe réellement.
+                    if (!['pop','modal','funk'].includes(styleKey) && roll >= 0.24 && roll < 0.46) {
+                        for (let j = 0; j < indices.length - 1; j++) {
+                            const i = indices[j], n = indices[j + 1];
+                            if (out[n].function === 'tonic' || out[n].function === 'predominant' || out[n].function === 'target') {
+                                if ((out[i].m || 1) >= 2 && rand() < 0.6) {
+                                    const d = dominantOf(out[n].r);
+                                    out[i].m = Math.max(1, out[i].m - 1);
+                                    out.splice(i + 1, 0, { ...d, m: 1, phrase: phraseKey, function: 'secondaryDominant' });
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    // Substitution tritonique : seulement sur une dominante ayant une cible immédiate.
+                    if (['bebop','swing','hardbop','bossa','ballad','latin','fusion','anatole'].includes(styleKey) && roll >= 0.46 && roll < 0.66) {
+                        for (let j = 0; j < indices.length; j++) {
+                            const i = indices[j];
+                            const n = out[i + 1];
+                            if (out[i].function === 'dominant' && isDominant(out[i].c) && n) {
+                                setChord(i, out[i].r + 6, rand() < 0.5 ? '7' : '7alt', rand() < 0.5 ? 'lydianDominant' : 'altered');
+                                break;
+                            }
+                        }
+                    }
+
+                    // Variation de couleur sans changement de fonction.
+                    if (roll >= 0.66 && roll < 0.84) {
+                        indices.forEach(i => {
+                            const cat = chordCategory(out[i].c);
+                            if (cat === 'maj' && out[i].function === 'tonic' && rand() < 0.7) out[i].c = rand() < 0.5 ? 'maj7' : '6';
+                            else if (cat === 'min' && out[i].function === 'predominant' && rand() < 0.7) out[i].c = rand() < 0.5 ? 'm7' : 'm9';
+                            out[i].s = scaleFor(out[i].c);
+                        });
+                    }
+
+                    // Dans les styles modaux/funk/pop, la variation reste essentiellement rythmique ou
+                    // de couleur : on évite d'importer artificiellement le langage des dominantes du jazz.
+                    if (['modal','funk','pop'].includes(styleKey) && roll >= 0.84) {
+                        indices.forEach(i => {
+                            if (rand() < 0.5 && out[i].m > 1) {
+                                const a = Math.ceil(out[i].m / 2), b = out[i].m - a;
+                                out[i].m = a;
+                                out.splice(i + 1, 0, { ...out[i], m: Math.max(1,b), phrase: phraseKey, function: out[i].function });
+                            }
+                        });
+                    }
+                });
+
+                // Garantie d'une nouvelle grille à chaque « Générer » : si les tirages n'ont
+                // produit aucune différence, on applique une variation idiomatique minimale au style.
+                const sameHarmonicContent = out.length === template.length && out.every((x,i) =>
+                    x.r === template[i].r && x.c === template[i].c && x.m === template[i].m && x.s === template[i].s
+                );
+                if (sameHarmonicContent) {
+                    const phase = this.generationVariant % 4;
+                    const first = out[0];
+                    if (styleKey === 'pop') {
+                        const candidates = out.filter(x => x.function === 'tonic' || x.function === 'predominant');
+                        if (candidates.length) {
+                            const x = candidates[phase % candidates.length];
+                            if (x.function === 'tonic') x.c = '6';
+                            else x.c = 'm7';
+                            x.s = scaleFor(x.c);
+                        }
+                    } else if (styleKey === 'funk') {
+                        const x = out.find(z => z.r === (keyRoot + 5) % 12) || out[1];
+                        if (x) { x.r = (x.r + (phase % 2 ? 10 : 5)) % 12; x.c = '7'; x.s = 'mixolydian'; }
+                    } else if (styleKey === 'modal') {
+                        const x = out[Math.min(2, out.length - 1)];
+                        if (x) x.r = (x.r + (phase % 2 ? 5 : 2)) % 12;
+                    } else if (styleKey === 'blues') {
+                        const x = out.find(z => z.r === (keyRoot + 5) % 12);
+                        if (x) x.c = phase % 2 ? '9' : '7';
+                    } else if (styleKey === 'baroque' || styleKey === 'mozart' || styleKey === 'trad') {
+                        if (styleKey === 'mozart') {
+                            const x = out.find(z => z.r === (keyRoot + 5) % 12 && z.function === 'predominant');
+                            if (x) { x.r = (keyRoot + 2) % 12; x.c = 'm7'; x.s = 'dorian'; }
+                        } else {
+                            const x = out.find(z => z.function === 'dominant');
+                            if (x) x.c = phase % 2 ? '7' : (styleKey === 'trad' ? 'maj7' : '7');
+                        }
+                        if (phase === 3 && out.length > 2) {
+                            const target = out.find(z => z.function === 'predominant');
+                            if (target) { const d = dominantOf(target.r); d.m = 1; d.section = target.section; d.phrase = target.phrase; out.splice(out.indexOf(target),0,d); target.m = Math.max(1,target.m-1); }
+                        }
+                    } else {
+                        const x = out.find(z => z.function === 'dominant');
+                        if (x) { x.r = (x.r + 6) % 12; x.c = '7alt'; x.s = 'altered'; }
+                        else if (first) first.m = Math.max(1, first.m);
+                    }
+                }
                 return out;
             }
 
             normalizeGeneratedGrid(template, styleKey) {
-                const phraseMeasures = {
-                    'ii-v-i': 4, 'anatole': 4, 'blues': 12, 'bebop': 32, 'swing': 32,
-                    'modal': 16, 'bossa': 16, 'pop': 8, 'ballad': 16, 'funk': 16,
+                const targetMeasures = {
+                    'ii-v-i': 4, 'anatole': 8, 'blues': 12, 'bebop': 32, 'swing': 32,
+                    'modal': 16, 'bossa': 32, 'pop': 16, 'ballad': 32, 'funk': 16,
                     'hardbop': 16, 'dixieland': 16, 'latin': 16, 'fusion': 16,
                     'baroque': 16, 'mozart': 16, 'trad': 16
-                };
-                // Une grille générée ne dépasse jamais 16 mesures.
-                const targetMeasures = Math.min(phraseMeasures[styleKey] || 16, 16);
+                }[styleKey] || 16;
                 if (!template.length) return template;
+
                 let normalized = [];
-                let measures = 0, sourceIndex = 0;
+                let measures = 0;
+                let sourceIndex = 0;
                 while (measures < targetMeasures) {
                     const source = template[sourceIndex % template.length];
                     const remaining = targetMeasures - measures;
-                    const item = { ...source, m: Math.min(Math.max(1, source.m || 1), remaining) };
-                    normalized.push(item); measures += item.m; sourceIndex++;
+                    const m = Math.min(Math.max(1, source.m || 1), remaining);
+                    normalized.push({ ...source, m });
+                    measures += m;
+                    sourceIndex++;
                 }
+
+                // Une grille doit rester dans une carrure stable : pas de découpage aléatoire d'une
+                // phrase, sauf si cela est nécessaire pour obtenir un nombre pair de cellules.
                 normalized = this.enforceChordRepeatLimits(normalized);
                 if (normalized.length % 2 !== 0) {
-                    const splitIndex = normalized.findIndex(item => item.m >= 2);
+                    const splitIndex = normalized.findIndex(item => (item.m || 1) >= 2);
                     if (splitIndex >= 0) {
                         const item = normalized[splitIndex];
-                        const firstMeasures = Math.floor(item.m / 2);
-                        const secondMeasures = item.m - firstMeasures;
-                        normalized.splice(splitIndex, 1, { ...item, m: firstMeasures }, { ...item, m: secondMeasures });
+                        const a = Math.max(1, Math.floor(item.m / 2));
+                        const b = Math.max(1, item.m - a);
+                        normalized.splice(splitIndex, 1,
+                            { ...item, m: a },
+                            { ...item, m: b, phrase: item.phrase ? `${item.phrase}-split` : undefined }
+                        );
                     }
                 }
                 return normalized;
             }
 
-            // Limites de répétition d'un même accord (compté en mesures consécutives) dans une grille générée :
-            //  - un accord n'est jamais répété plus de 4 fois d'affilée ;
-            //  - si le premier accord de la grille est répété 4 fois, ce même accord ne peut pas
-            //    être répété plus de 2 fois à la fin de la grille.
-            // Les mesures en excès sont remplacées par un accord voisin : substitution tritonique sur une
-            // dominante, relatif mineur sur un accord majeur, relatif majeur sur un accord mineur.
             enforceChordRepeatLimits(items) {
-                const key = (it) => it.r + ':' + it.c;
-                const categoryOf = (chordId) => {
-                    for (const cat in chordTypes) {
-                        if (chordTypes[cat].some(c => c.id === chordId)) return cat;
-                    }
-                    return 'other';
-                };
-                const dominantIds = ['7', '9', '7alt', '7b9', '7sharp5', '7sus4'];
-                const alternate = (it) => {
-                    let r, c;
-                    if (dominantIds.includes(it.c)) { r = (it.r + 6) % 12; c = it.c; }
-                    else if (categoryOf(it.c) === 'maj') { r = (it.r + 9) % 12; c = 'm7'; }
-                    else if (categoryOf(it.c) === 'min') { r = (it.r + 3) % 12; c = 'maj7'; }
-                    else { r = (it.r + 7) % 12; c = '7'; }
-                    const scales = this.findChordObj(c).scales;
-                    return { r, c, s: (scales && scales[0] && scales[0].id) || 'ionian' };
-                };
-
-                const list = [];
-                items.forEach(it => { for (let k = 0; k < Math.max(1, it.m || 1); k++) list.push({ r: it.r, c: it.c, s: it.s }); });
-                const runs = () => {
-                    const out = [];
-                    list.forEach((x, idx) => {
-                        const last = out[out.length - 1];
-                        if (last && key(last.item) === key(x)) last.len++;
-                        else out.push({ start: idx, len: 1, item: x });
-                    });
-                    return out;
-                };
-
-                let changed = false;
-                for (let pass = 0; pass < 12; pass++) {
-                    let passChanged = false;
-                    // Règle 1 : pas plus de 4 mesures d'affilée. Au-delà, on alterne par blocs de 2 mesures
-                    // entre l'accord d'origine et son accord voisin.
-                    runs().forEach(run => {
-                        if (run.len <= 4) return;
-                        const alt = alternate(run.item);
-                        for (let k = 4; k < run.len; k++) {
-                            if (Math.floor((k - 4) / 2) % 2 === 0) list[run.start + k] = { ...alt };
-                        }
-                        passChanged = true;
-                    });
-                    if (!passChanged) {
-                        // Règle 2 : premier accord répété 4 fois => au plus 2 répétitions du même accord en fin de grille.
-                        const rs = runs();
-                        const first = rs[0], last = rs[rs.length - 1];
-                        if (rs.length > 1 && first.len >= 4 && key(first.item) === key(last.item) && last.len > 2) {
-                            const alt = alternate(last.item);
-                            for (let k = 0; k < last.len - 2; k++) list[last.start + k] = { ...alt };
-                            passChanged = true;
-                        }
-                    }
-                    if (!passChanged) break;
-                    changed = true;
-                }
-                if (!changed) return items;
-
-                // Regroupe les mesures consécutives identiques en pas de grille.
-                const merged = [];
-                list.forEach(x => {
-                    const last = merged[merged.length - 1];
-                    if (last && key(last) === key(x)) last.m++;
-                    else merged.push({ r: x.r, c: x.c, s: x.s, m: 1 });
+                if (!items.length) return items;
+                const same = (a,b) => a && b && a.r === b.r && a.c === b.c;
+                const out = [];
+                items.forEach(item => {
+                    const prev = out[out.length - 1];
+                    if (prev && same(prev, item) && prev.m < 4) prev.m += item.m;
+                    else out.push({ ...item });
                 });
-                return merged;
+                return out;
             }
 
             getJazzChordNotation(chordId) {
@@ -2159,225 +2218,242 @@
                 const keyRoot = Number.isInteger(this.mainKey) ? this.mainKey : 0;
                 let template = [];
 
-                // Harmonie diatonique générique : les 7 degrés de la gamme majeure (I à vii),
-                // avec leur accord et leur gamme de référence. Choisir une "qualité" de tonalité
-                // (Majeur, Mineur, Dorien, Lydien...) fait tourner ce tableau : le degré I prend
-                // alors la couleur du degré correspondant de la gamme majeure d'origine.
                 const DEGREE_TABLE = [
-                    { off: 0,  c: 'maj7', s: 'ionian' },        // I
-                    { off: 2,  c: 'm7',   s: 'dorian' },        // ii
-                    { off: 4,  c: 'm7',   s: 'phrygian' },      // iii
-                    { off: 5,  c: 'maj7', s: 'lydian' },        // IV
-                    { off: 7,  c: '7',    s: 'mixolydian' },    // V
-                    { off: 9,  c: 'm7',   s: 'aeolian' },       // vi
-                    { off: 11, c: 'm7b5', s: 'locrianSharp2' }  // vii
+                    { off: 0,  c: 'maj7', s: 'ionian' },
+                    { off: 2,  c: 'm7',   s: 'dorian' },
+                    { off: 4,  c: 'm7',   s: 'phrygian' },
+                    { off: 5,  c: 'maj7', s: 'lydian' },
+                    { off: 7,  c: '7',    s: 'mixolydian' },
+                    { off: 9,  c: 'm7',   s: 'aeolian' },
+                    { off: 11, c: 'm7b5', s: 'locrianSharp2' }
                 ];
-                const DEGREE_INDEX = { I: 0, ii: 1, iii: 2, IV: 3, V: 4, vi: 5, vii: 6 };
-                const QUALITY_ROTATION = { ionian: 0, dorian: 1, phrygian: 2, lydian: 3, mixolydian: 4, aeolian: 5, locrian: 6 };
+                const DEGREE_INDEX = { I:0, ii:1, iii:2, IV:3, V:4, vi:5, vii:6 };
+                const QUALITY_ROTATION = { ionian:0, dorian:1, phrygian:2, lydian:3, mixolydian:4, aeolian:5, locrian:6 };
                 const rotation = QUALITY_ROTATION[this.mainQuality] ?? 0;
-
-                const diatonicChord = (degree, measures = 1, tonicScale = 'ionian') => {
+                const diatonicChord = (degree, measures=1, tonicScale='ionian') => {
                     const i = DEGREE_INDEX[degree];
                     const idx = (rotation + i) % 7;
                     const offsetFromTonic = (DEGREE_TABLE[idx].off - DEGREE_TABLE[rotation].off + 12) % 12;
-                    // La "couleur" (ionien/lydien) du degré I n'est utilisée que pour la tonalité
-                    // Majeur par défaut, afin de ne rien changer à l'existant ; toute autre qualité
-                    // choisie utilise directement la gamme réellement associée au degré tourné.
-                    const useTonicFlavor = (i === 0 && rotation === 0);
                     return {
-                        r: (keyRoot + offsetFromTonic) % 12,
-                        c: DEGREE_TABLE[idx].c,
-                        m: measures,
-                        s: useTonicFlavor ? tonicScale : DEGREE_TABLE[idx].s
+                        r:(keyRoot + offsetFromTonic) % 12,
+                        c:DEGREE_TABLE[idx].c,
+                        m:measures,
+                        s:(i === 0 && rotation === 0) ? tonicScale : DEGREE_TABLE[idx].s
                     };
                 };
-                // Couleur classique : le degré I utilise la gamme ionienne comme tonique.
-                const chord = (degree, measures = 1) => diatonicChord(degree, measures, 'ionian');
-                // Couleur jazz moderne : le degré I utilise la gamme lydienne comme tonique.
-                const chordJazz = (degree, measures = 1) => diatonicChord(degree, measures, 'lydian');
-                const secondary = (degree, measures = 1) => {
-                    const i = DEGREE_INDEX[degree];
-                    const idx = (rotation + i) % 7;
-                    const targetOffset = (DEGREE_TABLE[idx].off - DEGREE_TABLE[rotation].off + 12) % 12;
-                    return { r: (keyRoot + targetOffset + 7) % 12, c: '7', m: measures, s: 'mixolydian' };
+                const chord = (degree, measures=1, section='', phrase='', fn='tonic') => ({ ...diatonicChord(degree, measures, 'ionian'), section, phrase, function:fn });
+                const chordJazz = (degree, measures=1, section='', phrase='', fn='tonic') => ({ ...diatonicChord(degree, measures, 'lydian'), section, phrase, function:fn });
+                const secondary = (degree, measures=1, section='', phrase='') => {
+                    const target = diatonicChord(degree, 1);
+                    return { r:(target.r + 7) % 12, c:'7', m:measures, s:'mixolydian', section, phrase, function:'secondaryDominant' };
                 };
+                const abs = (off, c, m=1, s=null, section='', phrase='', fn='color') => ({ r:(keyRoot+off+12)%12, c, m, s:s || ((this.findChordObj(c).scales || [])[0]?.id || 'ionian'), section, phrase, function:fn });
+                const join = (...parts) => parts.flat().map(x => ({...x}));
+
+                // Cellules harmoniques réutilisables. Elles constituent le vocabulaire du style :
+                // une variation peut modifier une cellule, mais ne détruit pas sa fonction.
+                const iiV = (section, phrase, target='I', jazz=true) => [
+                    jazz ? chordJazz('ii',1,section,phrase,'predominant') : chord('ii',1,section,phrase,'predominant'),
+                    jazz ? chordJazz('V',1,section,phrase,'dominant') : chord('V',1,section,phrase,'dominant')
+                ];
+                const turnaround = (section, phrase) => [
+                    chordJazz('I',1,section,phrase,'tonic'),
+                    chordJazz('vi',1,section,phrase,'predominant'),
+                    chordJazz('ii',1,section,phrase,'predominant'),
+                    chordJazz('V',1,section,phrase,'dominant')
+                ];
+                const cadence = (section, phrase) => [
+                    chord('ii',1,section,phrase,'predominant'),
+                    chord('V',1,section,phrase,'dominant'),
+                    chord('I',2,section,phrase,'tonic')
+                ];
 
                 switch (styleKey) {
-                    case 'blues':
-                        template = [
-                            { r: keyRoot, c: '7', m: 4, s: 'mixolydian' },
-                            { r: (keyRoot + 5) % 12, c: '7', m: 2, s: 'mixolydian' },
-                            { r: keyRoot, c: '7', m: 2, s: 'mixolydian' },
-                            { r: (keyRoot + 7) % 12, c: 'm7', m: 1, s: 'dorian' },
-                            { r: (keyRoot + 2) % 12, c: '7', m: 1, s: 'mixolydian' },
-                            { r: keyRoot, c: '7', m: 1, s: 'mixolydian' },
-                            { r: (keyRoot + 7) % 12, c: '7alt', m: 1, s: 'altered' }
-                        ];
-                        break;
-                    case 'bebop':
-                        template = [
-                            { r: keyRoot, c: 'maj7', m: 1, s: 'lydian' },
-                            { r: (keyRoot + 9) % 12, c: 'm7', m: 1, s: 'dorian' },
-                            { r: (keyRoot + 2) % 12, c: 'm7', m: 1, s: 'dorian' },
-                            { r: (keyRoot + 7) % 12, c: '7', m: 1, s: 'mixolydian' },
-                            { r: keyRoot, c: 'maj7', m: 1, s: 'lydian' },
-                            { r: (keyRoot + 9) % 12, c: 'm7', m: 1, s: 'dorian' },
-                            { r: (keyRoot + 2) % 12, c: 'm7', m: 1, s: 'dorian' },
-                            { r: (keyRoot + 7) % 12, c: '7', m: 1, s: 'mixolydian' },
-                            { r: (keyRoot + 5) % 12, c: 'maj7', m: 2, s: 'lydian' },
-                            { r: (keyRoot + 10) % 12, c: '7', m: 2, s: 'mixolydian' },
-                            { r: keyRoot, c: 'maj7', m: 2, s: 'lydian' },
-                            { r: (keyRoot + 4) % 12, c: '7alt', m: 2, s: 'altered' },
-                            { r: (keyRoot + 2) % 12, c: 'm7', m: 2, s: 'dorian' },
-                            { r: (keyRoot + 7) % 12, c: '7', m: 2, s: 'mixolydian' },
-                            { r: keyRoot, c: 'maj7', m: 2, s: 'lydian' }
-                        ];
-                        break;
-                    case 'swing':
-                        template = [
-                            { r: (keyRoot + 9) % 12, c: 'm7', m: 1, s: 'dorian' },
-                            { r: (keyRoot + 4) % 12, c: '7', m: 1, s: 'mixolydian' },
-                            { r: keyRoot, c: 'maj7', m: 2, s: 'lydian' },
-                            { r: (keyRoot + 5) % 12, c: 'maj7', m: 2, s: 'lydian' },
-                            { r: (keyRoot + 11) % 12, c: 'm7b5', m: 1, s: 'locrianSharp2' },
-                            { r: (keyRoot + 7) % 12, c: '7alt', m: 1, s: 'altered' },
-                            { r: (keyRoot + 9) % 12, c: 'm7', m: 2, s: 'dorian' },
-                            { r: (keyRoot + 9) % 12, c: 'm7', m: 1, s: 'dorian' },
-                            { r: (keyRoot + 4) % 12, c: '7', m: 1, s: 'mixolydian' },
-                            { r: keyRoot, c: 'maj7', m: 2, s: 'lydian' },
-                            { r: (keyRoot + 11) % 12, c: 'm7b5', m: 1, s: 'locrianSharp2' },
-                            { r: (keyRoot + 7) % 12, c: '7alt', m: 1, s: 'altered' },
-                            { r: (keyRoot + 9) % 12, c: 'mmaj7', m: 2, s: 'melodicMinor' }
-                        ];
-                        break;
-                    case 'modal':
-                        template = [
-                            { r: keyRoot, c: 'm7', m: 4, s: 'dorian' },
-                            { r: (keyRoot + 1) % 12, c: 'm7', m: 4, s: 'dorian' },
-                            { r: keyRoot, c: 'm7', m: 4, s: 'dorian' },
-                            { r: (keyRoot + 3) % 12, c: 'maj7', m: 4, s: 'lydian' }
-                        ];
-                        break;
-                    case 'bossa':
-                        template = [
-                            { r: keyRoot, c: 'm7', m: 2, s: 'dorian' },
-                            { r: (keyRoot + 5) % 12, c: 'm7', m: 2, s: 'dorian' },
-                            { r: (keyRoot + 2) % 12, c: 'm7b5', m: 1, s: 'locrianSharp2' },
-                            { r: (keyRoot + 8) % 12, c: '7alt', m: 1, s: 'altered' },
-                            { r: keyRoot, c: 'm7', m: 2, s: 'dorian' },
-                            { r: (keyRoot + 3) % 12, c: 'm7', m: 1, s: 'dorian' },
-                            { r: (keyRoot + 8) % 12, c: '7', m: 1, s: 'mixolydian' },
-                            { r: (keyRoot + 1) % 12, c: 'maj7', m: 2, s: 'lydian' },
-                            { r: (keyRoot + 2) % 12, c: 'm7b5', m: 1, s: 'locrianSharp2' },
-                            { r: (keyRoot + 8) % 12, c: '7alt', m: 1, s: 'altered' },
-                            { r: keyRoot, c: 'm7', m: 2, s: 'dorian' }
-                        ];
-                        break;
-                    case 'pop':
-                        template = [
-                            { r: keyRoot, c: 'maj7', m: 1, s: 'ionian' },
-                            { r: (keyRoot + 7) % 12, c: '7', m: 1, s: 'mixolydian' },
-                            { r: (keyRoot + 9) % 12, c: 'm7', m: 1, s: 'aeolian' },
-                            { r: (keyRoot + 5) % 12, c: 'maj7', m: 1, s: 'ionian' }
-                        ];
-                        break;
-                    case 'ballad':
-                        template = [
-                            { r: keyRoot, c: 'maj7', m: 2, s: 'lydian' },
-                            { r: (keyRoot + 4) % 12, c: '7', m: 2, s: 'mixolydian' },
-                            { r: (keyRoot + 8) % 12, c: 'maj7', m: 2, s: 'lydian' },
-                            { r: (keyRoot + 1) % 12, c: 'm7', m: 2, s: 'dorian' },
-                            { r: (keyRoot + 7) % 12, c: '7alt', m: 2, s: 'altered' },
-                            { r: keyRoot, c: 'maj7', m: 2, s: 'lydian' }
-                        ];
-                        break;
-                    case 'funk':
-                        template = [
-                            { r: keyRoot, c: '7', m: 4, s: 'mixolydian' },
-                            { r: (keyRoot + 5) % 12, c: '7', m: 4, s: 'mixolydian' },
-                            { r: keyRoot, c: '7', m: 2, s: 'mixolydian' },
-                            { r: (keyRoot + 10) % 12, c: '7', m: 2, s: 'mixolydian' }
-                        ];
-                        break;
-                    case 'hardbop':
-                        template = [
-                            { r: keyRoot, c: 'm7', m: 2, s: 'dorian' },
-                            { r: (keyRoot + 7) % 12, c: '7alt', m: 2, s: 'altered' },
-                            { r: keyRoot, c: 'm7', m: 2, s: 'dorian' },
-                            { r: (keyRoot + 3) % 12, c: '7', m: 2, s: 'mixolydian' },
-                            { r: (keyRoot + 5) % 12, c: 'maj7', m: 2, s: 'lydian' },
-                            { r: (keyRoot + 2) % 12, c: 'm7b5', m: 2, s: 'locrianSharp2' }
-                        ];
-                        break;
-                    case 'dixieland':
-                        template = [
-                            { r: keyRoot, c: 'maj7', m: 1, s: 'ionian' },
-                            { r: (keyRoot + 9) % 12, c: '7', m: 1, s: 'mixolydian' },
-                            { r: (keyRoot + 2) % 12, c: '7', m: 1, s: 'mixolydian' },
-                            { r: (keyRoot + 7) % 12, c: '7', m: 1, s: 'mixolydian' },
-                            { r: keyRoot, c: 'maj7', m: 2, s: 'ionian' },
-                            { r: (keyRoot + 5) % 12, c: 'maj7', m: 2, s: 'lydian' }
-                        ];
-                        break;
-                    case 'latin':
-                        template = [
-                            { r: keyRoot, c: 'm7', m: 4, s: 'dorian' },
-                            { r: (keyRoot + 2) % 12, c: 'm7b5', m: 2, s: 'locrianSharp2' },
-                            { r: (keyRoot + 7) % 12, c: '7alt', m: 2, s: 'altered' },
-                            { r: keyRoot, c: 'm7', m: 4, s: 'dorian' }
-                        ];
-                        break;
-                    case 'fusion':
-                        template = [
-                            { r: keyRoot, c: '7sus4', m: 2, s: 'dorian' },
-                            { r: (keyRoot + 3) % 12, c: 'maj7sharp11', m: 2, s: 'lydian' },
-                            { r: (keyRoot + 6) % 12, c: '7alt', m: 2, s: 'altered' },
-                            { r: (keyRoot + 1) % 12, c: 'mmaj7', m: 2, s: 'melodicMinor' }
-                        ];
-                        break;
-                    case 'baroque':
-                        template = [chord('I',2), chord('IV'), chord('V'), chord('I',2), chord('vi'), chord('ii'), secondary('V'), chord('V'), chord('I',2), chord('IV'), chord('ii'), chord('V'), chord('I',2)];
-                        break;
-                    case 'mozart':
-                        template = [chord('I',2), chord('IV'), chord('V'), chord('I',2), chord('ii'), secondary('V'), chord('V'), chord('I'), chord('vi'), chord('ii'), chord('V'), chord('I',2), chord('IV'), chord('V'), chord('I',2)];
-                        break;
-                    case 'trad':
-                        template = [chord('I',2), chord('IV'), chord('I'), chord('V'), chord('I'), chord('vi'), chord('ii'), chord('V'), chord('I',2), chord('IV'), chord('I'), chord('V'), chord('I',2)];
-                        break;
                     case 'ii-v-i':
-                        template = [chordJazz('ii'), chordJazz('V'), chordJazz('I', 2)];
+                        template = cadence('A','A1');
                         break;
+
                     case 'anatole':
-                        template = [chord('I'), chord('vi'), chord('ii'), chord('V')];
+                        // 8 mesures : A A', avec turnaround I-vi-ii-V et dominante secondaire VI7.
+                        template = join(
+                            [chordJazz('I',1,'A','A1','tonic'), chordJazz('vi',1,'A','A1','predominant'), chordJazz('ii',1,'A','A1','predominant'), chordJazz('V',1,'A','A1','dominant')],
+                            [chordJazz('I',1,'A2','A2','tonic'), abs(9,'7',1,'mixolydian','A2','A2','secondaryDominant'), chordJazz('ii',1,'A2','A2','predominant'), chordJazz('V',1,'A2','A2','dominant')]
+                        );
                         break;
-                    default:
+
+                    case 'blues': {
+                        // Blues 12 mesures : trois phrases de 4, avec IV au début de la seconde
+                        // phrase et turnaround V-IV-I-V en fin de forme.
                         template = [
-                            { r: keyRoot, c: 'maj7', m: 2, s: 'lydian' }
+                            abs(0,'7',4,'mixolydian','A','A1','tonic'),
+                            abs(5,'7',2,'mixolydian','B','B1','predominant'),
+                            abs(0,'7',2,'mixolydian','B','B1','tonic'),
+                            abs(7,'7',1,'mixolydian','C','C1','dominant'),
+                            abs(5,'7',1,'mixolydian','C','C1','predominant'),
+                            abs(0,'7',1,'mixolydian','C','C1','tonic'),
+                            abs(7,'7',1,'mixolydian','C','C1','dominant')
                         ];
+                        break;
+                    }
+
+                    case 'bebop':
+                    case 'swing': {
+                        // 32 mesures AABA. Le matériau A repose sur I-vi-ii-V ; B est une chaîne
+                        // de dominantes par quintes. Les A restent apparentés pour conserver la forme.
+                        const A1 = join(
+                            chordJazz('I',1,'A','A1','tonic'), chordJazz('vi',1,'A','A1','predominant'),
+                            chordJazz('ii',1,'A','A1','predominant'), chordJazz('V',1,'A','A1','dominant'),
+                            chordJazz('I',1,'A','A2','tonic'), abs(9,'7',1,'mixolydian','A','A2','secondaryDominant'),
+                            chordJazz('ii',1,'A','A2','predominant'), chordJazz('V',1,'A','A2','dominant')
+                        );
+                        const A2 = A1.map(x => ({...x, section:'A2', phrase:x.phrase.replace('A','A2')}));
+                        const B = [
+                            abs(4,'7',2,'mixolydian','B','B1','secondaryDominant'),
+                            abs(9,'7',2,'mixolydian','B','B1','secondaryDominant'),
+                            abs(2,'7',2,'mixolydian','B','B2','secondaryDominant'),
+                            abs(7,'7',2,'mixolydian','B','B2','dominant')
+                        ];
+                        const A3 = A1.map(x => ({...x, section:'A3', phrase:x.phrase.replace(/^A[12]?/,'A3')}));
+                        template = join(A1,A2,B,A3);
+                        break;
+                    }
+
+                    case 'modal':
+                        // 16 mesures en AABA : la répétition est le principe structurel, pas une
+                        // succession artificielle de dominantes.
+                        template = join(
+                            [abs(0,'m7',4,'dorian','A','A1','tonic')],
+                            [abs(5,'m7',4,'dorian','A2','A2','color')],
+                            [abs(1,'m7',4,'dorian','B','B1','color')],
+                            [abs(0,'m7',4,'dorian','A3','A3','tonic')]
+                        );
+                        break;
+
+                    case 'bossa': {
+                        // 32 mesures AABA : cadence mineure, dominantes secondaires et retour clair.
+                        const A = [
+                            abs(0,'m7',2,'dorian','A','A1','tonic'),
+                            abs(5,'m7',2,'dorian','A','A1','predominant'),
+                            abs(10,'m7b5',1,'locrianSharp2','A','A2','predominant'),
+                            abs(3,'7alt',1,'altered','A','A2','dominant'),
+                            abs(8,'7',2,'mixolydian','A','A2','dominant')
+                        ];
+                        const A2 = A.map(x=>({...x,section:'A2',phrase:x.phrase.replace(/^A/,'A2')}));
+                        const B = [
+                            abs(5,'m7',2,'dorian','B','B1','predominant'), abs(10,'7',2,'mixolydian','B','B1','dominant'),
+                            abs(3,'maj7',2,'lydian','B','B2','tonic'), abs(8,'7alt',2,'altered','B','B2','dominant')
+                        ];
+                        const A3 = A.map(x=>({...x,section:'A3',phrase:x.phrase.replace(/^A/,'A3')}));
+                        template=join(A,A2,B,A3);
+                        break;
+                    }
+
+                    case 'pop':
+                        // 16 mesures : A B A B, avec répétition forte et changements surtout diatoniques.
+                        template = join(
+                            [abs(0,'maj7',1,'ionian','A','A1','tonic'),abs(7,'7',1,'mixolydian','A','A1','dominant'),abs(9,'m7',1,'aeolian','A','A1','predominant'),abs(5,'maj7',1,'ionian','A','A1','predominant')],
+                            [abs(0,'maj7',1,'ionian','B','B1','tonic'),abs(5,'maj7',1,'ionian','B','B1','predominant'),abs(9,'m7',1,'aeolian','B','B1','predominant'),abs(7,'7',1,'mixolydian','B','B1','dominant')],
+                            [abs(0,'maj7',1,'ionian','A2','A2','tonic'),abs(7,'7',1,'mixolydian','A2','A2','dominant'),abs(9,'m7',1,'aeolian','A2','A2','predominant'),abs(5,'maj7',1,'ionian','A2','A2','predominant')],
+                            [abs(5,'maj7',1,'ionian','B2','B2','predominant'),abs(7,'7',1,'mixolydian','B2','B2','dominant'),abs(0,'maj7',2,'ionian','B2','B2','tonic')]
+                        );
+                        break;
+
+                    case 'ballad': {
+                        const A=[...cadence('A','A1'), ...[chordJazz('vi',1,'A','A2','predominant'), abs(9,'7',1,'altered','A','A2','dominant'), chordJazz('ii',1,'A','A2','predominant'), chordJazz('V',1,'A','A2','dominant')]];
+                        const A2=A.map(x=>({...x,section:'A2',phrase:x.phrase.replace(/^A/,'A2')}));
+                        const B=[abs(5,'maj7',2,'lydian','B','B1','predominant'),abs(10,'7',2,'mixolydian','B','B1','dominant'),abs(3,'maj7',2,'lydian','B','B2','tonic'),abs(8,'7',2,'mixolydian','B','B2','dominant')];
+                        const A3=A.map(x=>({...x,section:'A3',phrase:x.phrase.replace(/^A/,'A3')}));
+                        template=join(A,A2,B,A3);
+                        break;
+                    }
+
+                    case 'funk':
+                        template = join(
+                            [abs(0,'7',4,'mixolydian','A','A1','tonic')],
+                            [abs(5,'7',4,'mixolydian','B','B1','predominant')],
+                            [abs(0,'7',2,'mixolydian','A2','A2','tonic'),abs(10,'7',2,'mixolydian','A2','A2','color')],
+                            [abs(5,'7',2,'mixolydian','B2','B2','predominant'),abs(0,'7',2,'mixolydian','B2','B2','tonic')]
+                        );
+                        break;
+
+                    case 'hardbop':
+                        template = join(
+                            [chordJazz('ii',1,'A','A1','predominant'),chordJazz('V',1,'A','A1','dominant'),chordJazz('I',1,'A','A2','tonic'),abs(9,'7',1,'altered','A','A2','secondaryDominant')],
+                            [chordJazz('ii',1,'B','B1','predominant'),chordJazz('V',1,'B','B1','dominant'),abs(5,'maj7',1,'lydian','B','B2','tonic'),abs(2,'7',1,'mixolydian','B','B2','dominant')],
+                            [chordJazz('ii',1,'C','C1','predominant'),chordJazz('V',1,'C','C1','dominant'),chordJazz('I',1,'C','C2','tonic'),chordJazz('V',1,'C','C2','dominant')],
+                            [chordJazz('ii',1,'A2','A3','predominant'),chordJazz('V',1,'A2','A3','dominant'),chordJazz('I',1,'A2','A4','tonic'),chordJazz('V',1,'A2','A4','dominant')]
+                        );
+                        break;
+
+                    case 'dixieland':
+                        template = join(
+                            [chord('I',2,'A','A1','tonic'),abs(9,'7',1,'mixolydian','A','A1','secondaryDominant'),chord('ii',1,'A','A1','predominant'),chord('V',2,'A','A2','dominant'),chord('I',2,'A','A2','tonic')],
+                            [chord('IV',2,'B','B1','predominant'),abs(5,'m7',2,'dorian','B','B1','predominant'),chord('I',2,'B','B2','tonic'),chord('V',2,'B','B2','dominant')]
+                        );
+                        // 8 + 8 mesures : A puis B, avec retour de I et cadence finale.
+                        break;
+
+                    case 'latin':
+                        template = join(
+                            [abs(0,'m7',4,'dorian','A','A1','tonic'),abs(2,'m7b5',2,'locrianSharp2','A','A2','predominant'),abs(7,'7alt',2,'altered','A','A2','dominant')],
+                            [abs(0,'m7',4,'dorian','B','B1','tonic'),abs(5,'7',2,'mixolydian','B','B2','predominant')],
+                            [abs(0,'m7',2,'dorian','A2','A3','tonic')]
+                        );
+                        break;
+
+                    case 'fusion':
+                        template = join(
+                            [abs(0,'7sus4',2,'dorian','A','A1','tonic'),abs(3,'maj7sharp11',2,'lydian','A','A1','color'),abs(6,'7alt',2,'altered','A','A2','dominant'),abs(1,'mmaj7',2,'melodicMinor','A','A2','color')],
+                            [abs(5,'7sus4',2,'dorian','B','B1','tonic'),abs(8,'maj7sharp11',2,'lydian','B','B1','color'),abs(3,'7alt',2,'altered','B','B2','dominant'),abs(0,'mmaj7',2,'melodicMinor','B','B2','color')]
+                        );
+                        break;
+
+                    case 'baroque':
+                        // 16 mesures AABB : séquences, dominantes secondaires et cadences.
+                        template = join(
+                            [chord('I',2,'A','A1','tonic'),chord('IV',1,'A','A1','predominant'),chord('ii',1,'A','A1','predominant'),secondary('V',1,'A','A2'),chord('V',1,'A','A2','dominant'),chord('I',2,'A','A2','tonic')],
+                            [chord('vi',1,'B','B1','predominant'),chord('ii',1,'B','B1','predominant'),secondary('V',1,'B','B2'),chord('V',1,'B','B2','dominant'),chord('I',2,'B','B2','tonic'),chord('IV',1,'B','B3','predominant'),chord('V',1,'B','B3','dominant')]
+                        );
+                        break;
+
+                    case 'mozart':
+                        // 16 mesures AABB : antécédent, demi-cadence, conséquent, cadence parfaite.
+                        template = join(
+                            [chord('I',2,'A','A1','tonic'),chord('IV',1,'A','A1','predominant'),chord('V',1,'A','A1','dominant'),chord('V',2,'A','A2','dominant'),chord('I',2,'A','A2','tonic')],
+                            [chord('ii',1,'B','B1','predominant'),secondary('V',1,'B','B1'),chord('V',1,'B','B1','dominant'),chord('vi',2,'B','B2','predominant'),chord('ii',1,'B','B2','predominant'),chord('V',1,'B','B2','dominant'),chord('I',1,'B','B2','tonic')]
+                        );
+                        break;
+
+                    case 'trad':
+                        // 16 mesures AABB, avec langage tonal simple et cadences lisibles.
+                        template = join(
+                            [chord('I',2,'A','A1','tonic'),chord('IV',2,'A','A1','predominant'),chord('I',2,'A','A2','tonic'),chord('V',2,'A','A2','dominant')],
+                            [chord('I',2,'B','B1','tonic'),chord('vi',2,'B','B1','predominant'),chord('ii',2,'B','B2','predominant'),chord('V',2,'B','B2','dominant')]
+                        );
+                        break;
+
+                    default:
+                        template = [chord('I',4,'A','A1','tonic')];
                         break;
                 }
 
                 const sourceTemplate = template.map(item => ({ ...item }));
-                if (this.generationVariant > 0) {
-                    template = this.createStyleVariation(sourceTemplate, styleKey, keyRoot);
-                }
-
+                template = this.createStyleVariation(sourceTemplate, styleKey, keyRoot);
                 template = this.normalizeGeneratedGrid(template, styleKey);
 
                 let generated = template.map(item => ({
-                    rootIndex: item.r,
-                    chordId: item.c,
-                    measures: item.m,
-                    scaleId: item.s
+                    rootIndex:item.r, chordId:item.c, measures:item.m, scaleId:item.s,
+                    section:item.section, phrase:item.phrase, harmonicFunction:item.function
                 }));
 
-                // Garantie qu'un clic successif ne restitue jamais exactement
-                // la grille précédente.
                 let signature = this.getGridSignature(generated);
                 if (this.lastGeneratedSignature && signature === this.lastGeneratedSignature) {
                     this.generationVariant++;
-                    generated = this.createStyleVariation(sourceTemplate, styleKey, keyRoot).map(item => ({
-                        rootIndex: item.r, chordId: item.c, measures: item.m, scaleId: item.s
+                    template = this.createStyleVariation(sourceTemplate, styleKey, keyRoot);
+                    template = this.normalizeGeneratedGrid(template, styleKey);
+                    generated = template.map(item => ({
+                        rootIndex:item.r, chordId:item.c, measures:item.m, scaleId:item.s,
+                        section:item.section, phrase:item.phrase, harmonicFunction:item.function
                     }));
                     signature = this.getGridSignature(generated);
                 }
@@ -2398,7 +2474,8 @@
                             measureInStep: m + 1,
                             rootIndex: step.rootIndex,
                             chordId: step.chordId,
-                            scaleId: step.scaleId
+                            scaleId: step.scaleId,
+                            harmonicFunction: step.harmonicFunction || null
                         });
                         measureNumber++;
                     }
@@ -2412,6 +2489,53 @@
                     m += this.grid[i].measures;
                 }
                 return m;
+            }
+
+            getHarmonicFunctionLabel(measure, flatMeasures, index) {
+                const root = ((measure.rootIndex - this.mainKey) % 12 + 12) % 12;
+                const majorOffsets = [0, 2, 4, 5, 7, 9, 11];
+                const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+                const accidental = (() => {
+                    const exact = majorOffsets.indexOf(root);
+                    if (exact >= 0) return { text: roman[exact], degree: exact };
+                    let best = 0, distance = 12;
+                    majorOffsets.forEach((off, i) => {
+                        const d = Math.min((root - off + 12) % 12, (off - root + 12) % 12);
+                        if (d < distance) { distance = d; best = i; }
+                    });
+                    const diff = (root - majorOffsets[best] + 12) % 12;
+                    const accidentalText = diff === 1 ? '#' : diff === 11 ? '♭' : '';
+                    return { text: accidentalText + roman[best], degree: best };
+                })();
+
+                const chordId = measure.chordId || '';
+                const minorChord = ['m7', 'm9', 'm11', 'mmaj7', 'm7b5'].includes(chordId);
+                const diminished = ['m7b5', 'dim7'].includes(chordId);
+                let degreeLabel = accidental.text;
+                if (minorChord) degreeLabel = degreeLabel.toLowerCase();
+                if (diminished && !degreeLabel.endsWith('°')) degreeLabel += 'ø';
+
+                const fn = measure.harmonicFunction;
+                if (fn === 'secondaryDominant') {
+                    const next = flatMeasures[index + 1];
+                    if (next) {
+                        const targetRoot = ((next.rootIndex - this.mainKey) % 12 + 12) % 12;
+                        const targetOffsets = [0, 2, 4, 5, 7, 9, 11];
+                        const targetRoman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+                        const ti = targetOffsets.indexOf(targetRoot);
+                        if (ti >= 0) return `V/${targetRoman[ti].toLowerCase()}`;
+                    }
+                    return 'V/?';
+                }
+                if (fn === 'dominant') {
+                    if (diminished) return degreeLabel;
+                    return 'V' === accidental.text ? 'V' : degreeLabel;
+                }
+                if (fn === 'tonic') return degreeLabel === 'I' ? 'I' : degreeLabel;
+                if (fn === 'predominant') return degreeLabel;
+                if (fn === 'target') return degreeLabel;
+                if (fn === 'color') return degreeLabel;
+                return degreeLabel;
             }
 
             renderSequenceUI() {
@@ -2480,7 +2604,7 @@
                                 <span class="text-[8px] text-emerald-400 font-medium truncate max-w-[60px]">${scalesDb[m.scaleId]?.name.split(' ')[0] || ''}</span>
                             </div>
                             <div class="jam-realbook-chord my-auto truncate">${displayChordSymbol}</div>
-                            <div class="jam-cell-bottom text-[8px] text-right font-mono text-slate-500">||</div>
+                            <div class="jam-cell-bottom text-[8px] text-right font-mono text-slate-500">${this.getHarmonicFunctionLabel(m, flatMeasures, flatMeasures.indexOf(m))}</div>
                         `;
                         systemRow.appendChild(mBox);
                     });
@@ -3944,6 +4068,12 @@
                     <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">BPM</span>
                     <input type="range" id="band-bpm-slider" min="50" max="220" value="120" oninput="app.jam.setBpm(this.value)" class="w-full accent-blue-500">
                     <span id="band-bpm-display" class="text-xs font-mono font-bold text-slate-200 min-w-[32px] text-right">120</span>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Reverb</span>
+                    <input type="range" id="band-reverb-slider" min="0" max="100" value="25" oninput="app.jam.setBandReverb(this.value)" class="w-full accent-blue-500">
+                    <span id="band-reverb-display" class="text-xs font-mono font-bold text-slate-200 min-w-[32px] text-right">25%</span>
                 </div>
 
                 <div class="pt-1 space-y-2">
