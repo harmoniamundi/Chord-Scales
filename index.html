@@ -60,9 +60,22 @@
             #view-jam.jam-playing #jam-chord-card { flex: 0 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
             #view-jam.jam-playing #jam-chord-sequence-display { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; overflow-x: hidden; overflow-y: auto; }
             #view-jam.jam-playing #jam-chord-sequence-display .jam-wrapper { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; }
-            #view-jam.jam-playing #jam-chord-sequence-display .jam-row { flex: 0 1 78px; min-height: 40px; container-type: size; container-name: jamrow; grid-template-rows: minmax(0, 1fr); }
-            #view-jam.jam-playing #jam-chord-sequence-display .jam-cell { height: auto; min-height: 0; overflow: hidden; padding: clamp(1px, 5cqh, 8px) 8px; }
-            #view-jam.jam-playing #jam-chord-sequence-display .jam-realbook-chord { font-size: clamp(0.7rem, 40cqh, 1.35rem); }
+            /* Pendant la lecture, les lignes et dominos gardent exactement leur taille normale.
+               Seul le défilement vertical de la grille accompagne la lecture. */
+            #view-jam.jam-playing #jam-chord-sequence-display .jam-row {
+                flex: 0 0 auto;
+                min-height: 76px;
+                container-type: normal;
+            }
+            #view-jam.jam-playing #jam-chord-sequence-display .jam-cell {
+                height: 64px;
+                min-height: 64px;
+                overflow: hidden;
+                padding: 8px;
+            }
+            #view-jam.jam-playing #jam-chord-sequence-display .jam-realbook-chord {
+                font-size: 1.35rem;
+            }
 
             /* Plein écran de la grille (bouton dédié), jam lancée : la grille se comprime comme en
                mode normal pour laisser la place à la carte des gammes, déplacée dans la carte plein écran. */
@@ -380,9 +393,9 @@
                             <span class="text-xs font-bold text-blue-400 uppercase tracking-wider">Grille d'accords</span>
                         </div>
                         <span id="jam-loaded-grid-name" class="text-sm font-bold text-slate-300 uppercase tracking-wide text-center justify-self-center"></span>
-                        <div class="text-right justify-self-end flex items-center justify-end gap-2">
-                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Gamme active : </span>
-                            <span id="jam-current-scale-title" class="text-sm font-bold text-emerald-400">---</span>
+                        <div class="text-right justify-self-end flex items-center justify-end gap-2 whitespace-nowrap min-w-0">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider whitespace-nowrap shrink-0">Gamme active : </span>
+                            <span id="jam-current-scale-title" class="text-sm font-bold text-emerald-400 whitespace-nowrap truncate min-w-0">---</span>
                             <button onclick="app.jam.printCurrentGrid()" title="Imprimer la grille d'accords" class="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-[#333333] transition">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.32 0h1.005c1.045 0 1.897-.816 1.995-1.855a49.663 49.663 0 00-.128-6.078c-.075-.923-.826-1.635-1.751-1.752a48.925 48.925 0 00-15.702 0c-.925.117-1.676.83-1.751 1.752a49.665 49.665 0 00-.128 6.078c.098 1.039.95 1.855 1.995 1.855H5.34" /></svg>
                             </button>
@@ -2541,6 +2554,7 @@
             renderSequenceUI() {
                 const container = document.getElementById('jam-chord-sequence-display');
                 if (!container) return;
+                const previousScrollTop = container.scrollTop;
                 container.innerHTML = '';
 
                 const flatMeasures = this.getFlatMeasureList();
@@ -2583,6 +2597,7 @@
                         const isActive = (m.measureNumber === currentMeasureNum);
 
                         const mBox = document.createElement('div');
+                        mBox.dataset.measureNumber = m.measureNumber;
                         mBox.className = `jam-cell p-2 rounded border text-center transition cursor-pointer select-none flex flex-col justify-between h-[64px] relative ${
                             isActive 
                                 ? 'bg-blue-600 border-blue-400 text-white shadow-lg ring-2 ring-blue-400/50 scale-[1.02] z-10' 
@@ -2626,6 +2641,39 @@
                     const activeStep = this.grid[activeMeasure.stepIndex];
                     if (activeStep) {
                         this.updateJamDisplay(activeStep);
+                    }
+
+                    /* Pendant la lecture, la ligne qui contient l'accord en cours doit
+                       toujours rester entièrement visible. On ne fait défiler la grille que
+                       lorsque cette ligne sort de la zone visible. */
+                    const activeCell = container.querySelector(
+                        `.jam-cell[data-measure-number="${activeMeasure.measureNumber}"]`
+                    );
+                    const activeRow = activeCell ? activeCell.closest('.jam-row') : null;
+
+                    if (this.isPlaying && activeRow) {
+                        const containerTop = container.scrollTop;
+                        const containerBottom = containerTop + container.clientHeight;
+                        const rowTop = activeRow.offsetTop;
+                        const rowBottom = rowTop + activeRow.offsetHeight;
+                        const rowIsAbove = rowTop < containerTop;
+                        const rowIsBelow = rowBottom > containerBottom;
+
+                        if (rowIsAbove || rowIsBelow) {
+                            const targetTop = rowIsAbove
+                                ? rowTop
+                                : rowBottom - container.clientHeight;
+                            container.scrollTo({
+                                top: Math.max(0, targetTop),
+                                behavior: 'smooth'
+                            });
+                        }
+                    }
+
+                    // Au retour au début de la grille, la première ligne doit redevenir
+                    // immédiatement visible dès que le premier accord est relu.
+                    if (this.isPlaying && activeMeasure.measureNumber === 1) {
+                        container.scrollTo({ top: 0, behavior: 'smooth' });
                     }
                 }
             }
