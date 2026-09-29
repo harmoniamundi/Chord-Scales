@@ -21,6 +21,10 @@
         #scales-container { grid-auto-rows: max-content; }
 
         /* Style des symboles d'accords façon Real Book — uniquement dans la grille d'accords du mode Jam */
+        #jam-chord-sequence-display .jam-cell-bottom {
+            color: #ef4444 !important;
+        }
+
         #jam-chord-sequence-display .jam-realbook-chord {
     font-family: "Kalam", cursive;
     font-size: 1.35rem;
@@ -28,6 +32,41 @@
     letter-spacing: 0;
     line-height: 1;
 }
+
+        /* Fonction tonale : même style Real Book, sans gras et légèrement plus petite */
+        #jam-chord-sequence-display .jam-cell-bottom {
+            font-size: 1.25rem !important;
+            font-weight: 400 !important;
+        }
+
+        /* Petit bouton d'affichage de la fonction tonale, inspiré du bouton de référence */
+        .jam-tonal-function-toggle {
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            border-radius: 7px;
+            border: 1px solid #4a4a4c;
+            background: #ffffff;
+            color: #ef4444;
+            font-family: "Kalam", cursive;
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 2px rgba(0,0,0,.15);
+            transition: background-color .15s, border-color .15s, color .15s, opacity .15s;
+        }
+        .jam-tonal-function-toggle:hover {
+            background: #f3f4f6;
+            border-color: #777;
+        }
+        .jam-tonal-function-toggle.is-active {
+            background: #ef4444;
+            border-color: #ef4444;
+            color: #ffffff;
+        }
 
         /* Mode Jam en lecture (écran large) : les deux gammes (active + suivante) gardent leur taille
            naturelle et restent toujours visibles ; c'est la grille d'accords qui se comprime
@@ -414,10 +453,13 @@
                             <span class="font-bold text-white text-2xl cursor-pointer select-none hover:text-blue-400 transition" id="jam-current-chord-title" onclick="app.jam.playDisplayedChordArpeggio()" title="Écouter l'arpège">---</span>
                             <div id="jam-current-chord-notes" class="flex gap-1.5"></div>
                         </div>
-                        <button id="jam-play-btn" onclick="app.jam.togglePlay()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3 rounded-lg transition flex items-center justify-center gap-2 shadow text-xs">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                            <span>Jam it!</span>
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button id="jam-tonal-function-toggle" onclick="app.jam.toggleHarmonicFunctions()" class="jam-tonal-function-toggle" title="Afficher/Masquer la fonction tonale" aria-label="Afficher/Masquer la fonction tonale" aria-pressed="false">VII</button>
+                            <button id="jam-play-btn" onclick="app.jam.togglePlay()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3 rounded-lg transition flex items-center justify-center gap-2 shadow text-xs">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                <span>Jam it!</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -863,6 +905,7 @@
                 this.showTargetNotes = false;
                 this.showAvoidNotes = false;
                 this.showCharacteristic = false;
+                this.showHarmonicFunctions = false;
 
                 this.loadedGridName = null;
                 this.mainKey = 0;
@@ -2618,8 +2661,8 @@
                                 <span>|${m.measureNumber}</span>
                                 <span class="text-[8px] text-emerald-400 font-medium truncate max-w-[60px]">${scalesDb[m.scaleId]?.name.split(' ')[0] || ''}</span>
                             </div>
-                            <div class="jam-realbook-chord my-auto truncate">${displayChordSymbol}</div>
-                            <div class="jam-cell-bottom text-[8px] text-right font-mono text-slate-500">${this.getHarmonicFunctionLabel(m, flatMeasures, flatMeasures.indexOf(m))}</div>
+                            <div class="jam-realbook-chord my-auto whitespace-nowrap overflow-visible">${displayChordSymbol}</div>
+                            ${this.showHarmonicFunctions ? `<div class="jam-cell-bottom text-[10px] text-right font-normal jam-realbook-chord text-red-500">${this.getHarmonicFunctionLabel(m, flatMeasures, flatMeasures.indexOf(m))}</div>` : ''}
                         `;
                         systemRow.appendChild(mBox);
                     });
@@ -2969,6 +3012,16 @@
                 this.currentStepIndex = savedIdx;
                 container.style.minHeight = `${maxHeight}px`;
                 this.renderJamScales();
+            }
+
+            toggleHarmonicFunctions() {
+                this.showHarmonicFunctions = !this.showHarmonicFunctions;
+                const btn = document.getElementById('jam-tonal-function-toggle');
+                if (btn) {
+                    btn.classList.toggle('is-active', this.showHarmonicFunctions);
+                    btn.setAttribute('aria-pressed', String(this.showHarmonicFunctions));
+                }
+                this.renderGridUI();
             }
 
             togglePlay() {
