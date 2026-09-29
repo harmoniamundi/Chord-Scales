@@ -4,32 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chord Scales Machine</title>
-    <script src="https://cdn.jsdelivr.net/npm/tailwindcss-cdn@3.4.10/tailwindcss.min.js"></script>
+    <link rel="stylesheet" href="tailwind-built.css">
     <script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow-petaluma.js"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        mac: {
-                            bg: '#1e1e1e',
-                            sidebar: '#252525',
-                            card: '#2d2d2d',
-                            border: '#383838',
-                            accent: '#0a84ff',
-                            accentHover: '#0071e3'
-                        }
-                    },
-                    fontFamily: {
-                        sans: ['-apple-system', 'BlinkMacSystemFont', "SF Pro Text", "SF Pro Icons", "Helvetica Neue", "Arial", sans-serif],
-                        mono: ['SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace]
-                    }
-                }
-            }
-        }
-    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&display=swap" rel="stylesheet">
@@ -856,7 +833,7 @@
                 // ou "orchestre" (bande son piano + basse + batterie).
                 this.orchestrationMode = 'orchestra';
                 this.bandStyle = 'swing';
-                this.bandVolumes = { piano: 0.8, bass: 0.85, drums: 0.7 };
+                this.bandVolumes = { piano: 0.5, bass: 0.85, drums: 0.25 };
                 this.bandGains = { piano: null, bass: null, drums: null };
                 this.bassInstrument = null;
                 this.bandAudioNodes = [];
@@ -1197,131 +1174,323 @@
                 return buffer;
             }
 
+            // Courbe de saturation douce (waveshaper) utilisée pour donner du corps
+            // et un peu de grain analogique à la grosse caisse et à la caisse claire.
+            getSaturationCurve() {
+                if (this._satCurve) return this._satCurve;
+                const n = 256;
+                const curve = new Float32Array(n);
+                for (let i = 0; i < n; i++) {
+                    const x = (i * 2) / n - 1;
+                    curve[i] = Math.tanh(2.2 * x);
+                }
+                this._satCurve = curve;
+                return curve;
+            }
+
             synthKick(time, destination, vel = 1) {
                 const ctx = this.app.audioCtx;
                 if (!ctx || !destination) return;
+
+                // Corps : sinus avec chute de hauteur, légèrement saturé pour plus de punch,
+                // et un filtre passe-bas pour retirer l'agressivité numérique.
                 const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(150, time);
-                osc.frequency.exponentialRampToValueAtTime(45, time + 0.12);
-                gain.gain.setValueAtTime(vel, time);
-                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.28);
-                osc.connect(gain); gain.connect(destination);
-                osc.start(time); osc.stop(time + 0.3);
+                osc.frequency.setValueAtTime(155, time);
+                osc.frequency.exponentialRampToValueAtTime(45, time + 0.1);
+                const shaper = ctx.createWaveShaper();
+                shaper.curve = this.getSaturationCurve();
+                const lp = ctx.createBiquadFilter();
+                lp.type = 'lowpass'; lp.frequency.value = 700;
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0.001, time);
+                gain.gain.exponentialRampToValueAtTime(vel, time + 0.005);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.32);
+                osc.connect(shaper); shaper.connect(lp); lp.connect(gain); gain.connect(destination);
+                osc.start(time); osc.stop(time + 0.34);
                 this.bandAudioNodes.push(osc);
+
+                // Attaque : clic du battant sur la peau (bruit filtré très bref)
+                const click = ctx.createBufferSource();
+                click.buffer = this.getNoiseBuffer();
+                const bp = ctx.createBiquadFilter();
+                bp.type = 'bandpass'; bp.frequency.value = 1300; bp.Q.value = 0.7;
+                const clickGain = ctx.createGain();
+                clickGain.gain.setValueAtTime(0.001, time);
+                clickGain.gain.exponentialRampToValueAtTime(0.45 * vel, time + 0.001);
+                clickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.018);
+                click.connect(bp); bp.connect(clickGain); clickGain.connect(destination);
+                click.start(time); click.stop(time + 0.025);
+                this.bandAudioNodes.push(click);
             }
 
             synthSnare(time, destination, soft = false, vel = 1) {
                 const ctx = this.app.audioCtx;
                 if (!ctx || !destination) return;
-                const dur = soft ? 0.09 : 0.16;
-                const noise = ctx.createBufferSource();
-                noise.buffer = this.getNoiseBuffer();
-                const hp = ctx.createBiquadFilter();
-                hp.type = 'highpass'; hp.frequency.value = 1000;
-                const noiseGain = ctx.createGain();
-                noiseGain.gain.setValueAtTime((soft ? 0.25 : 0.55) * vel, time);
-                noiseGain.gain.exponentialRampToValueAtTime(0.001, time + dur);
-                noise.connect(hp); hp.connect(noiseGain); noiseGain.connect(destination);
-                noise.start(time); noise.stop(time + dur + 0.02);
-                this.bandAudioNodes.push(noise);
+                const dur = soft ? 0.13 : 0.2;
 
+                // Bruit "timbre" (cordes de caisse claire), autour de 3 kHz
+                const wire = ctx.createBufferSource();
+                wire.buffer = this.getNoiseBuffer();
+                const wireBP = ctx.createBiquadFilter();
+                wireBP.type = 'bandpass'; wireBP.frequency.value = 3200; wireBP.Q.value = 0.6;
+                const wireGain = ctx.createGain();
+                wireGain.gain.setValueAtTime((soft ? 0.26 : 0.48) * vel, time);
+                wireGain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+                wire.connect(wireBP); wireBP.connect(wireGain); wireGain.connect(destination);
+                wire.start(time); wire.stop(time + dur + 0.02);
+                this.bandAudioNodes.push(wire);
+
+                // Bruit "crack" (attaque nette, au-delà de 6 kHz)
+                const crack = ctx.createBufferSource();
+                crack.buffer = this.getNoiseBuffer();
+                const crackHP = ctx.createBiquadFilter();
+                crackHP.type = 'highpass'; crackHP.frequency.value = 6000;
+                const crackGain = ctx.createGain();
+                crackGain.gain.setValueAtTime((soft ? 0.1 : 0.3) * vel, time);
+                crackGain.gain.exponentialRampToValueAtTime(0.001, time + dur * 0.35);
+                crack.connect(crackHP); crackHP.connect(crackGain); crackGain.connect(destination);
+                crack.start(time); crack.stop(time + dur * 0.35 + 0.02);
+                this.bandAudioNodes.push(crack);
+
+                // Corps : un seul sinus fondamental (pas de triangle, pour éviter le côté "buzz"
+                // de synthé), avec une infime variation de hauteur à chaque coup pour ne pas
+                // sonner deux fois exactement pareil.
+                const bodyFreq = 180 * (0.985 + Math.random() * 0.03);
                 const osc = ctx.createOscillator();
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(180, time);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(bodyFreq, time);
+                osc.frequency.exponentialRampToValueAtTime(bodyFreq * 0.86, time + dur);
                 const oGain = ctx.createGain();
-                oGain.gain.setValueAtTime((soft ? 0.15 : 0.3) * vel, time);
-                oGain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+                oGain.gain.setValueAtTime((soft ? 0.13 : 0.25) * vel, time);
+                oGain.gain.exponentialRampToValueAtTime(0.001, time + dur * 0.8);
                 osc.connect(oGain); oGain.connect(destination);
-                osc.start(time); osc.stop(time + dur + 0.02);
+                osc.start(time); osc.stop(time + dur * 0.8 + 0.02);
                 this.bandAudioNodes.push(osc);
+
+                // Deuxième résonance de la peau : un grain de bruit filtré (et non plus un
+                // oscillateur accordé) — un vrai fût ne sonne jamais comme un "bip" pur.
+                const shell = ctx.createBufferSource();
+                shell.buffer = this.getNoiseBuffer();
+                const shellBP = ctx.createBiquadFilter();
+                shellBP.type = 'bandpass'; shellBP.frequency.value = 310; shellBP.Q.value = 2.4;
+                const shellGain = ctx.createGain();
+                shellGain.gain.setValueAtTime((soft ? 0.09 : 0.16) * vel, time);
+                shellGain.gain.exponentialRampToValueAtTime(0.001, time + dur * 0.45);
+                shell.connect(shellBP); shellBP.connect(shellGain); shellGain.connect(destination);
+                shell.start(time); shell.stop(time + dur * 0.45 + 0.02);
+                this.bandAudioNodes.push(shell);
+            }
+
+            // Banc d'oscillateurs carrés à fréquences non harmoniques (comme les circuits analogiques
+            // de cymbales) : donne un timbre métallique bien plus naturel qu'un simple bruit filtré.
+            metalOscBank(time, dur, freqs) {
+                const ctx = this.app.audioCtx;
+                const bank = ctx.createGain();
+                bank.gain.value = 1;
+                freqs.forEach(f => {
+                    const osc = ctx.createOscillator();
+                    osc.type = 'square';
+                    osc.frequency.value = f;
+                    osc.connect(bank);
+                    osc.start(time); osc.stop(time + dur + 0.08);
+                    this.bandAudioNodes.push(osc);
+                });
+                return bank;
             }
 
             synthHihat(time, destination, open = false, vel = 1) {
                 const ctx = this.app.audioCtx;
                 if (!ctx || !destination) return;
-                const dur = open ? 0.28 : 0.06;
-                const noise = ctx.createBufferSource();
-                noise.buffer = this.getNoiseBuffer();
+                const dur = open ? 0.5 : 0.075;
+
+                const bank = this.metalOscBank(time, dur, [287, 343, 415, 479, 573, 637]);
                 const hp = ctx.createBiquadFilter();
-                hp.type = 'highpass'; hp.frequency.value = 7000;
-                const gain = ctx.createGain();
-                gain.gain.setValueAtTime(0.4 * vel, time);
-                gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
-                noise.connect(hp); hp.connect(gain); gain.connect(destination);
-                noise.start(time); noise.stop(time + dur + 0.02);
-                this.bandAudioNodes.push(noise);
+                hp.type = 'highpass'; hp.frequency.value = 7500;
+                const bp = ctx.createBiquadFilter();
+                bp.type = 'bandpass'; bp.frequency.value = open ? 9000 : 10000; bp.Q.value = 0.6;
+                const amp = ctx.createGain();
+                amp.gain.setValueAtTime(0.0001, time);
+                amp.gain.exponentialRampToValueAtTime(0.5 * vel, time + 0.002);
+                if (open) {
+                    amp.gain.exponentialRampToValueAtTime(0.16 * vel, time + 0.09);
+                }
+                amp.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+                bank.connect(hp); hp.connect(bp); bp.connect(amp); amp.connect(destination);
+
+                // Un peu de bruit d'air pour adoucir le côté trop "pur" des oscillateurs
+                const air = ctx.createBufferSource();
+                air.buffer = this.getNoiseBuffer();
+                const airHP = ctx.createBiquadFilter();
+                airHP.type = 'highpass'; airHP.frequency.value = 9000;
+                const airGain = ctx.createGain();
+                airGain.gain.setValueAtTime(0.1 * vel, time);
+                airGain.gain.exponentialRampToValueAtTime(0.0001, time + dur * 0.6);
+                air.connect(airHP); airHP.connect(airGain); airGain.connect(destination);
+                air.start(time); air.stop(time + dur * 0.6 + 0.02);
+                this.bandAudioNodes.push(air);
             }
 
             // --- Synthèse batterie complémentaire (cymbales, cross-stick, toms) ---
 
-            synthCymbal(time, destination, dur = 0.45, vel = 1, hpFreq = 5500) {
+            // Bus de réverbération partagé pour les cymbales : un long halo métallique dans lequel
+            // chaque coup envoie une partie de son signal, pour un son qui s'épanouit et traîne
+            // naturellement plutôt que de claquer sec comme une casserole.
+            getCymbalReverb() {
+                if (this._cymbalReverbNode) return this._cymbalReverbNode;
+                const ctx = this.app.audioCtx;
+                const convolver = ctx.createConvolver();
+                const rate = ctx.sampleRate;
+                const length = Math.floor(rate * 2.2);
+                const impulse = ctx.createBuffer(2, length, rate);
+                for (let ch = 0; ch < 2; ch++) {
+                    const data = impulse.getChannelData(ch);
+                    for (let i = 0; i < length; i++) {
+                        const decay = Math.pow(1 - i / length, 2.4);
+                        data[i] = (Math.random() * 2 - 1) * decay;
+                    }
+                }
+                convolver.buffer = impulse;
+                const wet = ctx.createGain();
+                wet.gain.value = 1;
+                convolver.connect(wet);
+                wet.connect(this.bandGains.drums);
+                this._cymbalReverbNode = convolver;
+                return convolver;
+            }
+
+            synthCymbal(time, destination, dur = 1, vel = 1, hpFreq = 5500) {
                 const ctx = this.app.audioCtx;
                 if (!ctx || !destination) return;
+                const reverb = this.getCymbalReverb();
+
+                // Une seule source de bruit large bande, partagée par le corps du son et par
+                // les résonances : plus de banc d'oscillateurs carrés (le côté "buzz" synthétique
+                // et désagréable venait de là). Un vrai grondement de cymbale est avant tout du
+                // bruit filtré, pas un son de synthétiseur.
                 const noise = ctx.createBufferSource();
                 noise.buffer = this.getNoiseBuffer();
+
+                // Corps principal : bruit large bande qui s'assombrit lentement (perte naturelle
+                // des aigus au fil de la résonance) et se pose avec une attaque douce et discrète.
                 const hp = ctx.createBiquadFilter();
                 hp.type = 'highpass'; hp.frequency.value = hpFreq;
-                const gain = ctx.createGain();
-                gain.gain.setValueAtTime(0.32 * vel, time);
-                gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
-                noise.connect(hp); hp.connect(gain); gain.connect(destination);
-                noise.start(time); noise.stop(time + dur + 0.02);
-                this.bandAudioNodes.push(noise);
+                const lp = ctx.createBiquadFilter();
+                lp.type = 'lowpass';
+                lp.frequency.setValueAtTime(10000, time);
+                lp.frequency.exponentialRampToValueAtTime(Math.max(1500, hpFreq * 0.55), time + dur);
+                const amp = ctx.createGain();
+                amp.gain.setValueAtTime(0.0006, time);
+                amp.gain.exponentialRampToValueAtTime(0.42 * vel, time + 0.025);
+                amp.gain.exponentialRampToValueAtTime(0.14 * vel, time + 0.16);
+                amp.gain.exponentialRampToValueAtTime(0.025 * vel, time + Math.max(0.25, dur * 0.6));
+                amp.gain.exponentialRampToValueAtTime(0.0004, time + dur);
+                noise.connect(hp); hp.connect(lp); lp.connect(amp); amp.connect(destination);
+                const send = ctx.createGain();
+                send.gain.value = 0.6;
+                amp.connect(send); send.connect(reverb);
 
-                // Deux partiels métalliques pour donner un peu de "bell" à la cymbale
-                [3150, 4720].forEach(freq => {
-                    const osc = ctx.createOscillator();
-                    osc.type = 'triangle';
-                    osc.frequency.value = freq;
-                    const oGain = ctx.createGain();
-                    oGain.gain.setValueAtTime(0.05 * vel, time);
-                    oGain.gain.exponentialRampToValueAtTime(0.001, time + dur * 0.6);
-                    osc.connect(oGain); oGain.connect(destination);
-                    osc.start(time); osc.stop(time + dur * 0.6 + 0.02);
-                    this.bandAudioNodes.push(osc);
+                // Quelques résonances métalliques étroites, tirées du même bruit filtré en bandes
+                // (et non plus d'ondes carrées) : ça donne le "corps" et le chatoiement propres à
+                // une cymbale sans le grain de synthétiseur. Les résonances aiguës s'éteignent
+                // plus vite que les graves, comme sur un vrai métal.
+                const resonances = [[300, 4, 0.16], [560, 5, 0.12], [900, 6, 0.085], [1500, 7, 0.055]];
+                resonances.forEach(([freq, q, level], idx) => {
+                    const bp = ctx.createBiquadFilter();
+                    bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = q;
+                    const rGain = ctx.createGain();
+                    const decay = Math.max(0.2, dur * (0.85 - idx * 0.15));
+                    rGain.gain.setValueAtTime(0.0004, time);
+                    rGain.gain.exponentialRampToValueAtTime(level * vel, time + 0.015 + idx * 0.004);
+                    rGain.gain.exponentialRampToValueAtTime(0.0003, time + decay);
+                    noise.connect(bp); bp.connect(rGain); rGain.connect(destination);
+                    const rSend = ctx.createGain();
+                    rSend.gain.value = 0.5;
+                    rGain.connect(rSend); rSend.connect(reverb);
                 });
+
+                noise.start(time); noise.stop(time + dur + 0.05);
+                this.bandAudioNodes.push(noise);
             }
 
             synthRim(time, destination, vel = 1) {
                 const ctx = this.app.audioCtx;
                 if (!ctx || !destination) return;
+
                 const noise = ctx.createBufferSource();
                 noise.buffer = this.getNoiseBuffer();
                 const bp = ctx.createBiquadFilter();
-                bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 1.2;
+                bp.type = 'bandpass'; bp.frequency.value = 2000; bp.Q.value = 3;
+                const lp = ctx.createBiquadFilter();
+                lp.type = 'lowpass'; lp.frequency.value = 6000;
                 const gain = ctx.createGain();
-                gain.gain.setValueAtTime(0.5 * vel, time);
-                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
-                noise.connect(bp); bp.connect(gain); gain.connect(destination);
-                noise.start(time); noise.stop(time + 0.07);
+                gain.gain.setValueAtTime(0.001, time);
+                gain.gain.exponentialRampToValueAtTime(0.5 * vel, time + 0.001);
+                gain.gain.exponentialRampToValueAtTime(0.0006, time + 0.045);
+                noise.connect(bp); bp.connect(lp); lp.connect(gain); gain.connect(destination);
+                noise.start(time); noise.stop(time + 0.06);
                 this.bandAudioNodes.push(noise);
 
                 const osc = ctx.createOscillator();
                 osc.type = 'triangle';
-                osc.frequency.value = 500;
+                osc.frequency.setValueAtTime(620, time);
+                osc.frequency.exponentialRampToValueAtTime(410, time + 0.045);
                 const oGain = ctx.createGain();
-                oGain.gain.setValueAtTime(0.25 * vel, time);
-                oGain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+                oGain.gain.setValueAtTime(0.001, time);
+                oGain.gain.exponentialRampToValueAtTime(0.26 * vel, time + 0.001);
+                oGain.gain.exponentialRampToValueAtTime(0.0005, time + 0.045);
                 osc.connect(oGain); oGain.connect(destination);
-                osc.start(time); osc.stop(time + 0.07);
+                osc.start(time); osc.stop(time + 0.06);
                 this.bandAudioNodes.push(osc);
             }
 
-            synthTom(time, destination, freq = 150, vel = 1) {
+            synthTom(time, destination, freq = 120, vel = 1) {
                 const ctx = this.app.audioCtx;
                 if (!ctx || !destination) return;
+
+                // Corps : chute de hauteur modeste et passe-bas serré pour un grain grave, mat,
+                // plutôt qu'un timbre brillant qui "surgirait" au-dessus du reste de la batterie.
+                const lp = ctx.createBiquadFilter();
+                lp.type = 'lowpass'; lp.frequency.value = freq * 3.8;
+                const bodyFreq = freq * (0.99 + Math.random() * 0.02);
                 const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(freq * 1.6, time);
-                osc.frequency.exponentialRampToValueAtTime(freq, time + 0.08);
-                gain.gain.setValueAtTime(0.7 * vel, time);
-                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.24);
-                osc.connect(gain); gain.connect(destination);
-                osc.start(time); osc.stop(time + 0.26);
+                osc.frequency.setValueAtTime(bodyFreq * 1.3, time);
+                osc.frequency.exponentialRampToValueAtTime(bodyFreq * 0.86, time + 0.14);
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0.001, time);
+                gain.gain.exponentialRampToValueAtTime(0.8 * vel, time + 0.006);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.34);
+                osc.connect(lp); lp.connect(gain); gain.connect(destination);
+                osc.start(time); osc.stop(time + 0.36);
                 this.bandAudioNodes.push(osc);
+
+                // Deuxième résonance de la peau, sur l'attaque : un grain de bruit filtré
+                // plutôt qu'un oscillateur accordé, qui sonnait comme un "bip" électronique
+                // (surtout perceptible sur le tom le plus aigu).
+                const overtone = ctx.createBufferSource();
+                overtone.buffer = this.getNoiseBuffer();
+                const obp = ctx.createBiquadFilter();
+                obp.type = 'bandpass'; obp.frequency.value = freq * 1.6; obp.Q.value = 2.6;
+                const oGain2 = ctx.createGain();
+                oGain2.gain.setValueAtTime(0.09 * vel, time);
+                oGain2.gain.exponentialRampToValueAtTime(0.0008, time + 0.06);
+                overtone.connect(obp); obp.connect(oGain2); oGain2.connect(destination);
+                overtone.start(time); overtone.stop(time + 0.07);
+                this.bandAudioNodes.push(overtone);
+
+                // Attaque : bruit bref et sourd de la baguette sur la peau, filtré plus bas
+                // pour rester discret et ne pas ajouter de brillance.
+                const noise = ctx.createBufferSource();
+                noise.buffer = this.getNoiseBuffer();
+                const bp = ctx.createBiquadFilter();
+                bp.type = 'bandpass'; bp.frequency.value = freq * 2; bp.Q.value = 0.9;
+                const nGain = ctx.createGain();
+                nGain.gain.setValueAtTime(0.1 * vel, time);
+                nGain.gain.exponentialRampToValueAtTime(0.001, time + 0.02);
+                noise.connect(bp); bp.connect(nGain); nGain.connect(destination);
+                noise.start(time); noise.stop(time + 0.03);
+                this.bandAudioNodes.push(noise);
             }
 
             playBandDrum(e, time) {
@@ -1335,12 +1504,12 @@
                     case 'hat': this.synthHihat(time, dest, false, v); break;
                     case 'pedal': this.synthHihat(time, dest, false, v * 0.8); break;
                     case 'ohat': this.synthHihat(time, dest, true, v); break;
-                    case 'ride': this.synthCymbal(time, dest, 0.45, v, 5500); break;
-                    case 'crash': this.synthCymbal(time, dest, 1.4, v, 3500); break;
+                    case 'ride': this.synthCymbal(time, dest, 1.0, v, 5500); break;
+                    case 'crash': this.synthCymbal(time, dest, 2.6, v, 3500); break;
                     case 'rim': this.synthRim(time, dest, v); break;
-                    case 'tom1': this.synthTom(time, dest, 200, v); break;
-                    case 'tom2': this.synthTom(time, dest, 150, v); break;
-                    case 'tom3': this.synthTom(time, dest, 110, v); break;
+                    case 'tom1': this.synthTom(time, dest, 160, v); break;
+                    case 'tom2': this.synthTom(time, dest, 120, v); break;
+                    case 'tom3': this.synthTom(time, dest, 88, v); break;
                 }
             }
 
@@ -1350,10 +1519,12 @@
                 if (!this.bassInstrument) return;
                 const noteStr = this.getJamAudioNoteName(absSemi, 0, PLAY_BASE_OCTAVE - 1);
                 try {
+                    // soundfont-player n'honore l'option "destination" qu'à la création de
+                    // l'instrument, pas par note : le curseur de volume de la basse doit donc
+                    // être appliqué directement au gain de la note plutôt qu'à un nœud de sortie.
                     const node = this.bassInstrument.play(noteStr, time, {
                         duration,
-                        gain: Math.min(1.05, 0.6 + 0.45 * vel),
-                        destination: this.bandGains.bass
+                        gain: Math.min(1.05, 0.6 + 0.45 * vel) * this.bandVolumes.bass
                     });
                     this.bandAudioNodes.push(node);
                 } catch (e) {}
@@ -1473,13 +1644,16 @@
             playPianoHit(e, time, beatSec) {
                 if (!this.app.pianoInstrument || !this.app.audioCtx) return;
                 const vel = e.vel * (0.94 + Math.random() * 0.12);
-                const gain = Math.min(1.05, 0.5 + 0.6 * vel);
+                // soundfont-player n'honore l'option "destination" qu'à la création de
+                // l'instrument, pas par note : le curseur de volume du piano doit donc être
+                // appliqué directement au gain de la note plutôt qu'à un nœud de sortie.
+                const gain = Math.min(1.05, 0.5 + 0.6 * vel) * this.bandVolumes.piano;
                 const dur = Math.max(0.12, e.dur * beatSec);
                 e.intervals.forEach((interval, idx) => {
                     const noteStr = this.getJamAudioNoteName(e.rootIndex, interval, PLAY_BASE_OCTAVE);
                     try {
                         const when = Math.max(this.app.audioCtx.currentTime, time + idx * 0.006); // léger "roulé"
-                        const node = this.app.pianoInstrument.play(noteStr, when, { duration: dur, gain, destination: this.bandGains.piano });
+                        const node = this.app.pianoInstrument.play(noteStr, when, { duration: dur, gain });
                         this.bandAudioNodes.push(node);
                     } catch (err) {}
                 });
@@ -3775,7 +3949,7 @@
                 <div class="pt-1 space-y-2">
                     <div class="flex items-center gap-2">
                         <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Piano</span>
-                        <input type="range" id="band-vol-piano" min="0" max="100" value="80" oninput="app.jam.setBandVolume('piano', this.value)" class="w-full accent-emerald-500">
+                        <input type="range" id="band-vol-piano" min="0" max="100" value="50" oninput="app.jam.setBandVolume('piano', this.value)" class="w-full accent-emerald-500">
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Basse</span>
@@ -3783,7 +3957,7 @@
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Batterie</span>
-                        <input type="range" id="band-vol-drums" min="0" max="100" value="70" oninput="app.jam.setBandVolume('drums', this.value)" class="w-full accent-emerald-500">
+                        <input type="range" id="band-vol-drums" min="0" max="100" value="25" oninput="app.jam.setBandVolume('drums', this.value)" class="w-full accent-emerald-500">
                     </div>
                 </div>
             </div>
