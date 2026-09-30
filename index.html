@@ -19,6 +19,18 @@
         .vf-stavenote { transition: opacity 0.1s; }
         .vf-stavenote:hover { opacity: 0.7; }
         #scales-container { grid-auto-rows: max-content; }
+        .jam-drag-handle { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; color: #64748b; font-size: 15px; line-height: 1; padding: 3px 4px; border-radius: 4px; flex-shrink: 0; }
+        .jam-drag-handle:hover { color: #e2e8f0; background: #333333; }
+        .jam-drag-handle.is-locked { opacity: .25; cursor: not-allowed; }
+        .jam-drag-handle.is-locked:hover { color: #64748b; background: transparent; }
+        /* Mesure à deux accords : la case est coupée en deux « demi-dominos » */
+        #jam-chord-sequence-display .jam-split { display: flex; align-items: center; width: 100%; }
+        #jam-chord-sequence-display .jam-half { flex: 1 1 0; min-width: 0; text-align: center; padding: 3px 0; border-radius: 4px; }
+        #jam-chord-sequence-display .jam-half + .jam-half { border-left: 1.5px solid rgba(100,116,139,.6); }
+        #view-jam #jam-chord-sequence-display .jam-split .jam-realbook-chord { font-size: 0.95rem !important; }
+        #jam-chord-sequence-display .jam-half-active { background: rgba(255,255,255,.24); }
+        #jam-chord-sequence-display .jam-half-fn { position: absolute; bottom: 4px; font-family: "Kalam", cursive; font-size: 1rem; line-height: 1; color: #ef4444; }
+        .jam-dragging { position: relative; z-index: 30; opacity: .92; box-shadow: 0 8px 20px rgba(0,0,0,.55); transition: none !important; cursor: grabbing; }
 
         /* Style des symboles d'accords façon Real Book — uniquement dans la grille d'accords du mode Jam */
         #jam-chord-sequence-display .jam-cell-bottom {
@@ -42,6 +54,13 @@
             bottom: 4px;
             line-height: 1;
         }
+
+        /* Affichage de l’accord suivant : même rendu que la Jam soit lancée ou arrêtée. */
+        #view-jam #jam-next-chord-display { margin-left: 18px !important; padding-left: 16px; border-left: 1px solid rgba(148,163,184,.28); gap: 16px !important; align-items: center; }
+        #view-jam #jam-next-chord-display .jam-next-chord-label { font-size: 9px !important; line-height: 1 !important; transform: translateX(5px); letter-spacing: .08em; opacity: .8; }
+        #view-jam #jam-next-chord-display #jam-next-chord-title { font-size: 1.5rem !important; line-height: 1 !important; }
+        #view-jam #jam-next-chord-display #jam-next-chord-notes { gap: 6px !important; }
+        #view-jam #jam-next-chord-display #jam-next-chord-notes span { padding: 3px 7px !important; font-size: 14px !important; }
 
         /* Petit bouton d'affichage de la fonction tonale, inspiré du bouton de référence */
         .jam-tonal-function-toggle {
@@ -222,6 +241,9 @@
                 color: #000000;
                 line-height: 1;
             }
+            #jam-print-area .jam-print-split { display: flex; width: 100%; align-items: center; }
+            #jam-print-area .jam-print-split .jam-print-chord { flex: 1 1 0; text-align: center; font-size: 17pt; }
+            #jam-print-area .jam-print-split .jam-print-chord + .jam-print-chord { border-left: 1.5pt solid #000000; }
         }
     </style>
 </head>
@@ -348,7 +370,7 @@
                     </div>
 
                     <div class="flex items-center gap-2">
-                        <select id="jam-style-select" onchange="app.jam.loadStyle(this.value)" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-2.5 rounded-lg transition text-xs shadow cursor-pointer border-0 outline-none">
+                        <select id="jam-style-select" onchange="app.jam.changeStyle(this.value)" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-2.5 rounded-lg transition text-xs shadow cursor-pointer border-0 outline-none">
                             <option value="ii-v-i" selected>II-V-I</option>
                             <option value="anatole">Anatole (I-VI-II-V)</option>
                             <option value="blues">Blues Traditionnel</option>
@@ -403,23 +425,32 @@
                         </div>
                     </div>
 
-<div class="flex justify-between items-center px-1 pt-1">
+<div class="flex items-center gap-1.5 px-1 pt-1">
+                    <div class="relative flex-1 min-w-0" id="jam-saved-grids-wrapper">
+                        <button type="button" onclick="app.jam.toggleSavedGridsMenu()" class="w-full flex items-center justify-between text-xs bg-[#1a1a1a] border border-[#333333] rounded px-2 py-1 text-slate-300">
+                            <span id="jam-saved-grids-label" class="truncate">Sauvegardes</span>
+                            <span class="text-slate-500">▾</span>
+                        </button>
+                        <div id="jam-saved-grids-dropdown" class="hidden absolute left-0 right-0 z-20 mt-1 bg-[#1a1a1a] border border-[#333333] rounded shadow-lg max-h-48 overflow-y-auto"></div>
+                    </div>
+                    <button onclick="app.jam.exportGrid()" title="Exporter la grille en cours dans un fichier .json" class="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2.5 py-1 rounded transition whitespace-nowrap">Exporter</button>
+                    <button onclick="document.getElementById('jam-import-file').click()" title="Importer une grille depuis un fichier .json" class="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2.5 py-1 rounded transition whitespace-nowrap">Importer</button>
+                    <input type="file" id="jam-import-file" accept=".json,application/json" class="hidden" onchange="app.jam.importGridFile(this)">
+                </div>
+
+<div class="px-1 pt-1">
                     <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Éditeur de grille</span>
+                </div>
+
+                <div class="flex justify-between items-center px-1">
+                    <div class="flex items-center gap-1.5">
+                        <button id="jam-undo-btn" onclick="app.jam.undo()" title="Annuler (⌘Z)" aria-label="Annuler" disabled style="opacity:.4;cursor:not-allowed" class="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2 py-1 rounded transition">↶</button>
+                        <button id="jam-redo-btn" onclick="app.jam.redo()" title="Rétablir (⌘⇧Z)" aria-label="Rétablir" disabled style="opacity:.4;cursor:not-allowed" class="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2 py-1 rounded transition">↷</button>
+                    </div>
                     <div class="flex items-center gap-1.5">
                         <button onclick="app.jam.clearGrid()" class="text-xs bg-rose-600 hover:bg-rose-500 text-white font-semibold px-2.5 py-1 rounded transition">Effacer</button>
                         <button onclick="app.jam.resetGrid()" class="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2.5 py-1 rounded transition">Générer</button>
                         <button onclick="app.jam.addChordStep()" class="text-xs bg-blue-600 hover:bg-blue-500 text-white font-semibold px-2.5 py-1 rounded transition">+ Ajouter</button>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-1.5 px-1">
-                    <button onclick="app.jam.saveGrid()" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-2.5 py-1 rounded transition whitespace-nowrap">Sauvegarder</button>
-                    <div class="relative flex-1 min-w-0" id="jam-saved-grids-wrapper">
-                        <button type="button" onclick="app.jam.toggleSavedGridsMenu()" class="w-full flex items-center justify-between text-xs bg-[#1a1a1a] border border-[#333333] rounded px-2 py-1 text-slate-300">
-                            <span id="jam-saved-grids-label">Grilles sauvegardées…</span>
-                            <span class="text-slate-500">▾</span>
-                        </button>
-                        <div id="jam-saved-grids-dropdown" class="hidden absolute left-0 right-0 z-20 mt-1 bg-[#1a1a1a] border border-[#333333] rounded shadow-lg max-h-48 overflow-y-auto"></div>
                     </div>
                 </div>
 
@@ -453,9 +484,18 @@
                     <div id="jam-chord-sequence-display" class="py-2 border-y border-[#333333] min-h-[80px] custom-scrollbar overflow-x-auto"></div>
 
                     <div class="flex items-center justify-between -mt-1 pt-1">
-                        <div class="flex items-center gap-3">
-                            <span class="font-bold text-white text-2xl cursor-pointer select-none hover:text-blue-400 transition" id="jam-current-chord-title" onclick="app.jam.playDisplayedChordArpeggio()" title="Écouter l'arpège">---</span>
-                            <div id="jam-current-chord-notes" class="flex gap-1.5"></div>
+                        <div class="flex items-center gap-5 min-w-0">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <span class="font-bold text-white text-2xl cursor-pointer select-none hover:text-blue-400 transition whitespace-nowrap" id="jam-current-chord-title" onclick="app.jam.playDisplayedChordArpeggio()" title="Écouter l'arpège">---</span>
+                                <div id="jam-current-chord-notes" class="flex gap-1.5"></div>
+                            </div>
+                            <div id="jam-next-chord-display" class="hidden items-center gap-2 min-w-0 ml-[8px]">
+                                <span class="jam-next-chord-label text-xs font-semibold text-slate-400 uppercase tracking-wider whitespace-nowrap shrink-0">Accord suivant</span>
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <span id="jam-next-chord-title" class="font-bold text-white text-2xl whitespace-nowrap">---</span>
+                                    <div id="jam-next-chord-notes" class="flex gap-1.5"></div>
+                                </div>
+                            </div>
                         </div>
                         <div class="flex items-center gap-2">
                             <button id="jam-tonal-function-toggle" onclick="app.jam.toggleHarmonicFunctions()" class="jam-tonal-function-toggle" title="Afficher/Masquer la fonction tonale" aria-label="Afficher/Masquer la fonction tonale" aria-pressed="false">VII</button>
@@ -477,7 +517,7 @@
                         </div>
                         <span id="jam-scales-count-badge" class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300">0 gammes</span>
                     </div>
-                    <div id="jam-scale-visualizer" class="flex-1 overflow-y-auto custom-scrollbar grid grid-cols-1 lg:grid-cols-2 gap-4 pr-1 min-h-0 content-start"></div>
+                    <div id="jam-scale-visualizer" class="flex-1 overflow-y-auto custom-scrollbar grid grid-cols-1 lg:grid-cols-2 gap-4 pr-1 min-h-0 content-start items-start"></div>
                 </div>
 
             </main>
@@ -915,10 +955,16 @@
                 this.mainKey = 0;
                 this.mainQuality = 'ionian';
 
+                this.undoStack = [];
+                this.redoStack = [];
+                this.undoLimit = 100;
                 this.initDefaultGrid();
+                this.bindUndoShortcuts();
             }
 
-            resetGrid() {
+            resetGrid() { this.withUndo(() => this._resetGrid()); }
+
+            _resetGrid() {
                 // Générer remplace entièrement la grille par une nouvelle grille
                 // conforme au style actuellement sélectionné.
                 this.loadedGridName = null;
@@ -936,7 +982,9 @@
                 } else { this.initDefaultGrid(); this.renderGridUI(); }
             }
 
-            setMainKey(key) {
+            setMainKey(key) { this.withUndo(() => this._setMainKey(key)); }
+
+            _setMainKey(key) {
                 this.mainKey = parseInt(key, 10) || 0;
                 this.loadedGridName = null;
                 this.updateLoadedGridNameDisplay();
@@ -944,7 +992,9 @@
                 if (styleSelect) this.loadStyle(styleSelect.value);
             }
 
-            setMainQuality(quality) {
+            setMainQuality(quality) { this.withUndo(() => this._setMainQuality(quality)); }
+
+            _setMainQuality(quality) {
                 this.mainQuality = quality;
                 this.loadedGridName = null;
                 this.updateLoadedGridNameDisplay();
@@ -968,11 +1018,210 @@
                 return rootLabels[normalizedSemi] + octave;
             }
 
-            clearGrid() {
+            clearGrid() { this.withUndo(() => this._clearGrid()); }
+
+            _clearGrid() {
                 this.grid = [];
                 this.loadedGridName = null;
                 this.updateLoadedGridNameDisplay();
                 this.renderGridUI();
+            }
+
+            // --- Déplacement d'un accord par glisser-déposer (poignée ⠿, souris + tactile) ---
+            moveStep(from, to) {
+                if (from === to || from < 0 || from >= this.grid.length || to < 0 || to >= this.grid.length) return;
+                this.withUndo(() => {
+                    const [step] = this.grid.splice(from, 1);
+                    this.grid.splice(to, 0, step);
+                    const cur = this.currentStepIndex;
+                    if (cur >= 0) {
+                        if (cur === from) this.currentStepIndex = to;
+                        else if (from < cur && cur <= to) this.currentStepIndex = cur - 1;
+                        else if (to <= cur && cur < from) this.currentStepIndex = cur + 1;
+                    }
+                    this.renderGridUI();
+                });
+            }
+
+            startStepDrag(e, fromIdx) {
+                if (this.isPlaying || this._stepDrag) return;
+                if (e.button !== undefined && e.button !== 0) return;
+                const handle = e.currentTarget;
+                const container = document.getElementById('jam-grid-container');
+                if (!handle || !container) return;
+                const cards = Array.from(container.querySelectorAll('[data-step-index]'));
+                const card = cards[fromIdx];
+                if (!card) return;
+                e.preventDefault();
+
+                // Ancêtre défilant (le panneau latéral sur grand écran, la page sinon)
+                let scroller = null;
+                for (let p = container.parentElement; p; p = p.parentElement) {
+                    if (/(auto|scroll)/.test(getComputedStyle(p).overflowY) && p.scrollHeight > p.clientHeight) { scroller = p; break; }
+                }
+                const scrollPos = () => scroller ? scroller.scrollTop : window.scrollY;
+
+                const indicator = document.createElement('div');
+                indicator.style.cssText = 'position:absolute;left:0;right:0;height:3px;margin:0;border-radius:2px;background:#3b82f6;pointer-events:none;display:none;z-index:40';
+                const prevPosition = container.style.position;
+                container.style.position = 'relative';
+                container.appendChild(indicator);
+                card.classList.add('jam-dragging');
+                const prevUserSelect = document.body.style.userSelect;
+                document.body.style.userSelect = 'none';
+                try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+
+                const d = this._stepDrag = {
+                    from: fromIdx, slot: fromIdx, card, cards, container, indicator, handle, scroller,
+                    startY: e.clientY, lastY: e.clientY, startScroll: scrollPos(), raf: null
+                };
+
+                const update = () => {
+                    d.card.style.transform = `translateY(${d.lastY - d.startY + (scrollPos() - d.startScroll)}px)`;
+                    const yIn = d.lastY - d.container.getBoundingClientRect().top;
+                    let slot = 0;
+                    d.cards.forEach(c => { if (c.offsetTop + c.offsetHeight / 2 < yIn) slot++; });
+                    d.slot = slot;
+                    if (slot === d.from || slot === d.from + 1) { d.indicator.style.display = 'none'; return; }
+                    let top;
+                    if (slot === 0) top = d.cards[0].offsetTop - 5;
+                    else if (slot >= d.cards.length) { const l = d.cards[d.cards.length - 1]; top = l.offsetTop + l.offsetHeight + 3; }
+                    else { const a = d.cards[slot - 1], b = d.cards[slot]; top = (a.offsetTop + a.offsetHeight + b.offsetTop) / 2 - 1; }
+                    d.indicator.style.top = Math.max(0, top) + 'px';
+                    d.indicator.style.display = 'block';
+                };
+
+                const tick = () => {
+                    if (this._stepDrag !== d) return;
+                    if (this.isPlaying) { finish(false); return; }
+                    const rect = d.scroller ? d.scroller.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+                    const edge = 48;
+                    let dy = 0;
+                    if (d.lastY < rect.top + edge) dy = -Math.ceil((rect.top + edge - d.lastY) / 4);
+                    else if (d.lastY > rect.bottom - edge) dy = Math.ceil((d.lastY - (rect.bottom - edge)) / 4);
+                    dy = Math.max(-18, Math.min(18, dy));
+                    if (dy) { if (d.scroller) d.scroller.scrollTop += dy; else window.scrollBy(0, dy); }
+                    update();
+                    d.raf = requestAnimationFrame(tick);
+                };
+
+                const onMove = (ev) => { d.lastY = ev.clientY; update(); };
+                const onUp = () => finish(true);
+                const onCancel = () => finish(false);
+                const onKey = (ev) => { if (ev.key === 'Escape') finish(false); };
+
+                const finish = (commit) => {
+                    if (this._stepDrag !== d) return;
+                    this._stepDrag = null;
+                    if (d.raf) cancelAnimationFrame(d.raf);
+                    handle.removeEventListener('pointermove', onMove);
+                    handle.removeEventListener('pointerup', onUp);
+                    handle.removeEventListener('pointercancel', onCancel);
+                    document.removeEventListener('keydown', onKey);
+                    try { handle.releasePointerCapture(e.pointerId); } catch (err) {}
+                    d.card.classList.remove('jam-dragging');
+                    d.card.style.transform = '';
+                    d.indicator.remove();
+                    d.container.style.position = prevPosition;
+                    document.body.style.userSelect = prevUserSelect;
+                    if (commit) {
+                        const to = d.slot > d.from ? d.slot - 1 : d.slot;
+                        if (to !== d.from) this.moveStep(d.from, to);
+                    }
+                };
+
+                handle.addEventListener('pointermove', onMove);
+                handle.addEventListener('pointerup', onUp);
+                handle.addEventListener('pointercancel', onCancel);
+                document.addEventListener('keydown', onKey);
+                d.raf = requestAnimationFrame(tick);
+            }
+
+            // --- Historique annuler / rétablir (grille, nom chargé, tonalité et qualité) ---
+            captureState() {
+                return {
+                    grid: JSON.parse(JSON.stringify(this.grid)),
+                    name: this.loadedGridName,
+                    mainKey: this.mainKey,
+                    mainQuality: this.mainQuality
+                };
+            }
+
+            withUndo(fn) {
+                const before = this.captureState();
+                fn();
+                if (JSON.stringify(before) !== JSON.stringify(this.captureState())) {
+                    this.undoStack.push(before);
+                    if (this.undoStack.length > this.undoLimit) this.undoStack.shift();
+                    this.redoStack = [];
+                }
+                this.updateUndoButtons();
+            }
+
+            applyState(state) {
+                this.grid = JSON.parse(JSON.stringify(state.grid));
+                this.loadedGridName = state.name;
+                this.mainKey = state.mainKey;
+                this.mainQuality = state.mainQuality;
+                const keySel = document.getElementById('jam-key-select');
+                if (keySel) keySel.value = String(this.mainKey);
+                const qualSel = document.getElementById('jam-quality-select');
+                if (qualSel) qualSel.value = this.mainQuality;
+                if (this.currentStepIndex >= this.grid.length) {
+                    this.currentStepIndex = this.isPlaying ? this.grid.length - 1 : -1;
+                }
+                this.updateLoadedGridNameDisplay();
+                this.renderGridUI();
+            }
+
+            undo() {
+                if (this.undoStack.length === 0) return;
+                this.redoStack.push(this.captureState());
+                this.applyState(this.undoStack.pop());
+                this.updateUndoButtons();
+            }
+
+            redo() {
+                if (this.redoStack.length === 0) return;
+                this.undoStack.push(this.captureState());
+                this.applyState(this.redoStack.pop());
+                this.updateUndoButtons();
+            }
+
+            updateUndoButtons() {
+                const set = (id, enabled) => {
+                    const btn = document.getElementById(id);
+                    if (!btn) return;
+                    btn.disabled = !enabled;
+                    btn.style.opacity = enabled ? '' : '.4';
+                    btn.style.cursor = enabled ? '' : 'not-allowed';
+                };
+                set('jam-undo-btn', this.undoStack.length > 0);
+                set('jam-redo-btn', this.redoStack.length > 0);
+            }
+
+            changeStyle(styleKey) {
+                this.withUndo(() => this.loadStyle(styleKey));
+            }
+
+            bindUndoShortcuts() {
+                if (this._undoShortcutsBound) return;
+                this._undoShortcutsBound = true;
+                document.addEventListener('keydown', (e) => {
+                    if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+                    const k = (e.key || '').toLowerCase();
+                    const isUndo = k === 'z' && !e.shiftKey;
+                    const isRedo = (k === 'z' && e.shiftKey) || (k === 'y' && e.ctrlKey && !e.metaKey);
+                    if (!isUndo && !isRedo) return;
+                    const view = document.getElementById('view-jam');
+                    if (!view || view.classList.contains('hidden')) return;
+                    const t = e.target;
+                    const nonText = ['range', 'checkbox', 'radio', 'button', 'file'];
+                    if (t && (t.isContentEditable || t.tagName === 'TEXTAREA' ||
+                        (t.tagName === 'INPUT' && !nonText.includes(t.type)))) return;
+                    e.preventDefault();
+                    if (isUndo) this.undo(); else this.redo();
+                });
             }
 
             getSavedGrids() {
@@ -995,6 +1244,97 @@
                 this.updateLoadedGridNameDisplay();
             }
 
+            // --- Export / import d'une grille au format .json (partage entre utilisateurs) ---
+            exportGrid() {
+                if (this.grid.length === 0) { alert('La grille est vide : rien à exporter.'); return; }
+                let name = this.loadedGridName;
+                if (!name) {
+                    name = prompt('Nom de la grille à exporter :', 'grille');
+                    if (!name) return;
+                }
+                const payload = {
+                    format: 'chord-scales-jam-grid',
+                    version: 1,
+                    name: name,
+                    grid: JSON.parse(JSON.stringify(this.grid))
+                };
+                const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const fileName = name.replace(/[\\/:*?"<>|]+/g, '_').trim() || 'grille';
+                a.href = url;
+                a.download = fileName + '.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            }
+
+            sanitizeImportedGrid(raw) {
+                if (!Array.isArray(raw) || raw.length === 0 || raw.length > 64) return null;
+                const knownChord = (id) => Object.values(chordTypes).some(list => list.some(c => c.id === id));
+                const clean = [];
+                for (const item of raw) {
+                    if (!item || typeof item !== 'object') return null;
+                    const rootIndex = Number(item.rootIndex);
+                    const measures = Number(item.measures);
+                    if (!Number.isInteger(rootIndex) || rootIndex < 0 || rootIndex > 11) return null;
+                    if (!Number.isInteger(measures) || measures < 1 || measures > 16) return null;
+                    if (typeof item.chordId !== 'string' || !knownChord(item.chordId)) return null;
+                    let scaleId = item.scaleId;
+                    if (typeof scaleId !== 'string' || !scalesDb[scaleId]) {
+                        const chordObj = this.findChordObj(item.chordId);
+                        scaleId = chordObj.scales[0].id;
+                    }
+                    const step = { rootIndex, chordId: item.chordId, measures, scaleId };
+                    if (measures === 1 && item.split && typeof item.split === 'object') {
+                        const sr = Number(item.split.rootIndex);
+                        if (!Number.isInteger(sr) || sr < 0 || sr > 11 || typeof item.split.chordId !== 'string' || !knownChord(item.split.chordId)) return null;
+                        let ss = item.split.scaleId;
+                        if (typeof ss !== 'string' || !scalesDb[ss]) ss = this.findChordObj(item.split.chordId).scales[0].id;
+                        step.split = { rootIndex: sr, chordId: item.split.chordId, scaleId: ss };
+                    }
+                    ['section', 'phrase', 'harmonicFunction'].forEach(k => {
+                        if (typeof item[k] === 'string') step[k] = item[k].slice(0, 80);
+                    });
+                    clean.push(step);
+                }
+                return clean;
+            }
+
+            importGridFile(input) {
+                const file = input.files && input.files[0];
+                input.value = '';
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onerror = () => alert('Impossible de lire ce fichier.');
+                reader.onload = () => {
+                    let data;
+                    try { data = JSON.parse(reader.result); }
+                    catch (e) { alert("Ce fichier n'est pas un JSON valide."); return; }
+
+                    const rawGrid = Array.isArray(data) ? data : (data && data.grid);
+                    const grid = this.sanitizeImportedGrid(rawGrid);
+                    if (!grid) { alert("Ce fichier ne contient pas de grille valide pour l'application."); return; }
+
+                    let name = (!Array.isArray(data) && typeof data.name === 'string' && data.name.trim())
+                        ? data.name.trim().slice(0, 80)
+                        : file.name.replace(/\.json$/i, '');
+                    if (!name) name = 'Grille importée';
+
+                    const saved = this.getSavedGrids();
+                    let finalName = name, n = 2;
+                    while (saved[finalName]) finalName = `${name} (${n++})`;
+                    saved[finalName] = grid;
+                    try { localStorage.setItem('jamSavedGrids', JSON.stringify(saved)); }
+                    catch (e) { alert("Impossible d'enregistrer la grille importée."); return; }
+
+                    this.loadSavedGrid(finalName);
+                    this.renderSavedGridsMenu();
+                };
+                reader.readAsText(file);
+            }
+
             toggleSavedGridsMenu() {
                 const dropdown = document.getElementById('jam-saved-grids-dropdown');
                 if (!dropdown) return;
@@ -1015,24 +1355,41 @@
                 }
             }
 
+            runSavedGridsAction(action) {
+                const dropdown = document.getElementById('jam-saved-grids-dropdown');
+                if (dropdown) dropdown.classList.add('hidden');
+                if (action === 'save') this.saveGrid();
+                else if (action === 'export') this.exportGrid();
+                else if (action === 'import') {
+                    const input = document.getElementById('jam-import-file');
+                    if (input) input.click();
+                }
+            }
+
             renderSavedGridsMenu() {
                 const dropdown = document.getElementById('jam-saved-grids-dropdown');
                 if (!dropdown) return;
+                const actions = `<div class="flex items-center gap-2 px-2 py-1.5 text-xs text-emerald-400 font-semibold hover:bg-[#252525] cursor-pointer" onclick="app.jam.runSavedGridsAction('save')">＋ Sauvegarder la grille…</div>`;
+                const separator = '<div style="border-top:1px solid #333333;margin:2px 0"></div>';
                 const names = Object.keys(this.getSavedGrids());
+                let list;
                 if (names.length === 0) {
-                    dropdown.innerHTML = '<div class="px-2 py-1.5 text-xs text-slate-500">Aucune grille sauvegardée</div>';
-                    return;
+                    list = '<div class="px-2 py-1.5 text-xs text-slate-500">Aucune grille sauvegardée</div>';
+                } else {
+                    list = names.map(n => {
+                        const safe = n.replace(/"/g, '&quot;');
+                        return `<div class="flex items-center justify-between gap-1 px-2 py-1.5 text-xs text-slate-300 hover:bg-[#252525] cursor-pointer" onclick="app.jam.loadSavedGrid('${safe.replace(/'/g, "\\'")}')">
+                            <span class="truncate">${safe}</span>
+                            <span onclick="event.stopPropagation(); app.jam.deleteSavedGrid('${safe.replace(/'/g, "\\'")}')" title="Supprimer" class="text-slate-500 hover:text-rose-400 font-bold px-1">×</span>
+                        </div>`;
+                    }).join('');
                 }
-                dropdown.innerHTML = names.map(n => {
-                    const safe = n.replace(/"/g, '&quot;');
-                    return `<div class="flex items-center justify-between gap-1 px-2 py-1.5 text-xs text-slate-300 hover:bg-[#252525] cursor-pointer" onclick="app.jam.loadSavedGrid('${safe.replace(/'/g, "\\'")}')">
-                        <span class="truncate">${safe}</span>
-                        <span onclick="event.stopPropagation(); app.jam.deleteSavedGrid('${safe.replace(/'/g, "\\'")}')" title="Supprimer" class="text-slate-500 hover:text-rose-400 font-bold px-1">×</span>
-                    </div>`;
-                }).join('');
+                dropdown.innerHTML = actions + separator + list;
             }
 
-            loadSavedGrid(name) {
+            loadSavedGrid(name) { this.withUndo(() => this._loadSavedGrid(name)); }
+
+            _loadSavedGrid(name) {
                 if (!name) return;
                 const saved = this.getSavedGrids();
                 if (!saved[name]) return;
@@ -1048,7 +1405,7 @@
                 const cardLabel = document.getElementById('jam-loaded-grid-name');
                 if (cardLabel) cardLabel.textContent = this.loadedGridName || '';
                 const menuLabel = document.getElementById('jam-saved-grids-label');
-                if (menuLabel) menuLabel.textContent = this.loadedGridName || 'Grilles sauvegardées…';
+                if (menuLabel) menuLabel.textContent = this.loadedGridName || 'Sauvegardes';
             }
 
             deleteSavedGrid(name) {
@@ -1711,6 +2068,46 @@
                 return hits;
             }
 
+            // Walking bass d'une mesure à deux accords : fondamentale de chaque accord sur son premier temps
+            // (temps 1 et 3), note d'approche chromatique vers le second accord au temps 2 et vers l'accord
+            // suivant au temps 4 ; parfois « à deux temps » (une fondamentale par accord).
+            buildWalkingBassSplit(halves, nextStep, rng, swing) {
+                const [A, B] = halves;
+                const pick = (opts) => opts[Math.floor(rng() * opts.length)];
+                const pc = (n) => ((n % 12) + 12) % 12;
+                const tonesOf = (c) => {
+                    const t = this.findChordObj(c.chordId).notes, rt = c.rootIndex;
+                    return {
+                        root: rt + t[0],
+                        third: rt + (t[1] !== undefined ? t[1] : 4),
+                        fifth: rt + (t[2] !== undefined ? t[2] : 7)
+                    };
+                };
+                const a = tonesOf(A), b = tonesOf(B);
+                // Approche chromatique vers une fondamentale ; si elle est identique à celle de départ,
+                // on reste sur une note de l'accord.
+                const approach = (from, toRoot, fallbacks) =>
+                    pc(toRoot) === pc(from.root) ? pick(fallbacks) : toRoot + (rng() < 0.65 ? -1 : 1);
+
+                const nextRoot = nextStep ? nextStep.rootIndex + this.findChordObj(nextStep.chordId).notes[0] : null;
+                const midNote = approach(a, b.root, [a.fifth, a.third]);
+                const endNote = nextRoot !== null ? approach(b, nextRoot, [b.fifth, b.third]) : pick([b.fifth, b.third]);
+
+                const hits = [];
+                if (rng() < 0.2) { // feeling « à deux temps » : une fondamentale par accord
+                    const withApproach = nextRoot !== null && pc(nextRoot) !== pc(b.root);
+                    hits.push({ pos: 0, abs: a.root, dur: 1.9, vel: 0.9 });
+                    hits.push({ pos: 2, abs: b.root, dur: withApproach ? 1.4 : 1.9, vel: 0.85 });
+                    if (withApproach) hits.push({ pos: 3 + swing, abs: endNote, dur: 0.3, vel: 0.6 });
+                    return hits;
+                }
+                hits.push({ pos: 0, abs: a.root, dur: 0.95, vel: 0.95 });
+                hits.push({ pos: 1, abs: midNote, dur: 0.95, vel: 0.8 });
+                hits.push({ pos: 2, abs: b.root, dur: 0.95, vel: 0.9 });
+                hits.push({ pos: 3, abs: endNote, dur: 0.95, vel: 0.8 });
+                return hits;
+            }
+
             // --- Piano ---
 
             // Note « guide » utilisée pour les interventions en notes détachées du piano :
@@ -1861,13 +2258,31 @@
                 const tension = 0.92 + 0.08 * (L > 1 ? i / (L - 1) : 0);
                 // Une frappe tombant sur le "et" du temps 4 de la dernière mesure d'un accord
                 // annonce déjà l'accord suivant (anticipation).
-                const chordFor = (pos) => (isLastMeasureOfStep && pos >= 3.5 && nextStep) ? nextStep : step;
+                // Mesure à deux accords : temps 1-2 sur le premier accord, temps 3-4 sur le second
+                const halves = this.isSplitEffective(step) ? this.getStepHalves(step) : null;
+                const chordFor = (pos) => {
+                    if (isLastMeasureOfStep && pos >= 3.5 && nextStep) return nextStep;
+                    if (halves) return pos >= 2 ? halves[1] : halves[0];
+                    return step;
+                };
+                // Chaque accord doit s'entendre au piano, même si le motif de comping n'a aucune frappe
+                // dans sa moitié de mesure.
+                let pcell = cell;
+                if (halves) {
+                    pcell = cell.slice();
+                    if (!pcell.some(h => h[0] < 2)) pcell.push([0, 1.6, 'C', 0.78]);
+                    if (!pcell.some(h => h[0] >= 2 && h[0] < 3.5)) pcell.push([2, 1.5, 'C', 0.72]);
+                    pcell.sort((a, b) => a[0] - b[0]);
+                }
 
-                const piano = cell.map((h, k) => {
+                const piano = pcell.map((h, k) => {
                     const [pos, dur, kind, vel] = h;
                     const cs = chordFor(pos);
-                    const nextPos = k + 1 < cell.length ? cell[k + 1][0] : 4;
-                    const room = cs !== step ? (4 - pos + 0.6) : Math.max(0.2, nextPos - pos + 0.15);
+                    const anticipated = isLastMeasureOfStep && pos >= 3.5 && !!nextStep;
+                    const nextPos = k + 1 < pcell.length ? pcell[k + 1][0] : 4;
+                    let room = anticipated ? (4 - pos + 0.6) : Math.max(0.2, nextPos - pos + 0.15);
+                    // le premier accord s'arrête au changement d'accord (temps 3)
+                    if (halves && pos < 2) room = Math.min(room, Math.max(0.15, 2 - sw(pos)));
                     return {
                         pos: sw(pos),
                         dur: Math.min(dur, room),
@@ -1879,14 +2294,34 @@
 
                 let bass;
                 if (style === 'swing') {
-                    bass = this.buildWalkingBass(step, nextStep, isLastMeasureOfStep, rng, swing);
+                    bass = halves
+                        ? this.buildWalkingBassSplit(halves, nextStep, rng, swing)
+                        : this.buildWalkingBass(step, nextStep, isLastMeasureOfStep, rng, swing);
                 } else {
                     const bcell = (isTurn && ph.bassTurn) ? ph.bassTurn : (i === 2 ? ph.bassAlt : ph.bassMotif);
-                    bass = bcell.map(([pos, tok, dur, vel]) => ({
-                        pos: sw(pos),
-                        abs: this.resolveBassToken(tok, step, nextStep, isLastMeasureOfStep, rng),
-                        dur, vel
-                    }));
+                    let bc = bcell;
+                    if (halves) {
+                        // la fondamentale de chaque accord doit s'entendre à la basse
+                        bc = bcell.slice();
+                        if (!bc.some(b => b[0] < 2)) bc.push([0, 'R', 1.8, 0.9]);
+                        if (!bc.some(b => b[0] >= 1.9 && b[0] < 2.75)) bc.push([2, 'R', 1.6, 0.85]);
+                        bc.sort((a, b) => a[0] - b[0]);
+                    }
+                    const sameRoot = !!halves && (((halves[0].rootIndex - halves[1].rootIndex) % 12 + 12) % 12 === 0);
+                    bass = bc.map(([pos, tok, dur, vel]) => {
+                        let cs = step, nx = nextStep, last = isLastMeasureOfStep, d = dur;
+                        if (halves) {
+                            if (pos < 2) {
+                                cs = halves[0];
+                                nx = sameRoot ? null : halves[1]; // note d'approche vers le second accord
+                                last = !!nx;
+                                d = Math.min(dur, Math.max(0.25, 2 - sw(pos) - 0.05));
+                            } else {
+                                cs = halves[1];
+                            }
+                        }
+                        return { pos: sw(pos), abs: this.resolveBassToken(tok, cs, nx, last, rng), dur: d, vel };
+                    });
                 }
 
                 const drums = this.buildBandDrums(style, ph, i, L, piano, rng, swing, m);
@@ -1987,22 +2422,37 @@
             }
 
 
-            addChordStep() {
+            addChordStep() { this.withUndo(() => this._addChordStep()); }
+
+            _addChordStep() {
                 this.grid.push({ rootIndex: 0, chordId: 'maj7', measures: 1, scaleId: 'lydian' });
                 this.renderGridUI();
             }
 
-            removeChordStep(index) {
+            removeChordStep(index) { this.withUndo(() => this._removeChordStep(index)); }
+
+            _removeChordStep(index) {
                 if (this.grid.length <= 1) return;
                 this.grid.splice(index, 1);
                 this.renderGridUI();
             }
 
-            updateStep(index, key, value) {
+            updateStep(index, key, value) { this.withUndo(() => this._updateStep(index, key, value)); }
+
+            _updateStep(index, key, value) {
                 const step = this.grid[index];
                 if (!step) return;
 
-                if (key === 'measures' || key === 'rootIndex') {
+                if (key === 'measures') {
+                    if (value === 'half') {
+                        // « 1/2 » : une mesure à deux accords ; le second démarre avec le même accord
+                        step.measures = 1;
+                        if (!step.split) step.split = { rootIndex: step.rootIndex, chordId: step.chordId, scaleId: step.scaleId };
+                    } else {
+                        step.measures = parseInt(value, 10);
+                        delete step.split;
+                    }
+                } else if (key === 'rootIndex') {
                     step[key] = parseInt(value, 10);
                 } else {
                     step[key] = value;
@@ -2015,6 +2465,21 @@
                     }
                 }
 
+                this.renderGridUI();
+            }
+
+            // Second accord d'une mesure à deux accords
+            updateSplit(index, key, value) { this.withUndo(() => this._updateSplit(index, key, value)); }
+
+            _updateSplit(index, key, value) {
+                const step = this.grid[index];
+                if (!step || !step.split) return;
+                if (key === 'rootIndex') step.split.rootIndex = parseInt(value, 10);
+                else step.split[key] = value;
+                if (key === 'chordId') {
+                    const chordObj = this.findChordObj(step.split.chordId);
+                    if (chordObj && chordObj.scales.length > 0) step.split.scaleId = chordObj.scales[0].id;
+                }
                 this.renderGridUI();
             }
 
@@ -2523,6 +2988,38 @@
                 this.renderGridUI();
             }
 
+            // --- Mesure à deux accords ---
+            // Un pas de grille d'une mesure peut porter un second accord (step.split) : le premier accord
+            // occupe les temps 1-2, le second les temps 3-4. La durée reste un nombre entier de mesures,
+            // ce qui garde les barres de mesure alignées.
+            isSplit(step) {
+                return !!(step && step.split && step.measures === 1);
+            }
+
+            // Vrai si les deux moitiés sonnent différemment (sinon la mesure est jouée comme une mesure normale).
+            isSplitEffective(step) {
+                return this.isSplit(step) && !(step.split.rootIndex === step.rootIndex && step.split.chordId === step.chordId);
+            }
+
+            getStepHalves(step) {
+                const first = { rootIndex: step.rootIndex, chordId: step.chordId, scaleId: step.scaleId };
+                if (!this.isSplit(step)) return [first];
+                return [first, { rootIndex: step.split.rootIndex, chordId: step.split.chordId, scaleId: step.split.scaleId }];
+            }
+
+            // 0 = temps 1-2, 1 = temps 3-4 (d'après le temps courant)
+            getActiveHalf(step) {
+                return this.isSplit(step) && (this.currentBeat % 4) >= 2 ? 1 : 0;
+            }
+
+            getChordSymbol(chord) {
+                return `${rootLabels[chord.rootIndex]}${this.getJazzChordNotation(chord.chordId)}`;
+            }
+
+            getMeasureKey(m) {
+                return m.split ? `${this.getChordSymbol(m)}|${this.getChordSymbol(m.split)}` : this.getChordSymbol(m);
+            }
+
             getFlatMeasureList() {
                 const list = [];
                 let measureNumber = 1;
@@ -2535,6 +3032,7 @@
                             rootIndex: step.rootIndex,
                             chordId: step.chordId,
                             scaleId: step.scaleId,
+                            split: this.isSplit(step) ? { rootIndex: step.split.rootIndex, chordId: step.split.chordId, scaleId: step.split.scaleId } : null,
                             harmonicFunction: step.harmonicFunction || null
                         });
                         measureNumber++;
@@ -2633,15 +3131,33 @@
                     systemRow.className = "jam-row grid grid-cols-4 gap-1.5 bg-[#1a1a1a] p-1.5 rounded-lg border border-[#333333]";
 
                     systemMeasures.forEach((m) => {
-                        const rootName = rootLabels[m.rootIndex];
-                        const chordObj = this.findChordObj(m.chordId);
-                        const chordSymbol = `${rootName}${this.getJazzChordNotation(m.chordId)}`;
+                        const symA = this.getChordSymbol(m);
                         const previousMeasure = flatMeasures[m.measureNumber - 2];
-                        const previousChordSymbol = previousMeasure
-                            ? `${rootLabels[previousMeasure.rootIndex]}${this.getJazzChordNotation(previousMeasure.chordId)}`
-                            : null;
-                        const displayChordSymbol = previousChordSymbol === chordSymbol ? '%' : chordSymbol;
+                        // « % » : la mesure répète exactement la précédente (les deux accords s'il y en a deux)
+                        const repeat = !!previousMeasure && this.getMeasureKey(previousMeasure) === this.getMeasureKey(m);
+                        const showSplit = !!m.split && !repeat;
+                        const displayChordSymbol = repeat ? '%' : symA;
                         const isActive = (m.measureNumber === currentMeasureNum);
+                        const activeHalf = (isActive && showSplit) ? ((this.currentBeat % 4) >= 2 ? 1 : 0) : -1;
+                        const scaleShort = (id) => (scalesDb[id] && scalesDb[id].name.split(' ')[0]) || '';
+                        const scaleLabel = showSplit ? `${scaleShort(m.scaleId)} · ${scaleShort(m.split.scaleId)}` : scaleShort(m.scaleId);
+                        const centerHtml = showSplit
+                            ? `<div class="jam-split my-auto">
+                                   <div class="jam-half${activeHalf === 0 ? ' jam-half-active' : ''}" data-half="0"><span class="jam-realbook-chord whitespace-nowrap">${symA}</span></div>
+                                   <div class="jam-half${activeHalf === 1 ? ' jam-half-active' : ''}" data-half="1"><span class="jam-realbook-chord whitespace-nowrap">${this.getChordSymbol(m.split)}</span></div>
+                               </div>`
+                            : `<div class="jam-realbook-chord my-auto whitespace-nowrap overflow-visible">${displayChordSymbol}</div>`;
+                        let bottomHtml = '';
+                        if (this.showHarmonicFunctions) {
+                            const flatIdx = flatMeasures.indexOf(m);
+                            if (showSplit) {
+                                const fa = this.getHarmonicFunctionLabel({ rootIndex: m.rootIndex, chordId: m.chordId, harmonicFunction: null }, flatMeasures, flatIdx);
+                                const fb = this.getHarmonicFunctionLabel({ rootIndex: m.split.rootIndex, chordId: m.split.chordId, harmonicFunction: null }, flatMeasures, flatIdx);
+                                bottomHtml = `<div class="jam-half-fn" style="left:8px">${fa}</div><div class="jam-half-fn" style="right:8px">${fb}</div>`;
+                            } else {
+                                bottomHtml = `<div class="jam-cell-bottom text-[10px] text-right font-normal jam-realbook-chord text-red-500">${this.getHarmonicFunctionLabel(m, flatMeasures, flatIdx)}</div>`;
+                            }
+                        }
 
                         const mBox = document.createElement('div');
                         mBox.dataset.measureNumber = m.measureNumber;
@@ -2651,22 +3167,29 @@
                                 : 'bg-white border-slate-300 hover:border-slate-500 text-slate-900'
                         }`;
                         
-                        mBox.onclick = () => {
+                        mBox.onclick = (ev) => {
+                            // Sur une case à deux accords, la moitié cliquée détermine l'accord sélectionné et joué
+                            let half = 0;
+                            if (showSplit) {
+                                const r = mBox.getBoundingClientRect();
+                                half = (ev.clientX - r.left) >= r.width / 2 ? 1 : 0;
+                            }
                             this.currentStepIndex = m.stepIndex;
-                            this.currentBeat = (m.measureInStep - 1) * 4;
+                            this.currentBeat = (m.measureInStep - 1) * 4 + (half === 1 ? 2 : 0);
                             const step = this.grid[m.stepIndex];
-                            this.updateJamDisplay(step);
+                            this.updateJamDisplay(step, half);
                             this.renderGridUI();
-                            this.app.playJamChord(m.rootIndex, m.chordId);
+                            const chord = half === 1 ? m.split : m;
+                            this.app.playJamChord(chord.rootIndex, chord.chordId);
                         };
 
                         mBox.innerHTML = `
                             <div class="jam-cell-top flex justify-between items-center text-[9px] font-mono ${isActive ? 'text-blue-200 font-bold' : 'text-slate-400'}">
                                 <span>|${m.measureNumber}</span>
-                                <span class="text-[8px] text-emerald-400 font-medium truncate max-w-[60px]">${scalesDb[m.scaleId]?.name.split(' ')[0] || ''}</span>
+                                <span class="text-[8px] text-emerald-400 font-medium truncate max-w-[60px]">${scaleLabel}</span>
                             </div>
-                            <div class="jam-realbook-chord my-auto whitespace-nowrap overflow-visible">${displayChordSymbol}</div>
-                            ${this.showHarmonicFunctions ? `<div class="jam-cell-bottom text-[10px] text-right font-normal jam-realbook-chord text-red-500">${this.getHarmonicFunctionLabel(m, flatMeasures, flatMeasures.indexOf(m))}</div>` : ''}
+                            ${centerHtml}
+                            ${bottomHtml}
                         `;
                         systemRow.appendChild(mBox);
                     });
@@ -2687,7 +3210,7 @@
                 if (activeMeasure) {
                     const activeStep = this.grid[activeMeasure.stepIndex];
                     if (activeStep) {
-                        this.updateJamDisplay(activeStep);
+                        this.updateJamDisplay(activeStep, this.getActiveHalf(activeStep));
                     }
 
                     /* Pendant la lecture, la ligne qui contient l'accord en cours doit
@@ -2761,14 +3284,14 @@
                 systems.forEach((systemMeasures) => {
                     let cellsHtml = '';
                     systemMeasures.forEach((m) => {
-                        const rootName = rootLabels[m.rootIndex];
-                        const chordSymbol = `${rootName}${this.getJazzChordNotation(m.chordId)}`;
                         const previousMeasure = flatMeasures[m.measureNumber - 2];
-                        const previousChordSymbol = previousMeasure
-                            ? `${rootLabels[previousMeasure.rootIndex]}${this.getJazzChordNotation(previousMeasure.chordId)}`
-                            : null;
-                        const displayChordSymbol = previousChordSymbol === chordSymbol ? '%' : chordSymbol;
-                        cellsHtml += `<div class="jam-print-cell"><span class="jam-print-chord" data-symbol="${encodeURIComponent(displayChordSymbol)}"></span></div>`;
+                        const repeat = !!previousMeasure && this.getMeasureKey(previousMeasure) === this.getMeasureKey(m);
+                        if (m.split && !repeat) {
+                            cellsHtml += `<div class="jam-print-cell"><div class="jam-print-split"><span class="jam-print-chord" data-symbol="${encodeURIComponent(this.getChordSymbol(m))}"></span><span class="jam-print-chord" data-symbol="${encodeURIComponent(this.getChordSymbol(m.split))}"></span></div></div>`;
+                        } else {
+                            const displayChordSymbol = repeat ? '%' : this.getChordSymbol(m);
+                            cellsHtml += `<div class="jam-print-cell"><span class="jam-print-chord" data-symbol="${encodeURIComponent(displayChordSymbol)}"></span></div>`;
+                        }
                     });
                     for (let k = systemMeasures.length; k < 4; k++) {
                         cellsHtml += `<div class="jam-print-cell jam-print-cell-empty"></div>`;
@@ -2814,39 +3337,50 @@
                     const card = document.createElement('div');
                     card.className = `p-3 rounded-lg border transition flex flex-col gap-2 ${isActive ? 'bg-blue-900/30 border-blue-500 shadow-md ring-1 ring-blue-500' : 'bg-[#1a1a1a] border-[#333333]'}`;
 
-                    let chordOptionsHtml = '';
-                    for (const cat in chordTypes) {
-                        chordTypes[cat].forEach(c => {
-                            chordOptionsHtml += `<option value="${c.id}" ${c.id === step.chordId ? 'selected' : ''}>${c.name.replace(/[()]/g, '')}</option>`;
-                        });
-                    }
+                    const chordOpts = (selectedId) => {
+                        let html = '';
+                        for (const cat in chordTypes) {
+                            chordTypes[cat].forEach(c => {
+                                html += `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${c.name.replace(/[()]/g, '')}</option>`;
+                            });
+                        }
+                        return html;
+                    };
+                    const scaleOpts = (chordId, selectedId) => {
+                        let html = '';
+                        const co = this.findChordObj(chordId);
+                        if (co && co.scales) {
+                            co.scales.forEach(sc => {
+                                const scaleDef = scalesDb[sc.id];
+                                if (scaleDef) html += `<option value="${sc.id}" ${sc.id === selectedId ? 'selected' : ''}>${scaleDef.name} — ${sc.role}</option>`;
+                            });
+                        }
+                        return html;
+                    };
+                    const rootOpts = (selectedIdx) => rootLabels.map((r, rIdx) => `<option value="${rIdx}" ${rIdx === selectedIdx ? 'selected' : ''}>${r}</option>`).join('');
+                    const isHalf = this.isSplit(step);
+                    const measuresOpts = `<option value="half" ${isHalf ? 'selected' : ''}>1/2</option>` +
+                        [...new Set([1, 2, 3, 4, step.measures])].sort((x, y) => x - y)
+                            .map(n => `<option value="${n}" ${!isHalf && step.measures === n ? 'selected' : ''}>${n}</option>`).join('');
+                    const halfCaption = (label) => `<div class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider select-none">${label}</div>`;
 
-                    let scaleOptionsHtml = '';
-                    if (chordObj && chordObj.scales) {
-                        chordObj.scales.forEach(s => {
-                            const scaleDef = scalesDb[s.id];
-                            if (scaleDef) {
-                                scaleOptionsHtml += `<option value="${s.id}" ${s.id === step.scaleId ? 'selected' : ''}>${scaleDef.name} — ${s.role}</option>`;
-                            }
-                        });
-                    }
-
+                    card.dataset.stepIndex = idx;
                     card.innerHTML = `
+                        ${isHalf ? halfCaption('Temps 1–2') : ''}
                         <div class="flex items-center justify-between gap-2">
                             <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                                <span class="jam-drag-handle${this.isPlaying ? ' is-locked' : ''}" title="${this.isPlaying ? 'Déplacement indisponible pendant la jam' : 'Glisser pour déplacer cet accord'}" aria-label="Déplacer l'accord" onpointerdown="app.jam.startStepDrag(event, ${idx})">⠿</span>
                                 <select onchange="app.jam.updateStep(${idx}, 'rootIndex', this.value)" class="bg-[#2a2a2c] text-white text-xs font-bold rounded p-1 border border-[#444]">
-                                    ${rootLabels.map((r, rIdx) => `<option value="${rIdx}" ${rIdx === step.rootIndex ? 'selected' : ''}>${r}</option>`).join('')}
+                                    ${rootOpts(step.rootIndex)}
                                 </select>
                                 <select onchange="app.jam.updateStep(${idx}, 'chordId', this.value)" class="bg-[#2a2a2c] text-white text-xs font-bold rounded p-1 border border-[#444] flex-1 min-w-0">
-                                    ${chordOptionsHtml}
+                                    ${chordOpts(step.chordId)}
                                 </select>
                             </div>
                             <div class="flex items-center gap-1 shrink-0">
                                 <span class="text-[10px] text-slate-400">Mesures:</span>
                                 <select onchange="app.jam.updateStep(${idx}, 'measures', this.value)" class="bg-[#2a2a2c] text-white text-xs font-bold rounded p-1 border border-[#444]">
-                                    <option value="1" ${step.measures === 1 ? 'selected' : ''}>1</option>
-                                    <option value="2" ${step.measures === 2 ? 'selected' : ''}>2</option>
-                                    <option value="4" ${step.measures === 4 ? 'selected' : ''}>4</option>
+                                    ${measuresOpts}
                                 </select>
                                 <button onclick="app.jam.removeChordStep(${idx})" class="text-rose-400 hover:text-rose-300 px-1.5 py-0.5 text-xs font-bold">×</button>
                             </div>
@@ -2854,9 +3388,27 @@
                         <div class="flex items-center gap-2">
                             <span class="text-[10px] text-slate-400 w-12 shrink-0">Gamme :</span>
                             <select onchange="app.jam.updateStep(${idx}, 'scaleId', this.value)" class="bg-[#2a2a2c] text-emerald-400 font-semibold text-xs rounded p-1 border border-[#444] flex-1 min-w-0 truncate">
-                                ${scaleOptionsHtml}
+                                ${scaleOpts(step.chordId, step.scaleId)}
                             </select>
                         </div>
+                        ${isHalf ? `
+                        <div class="flex flex-col gap-2 pt-2 border-t border-[#333333]">
+                            ${halfCaption('Temps 3–4')}
+                            <div class="flex items-center gap-1.5">
+                                <select onchange="app.jam.updateSplit(${idx}, 'rootIndex', this.value)" class="bg-[#2a2a2c] text-white text-xs font-bold rounded p-1 border border-[#444]">
+                                    ${rootOpts(step.split.rootIndex)}
+                                </select>
+                                <select onchange="app.jam.updateSplit(${idx}, 'chordId', this.value)" class="bg-[#2a2a2c] text-white text-xs font-bold rounded p-1 border border-[#444] flex-1 min-w-0">
+                                    ${chordOpts(step.split.chordId)}
+                                </select>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] text-slate-400 w-12 shrink-0">Gamme :</span>
+                                <select onchange="app.jam.updateSplit(${idx}, 'scaleId', this.value)" class="bg-[#2a2a2c] text-emerald-400 font-semibold text-xs rounded p-1 border border-[#444] flex-1 min-w-0 truncate">
+                                    ${scaleOpts(step.split.chordId, step.split.scaleId)}
+                                </select>
+                            </div>
+                        </div>` : ''}
                     `;
                     container.appendChild(card);
                 });
@@ -2871,6 +3423,12 @@
 
                 this.renderSequenceUI();
                 this.renderJamScales();
+
+                // Hors lecture, conserver l'accord sélectionné comme référence
+                // pour calculer l'accord suivant (avec retour au premier en fin de grille).
+                if (!this.isPlaying) {
+                    this.updateNextJamChordDisplay(null, 0);
+                }
             }
 
             renderJamScales() {
@@ -2885,109 +3443,169 @@
                     return;
                 }
 
-                let indicesToRender = [];
-                if (this.isPlaying && this.grid.length > 0) {
-                    const currentIdx = this.currentStepIndex >= 0 ? this.currentStepIndex : 0;
-                    const nextIdx = (currentIdx + 1) % this.grid.length;
-                    if (this.grid.length === 1) {
-                        indicesToRender = [0];
-                    } else {
-                        // La place à l'écran est liée au créneau (this.activeSlot), pas au rôle :
-                        // la gamme qui devient active reste dans le créneau qu'elle occupait déjà
-                        // en tant que "suivante" ; seule la nouvelle "suivante" prend la place
-                        // laissée libre par l'ancienne gamme active.
-                        indicesToRender = this.activeSlot === 0 ? [currentIdx, nextIdx] : [nextIdx, currentIdx];
-                    }
-                } else {
-                    indicesToRender = this.grid.map((_, i) => i);
-                }
-
-                const badge = document.getElementById('jam-scales-count-badge');
-                if (badge) badge.textContent = this.isPlaying ? `${indicesToRender.length} gamme(s) active(s)` : `${this.grid.length} gamme${this.grid.length > 1 ? 's' : ''}`;
-
                 const pendingStaves = [];
 
-                indicesToRender.forEach(idx => {
-                    const step = this.grid[idx];
-                    if (!step) return;
-                    const rootName = rootLabels[step.rootIndex];
-                    const chordObj = this.findChordObj(step.chordId);
-                    const scaleDef = scalesDb[step.scaleId];
-                    if (!scaleDef) return;
+                // Pendant la Jam, l'affichage est une fenêtre glissante de DEUX ACCORDS,
+                // jamais deux "mesures". Pour une mesure scindée :
+                //   - temps 1-2 : accord A + accord B
+                //   - temps 3-4 : accord B + premier accord de la mesure suivante
+                // Chaque accord est rendu dans sa propre carte afin qu'un accord scindé
+                // ne puisse jamais agrandir ou étirer la carte voisine.
+                if (this.isPlaying) {
+                    const currentIdx = this.currentStepIndex >= 0 ? this.currentStepIndex : 0;
+                    const currentStep = this.grid[currentIdx];
+                    const currentHalf = this.isSplit(currentStep) ? this.getActiveHalf(currentStep) : null;
 
-                    const scaleKey = `jam-scale-${idx}-${step.scaleId}`;
-                    const isActive = (idx === this.currentStepIndex);
-                    const canvasId = `jam-vexflow-canvas-${idx}`;
+                    const currentItem = { idx: currentIdx, half: currentHalf };
+                    let nextItem;
 
-                    const card = document.createElement('div');
-                    card.id = `jam-scale-card-${idx}`;
-                    card.setAttribute('data-jam-step-index', idx);
-                    card.setAttribute('data-scale-key', scaleKey);
-                    
-                    card.className = `bg-[#1a1a1a] border transition-all duration-200 rounded-xl p-4 shadow relative flex flex-col justify-between group cursor-pointer ${
-                        isActive 
-                            ? 'border-2 border-emerald-400 bg-[#1e293b] ring-2 ring-emerald-500/50 shadow-lg shadow-emerald-500/10 scale-[1.01]' 
-                            : 'border-[#333333] hover:border-[#555555]'
-                    }`;
+                    if (this.isSplit(currentStep) && currentHalf === 0) {
+                        // Le deuxième accord de la même mesure est l'accord suivant.
+                        nextItem = { idx: currentIdx, half: 1 };
+                    } else {
+                        // Fin d'une mesure (ou mesure simple) : premier accord du step suivant.
+                        const nextIdx = (currentIdx + 1) % this.grid.length;
+                        nextItem = { idx: nextIdx, half: this.isSplit(this.grid[nextIdx]) ? 0 : null };
+                    }
 
-                    card.onclick = () => {
-                        this.app.toggleScalePlayback(scaleKey, scaleDef.intervals, scaleDef.name, card, step.rootIndex, true);
+                    const renderItem = (item, isCurrent) => {
+                        const step = this.grid[item.idx];
+                        if (!step) return;
+
+                        let data;
+                        if (item.half !== null) {
+                            const halves = this.getStepHalves(step);
+                            data = halves[item.half];
+                            if (!data) return;
+                        } else {
+                            data = {
+                                rootIndex: step.rootIndex,
+                                chordId: step.chordId,
+                                scaleId: step.scaleId
+                            };
+                        }
+
+                        const scaleDef = scalesDb[data.scaleId];
+                        if (!scaleDef) return;
+                        const rootName = rootLabels[data.rootIndex];
+                        const chordObj = this.findChordObj(data.chordId);
+                        const scaleKey = item.half === null
+                            ? `jam-scale-${item.idx}-${data.scaleId}`
+                            : `jam-scale-${item.idx}-${item.half === 0 ? 'a' : 'b'}-${data.scaleId}`;
+                        const canvasId = `jam-vexflow-canvas-play-${item.idx}-${item.half === null ? 'single' : item.half === 0 ? 'a' : 'b'}`;
+
+                        const card = document.createElement('div');
+                        card.id = `jam-scale-card-play-${item.idx}-${item.half === null ? 'single' : item.half === 0 ? 'a' : 'b'}`;
+                        card.setAttribute('data-jam-step-index', item.idx);
+                        card.setAttribute('data-scale-key', scaleKey);
+                        card.className = `bg-[#1a1a1a] border transition-all duration-200 rounded-xl p-4 shadow relative flex flex-col justify-between group cursor-pointer items-start self-start ${
+                            isCurrent
+                                ? 'border-2 border-emerald-400 bg-[#1e293b] ring-2 ring-emerald-500/50 shadow-lg shadow-emerald-500/10 scale-[1.01]'
+                                : 'border-[#333333] hover:border-[#555555]'
+                        }`;
+
+                        card.onclick = () => {
+                            this.app.toggleScalePlayback(scaleKey, scaleDef.intervals, scaleDef.name, card, data.rootIndex, true);
+                        };
+
+                        const avoidNotes = this.showAvoidNotes ? getAvoidNotes(data.scaleId, data.chordId) : [];
+                        const characteristicInterval = this.showCharacteristic ? scaleDef.characteristicInterval : null;
+                        const halfLabel = item.half === null ? '' : `<span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#2a2a2c] text-slate-300 font-bold border border-[#444]">${item.half === 0 ? 'Temps 1–2' : 'Temps 3–4'}</span>`;
+
+                        card.innerHTML = `
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2 select-none w-full">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="text-xs font-mono px-2 py-0.5 rounded bg-[#2a2a2c] text-slate-300 font-bold border border-[#444]">m.${this.getStepStartMeasure(item.idx)}</span>
+                                    ${halfLabel}
+                                    <h3 class="font-bold text-sm text-white">${rootName} ${scaleDef.name}</h3>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#2a2a2c] text-slate-300 border border-[#333333]">${scaleDef.category}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-semibold text-blue-400">Accord : ${rootName}${chordObj.name}</span>
+                                    ${isCurrent ? '<span class="jam-active-badge px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-500 text-slate-950 uppercase tracking-wider animate-pulse">Active</span>' : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-300 uppercase tracking-wider">Suivante</span>'}
+                                </div>
+                            </div>
+                            <p class="text-xs text-slate-400 mb-3 select-none">${scaleDef.desc}</p>
+                            <div class="pt-2 border-t border-[#333333] w-full">
+                                <div class="bg-white border border-slate-300 rounded-lg shadow-sm text-slate-900 w-full mx-auto select-none h-[130px] flex items-center justify-center overflow-hidden relative">
+                                    <div id="${canvasId}" class="w-full h-full flex items-center justify-center bg-white relative"></div>
+                                </div>
+                            </div>
+                        `;
+
+                        container.appendChild(card);
+                        pendingStaves.push({
+                            canvasId,
+                            intervals: scaleDef.intervals,
+                            rootName,
+                            isDesc: false,
+                            avoidNotes,
+                            characteristicInterval,
+                            chordObj,
+                            showTargetNotes: this.showTargetNotes
+                        });
                     };
 
-                    const avoidNotes = this.showAvoidNotes ? getAvoidNotes(step.scaleId, step.chordId) : [];
-                    const characteristicInterval = this.showCharacteristic ? scaleDef.characteristicInterval : null;
+                    renderItem(currentItem, true);
+                    renderItem(nextItem, false);
 
-                    card.innerHTML = `
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2 select-none">
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <span class="text-xs font-mono px-2 py-0.5 rounded bg-[#2a2a2c] text-slate-300 font-bold border border-[#444]">m.${this.getStepStartMeasure(idx)}</span>
-                                <h3 class="font-bold text-sm text-white">${rootName} ${scaleDef.name}</h3>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#2a2a2c] text-slate-300 border border-[#333333]">${scaleDef.category}</span>
-                            </div>
-                            <div class="flex items-center gap-2">
+                    const badge = document.getElementById('jam-scales-count-badge');
+                    if (badge) badge.textContent = '2 gammes actives';
+                } else {
+                    // Hors lecture, on conserve l'affichage complet de la grille.
+                    this.grid.forEach((step, idx) => {
+                        if (!step) return;
+                        if (this.isSplit(step)) {
+                            this.appendSplitScaleCard(container, idx, step, pendingStaves);
+                            return;
+                        }
+
+                        const rootName = rootLabels[step.rootIndex];
+                        const chordObj = this.findChordObj(step.chordId);
+                        const scaleDef = scalesDb[step.scaleId];
+                        if (!scaleDef) return;
+
+                        const scaleKey = `jam-scale-${idx}-${step.scaleId}`;
+                        const isActive = (idx === this.currentStepIndex);
+                        const canvasId = `jam-vexflow-canvas-${idx}`;
+                        const card = document.createElement('div');
+                        card.id = `jam-scale-card-${idx}`;
+                        card.setAttribute('data-jam-step-index', idx);
+                        card.setAttribute('data-scale-key', scaleKey);
+                        card.className = `bg-[#1a1a1a] border transition-all duration-200 rounded-xl p-4 shadow relative flex flex-col justify-between group cursor-pointer items-start self-start ${
+                            isActive
+                                ? 'border-2 border-emerald-400 bg-[#1e293b] ring-2 ring-emerald-500/50 shadow-lg shadow-emerald-500/10 scale-[1.01]'
+                                : 'border-[#333333] hover:border-[#555555]'
+                        }`;
+                        card.onclick = () => this.app.toggleScalePlayback(scaleKey, scaleDef.intervals, scaleDef.name, card, step.rootIndex, true);
+                        const avoidNotes = this.showAvoidNotes ? getAvoidNotes(step.scaleId, step.chordId) : [];
+                        const characteristicInterval = this.showCharacteristic ? scaleDef.characteristicInterval : null;
+                        card.innerHTML = `
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2 select-none w-full">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="text-xs font-mono px-2 py-0.5 rounded bg-[#2a2a2c] text-slate-300 font-bold border border-[#444]">m.${this.getStepStartMeasure(idx)}</span>
+                                    <h3 class="font-bold text-sm text-white">${rootName} ${scaleDef.name}</h3>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#2a2a2c] text-slate-300 border border-[#333333]">${scaleDef.category}</span>
+                                </div>
                                 <span class="text-xs font-semibold text-blue-400">Accord : ${rootName}${chordObj.name}</span>
-                                ${isActive ? '<span class="jam-active-badge px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-500 text-slate-950 uppercase tracking-wider animate-pulse">Active</span>' : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-300 uppercase tracking-wider">Suivante</span>'}
                             </div>
-                        </div>
-                        <p class="text-xs text-slate-400 mb-3 select-none">${scaleDef.desc}</p>
-                        <div class="pt-2 border-t border-[#333333]">
-                            <div class="bg-white border border-slate-300 rounded-lg shadow-sm text-slate-900 w-full mx-auto select-none h-[130px] flex items-center justify-center overflow-hidden relative">
-                                <div id="${canvasId}" class="w-full h-full flex items-center justify-center bg-white relative"></div>
-                            </div>
-                        </div>
-                    `;
-
-                    container.appendChild(card);
-
-                    pendingStaves.push({
-                        canvasId,
-                        intervals: scaleDef.intervals,
-                        rootName,
-                        isDesc: false,
-                        avoidNotes,
-                        characteristicInterval,
-                        chordObj,
-                        showTargetNotes: this.showTargetNotes
+                            <p class="text-xs text-slate-400 mb-3 select-none">${scaleDef.desc}</p>
+                            <div class="pt-2 border-t border-[#333333] w-full">
+                                <div class="bg-white border border-slate-300 rounded-lg shadow-sm text-slate-900 w-full mx-auto select-none h-[130px] flex items-center justify-center overflow-hidden relative">
+                                    <div id="${canvasId}" class="w-full h-full flex items-center justify-center bg-white relative"></div>
+                                </div>
+                            </div>`;
+                        container.appendChild(card);
+                        pendingStaves.push({ canvasId, intervals: scaleDef.intervals, rootName, isDesc: false, avoidNotes, characteristicInterval, chordObj, showTargetNotes: this.showTargetNotes });
                     });
-                });
+                    const badge = document.getElementById('jam-scales-count-badge');
+                    if (badge) badge.textContent = `${this.grid.length} gamme${this.grid.length > 1 ? 's' : ''}`;
+                }
 
                 pendingStaves.forEach(task => {
-                    this.app.renderVexFlowStaff(
-                        task.canvasId,
-                        task.intervals,
-                        task.rootName,
-                        task.isDesc,
-                        task.avoidNotes,
-                        task.characteristicInterval,
-                        task.chordObj,
-                        false,
-                        task.showTargetNotes,
-                        true
-                    );
+                    this.app.renderVexFlowStaff(task.canvasId, task.intervals, task.rootName, task.isDesc, task.avoidNotes, task.characteristicInterval, task.chordObj, false, task.showTargetNotes, true);
                 });
 
-                // Hors lecture, un accord sélectionné dans la grille doit amener sa gamme
-                // à l'écran, même si elle se trouve plus bas dans le panneau.
                 if (!this.isPlaying && this.currentStepIndex >= 0) {
                     const activeCard = document.getElementById(`jam-scale-card-${this.currentStepIndex}`);
                     if (activeCard) activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -2996,6 +3614,103 @@
 
             updateActiveJamScaleHighlight() {
                 this.renderJamScales();
+            }
+
+            // Carte de gammes d'une mesure à deux accords : une section par accord (temps 1-2, temps 3-4).
+            appendSplitScaleCard(container, idx, step, pendingStaves, onlyHalf = null) {
+                const allHalves = this.getStepHalves(step);
+                // Lorsqu'une mesure scindée est affichée uniquement comme mesure suivante,
+                // ne construire qu'un seul bloc : celui du premier accord de la mesure.
+                const halves = onlyHalf === null
+                    ? allHalves
+                    : (allHalves[onlyHalf] ? [allHalves[onlyHalf]] : []);
+                const isActive = (idx === this.currentStepIndex);
+                const activeHalf = isActive ? this.getActiveHalf(step) : -1;
+
+                const card = document.createElement('div');
+                card.id = `jam-scale-card-${idx}`;
+                card.setAttribute('data-jam-step-index', idx);
+                card.className = `bg-[#1a1a1a] border transition-all duration-200 rounded-xl p-4 shadow relative flex flex-col gap-3 group ${
+                    isActive
+                        ? 'border-2 border-emerald-400 bg-[#1e293b] ring-2 ring-emerald-500/50 shadow-lg shadow-emerald-500/10 scale-[1.01]'
+                        : 'border-[#333333] hover:border-[#555555]'
+                }`;
+
+                const blocks = halves.map((h, k) => {
+                    const scaleDef = scalesDb[h.scaleId];
+                    if (!scaleDef) return '';
+                    const rootName = rootLabels[h.rootIndex];
+                    const chordObj = this.findChordObj(h.chordId);
+                    const on = activeHalf === k;
+                    return `
+                        <div class="jam-half-block rounded-lg p-2 border cursor-pointer ${on ? 'border-emerald-400 bg-[#1e293b]' : 'border-[#333333]'}" data-half="${k}" data-jam-step-index="${idx}">
+                            <div class="flex items-center gap-2 flex-wrap mb-1 select-none">
+                                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#2a2a2c] text-slate-300 font-bold border border-[#444]">${k === 0 ? 'Temps 1–2' : 'Temps 3–4'}</span>
+                                <h3 class="font-bold text-sm text-white">${rootName} ${scaleDef.name}</h3>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#2a2a2c] text-slate-300 border border-[#333333]">${scaleDef.category}</span>
+                                <span class="text-xs font-semibold text-blue-400">Accord : ${rootName}${chordObj.name}</span>
+                            </div>
+                            <p class="text-xs text-slate-400 mb-2 select-none">${scaleDef.desc}</p>
+                            <div class="bg-white border border-slate-300 rounded-lg shadow-sm text-slate-900 w-full mx-auto select-none h-[130px] flex items-center justify-center overflow-hidden relative">
+                                <div id="jam-vexflow-canvas-${idx}${k === 0 ? '' : '-b'}" class="w-full h-full flex items-center justify-center bg-white relative"></div>
+                            </div>
+                        </div>`;
+                }).join('');
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between gap-2 select-none">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-xs font-mono px-2 py-0.5 rounded bg-[#2a2a2c] text-slate-300 font-bold border border-[#444]">m.${this.getStepStartMeasure(idx)}</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#2a2a2c] text-slate-300 border border-[#333333]">2 accords dans la mesure</span>
+                        </div>
+                        ${isActive ? '<span class="jam-active-badge px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-500 text-slate-950 uppercase tracking-wider animate-pulse">Active</span>' : ''}
+                    </div>
+                    ${blocks}
+                `;
+
+                card.querySelectorAll('.jam-half-block').forEach((el) => {
+                    const k = Number(el.dataset.half);
+                    const h = halves[k];
+                    const scaleDef = scalesDb[h.scaleId];
+                    el.onclick = (ev) => {
+                        ev.stopPropagation();
+                        this.app.toggleScalePlayback(`jam-scale-${idx}-${k === 0 ? 'a' : 'b'}-${h.scaleId}`, scaleDef.intervals, scaleDef.name, el, h.rootIndex, true);
+                    };
+                });
+
+                container.appendChild(card);
+
+                halves.forEach((h, k) => {
+                    const scaleDef = scalesDb[h.scaleId];
+                    if (!scaleDef) return;
+                    pendingStaves.push({
+                        canvasId: `jam-vexflow-canvas-${idx}${k === 0 ? '' : '-b'}`,
+                        intervals: scaleDef.intervals,
+                        rootName: rootLabels[h.rootIndex],
+                        isDesc: false,
+                        avoidNotes: this.showAvoidNotes ? getAvoidNotes(h.scaleId, h.chordId) : [],
+                        characteristicInterval: this.showCharacteristic ? scaleDef.characteristicInterval : null,
+                        chordObj: this.findChordObj(h.chordId),
+                        showTargetNotes: this.showTargetNotes
+                    });
+                });
+            }
+
+            // Au milieu d'une mesure à deux accords (temps 3), on ne fait que déplacer les surbrillances :
+            // pas de nouveau dessin des portées pendant la lecture, pour ne pas gêner le rythme.
+            updateSplitHalfUI(step) {
+                const half = this.getActiveHalf(step);
+                const num = this.getStepStartMeasure(this.currentStepIndex);
+                const cell = document.querySelector(`#jam-chord-sequence-display .jam-cell[data-measure-number="${num}"]`);
+                if (cell) cell.querySelectorAll('.jam-half').forEach(el => el.classList.toggle('jam-half-active', Number(el.dataset.half) === half));
+                const card = document.getElementById(`jam-scale-card-${this.currentStepIndex}`);
+                if (card) card.querySelectorAll('.jam-half-block').forEach(el => {
+                    const on = Number(el.dataset.half) === half;
+                    el.classList.toggle('border-emerald-400', on);
+                    el.classList.toggle('bg-[#1e293b]', on);
+                    el.classList.toggle('border-[#333333]', !on);
+                });
+                this.updateJamDisplay(step, half);
             }
 
             // Pendant la jam, la place réservée aux gammes est fixée une fois pour toutes à la hauteur
@@ -3113,10 +3828,18 @@
 
                 const totalBeatsInStep = step.measures * 4;
 
+                // Mesure à deux accords : les temps 1-2 et 3-4 ont chacun leur accord
+                const halves = this.isSplitEffective(step) ? this.getStepHalves(step) : null;
                 if (this.currentBeat % 4 === 0) {
                     this.renderSequenceUI();
                     this.updateActiveJamScaleHighlight();
-                    if (this.orchestrationMode !== 'orchestra') this.playStepArpeggio(step);
+                    if (this.orchestrationMode !== 'orchestra') {
+                        if (halves) this.playStepArpeggio(halves[0], 2);
+                        else this.playStepArpeggio(step, 4);
+                    }
+                } else if (this.isSplit(step) && this.currentBeat % 4 === 2) {
+                    this.updateSplitHalfUI(step);
+                    if (halves && this.orchestrationMode !== 'orchestra') this.playStepArpeggio(halves[1], 2);
                 }
 
                 if (this.orchestrationMode === 'orchestra') {
@@ -3139,7 +3862,8 @@
                 this.timer = setTimeout(() => this.tick(), beatIntervalMs);
             }
 
-            playStepArpeggio(step) {
+            // spanBeats : durée occupée par l'accord (4 = mesure entière, 2 = moitié de mesure).
+            playStepArpeggio(step, spanBeats = 4) {
                 if (!this.app.pianoInstrument || !this.app.audioCtx) return;
                 this.initGainNode();
 
@@ -3149,7 +3873,8 @@
                 const playedNotes = this.getJamChordPlaybackNotes(chordObj);
                 const now = this.app.audioCtx.currentTime;
                 const beatSec = 60 / this.bpm;
-                const spacing = beatSec;
+                const spacing = beatSec * spanBeats / 4;
+                const sustain = spanBeats >= 4 ? 2.2 : Math.min(2.2, beatSec * spanBeats * 1.1);
 
                 playedNotes.forEach((interval) => {
                     const noteStr = this.getJamAudioNoteName(step.rootIndex, interval, PLAY_BASE_OCTAVE);
@@ -3157,7 +3882,7 @@
                         const node = this.app.pianoInstrument.play(
                             noteStr, 
                             now, 
-                            { duration: 2.2, destination: this.gainNode }
+                            { duration: sustain, destination: this.gainNode }
                         );
                         this.app.activeAudioNodes.push(node);
                     } catch(e) {}
@@ -3221,14 +3946,127 @@
                 } catch (e) {}
             }
 
-            updateJamDisplay(step) {
-                const rootName = rootLabels[step.rootIndex];
-                const chordObj = this.findChordObj(step.chordId);
-                const scaleDef = scalesDb[step.scaleId];
-                this.displayedChord = { rootIndex: step.rootIndex, chordId: step.chordId };
+            playJamChordNote(rootIndex, interval) {
+                const app = this.app;
+                if (!app.pianoInstrument) {
+                    app.loadPiano();
+                    return;
+                }
+                if (app.audioCtx && app.audioCtx.state === 'suspended') app.audioCtx.resume();
+                this.initGainNode();
 
-                document.getElementById('jam-current-chord-title').textContent = `${rootName}${this.getJazzChordNotation(step.chordId)}`;
+                const noteStr = this.getJamAudioNoteName(rootIndex, interval, PLAY_BASE_OCTAVE);
+                try {
+                    const node = app.pianoInstrument.play(noteStr, app.audioCtx.currentTime, { duration: 1.5, destination: this.gainNode });
+                    app.activeAudioNodes.push(node);
+                } catch (e) {}
+            }
+
+            // Retourne l'accord qui suit réellement celui en cours, en tenant compte des
+            // mesures à deux accords et de la boucle de la Jam.
+            getNextJamChord(step, half = 0) {
+                if (!step || this.grid.length === 0) return null;
+
+                if (this.isSplit(step) && half === 0) {
+                    return {
+                        rootIndex: step.split.rootIndex,
+                        chordId: step.split.chordId
+                    };
+                }
+
+                const nextIdx = (this.currentStepIndex + 1) % this.grid.length;
+                const nextStep = this.grid[nextIdx];
+                if (!nextStep) return null;
+
+                return {
+                    rootIndex: nextStep.rootIndex,
+                    chordId: nextStep.chordId
+                };
+            }
+
+            updateNextJamChordDisplay(step, half = 0) {
+                const display = document.getElementById('jam-next-chord-display');
+                const title = document.getElementById('jam-next-chord-title');
+                const notesContainer = document.getElementById('jam-next-chord-notes');
+                if (!display || !title || !notesContainer) return;
+
+                // L'accord suivant reste affiché même lorsque la Jam est arrêtée.
+                // Hors lecture, on part de l'accord réellement sélectionné, y compris
+                // lorsqu'il s'agit du second accord d'une mesure à deux accords.
+                let nextChord;
+                if (!this.isPlaying) {
+                    const selectedIdx = Number.isInteger(this.displayedChordStepIndex)
+                        ? this.displayedChordStepIndex
+                        : -1;
+                    const selectedStep = selectedIdx >= 0 ? this.grid[selectedIdx] : null;
+                    if (!selectedStep || !this.grid.length) {
+                        display.classList.add('hidden');
+                        display.classList.remove('flex');
+                        title.textContent = '---';
+                        notesContainer.innerHTML = '';
+                        return;
+                    }
+
+                    if (this.isSplit(selectedStep) && this.displayedChordHalf === 0) {
+                        // Le second accord de la même mesure est le suivant.
+                        nextChord = {
+                            rootIndex: selectedStep.split.rootIndex,
+                            chordId: selectedStep.split.chordId
+                        };
+                    } else {
+                        // Sinon, on passe au premier accord de la mesure suivante,
+                        // avec retour au premier accord de la grille en fin de grille.
+                        const nextIdx = (selectedIdx + 1) % this.grid.length;
+                        const nextStep = this.grid[nextIdx];
+                        nextChord = {
+                            rootIndex: nextStep.rootIndex,
+                            chordId: nextStep.chordId
+                        };
+                    }
+                } else {
+                    nextChord = this.getNextJamChord(step, half);
+                }
+                if (!nextChord) {
+                    display.classList.add('hidden');
+                    display.classList.remove('flex');
+                    title.textContent = '---';
+                    notesContainer.innerHTML = '';
+                    return;
+                }
+
+                const nextRootName = rootLabels[nextChord.rootIndex];
+                const nextChordObj = this.findChordObj(nextChord.chordId);
+                title.textContent = `${nextRootName}${this.getJazzChordNotation(nextChord.chordId)}`;
+                notesContainer.innerHTML = '';
+                if (nextChordObj) {
+                    const nextChordSpelled = getSpelledChordNotes(nextRootName, nextChordObj);
+                    nextChordSpelled.forEach((n, noteIdx) => {
+                        const badge = document.createElement('span');
+                        badge.className = "px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white text-sm font-mono font-bold rounded cursor-pointer select-none transition";
+                        badge.textContent = n;
+                        badge.onclick = () => this.playJamChordNote(nextChord.rootIndex, nextChordObj.notes[noteIdx]);
+                        notesContainer.appendChild(badge);
+                    });
+                }
+                display.classList.remove('hidden');
+                display.classList.add('flex');
+            }
+
+            updateJamDisplay(step, half = 0) {
+                // Sur une mesure à deux accords, half = 1 affiche le second accord (temps 3-4)
+                const chord = (half === 1 && this.isSplit(step)) ? step.split : step;
+                const rootName = rootLabels[chord.rootIndex];
+                const chordObj = this.findChordObj(chord.chordId);
+                const scaleDef = scalesDb[chord.scaleId];
+                this.displayedChord = { rootIndex: chord.rootIndex, chordId: chord.chordId };
+                // Mémorise précisément l'accord sélectionné hors lecture, y compris
+                // la moitié d'une mesure à deux accords, afin de déterminer son suivant.
+                this.displayedChordStepIndex = this.grid.indexOf(step);
+                this.displayedChordHalf = (half === 1 && this.isSplit(step)) ? 1 : 0;
+
+                document.getElementById('jam-current-chord-title').textContent = `${rootName}${this.getJazzChordNotation(chord.chordId)}`;
                 document.getElementById('jam-current-scale-title').textContent = scaleDef ? scaleDef.name : '-';
+                this.updateNextJamChordDisplay(step, half);
 
                 const notesContainer = document.getElementById('jam-current-chord-notes');
                 notesContainer.innerHTML = '';
