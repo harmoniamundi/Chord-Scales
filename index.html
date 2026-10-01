@@ -5384,5 +5384,30 @@
         </div>
     </div>
 
+    <script>
+        /* Téléphone et tablette : empêche la mise en veille de l'écran tant que l'app est active (API Screen Wake Lock). */
+        (function () {
+            var isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
+            if (!isTouchDevice || !('wakeLock' in navigator)) return;
+
+            var lock = null;
+            function acquire() {
+                if (lock || document.visibilityState !== 'visible') return;
+                navigator.wakeLock.request('screen').then(function (l) {
+                    lock = l;
+                    l.addEventListener('release', function () { lock = null; });
+                }).catch(function () { lock = null; });
+            }
+
+            // Le système libère le verrou quand l'app passe en arrière-plan : on le reprend au retour.
+            document.addEventListener('visibilitychange', acquire);
+            window.addEventListener('pageshow', acquire);
+            // Certains navigateurs exigent un geste de l'utilisateur : on réessaie à chaque toucher tant que le verrou n'est pas actif.
+            ['touchend', 'click'].forEach(function (evt) {
+                document.addEventListener(evt, acquire, { passive: true });
+            });
+            acquire();
+        })();
+    </script>
 </body>
 </html> 
