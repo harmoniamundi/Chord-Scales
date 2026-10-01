@@ -388,6 +388,7 @@
                             <option value="baroque">Baroque</option>
                             <option value="mozart">Mozart / Classique</option>
                             <option value="trad">Traditionnel</option>
+                            <option value="custom">Personnalisé</option>
                         </select>
                         <select id="jam-key-select" onchange="app.jam.setMainKey(this.value)" title="Tonalité principale" class="bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-2 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
                             <option value="0">C</option><option value="1">Db</option><option value="2">D</option><option value="3">Eb</option><option value="4">E</option><option value="5">F</option><option value="6">F#</option><option value="7">G</option><option value="8">Ab</option><option value="9">A</option><option value="10">Bb</option><option value="11">B</option>
@@ -962,7 +963,17 @@
                 this.bindUndoShortcuts();
             }
 
-            resetGrid() { this.withUndo(() => this._resetGrid()); }
+            resetGrid() {
+                const select = document.getElementById('jam-style-select');
+                if (select && select.value === 'custom') return;
+                this.withUndo(() => this._resetGrid());
+            }
+
+            // Affiche « Personnalisé » dans le menu des styles (grille qui ne vient plus d'un style).
+            setStyleMenuCustom() {
+                const select = document.getElementById('jam-style-select');
+                if (select) select.value = 'custom';
+            }
 
             _resetGrid() {
                 // Générer remplace entièrement la grille par une nouvelle grille
@@ -984,22 +995,63 @@
 
             setMainKey(key) { this.withUndo(() => this._setMainKey(key)); }
 
+            // Change la tonalité en transposant la grille en cours (aucune régénération).
             _setMainKey(key) {
-                this.mainKey = parseInt(key, 10) || 0;
-                this.loadedGridName = null;
-                this.updateLoadedGridNameDisplay();
-                const styleSelect = document.getElementById('jam-style-select');
-                if (styleSelect) this.loadStyle(styleSelect.value);
+                const newKey = parseInt(key, 10) || 0;
+                const delta = ((newKey - this.mainKey) % 12 + 12) % 12;
+                this.mainKey = newKey;
+                this._skipCustom = true; // une transposition conserve le style affiché
+                if (delta === 0) return;
+                this.grid.forEach(step => {
+                    step.rootIndex = (step.rootIndex + delta) % 12;
+                    if (step.split && Number.isInteger(step.split.rootIndex)) {
+                        step.split.rootIndex = (step.split.rootIndex + delta) % 12;
+                    }
+                });
+                this.renderGridUI();
             }
 
             setMainQuality(quality) { this.withUndo(() => this._setMainQuality(quality)); }
 
+            // Change la qualité de la tonalité : chaque accord diatonique de la grille en cours est
+            // remplacé par l'accord du même degré dans le nouveau mode (aucune régénération).
+            // Les accords hors du mode d'origine (racine chromatique) sont laissés tels quels.
             _setMainQuality(quality) {
+                const oldQuality = this.mainQuality;
                 this.mainQuality = quality;
-                this.loadedGridName = null;
-                this.updateLoadedGridNameDisplay();
-                const styleSelect = document.getElementById('jam-style-select');
-                if (styleSelect) this.loadStyle(styleSelect.value);
+                if (quality === oldQuality) return;
+
+                const DEGREE_TABLE = [
+                    { off: 0,  c: 'maj7', s: 'ionian' },
+                    { off: 2,  c: 'm7',   s: 'dorian' },
+                    { off: 4,  c: 'm7',   s: 'phrygian' },
+                    { off: 5,  c: 'maj7', s: 'lydian' },
+                    { off: 7,  c: '7',    s: 'mixolydian' },
+                    { off: 9,  c: 'm7',   s: 'aeolian' },
+                    { off: 11, c: 'm7b5', s: 'locrianSharp2' }
+                ];
+                const ROTATION = { ionian:0, dorian:1, phrygian:2, lydian:3, mixolydian:4, aeolian:5, locrian:6 };
+                const rotOld = ROTATION[oldQuality] ?? 0;
+                const rotNew = ROTATION[quality] ?? 0;
+                const offsetOf = (rot, i) => (DEGREE_TABLE[(rot + i) % 7].off - DEGREE_TABLE[rot].off + 12) % 12;
+
+                const remap = (half) => {
+                    const offset = ((half.rootIndex - this.mainKey) % 12 + 12) % 12;
+                    for (let i = 0; i < 7; i++) {
+                        if (offsetOf(rotOld, i) !== offset) continue;
+                        const target = DEGREE_TABLE[(rotNew + i) % 7];
+                        half.rootIndex = (this.mainKey + offsetOf(rotNew, i)) % 12;
+                        half.chordId = target.c;
+                        half.scaleId = target.s;
+                        return;
+                    }
+                };
+                this.grid.forEach(step => {
+                    remap(step);
+                    if (step.split && Number.isInteger(step.split.rootIndex)) remap(step.split);
+                });
+                this.setStyleMenuCustom();
+                this.renderGridUI();
             }
 
             setInstrumentKey(key) {
@@ -1149,7 +1201,11 @@
 
             withUndo(fn) {
                 const before = this.captureState();
+                this._skipCustom = false;
                 fn();
+                if (!this._skipCustom && JSON.stringify(before.grid) !== JSON.stringify(this.grid)) {
+                    this.setStyleMenuCustom();
+                }
                 if (JSON.stringify(before) !== JSON.stringify(this.captureState())) {
                     this.undoStack.push(before);
                     if (this.undoStack.length > this.undoLimit) this.undoStack.shift();
@@ -1201,6 +1257,7 @@
             }
 
             changeStyle(styleKey) {
+                if (styleKey === 'custom') return;
                 this.withUndo(() => this.loadStyle(styleKey));
             }
 
@@ -1232,16 +1289,62 @@
                 }
             }
 
+            // Paramètres de jam communs à la sauvegarde et à l'export :
+            // tonalité, qualité, BPM, orchestration (mode, style, volumes, reverb).
+            collectSettings() {
+                return {
+                    key: this.mainKey,
+                    quality: this.mainQuality,
+                    bpm: this.bpm,
+                    orchestration: {
+                        mode: this.orchestrationMode,
+                        style: this.bandStyle,
+                        volumes: {
+                            piano: this.bandVolumes.piano,
+                            bass: this.bandVolumes.bass,
+                            drums: this.bandVolumes.drums
+                        },
+                        reverb: this.bandReverb
+                    }
+                };
+            }
+
+            // Une entrée sauvegardée est { grid, settings } ; les anciennes sauvegardes
+            // (simple tableau d'accords) restent lisibles, sans paramètres.
+            unpackSavedEntry(entry) {
+                if (Array.isArray(entry)) return { grid: entry, settings: null };
+                if (entry && Array.isArray(entry.grid)) return { grid: entry.grid, settings: entry.settings || null };
+                return null;
+            }
+
             saveGrid() {
                 if (this.grid.length === 0) return;
                 const name = prompt('Nom de la grille à sauvegarder :', '');
                 if (!name) return;
                 const saved = this.getSavedGrids();
-                saved[name] = JSON.parse(JSON.stringify(this.grid));
+                saved[name] = {
+                    grid: JSON.parse(JSON.stringify(this.grid)),
+                    settings: this.collectSettings()
+                };
                 localStorage.setItem('jamSavedGrids', JSON.stringify(saved));
                 this.loadedGridName = name;
                 this.renderSavedGridsMenu();
                 this.updateLoadedGridNameDisplay();
+            }
+
+            // Écrase la sauvegarde actuellement chargée avec la grille et les paramètres en cours.
+            updateSavedGrid() {
+                const name = this.loadedGridName;
+                const saved = this.getSavedGrids();
+                if (!name || !saved[name]) { this.saveGrid(); return; }
+                if (this.grid.length === 0) return;
+                saved[name] = {
+                    grid: JSON.parse(JSON.stringify(this.grid)),
+                    settings: this.collectSettings()
+                };
+                try { localStorage.setItem('jamSavedGrids', JSON.stringify(saved)); }
+                catch (e) { alert("Impossible d'enregistrer la grille."); return; }
+                this.renderSavedGridsMenu();
             }
 
             // --- Export / import d'une grille au format .json (partage entre utilisateurs) ---
@@ -1256,6 +1359,8 @@
                     format: 'chord-scales-jam-grid',
                     version: 1,
                     name: name,
+                    keyName: ['C','Db','D','Eb','E','F','F#','G','Ab','A','Bb','B'][this.mainKey] || 'C',
+                    ...this.collectSettings(),
                     grid: JSON.parse(JSON.stringify(this.grid))
                 };
                 const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -1302,6 +1407,65 @@
                 return clean;
             }
 
+            // Lit les paramètres de jam d'un fichier importé (tonalité, qualité, bpm, orchestration).
+            // Seuls les champs valides sont conservés ; les autres sont ignorés.
+            sanitizeImportedSettings(data) {
+                const out = {};
+                if (!data || typeof data !== 'object' || Array.isArray(data)) return out;
+                const key = Number(data.key);
+                if (Number.isInteger(key) && key >= 0 && key <= 11) out.key = key;
+                const qualities = ['ionian', 'aeolian', 'dorian', 'phrygian', 'lydian', 'mixolydian', 'locrian'];
+                if (typeof data.quality === 'string' && qualities.includes(data.quality)) out.quality = data.quality;
+                const bpm = Number(data.bpm);
+                if (Number.isFinite(bpm)) out.bpm = Math.max(50, Math.min(220, Math.round(bpm)));
+                const o = data.orchestration;
+                if (o && typeof o === 'object') {
+                    const orch = {};
+                    if (o.mode === 'orchestra' || o.mode === 'arpeges') orch.mode = o.mode;
+                    if (['swing', 'pop', 'latin'].includes(o.style)) orch.style = o.style;
+                    if (o.volumes && typeof o.volumes === 'object') {
+                        orch.volumes = {};
+                        ['piano', 'bass', 'drums'].forEach(k => {
+                            const v = Number(o.volumes[k]);
+                            if (o.volumes[k] !== null && o.volumes[k] !== undefined && Number.isFinite(v)) orch.volumes[k] = Math.max(0, Math.min(1, v));
+                        });
+                    }
+                    const rev = Number(o.reverb);
+                    if (o.reverb !== null && o.reverb !== undefined && Number.isFinite(rev)) orch.reverb = Math.max(0, Math.min(1, rev));
+                    out.orchestration = orch;
+                }
+                return out;
+            }
+
+            applyImportedSettings(st) {
+                if (st.key !== undefined) {
+                    this.mainKey = st.key;
+                    const keySel = document.getElementById('jam-key-select');
+                    if (keySel) keySel.value = String(this.mainKey);
+                }
+                if (st.quality !== undefined) {
+                    this.mainQuality = st.quality;
+                    const qualSel = document.getElementById('jam-quality-select');
+                    if (qualSel) qualSel.value = this.mainQuality;
+                }
+                if (st.bpm !== undefined) this.setBpm(st.bpm);
+                const o = st.orchestration;
+                if (o) {
+                    if (o.mode !== undefined) this.setOrchestrationMode(o.mode);
+                    if (o.style !== undefined) {
+                        const styleSel = document.getElementById('band-style-select');
+                        if (styleSel) styleSel.value = o.style;
+                        this.setBandStyle(o.style);
+                    }
+                    if (o.volumes) {
+                        Object.keys(o.volumes).forEach(k => this.setBandVolume(k, Math.round(o.volumes[k] * 100)));
+                    }
+                    if (o.reverb !== undefined) this.setBandReverb(Math.round(o.reverb * 100));
+                    this.updateBandModalUI();
+                    this.updateBandButtonLabel();
+                }
+            }
+
             importGridFile(input) {
                 const file = input.files && input.files[0];
                 input.value = '';
@@ -1325,7 +1489,7 @@
                     const saved = this.getSavedGrids();
                     let finalName = name, n = 2;
                     while (saved[finalName]) finalName = `${name} (${n++})`;
-                    saved[finalName] = grid;
+                    saved[finalName] = { grid, settings: this.sanitizeImportedSettings(data) };
                     try { localStorage.setItem('jamSavedGrids', JSON.stringify(saved)); }
                     catch (e) { alert("Impossible d'enregistrer la grille importée."); return; }
 
@@ -1359,6 +1523,7 @@
                 const dropdown = document.getElementById('jam-saved-grids-dropdown');
                 if (dropdown) dropdown.classList.add('hidden');
                 if (action === 'save') this.saveGrid();
+                else if (action === 'update') this.updateSavedGrid();
                 else if (action === 'export') this.exportGrid();
                 else if (action === 'import') {
                     const input = document.getElementById('jam-import-file');
@@ -1369,7 +1534,12 @@
             renderSavedGridsMenu() {
                 const dropdown = document.getElementById('jam-saved-grids-dropdown');
                 if (!dropdown) return;
-                const actions = `<div class="flex items-center gap-2 px-2 py-1.5 text-xs text-emerald-400 font-semibold hover:bg-[#252525] cursor-pointer" onclick="app.jam.runSavedGridsAction('save')">＋ Sauvegarder la grille…</div>`;
+                let actions = '';
+                if (this.loadedGridName && this.getSavedGrids()[this.loadedGridName]) {
+                    const label = this.loadedGridName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    actions += `<div class="flex items-center gap-2 px-2 py-1.5 text-xs text-emerald-400 font-semibold hover:bg-[#252525] cursor-pointer" onclick="app.jam.runSavedGridsAction('update')"><span class="truncate">Sauvegarder « ${label} »</span></div>`;
+                }
+                actions += `<div class="flex items-center gap-2 px-2 py-1.5 text-xs text-emerald-400 font-semibold hover:bg-[#252525] cursor-pointer" onclick="app.jam.runSavedGridsAction('save')">＋ Sauvegarder sous…</div>`;
                 const separator = '<div style="border-top:1px solid #333333;margin:2px 0"></div>';
                 const names = Object.keys(this.getSavedGrids());
                 let list;
@@ -1392,8 +1562,11 @@
             _loadSavedGrid(name) {
                 if (!name) return;
                 const saved = this.getSavedGrids();
-                if (!saved[name]) return;
-                this.grid = JSON.parse(JSON.stringify(saved[name]));
+                const entry = this.unpackSavedEntry(saved[name]);
+                if (!entry) return;
+                this.grid = JSON.parse(JSON.stringify(entry.grid));
+                this.setStyleMenuCustom();
+                if (entry.settings) this.applyImportedSettings(this.sanitizeImportedSettings(entry.settings));
                 this.loadedGridName = name;
                 this.renderGridUI();
                 this.updateLoadedGridNameDisplay();
@@ -2984,6 +3157,9 @@
                 }
 
                 this.grid = generated;
+                this._skipCustom = true;
+                this.loadedGridName = null;
+                this.updateLoadedGridNameDisplay();
                 this.lastGeneratedSignature = signature;
                 this.renderGridUI();
             }
