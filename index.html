@@ -458,6 +458,7 @@
                         <select id="jam-style-select" onchange="app.jam.changeStyle(this.value)" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-2.5 rounded-lg transition text-xs shadow cursor-pointer border-0 outline-none">
                             <option value="ii-v-i" selected>II-V-I</option>
                             <option value="anatole">Anatole (I-VI-II-V)</option>
+                            <option value="i-got-rythm">I got rythm</option>
                             <option value="blues">Blues Traditionnel</option>
                             <option value="bebop">BeBop (Rhythm Changes)</option>
                             <option value="swing">Swing / Standard</option>
@@ -1353,7 +1354,14 @@
 
             changeStyle(styleKey) {
                 if (styleKey === 'custom') return;
-                this.withUndo(() => this.loadStyle(styleKey));
+                this.withUndo(() => {
+                    if (styleKey === 'i-got-rythm') {
+                        this.mainKey = 10;
+                        const keySel = document.getElementById('jam-key-select');
+                        if (keySel) keySel.value = '10';
+                    }
+                    this.loadStyle(styleKey);
+                });
             }
 
             bindUndoShortcuts() {
@@ -2844,6 +2852,7 @@
             // Génération harmonique par grammaire : les variations se font au niveau des
             // fonctions et des phrases, jamais par déplacement chromatique arbitraire d'un accord.
             createStyleVariation(template, styleKey, keyRoot) {
+                if (styleKey === 'i-got-rythm') return template.map(x => ({ ...x }));
                 if (!template.length || this.generationVariant <= 0) return template.map(item => ({ ...item }));
                 const rand = this.makeVariationRng(this.generationVariant, styleKey);
                 const out = template.map(item => ({ ...item }));
@@ -2985,7 +2994,7 @@
 
             normalizeGeneratedGrid(template, styleKey) {
                 const targetMeasures = {
-                    'ii-v-i': 4, 'anatole': 8, 'blues': 12, 'bebop': 32, 'swing': 32,
+                    'ii-v-i': 4, 'anatole': 8, 'i-got-rythm': 32, 'blues': 12, 'bebop': 32, 'swing': 32,
                     'modal': 16, 'bossa': 32, 'pop': 16, 'ballad': 32, 'funk': 16,
                     'hardbop': 16, 'dixieland': 16, 'latin': 16, 'fusion': 16,
                     'baroque': 16, 'mozart': 16, 'trad': 16
@@ -3125,6 +3134,72 @@
                             [chordJazz('I',1,'A2','A2','tonic'), abs(9,'7',1,'mixolydian','A2','A2','secondaryDominant'), chordJazz('ii',1,'A2','A2','predominant'), chordJazz('V',1,'A2','A2','dominant')]
                         );
                         break;
+
+                    case 'i-got-rythm': {
+                        // Grille exactement issue du fichier « I got rythm.json » :
+                        // tonalité d'origine Bb, 32 mesures, AABA.
+                        // Les offsets ci-dessous sont relatifs à la tonique sélectionnée ;
+                        // en Bb ils produisent exactement les rootIndex du fichier JSON.
+                        const mk = (off, c, s, section, phrase, fn, split=null, bassOff=null) => {
+                            const item = {
+                                r:(keyRoot + off + 12) % 12,
+                                c,
+                                m:1,
+                                s,
+                                section,
+                                phrase,
+                                function:fn
+                            };
+                            if (bassOff !== null) item.bassRootIndex = (keyRoot + bassOff + 12) % 12;
+                            if (split) {
+                                item.split = {
+                                    r:(keyRoot + split.off + 12) % 12,
+                                    c:split.c,
+                                    s:split.s
+                                };
+                            }
+                            return item;
+                        };
+
+                        const A = [
+                            mk(0, 'majTriad', 'ionian', 'A', 'A1', 'tonic',
+                                {off:9, c:'7', s:'mixolydian'}),
+                            mk(2, 'm7', 'dorian', 'A', 'A1', 'predominant',
+                                {off:7, c:'7', s:'mixolydian'}),
+                            mk(0, 'majTriad', 'ionian', 'A', 'A1', 'tonic',
+                                {off:9, c:'7', s:'mixolydian'}),
+                            mk(2, 'm7', 'dorian', 'A', 'A1', 'predominant',
+                                {off:7, c:'7', s:'mixolydian'}),
+                            mk(0, 'majTriad', 'ionian', 'A', 'A2', 'tonic',
+                                {off:0, c:'7', s:'mixolydian'}),
+                            mk(5, 'majTriad', 'ionian', 'A', 'A2', 'predominant',
+                                {off:6, c:'dim7', s:'wholeHalfDim'}),
+                            mk(0, 'majTriad', 'ionian', 'A', 'A2', 'tonic',
+                                {off:7, c:'7', s:'mixolydian'}, 7),
+                            mk(0, 'majTriad', 'ionian', 'A', 'A2', 'tonic')
+                        ];
+
+                        const B = [
+                            mk(4, '7', 'mixolydian', 'B', 'B1', 'dominant'),
+                            mk(4, '7', 'mixolydian', 'B', 'B1', 'dominant'),
+                            mk(9, '7', 'mixolydian', 'B', 'B1', 'dominant'),
+                            mk(9, '7', 'mixolydian', 'B', 'B1', 'dominant'),
+                            mk(2, '7', 'mixolydian', 'B', 'B2', 'dominant'),
+                            mk(2, '7', 'mixolydian', 'B', 'B2', 'dominant'),
+                            mk(7, '7', 'mixolydian', 'B', 'B2', 'dominant'),
+                            mk(7, '7', 'mixolydian', 'B', 'B2', 'dominant')
+                        ];
+
+                        const A3 = A.map(item => ({
+                            ...item,
+                            section:'A3',
+                            phrase:item.phrase === 'A1' ? 'A31' : 'A32',
+                            split:item.split ? { ...item.split } : undefined
+                        }));
+
+                        template = join(A, B, A3);
+                        break;
+                    }
 
                     case 'blues': {
                         // Blues 12 mesures : trois phrases de 4, avec IV au début de la seconde
@@ -3284,21 +3359,25 @@
 
                 const sourceTemplate = template.map(item => ({ ...item }));
                 template = this.createStyleVariation(sourceTemplate, styleKey, keyRoot);
-                template = this.normalizeGeneratedGrid(template, styleKey);
+                template = styleKey === 'i-got-rythm' ? template : this.normalizeGeneratedGrid(template, styleKey);
 
                 let generated = template.map(item => ({
                     rootIndex:item.r, chordId:item.c, measures:item.m, scaleId:item.s,
-                    section:item.section, phrase:item.phrase, harmonicFunction:item.function
+                    section:item.section, phrase:item.phrase, harmonicFunction:item.function,
+                    bassRootIndex:Number.isInteger(item.bassRootIndex) ? item.bassRootIndex : undefined,
+                    split:item.split ? { rootIndex:item.split.r, chordId:item.split.c, scaleId:item.split.s } : undefined
                 }));
 
                 let signature = this.getGridSignature(generated);
                 if (this.lastGeneratedSignature && signature === this.lastGeneratedSignature) {
                     this.generationVariant++;
                     template = this.createStyleVariation(sourceTemplate, styleKey, keyRoot);
-                    template = this.normalizeGeneratedGrid(template, styleKey);
+                    template = styleKey === 'i-got-rythm' ? template : this.normalizeGeneratedGrid(template, styleKey);
                     generated = template.map(item => ({
                         rootIndex:item.r, chordId:item.c, measures:item.m, scaleId:item.s,
-                        section:item.section, phrase:item.phrase, harmonicFunction:item.function
+                        section:item.section, phrase:item.phrase, harmonicFunction:item.function,
+                        bassRootIndex:Number.isInteger(item.bassRootIndex) ? item.bassRootIndex : undefined,
+                        split:item.split ? { rootIndex:item.split.r, chordId:item.split.c, scaleId:item.split.s } : undefined
                     }));
                     signature = this.getGridSignature(generated);
                 }
@@ -3336,7 +3415,9 @@
             }
 
             getChordSymbol(chord) {
-                return `${rootLabels[chord.rootIndex]}${this.getJazzChordNotation(chord.chordId)}`;
+                const symbol = `${rootLabels[chord.rootIndex]}${this.getJazzChordNotation(chord.chordId)}`;
+                if (Number.isInteger(chord.bassRootIndex)) return `${symbol}/${rootLabels[chord.bassRootIndex]}`;
+                return symbol;
             }
 
             // Vrai sur un téléphone (écran tactile dont le petit côté fait moins de 600 px), en portrait comme en paysage.
@@ -3367,6 +3448,7 @@
                             rootIndex: step.rootIndex,
                             chordId: step.chordId,
                             scaleId: step.scaleId,
+                            bassRootIndex: Number.isInteger(step.bassRootIndex) ? step.bassRootIndex : null,
                             split: this.isSplit(step) ? { rootIndex: step.split.rootIndex, chordId: step.split.chordId, scaleId: step.split.scaleId } : null,
                             harmonicFunction: step.harmonicFunction || null
                         });
@@ -4094,13 +4176,18 @@
                 }
             }
 
-            start() {
+            async start() {
                 if (this.grid.length === 0) return;
                 this.app.stopAllSounds();
                 this.app.stopLoop();
                 
                 if (!this.app.pianoInstrument) {
                     this.app.loadPiano();
+                }
+                // Le métronome utilise directement l'AudioContext : il faut impérativement
+                // que celui-ci soit actif avant de lancer le premier temps de l'intro.
+                if (this.app.audioCtx && this.app.audioCtx.state === 'suspended') {
+                    try { await this.app.audioCtx.resume(); } catch (e) {}
                 }
                 this.initGainNode();
                 if (this.orchestrationMode === 'orchestra') this.ensureBandAudio();
@@ -4131,7 +4218,17 @@
                 window.addEventListener('resize', this._onResize);
 
                 this.renderJamScales();
-                this.tick();
+
+                // Le premier clic doit attendre le réveil de l'AudioContext : sinon il peut être perdu
+                // au démarrage et l'intro de 4 temps n'en laisse entendre que 3.
+                const audioCtx = this.app.audioCtx;
+                if (audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume().then(() => {
+                        if (this.isPlaying) this.tick();
+                    });
+                } else {
+                    this.tick();
+                }
             }
 
             stop() {
