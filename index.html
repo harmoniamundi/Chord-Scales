@@ -30,6 +30,16 @@
         #view-jam #jam-chord-sequence-display .jam-split .jam-realbook-chord { font-size: 0.95rem !important; }
         #jam-chord-sequence-display .jam-half-active { background: rgba(255,255,255,.24); }
         #jam-chord-sequence-display .jam-half-fn { position: absolute; bottom: 4px; font-family: "Kalam", cursive; font-size: 1rem; line-height: 1; color: #ef4444; }
+        /* « >> » en bas à gauche d'une case : un clic joue l'arpège de l'accord de la case */
+        #jam-chord-sequence-display .jam-arp-btn {
+            position: absolute; left: 3px; bottom: 2px; z-index: 2;
+            padding: 3px 5px 2px; border-radius: 4px;
+            font: 700 10px/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: -1px;
+            color: #94a3b8; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;
+        }
+        #jam-chord-sequence-display .jam-arp-btn:hover { color: #2563eb; background: rgba(37,99,235,.14); }
+        #jam-chord-sequence-display .jam-cell.bg-blue-600 .jam-arp-btn { color: #bfdbfe; }
+        #jam-chord-sequence-display .jam-cell.bg-blue-600 .jam-arp-btn:hover { color: #fff; background: rgba(255,255,255,.2); }
         .jam-dragging { position: relative; z-index: 30; opacity: .92; box-shadow: 0 8px 20px rgba(0,0,0,.55); transition: none !important; cursor: grabbing; }
 
         /* Style des symboles d'accords façon Real Book — uniquement dans la grille d'accords du mode Jam */
@@ -309,7 +319,8 @@
                 font-size: 0.8rem !important; right: 4px; bottom: 2px;
             }
             #jam-chord-sequence-display .jam-half-fn { font-size: 0.7rem; }
-            #jam-chord-sequence-display .jam-half-fn[style*="left"] { left: 3px !important; }
+            #jam-chord-sequence-display .jam-arp-btn { left: 0; bottom: 0; padding: 7px 8px 4px; }
+            #jam-chord-sequence-display .jam-half-fn[style*="left"] { left: 26px !important; }
             #jam-chord-sequence-display .jam-half-fn[style*="right"] { right: 3px !important; }
 
             /* Pied de carte : l'accord courant sur sa ligne, les boutons de lecture sur la suivante */
@@ -565,9 +576,11 @@
                                 <div id="jam-current-chord-notes" class="flex gap-1.5"></div>
                             </div>
                             <div id="jam-next-chord-display" class="hidden items-center gap-2 min-w-0 ml-[8px]">
-                                <span class="jam-next-chord-label text-xs font-semibold text-slate-400 uppercase tracking-wider whitespace-nowrap shrink-0">Accord suivant</span>
+                                <span class="jam-next-chord-label text-slate-300 whitespace-nowrap shrink-0" role="img" aria-label="Accord suivant" title="Accord suivant">
+                                    <svg width="40" height="18" viewBox="0 0 40 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block"><path d="M2 10.5 C9 7.5 17 12.5 24 9.5 S33 9 37 9.2"/><path d="M30 3.2 C32.5 5.6 35 7.6 37.4 9.1 C34.6 10.8 32.2 12.8 29.6 15.6"/></svg>
+                                </span>
                                 <div class="flex items-center gap-3 min-w-0">
-                                    <span id="jam-next-chord-title" class="font-bold text-white text-2xl whitespace-nowrap">---</span>
+                                    <span id="jam-next-chord-title" class="font-bold text-white text-2xl whitespace-nowrap cursor-pointer select-none hover:text-blue-400 transition" onclick="app.jam.playNextChordArpeggio()" title="Écouter l'arpège">---</span>
                                     <div id="jam-next-chord-notes" class="flex gap-1.5"></div>
                                 </div>
                             </div>
@@ -3475,7 +3488,7 @@
                             if (showSplit) {
                                 const fa = this.getHarmonicFunctionLabel({ rootIndex: m.rootIndex, chordId: m.chordId, harmonicFunction: null }, flatMeasures, flatIdx);
                                 const fb = this.getHarmonicFunctionLabel({ rootIndex: m.split.rootIndex, chordId: m.split.chordId, harmonicFunction: null }, flatMeasures, flatIdx);
-                                bottomHtml = `<div class="jam-half-fn" style="left:8px">${fa}</div><div class="jam-half-fn" style="right:8px">${fb}</div>`;
+                                bottomHtml = `<div class="jam-half-fn" style="left:24px">${fa}</div><div class="jam-half-fn" style="right:8px">${fb}</div>`;
                             } else {
                                 bottomHtml = `<div class="jam-cell-bottom text-[10px] text-right font-normal jam-realbook-chord text-red-500">${this.getHarmonicFunctionLabel(m, flatMeasures, flatIdx)}</div>`;
                             }
@@ -3512,7 +3525,14 @@
                             </div>
                             ${centerHtml}
                             ${bottomHtml}
+                            <span class="jam-arp-btn" role="button" aria-label="Écouter l'arpège" title="Écouter l'arpège">&gt;&gt;</span>
                         `;
+                        // Un clic sur « >> » joue seulement l'arpège de l'accord (le premier de la mesure s'il y en a deux),
+                        // sans changer la sélection ni déclencher le clic de la case.
+                        mBox.querySelector('.jam-arp-btn').onclick = (ev) => {
+                            ev.stopPropagation();
+                            this.playChordArpeggioFor({ rootIndex: m.rootIndex, chordId: m.chordId });
+                        };
                         systemRow.appendChild(mBox);
                     });
 
@@ -4240,7 +4260,15 @@
             // Accord actuellement affiché sous la grille : un clic sur son nom joue son arpège,
             // un clic sur l'une de ses notes joue cette note.
             playDisplayedChordArpeggio() {
-                const chord = this.displayedChord;
+                this.playChordArpeggioFor(this.displayedChord);
+            }
+
+            // Un clic sur le nom de l'accord suivant joue son arpège, comme pour l'accord sélectionné.
+            playNextChordArpeggio() {
+                this.playChordArpeggioFor(this.displayedNextChord);
+            }
+
+            playChordArpeggioFor(chord) {
                 if (!chord) return;
                 const app = this.app;
                 if (!app.pianoInstrument) {
@@ -4324,6 +4352,7 @@
                 const display = document.getElementById('jam-next-chord-display');
                 const title = document.getElementById('jam-next-chord-title');
                 const notesContainer = document.getElementById('jam-next-chord-notes');
+                this.displayedNextChord = null;
                 if (!display || !title || !notesContainer) return;
 
                 // L'accord suivant reste affiché même lorsque la Jam est arrêtée.
@@ -4370,6 +4399,7 @@
                     return;
                 }
 
+                this.displayedNextChord = { rootIndex: nextChord.rootIndex, chordId: nextChord.chordId };
                 const nextRootName = rootLabels[nextChord.rootIndex];
                 const nextChordObj = this.findChordObj(nextChord.chordId);
                 title.textContent = `${nextRootName}${this.getJazzChordNotation(nextChord.chordId)}`;
