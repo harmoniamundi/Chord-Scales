@@ -267,6 +267,59 @@
             #jam-print-area .jam-print-split .jam-print-chord + .jam-print-chord { border-left: 1.5pt solid #000000; }
         }
     </style>
+    <style>
+        /* ===== Adaptation téléphone (aucun effet sur ordinateur) ===== */
+
+        /* Δ et ♭ : absents de la police Kalam -> police système qui les contient.
+           Limité aux écrans tactiles : le rendu sur ordinateur reste strictement identique. */
+        @media (hover: none) and (pointer: coarse) {
+            .jam-glyph { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-weight: 700; font-style: normal; }
+            #jam-chord-sequence-display .jam-cell-bottom .jam-glyph,
+            #jam-chord-sequence-display .jam-half-fn .jam-glyph { font-weight: 400; }
+        }
+
+        @media (max-width: 639px) {
+            /* Marges générales plus étroites */
+            #view-jam > main { padding: 12px; }
+            #view-training #scales-container { padding: 12px; }
+            #jam-chord-card { padding: 10px; }
+            #jam-scales-card { padding: 12px; }
+
+            /* En-tête de la carte « Grille d'accords » : empilé au lieu de 3 colonnes */
+            #jam-chord-card > .grid.grid-cols-3 { grid-template-columns: minmax(0, 1fr); row-gap: 6px; }
+            #jam-chord-card > .grid.grid-cols-3 > * { justify-self: stretch; }
+            #jam-chord-card > .grid.grid-cols-3 > #jam-loaded-grid-name { text-align: left; font-size: 0.8rem; }
+            #jam-chord-card > .grid.grid-cols-3 > #jam-loaded-grid-name:empty { display: none; }
+            #jam-chord-card > .grid.grid-cols-3 > div:last-child #jam-current-scale-title { flex: 1 1 auto; text-align: left; }
+
+            /* Grille : cases plus serrées, textes réduits proportionnellement à la largeur de l'écran */
+            #jam-chord-sequence-display .jam-wrapper { padding-left: 0; padding-right: 0; }
+            #jam-chord-sequence-display .jam-row { padding: 4px; gap: 4px; }
+            #jam-chord-sequence-display .jam-cell { padding: 4px; height: 68px; min-height: 68px; }
+            #jam-chord-sequence-display .jam-cell-top { font-size: 8px; gap: 2px; }
+            #jam-chord-sequence-display .jam-cell-top > span:last-child { max-width: 46px; font-size: 7px; }
+
+            #view-jam #jam-chord-sequence-display .jam-cell > .jam-realbook-chord:not(.jam-cell-bottom) {
+                font-size: clamp(0.78rem, 4.2vw, 1.1rem);
+            }
+            #view-jam #jam-chord-sequence-display .jam-split .jam-realbook-chord {
+                font-size: clamp(0.6rem, 3.1vw, 0.8rem) !important;
+            }
+            #view-jam #jam-chord-sequence-display .jam-cell-bottom {
+                font-size: 0.8rem !important; right: 4px; bottom: 2px;
+            }
+            #jam-chord-sequence-display .jam-half-fn { font-size: 0.7rem; }
+            #jam-chord-sequence-display .jam-half-fn[style*="left"] { left: 3px !important; }
+            #jam-chord-sequence-display .jam-half-fn[style*="right"] { right: 3px !important; }
+
+            /* Pied de carte : l'accord courant sur sa ligne, les boutons de lecture sur la suivante */
+            #jam-chord-sequence-display + div { flex-wrap: wrap; row-gap: 10px; }
+            #jam-chord-sequence-display + div > div:first-child { flex: 1 1 100%; flex-wrap: wrap; gap: 8px 14px; }
+            #jam-chord-sequence-display + div > div:last-child { margin-left: auto; }
+            #jam-current-chord-notes, #jam-next-chord-notes { flex-wrap: wrap; }
+            #view-jam #jam-next-chord-display { margin-left: 0 !important; padding-left: 0; border-left: 0; flex: 1 1 100%; flex-wrap: wrap; gap: 8px 12px !important; }
+        }
+    </style>
 </head>
 <body class="bg-[#121212] text-slate-100 selection:bg-blue-500 selection:text-white">
 
@@ -3273,6 +3326,12 @@
                 return `${rootLabels[chord.rootIndex]}${this.getJazzChordNotation(chord.chordId)}`;
             }
 
+            // Version HTML du symbole pour la grille : les caractères absents de la police Kalam (Δ, ♭)
+            // sont isolés dans un <span> afin que le téléphone puisse leur imposer une police qui les contient.
+            getChordSymbolHtml(chord) {
+                return this.getChordSymbol(chord).replace(/[Δ♭]/g, (c) => `<span class="jam-glyph">${c}</span>`);
+            }
+
             getMeasureKey(m) {
                 return m.split ? `${this.getChordSymbol(m)}|${this.getChordSymbol(m.split)}` : this.getChordSymbol(m);
             }
@@ -3388,7 +3447,7 @@
                     systemRow.className = "jam-row grid grid-cols-4 gap-1.5 bg-[#1a1a1a] p-1.5 rounded-lg border border-[#333333]";
 
                     systemMeasures.forEach((m) => {
-                        const symA = this.getChordSymbol(m);
+                        const symA = this.getChordSymbolHtml(m);
                         const previousMeasure = flatMeasures[m.measureNumber - 2];
                         // « % » : la mesure répète exactement la précédente (les deux accords s'il y en a deux)
                         const repeat = !!previousMeasure && this.getMeasureKey(previousMeasure) === this.getMeasureKey(m);
@@ -3401,7 +3460,7 @@
                         const centerHtml = showSplit
                             ? `<div class="jam-split my-auto">
                                    <div class="jam-half${activeHalf === 0 ? ' jam-half-active' : ''}" data-half="0"><span class="jam-realbook-chord whitespace-nowrap">${symA}</span></div>
-                                   <div class="jam-half${activeHalf === 1 ? ' jam-half-active' : ''}" data-half="1"><span class="jam-realbook-chord whitespace-nowrap">${this.getChordSymbol(m.split)}</span></div>
+                                   <div class="jam-half${activeHalf === 1 ? ' jam-half-active' : ''}" data-half="1"><span class="jam-realbook-chord whitespace-nowrap">${this.getChordSymbolHtml(m.split)}</span></div>
                                </div>`
                             : `<div class="jam-realbook-chord my-auto whitespace-nowrap overflow-visible">${displayChordSymbol}</div>`;
                         let bottomHtml = '';
