@@ -3326,6 +3326,12 @@
                 return `${rootLabels[chord.rootIndex]}${this.getJazzChordNotation(chord.chordId)}`;
             }
 
+            // Vrai sur un téléphone (écran tactile dont le petit côté fait moins de 600 px), en portrait comme en paysage.
+            isPhone() {
+                return window.matchMedia('(pointer: coarse)').matches
+                    && Math.min(window.screen.width, window.screen.height) < 600;
+            }
+
             // Version HTML du symbole pour la grille : les caractères absents de la police Kalam (Δ, ♭)
             // sont isolés dans un <span> afin que le téléphone puisse leur imposer une police qui les contient.
             getChordSymbolHtml(chord) {
@@ -3922,7 +3928,8 @@
                     this.app.renderVexFlowStaff(task.canvasId, task.intervals, task.rootName, task.isDesc, task.avoidNotes, task.characteristicInterval, task.chordObj, false, task.showTargetNotes, true);
                 });
 
-                if (!this.isPlaying && this.currentStepIndex >= 0) {
+                // Sur téléphone, jamais de défilement automatique vers la carte de gamme : la grille doit rester en vue.
+                if (!this.isPlaying && !this.isPhone() && this.currentStepIndex >= 0) {
                     const activeCard = document.getElementById(`jam-scale-card-${this.currentStepIndex}`);
                     if (activeCard) activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }
