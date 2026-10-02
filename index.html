@@ -1113,6 +1113,9 @@
                 this.currentBeat = 0;
                 this.activeSlot = 0; // créneau (0 = gauche/haut, 1 = droite/bas) occupé par la gamme active
                 this.timer = null;
+                this._LEAD = 0.12;       // avance (s) des ticks sur leur temps audio
+                this._beatAudio = null;  // instant audio du prochain temps
+                this._beatAudioTime = null;
                 
                 this.volume = 0.8;
                 this.gainNode = null;
@@ -1126,7 +1129,7 @@
                 this.bandReverb = 0.25;
                 // Métronome (hors sauvegardes / export / import) : intro d'une mesure toujours jouée ; clic pendant la grille seulement si activé
                 this.metronomeEnabled = false;
-                this.metronomeVolume = 1;
+                this.metronomeVolume = 0.3;
                 this.metroGain = null;
                 this._countInBeats = 0;
                 this.bandGains = { piano: null, bass: null, drums: null };
@@ -1932,7 +1935,10 @@
                 if (vol) vol.value = Math.round(this.metronomeVolume * 100);
             }
 
-            playMetronomeClick(accent) {
+            // Même son que l'application métronome « Tempus fugit » :
+            // temps normal = clic carré qui chute de 2400 à 140 Hz ; temps accentué = « wood block » aigu
+            // (triangle 2600 → 2200 Hz + couche carrée à 1100 Hz).
+            playMetronomeClick(accent, time = null) {
                 const ctx = this.app.audioCtx;
                 if (!ctx) return;
                 if (!this.metroGain) {
@@ -1940,18 +1946,41 @@
                     this.metroGain.gain.value = this.metronomeVolume;
                     this.metroGain.connect(ctx.destination);
                 }
-                const t = ctx.currentTime;
+                const t = time === null ? ctx.currentTime : Math.max(time, ctx.currentTime);
                 const osc = ctx.createOscillator();
-                const env = ctx.createGain();
-                osc.type = 'triangle';
-                osc.frequency.value = accent ? 1600 : 1000;
-                env.gain.setValueAtTime(0.0001, t);
-                env.gain.linearRampToValueAtTime(accent ? 1 : 0.7, t + 0.002);
-                env.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
-                osc.connect(env);
-                env.connect(this.metroGain);
+                const gain = ctx.createGain();
+
+                if (accent) {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(2600, t);
+                    osc.frequency.exponentialRampToValueAtTime(2200, t + 0.01);
+
+                    gain.gain.setValueAtTime(9.0, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.014);
+
+                    const subOsc = ctx.createOscillator();
+                    const subGain = ctx.createGain();
+                    subOsc.type = 'square';
+                    subOsc.frequency.setValueAtTime(1100, t);
+                    subGain.gain.setValueAtTime(5.0, t);
+                    subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.01);
+                    subOsc.connect(subGain);
+                    subGain.connect(this.metroGain);
+                    subOsc.start(t);
+                    subOsc.stop(t + 0.01);
+                } else {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(2400, t);
+                    osc.frequency.exponentialRampToValueAtTime(140, t + 0.018);
+
+                    gain.gain.setValueAtTime(6.4, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.018);
+                }
+
+                osc.connect(gain);
+                gain.connect(this.metroGain);
                 osc.start(t);
-                osc.stop(t + 0.06);
+                osc.stop(t + 0.018);
             }
 
             setOrchestrationMode(mode) {
@@ -2828,7 +2857,7 @@
                 this.ensureBandAudio();
                 // Les frappes sont plus nombreuses qu'avant : on purge régulièrement les nœuds déjà terminés.
                 if (this.bandAudioNodes.length > 600) this.bandAudioNodes.splice(0, this.bandAudioNodes.length - 300);
-                const now = this.app.audioCtx.currentTime;
+                const now = this._audioNow();
                 const beatSec = 60 / this.bpm;
 
                 if (beatInMeasure === 0) {
@@ -3984,6 +4013,11 @@
                 } catch (e) {}
             }
 
+            // Nom de l'accord (agrandi) ; un clic joue l'accord plaqué sans déclencher le clic de la carte.
+            buildChordNameHtml(rootIndex, chordId, rootName, chordObj) {
+                return `<span onclick="app.playJamChord(${rootIndex}, '${chordId}'); event.stopPropagation();" class="font-bold cursor-pointer select-none" style="font-size:1.25rem;line-height:1.2;color:#60a5fa;" title="Écouter l'accord">${rootName}${chordObj.name}</span>`;
+            }
+
             // Zone de visualisation d'une gamme selon le mode choisi (Portée, Intervalles, Notes, Lettres).
             buildScaleVizHtml(scaleDef, rootName, rootIndex, chordObj, avoidNotes, characteristicInterval, canvasId, large = false) {
                 if (this.visMode === 'staff') {
@@ -4088,7 +4122,7 @@
                                     <h3 class="font-bold text-sm text-white">${rootName} ${scaleDef.name}</h3>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <span class="text-xs font-semibold text-blue-400">Accord : ${rootName}${chordObj.name}</span>
+                                    ${this.buildChordNameHtml(data.rootIndex, data.chordId, rootName, chordObj)}
                                     ${isCurrent ? '<span class="jam-active-badge px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-500 text-slate-950 uppercase tracking-wider animate-pulse">Active</span>' : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-300 uppercase tracking-wider">Suivante</span>'}
                                 </div>
                             </div>
@@ -4151,7 +4185,7 @@
                                     <h3 class="font-bold text-sm text-white">${rootName} ${scaleDef.name}</h3>
                                     <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#2a2a2c] text-slate-300 border border-[#333333]">${scaleDef.category}</span>
                                 </div>
-                                <span class="text-xs font-semibold text-blue-400">Accord : ${rootName}${chordObj.name}</span>
+                                ${this.buildChordNameHtml(step.rootIndex, step.chordId, rootName, chordObj)}
                             </div>
                             <p class="text-xs text-slate-400 mb-3 select-none">${scaleDef.desc}</p>
                             <div class="pt-2 border-t border-[#333333] w-full">
@@ -4212,7 +4246,7 @@
                                 <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#2a2a2c] text-slate-300 font-bold border border-[#444]">${k === 0 ? 'Temps 1–2' : 'Temps 3–4'}</span>
                                 <h3 class="font-bold text-sm text-white">${rootName} ${scaleDef.name}</h3>
                                 <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#2a2a2c] text-slate-300 border border-[#333333]">${scaleDef.category}</span>
-                                <span class="text-xs font-semibold text-blue-400">Accord : ${rootName}${chordObj.name}</span>
+                                ${this.buildChordNameHtml(h.rootIndex, h.chordId, rootName, chordObj)}
                             </div>
                             <p class="text-xs text-slate-400 mb-2 select-none">${scaleDef.desc}</p>
                             ${this.buildScaleVizHtml(scaleDef, rootName, h.rootIndex, chordObj, this.showAvoidNotes ? getAvoidNotes(h.scaleId, h.chordId) : [], this.showCharacteristic ? scaleDef.characteristicInterval : null, `jam-vexflow-canvas-${idx}${k === 0 ? '' : '-b'}`)}
@@ -4329,6 +4363,9 @@
                 this.initGainNode();
                 if (this.orchestrationMode === 'orchestra') this.ensureBandAudio();
 
+                this._clockClear(this.timer);
+                this._runId = (this._runId || 0) + 1; // invalide toute chaîne de temps précédente
+                this._beatAudio = null;
                 this.isPlaying = true;
                 this.currentStepIndex = 0;
                 this.currentBeat = 0;
@@ -4360,11 +4397,12 @@
                 // au démarrage et l'intro de 4 temps n'en laisse entendre que 3.
                 const audioCtx = this.app.audioCtx;
                 if (audioCtx && audioCtx.state === 'suspended') {
+                    const runId = this._runId;
                     audioCtx.resume().then(() => {
-                        if (this.isPlaying) this.tick();
+                        if (this.isPlaying && runId === this._runId) this.tick(runId);
                     });
                 } else {
-                    this.tick();
+                    this.tick(this._runId);
                 }
             }
 
@@ -4376,7 +4414,11 @@
                 if (scalesBox) scalesBox.style.minHeight = '';
                 if (this._onResize) window.removeEventListener('resize', this._onResize);
                 clearTimeout(this._resizeTimer);
-                if (this.timer) clearTimeout(this.timer);
+                this._runId = (this._runId || 0) + 1;
+                this._clockClear(this.timer);
+                this.timer = null;
+                this._beatAudio = null;
+                this._beatAudioTime = null;
                 this.currentStepIndex = -1;
                 this.currentBeat = 0;
 
@@ -4396,60 +4438,171 @@
                 this.updateActiveJamScaleHighlight();
             }
 
-            tick() {
-                if (!this.isPlaying) return;
+            // --- Horloge du métronome / de la jam -------------------------------------------------
+            // Les timers du thread principal sont bridés (onglet en arrière-plan) et retardés par les rendus
+            // lourds ; on délègue donc l'attente à un Web Worker, et on vise des instants ABSOLUS
+            // (grille de temps sans dérive) au lieu d'enchaîner des setTimeout relatifs.
+            _getClockWorker() {
+                if (this._clockWorker !== undefined) return this._clockWorker;
+                this._clockCbs = new Map();
+                this._clockSeq = 0;
+                try {
+                    const src = "const m=new Map();onmessage=e=>{const d=e.data;if(d.t==='set'){m.set(d.id,setTimeout(()=>{m.delete(d.id);postMessage(d.id);},d.ms));}else if(d.t==='clear'){clearTimeout(m.get(d.id));m.delete(d.id);}};";
+                    const w = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+                    w.onmessage = (e) => {
+                        const cb = this._clockCbs.get(e.data);
+                        this._clockCbs.delete(e.data);
+                        if (cb) cb();
+                    };
+                    this._clockWorker = w;
+                } catch (err) {
+                    this._clockWorker = null; // repli : setTimeout classique
+                }
+                return this._clockWorker;
+            }
+
+            _clockSet(ms, cb) {
+                const w = this._getClockWorker();
+                if (!w) return setTimeout(cb, ms);
+                const id = ++this._clockSeq;
+                this._clockCbs.set(id, cb);
+                w.postMessage({ t: 'set', id, ms });
+                return id;
+            }
+
+            _clockClear(id) {
+                if (id === null || id === undefined) return;
+                const w = this._clockWorker;
+                if (!w) { clearTimeout(id); return; }
+                this._clockCbs.delete(id);
+                w.postMessage({ t: 'clear', id });
+            }
+
+            // Instant audio (horloge matérielle de l'AudioContext) auquel doit sonner le temps en cours de
+            // programmation. Les fonctions de jeu (arpèges, orchestre) l'utilisent à la place de currentTime.
+            _audioNow() {
+                return this._beatAudioTime != null ? this._beatAudioTime : this.app.audioCtx.currentTime;
+            }
+
+            // Exécute fn à l'instant audio t (affichage synchronisé avec le son), sauf si la lecture a changé entre-temps.
+            _runAtAudioTime(t, runId, fn) {
+                const ctx = this.app.audioCtx;
+                const delayMs = (t - ctx.currentTime) * 1000;
+                const guarded = () => { if (this.isPlaying && runId === this._runId) fn(); };
+                if (delayMs <= 4) guarded();
+                else this._clockSet(delayMs, guarded);
+            }
+
+            // Exécute fn avec l'état (mesure / temps / créneau) tel qu'il était au temps concerné.
+            _withState(st, fn) {
+                const live = { currentStepIndex: this.currentStepIndex, currentBeat: this.currentBeat, activeSlot: this.activeSlot };
+                Object.assign(this, st);
+                try { fn(); } catch (e) { console.error('Jam UI', e); } finally { Object.assign(this, live); }
+            }
+
+            // Le tick suivant part TEMPS_AVANCE secondes AVANT son temps : il programme alors le son à l'instant
+            // exact de la grille audio. La gigue des timers et des rendus (jusqu'à ~100 ms) n'a donc plus
+            // aucun effet audible, et le métronome comme la musique restent parfaitement réguliers.
+            _scheduleNextTick(runId) {
+                const ctx = this.app.audioCtx;
+                const target = this._beatAudio - this._LEAD;
+                const delayMs = Math.max(0, (target - ctx.currentTime) * 1000);
+                this.timer = this._clockSet(delayMs, () => this.tick(runId));
+            }
+
+            tick(runId = this._runId) {
+                // Un tick d'une ancienne lecture (arrêt/relance rapide) ne doit jamais continuer à tourner.
+                if (!this.isPlaying || runId !== this._runId) return;
+
+                const ctx = this.app.audioCtx;
+                if (!ctx) { this.stop(); return; }
+                // macOS / Safari / Chrome / Firefox peuvent suspendre l'AudioContext en cours de route.
+                if (ctx.state !== 'running') ctx.resume().catch(() => {});
+
+                const intervalSec = 60 / this.bpm;
+                // Grille de temps en secondes AUDIO : premier temps, ou recalage après un retard de plus d'un temps.
+                if (this._beatAudio == null || this._beatAudio < ctx.currentTime - intervalSec) {
+                    this._beatAudio = ctx.currentTime + this._LEAD;
+                }
+                const t = this._beatAudio;
+                this._beatAudio = t + intervalSec;
 
                 // Intro : une mesure de métronome seul avant le début de la grille
                 if (this._countInBeats > 0) {
                     const n = 4 - this._countInBeats;
-                    this.playMetronomeClick(n === 0);
-                    document.getElementById('jam-bar-counter').textContent = `Intro : ${n + 1}/4`;
+                    this.playMetronomeClick(n === 0, t);
                     this._countInBeats--;
-                    this.timer = setTimeout(() => this.tick(), (60 / this.bpm) * 1000);
+                    this._runAtAudioTime(t, runId, () => {
+                        const el = document.getElementById('jam-bar-counter');
+                        if (el) el.textContent = `Intro : ${n + 1}/4`;
+                    });
+                    this._scheduleNextTick(runId);
                     return;
                 }
 
-                const step = this.grid[this.currentStepIndex];
+                if (this.grid.length === 0) { this.stop(); return; }
+                let step = this.grid[this.currentStepIndex];
                 if (!step) {
                     this.currentStepIndex = 0;
-                    return this.tick();
+                    step = this.grid[0];
+                    if (!step) { this.stop(); return; }
                 }
 
+                const beat = this.currentBeat;
+                const stepIdx = this.currentStepIndex;
+                const slot = this.activeSlot;
                 const totalBeatsInStep = step.measures * 4;
 
-                // Mesure à deux accords : les temps 1-2 et 3-4 ont chacun leur accord
-                const halves = this.isSplitEffective(step) ? this.getStepHalves(step) : null;
-                if (this.currentBeat % 4 === 0) {
-                    this.renderSequenceUI();
-                    this.updateActiveJamScaleHighlight();
-                    if (this.orchestrationMode !== 'orchestra') {
-                        if (halves) this.playStepArpeggio(halves[0], 2);
-                        else this.playStepArpeggio(step, 4);
+                // Le clic est programmé EN PREMIER, à l'instant exact du temps.
+                if (this.metronomeEnabled) this.playMetronomeClick(beat % 4 === 0, t);
+
+                // Son (arpèges / orchestre) programmé à l'instant exact du temps ; une erreur ne doit
+                // jamais interrompre la chaîne de temps.
+                this._beatAudioTime = t;
+                try {
+                    // Mesure à deux accords : les temps 1-2 et 3-4 ont chacun leur accord
+                    const halves = this.isSplitEffective(step) ? this.getStepHalves(step) : null;
+                    if (beat % 4 === 0) {
+                        if (this.orchestrationMode !== 'orchestra') {
+                            if (halves) this.playStepArpeggio(halves[0], 2);
+                            else this.playStepArpeggio(step, 4);
+                        }
+                    } else if (this.isSplit(step) && beat % 4 === 2) {
+                        if (halves && this.orchestrationMode !== 'orchestra') this.playStepArpeggio(halves[1], 2);
                     }
-                } else if (this.isSplit(step) && this.currentBeat % 4 === 2) {
-                    this.updateSplitHalfUI(step);
-                    if (halves && this.orchestrationMode !== 'orchestra') this.playStepArpeggio(halves[1], 2);
+                    if (this.orchestrationMode === 'orchestra') {
+                        this.playBandBeat(step, beat % 4);
+                    }
+                } catch (e) {
+                    console.error('Jam audio', e);
+                } finally {
+                    this._beatAudioTime = null;
                 }
 
-                if (this.orchestrationMode === 'orchestra') {
-                    this.playBandBeat(step, this.currentBeat % 4);
-                }
-                if (this.metronomeEnabled) this.playMetronomeClick(this.currentBeat % 4 === 0);
+                // Affichage : exécuté à l'instant du temps, avec l'état de CE temps.
+                this._runAtAudioTime(t, runId, () => {
+                    this._withState({ currentStepIndex: stepIdx, currentBeat: beat, activeSlot: slot }, () => {
+                        if (beat % 4 === 0) {
+                            this.renderSequenceUI();
+                            this.updateActiveJamScaleHighlight();
+                        } else if (this.isSplit(step) && beat % 4 === 2) {
+                            this.updateSplitHalfUI(step);
+                        }
+                        const el = document.getElementById('jam-bar-counter');
+                        if (el) el.textContent = `Mesure : ${Math.floor(beat / 4) + 1}/${step.measures}`;
+                    });
+                });
 
-                const currentMeasureInStep = Math.floor(this.currentBeat / 4) + 1;
-                document.getElementById('jam-bar-counter').textContent = `Mesure : ${currentMeasureInStep}/${step.measures}`;
-
-                const beatIntervalMs = (60 / this.bpm) * 1000;
                 this.currentBeat++;
-
                 if (this.currentBeat >= totalBeatsInStep) {
                     this.currentBeat = 0;
                     this.currentStepIndex = (this.currentStepIndex + 1) % this.grid.length;
                     this.activeSlot = 1 - this.activeSlot;
-                    this.renderJamScales();
+                    const after = { currentStepIndex: this.currentStepIndex, currentBeat: 0, activeSlot: this.activeSlot };
+                    this._runAtAudioTime(t, runId, () => this._withState(after, () => this.renderJamScales()));
                 }
 
-                this.timer = setTimeout(() => this.tick(), beatIntervalMs);
+                this._scheduleNextTick(runId);
             }
 
             // spanBeats : durée occupée par l'accord (4 = mesure entière, 2 = moitié de mesure).
@@ -4461,7 +4614,7 @@
                 // En jam, on joue toujours exactement 4 notes (les plus significatives),
                 // pour une durée de lecture constante quel que soit l'accord.
                 const playedNotes = this.getJamChordPlaybackNotes(chordObj);
-                const now = this.app.audioCtx.currentTime;
+                const now = this._audioNow();
                 const beatSec = 60 / this.bpm;
                 const spacing = beatSec * spanBeats / 4;
                 const sustain = spanBeats >= 4 ? 2.2 : Math.min(2.2, beatSec * spanBeats * 1.1);
@@ -5656,7 +5809,7 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Volume</span>
-                    <input type="range" id="band-metro-vol" min="0" max="100" value="100" oninput="app.jam.setMetronomeVolume(this.value)" class="w-full accent-emerald-500">
+                    <input type="range" id="band-metro-vol" min="0" max="100" value="30" oninput="app.jam.setMetronomeVolume(this.value)" class="w-full accent-emerald-500">
                 </div>
             </div>
         </div>
