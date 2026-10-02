@@ -614,14 +614,22 @@
                 </div>
 
                 <div id="jam-scales-card" class="flex-1 bg-[#252525] border border-[#333333] rounded-xl p-5 shadow flex flex-col justify-between overflow-hidden min-h-0">
-                    <div class="flex justify-between items-center mb-3 shrink-0">
+                    <div class="flex justify-between items-center gap-2 mb-3 shrink-0 flex-wrap">
                         <div class="flex items-center gap-2 flex-wrap">
                             <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Visualisation des gammes de la Jam</h3>
                             <button onclick="app.jam.toggleShowTargetNotes()" id="jam-btn-toggle-target" class="px-2 py-0.5 rounded text-[11px] font-semibold transition bg-[#1a1a1a] text-slate-500 border border-[#333333]">Notes cibles</button>
                             <button onclick="app.jam.toggleShowAvoid()" id="jam-btn-toggle-avoid" class="px-2 py-0.5 rounded text-[11px] font-semibold transition bg-[#1a1a1a] text-slate-500 border border-[#333333]">Notes à éviter</button>
                             <button onclick="app.jam.toggleShowCharacteristic()" id="jam-btn-toggle-characteristic" class="px-2 py-0.5 rounded text-[11px] font-semibold transition bg-[#1a1a1a] text-slate-500 border border-[#333333]">Note caractéristique</button>
                         </div>
-                        <span id="jam-scales-count-badge" class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300">0 gammes</span>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <div class="flex bg-[#1a1a1a] p-1 rounded-lg text-xs font-medium border border-[#333333]">
+                                <button onclick="app.jam.setVisMode('staff')" id="jam-vmode-staff" class="py-1 px-2.5 rounded-md transition bg-[#3a3a3c] text-white shadow-sm">Portée</button>
+                                <button onclick="app.jam.setVisMode('intervals')" id="jam-vmode-intervals" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Intervalles</button>
+                                <button onclick="app.jam.setVisMode('notes')" id="jam-vmode-notes" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Notes</button>
+                                <button onclick="app.jam.setVisMode('letters')" id="jam-vmode-letters" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Lettres</button>
+                            </div>
+                            <span id="jam-scales-count-badge" class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300">0 gammes</span>
+                        </div>
                     </div>
                     <div id="jam-scale-visualizer" class="flex-1 overflow-y-auto custom-scrollbar grid grid-cols-1 lg:grid-cols-2 gap-4 pr-1 min-h-0 content-start items-start"></div>
                 </div>
@@ -863,6 +871,54 @@
             return targets;
         }
 
+        // Pastilles de gamme (Intervalles / Notes / Lettres) : rendu unique partagé par les modes Jam et Entraînement.
+        function buildPastillesHtml({ visMode, scaleDef, rootName, chordObj, avoidNotes, characteristicInterval, showTargetNotes, large, angloToFrench, noteOnclick, wrapperClass = '', wrapperAttrs = '' }) {
+                const spelled = getStrictSpelledNotes(rootName, scaleDef.intervals);
+                const full = [...spelled, getStrictSpelledNotes(rootName, [12])[0]];
+                const targets = getTargetIntervals(chordObj);
+                const labelOf = (anglo, interval) => {
+                    if (visMode === 'intervals') return getIntervalLabel(interval, chordObj.notes);
+                    if (visMode === 'notes') return angloToFrench(anglo);
+                    return anglo;
+                };
+                const items = full.map((anglo, i) => {
+                    const isOctave = i >= scaleDef.intervals.length;
+                    const interval = isOctave ? 12 : scaleDef.intervals[i];
+                    return { interval, isOctave, label: labelOf(anglo, interval) };
+                });
+                // Toutes les pastilles ont exactement la même taille, les mêmes proportions et la même police,
+                // quel que soit le nombre de notes de la gamme, le mode d'affichage ou la sélection.
+                // Taille de référence --w : calculée pour 9 pastilles (gamme de 8 notes + octave) sur une seule ligne.
+                // Le cerclage est dessiné par des ombres internes (aucun effet sur la taille, coins intérieurs arrondis,
+                // trait noir placé sous la couleur : pas de liseré blanc entre les deux).
+                const gap = large ? 6 : 4;
+                const maxW = large ? 3.75 : 2.75;
+                let badges = '';
+                items.forEach(it => {
+                    const { interval, isOctave, label } = it;
+                    const check = interval === 12 ? 0 : interval;
+                    const isAvoid = avoidNotes.includes(check);
+                    const isChar = characteristicInterval === check;
+                    const highlightBlue = showTargetNotes && targets.includes(check);
+                    // (styles en ligne : ces couleurs ne sont pas dans tailwind-built.css)
+                    let ring = null;
+                    if (isAvoid) ring = "#ff1744";
+                    else if (isChar) ring = "#ffab00";
+                    else if (highlightBlue) ring = "#0a6cff";
+                    const shadowCss = ring
+                        ? `box-shadow:inset 0 0 0 calc(var(--w) * 0.12) ${ring}, inset 0 0 0 calc(var(--w) * 0.16) #000;`
+                        : '';
+                    // transition:none : la taille du cerclage dépend de --w (unités cqw), résolue après la mise en page ;
+                    // sans cela, chaque re-rendu (changement de mesure) animerait le cerclage et le ferait « clignoter ».
+                    const style = `transition:none;flex:none;width:var(--w);aspect-ratio:1 / 1;box-sizing:border-box;display:flex;align-items:center;justify-content:center;line-height:1;white-space:nowrap;font-size:calc(var(--w) * 0.32);color:#000;background:#fff;border-radius:calc(var(--w) * 0.26);${shadowCss}`;
+                    badges += `<span onclick="${noteOnclick(interval)}" class="font-mono font-bold cursor-pointer" style="${style}">${label}</span>`;
+                });
+                return `<div class="bg-transparent border border-[#333333] rounded-lg p-3 shadow-sm text-slate-100 w-full mx-auto select-none ${wrapperClass}" ${wrapperAttrs} style="container-type:inline-size;">
+                                <div class="flex flex-nowrap" style="--w:min(${maxW}rem, calc((100cqw - ${gap * 8}px) / 9));gap:${gap}px;justify-content:center;">${badges}</div>
+                            </div>`;
+        }
+
+
         // Notes à éviter : note de la gamme située un demi-ton au-dessus d'une note essentielle de l'accord
         // (fondamentale, tierce, septième). Ne sont PAS considérées comme à éviter :
         //  - les altérations voulues d'une dominante ou d'un accord suspendu (b9, b13) ;
@@ -1089,6 +1145,7 @@
                 this.showAvoidNotes = false;
                 this.showCharacteristic = false;
                 this.showHarmonicFunctions = false;
+                this.visMode = 'staff';
 
                 this.loadedGridName = null;
                 this.mainKey = 0;
@@ -3903,6 +3960,45 @@
                 }
             }
 
+            setVisMode(mode) {
+                this.visMode = mode;
+                ['staff', 'intervals', 'notes', 'letters'].forEach(m => {
+                    const btn = document.getElementById(`jam-vmode-${m}`);
+                    if (!btn) return;
+                    btn.className = m === mode
+                        ? "py-1 px-2.5 rounded-md transition bg-[#3a3a3c] text-white shadow-sm"
+                        : "py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white";
+                });
+                this.renderJamScales();
+            }
+
+            // Joue une note isolée (clic sur une pastille) avec la transposition du mode Jam.
+            playJamNote(rootIndex, interval) {
+                const app = this.app;
+                if (!app.pianoInstrument) { app.loadPiano(); return; }
+                if (app.audioCtx && app.audioCtx.state === 'suspended') app.audioCtx.resume();
+                const noteStr = this.getJamAudioNoteName(rootIndex, interval, PLAY_BASE_OCTAVE);
+                try {
+                    const node = app.pianoInstrument.play(noteStr, app.audioCtx.currentTime, { duration: 2.0, destination: app.reverbInput || app.audioCtx.destination });
+                    app.activeScaleNodes.push(node);
+                } catch (e) {}
+            }
+
+            // Zone de visualisation d'une gamme selon le mode choisi (Portée, Intervalles, Notes, Lettres).
+            buildScaleVizHtml(scaleDef, rootName, rootIndex, chordObj, avoidNotes, characteristicInterval, canvasId, large = false) {
+                if (this.visMode === 'staff') {
+                    return `<div class="bg-white border border-slate-300 rounded-lg shadow-sm text-slate-900 w-full mx-auto select-none h-[130px] flex items-center justify-center overflow-hidden relative">
+                                <div id="${canvasId}" class="w-full h-full flex items-center justify-center bg-white relative"></div>
+                            </div>`;
+                }
+                return buildPastillesHtml({
+                    visMode: this.visMode, scaleDef, rootName, chordObj, avoidNotes, characteristicInterval,
+                    showTargetNotes: this.showTargetNotes, large,
+                    angloToFrench: (a) => this.app.angloToFrench(a),
+                    noteOnclick: (interval) => `app.jam.playJamNote(${rootIndex}, ${interval}); event.stopPropagation();`
+                });
+            }
+
             renderJamScales() {
                 const container = document.getElementById('jam-scale-visualizer');
                 if (!container) return;
@@ -3990,18 +4086,14 @@
                                     <span class="text-xs font-mono px-2 py-0.5 rounded bg-[#2a2a2c] text-slate-300 font-bold border border-[#444]">m.${this.getStepStartMeasure(item.idx)}</span>
                                     ${halfLabel}
                                     <h3 class="font-bold text-sm text-white">${rootName} ${scaleDef.name}</h3>
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#2a2a2c] text-slate-300 border border-[#333333]">${scaleDef.category}</span>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <span class="text-xs font-semibold text-blue-400">Accord : ${rootName}${chordObj.name}</span>
                                     ${isCurrent ? '<span class="jam-active-badge px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-500 text-slate-950 uppercase tracking-wider animate-pulse">Active</span>' : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-300 uppercase tracking-wider">Suivante</span>'}
                                 </div>
                             </div>
-                            <p class="text-xs text-slate-400 mb-3 select-none">${scaleDef.desc}</p>
                             <div class="pt-2 border-t border-[#333333] w-full">
-                                <div class="bg-white border border-slate-300 rounded-lg shadow-sm text-slate-900 w-full mx-auto select-none h-[130px] flex items-center justify-center overflow-hidden relative">
-                                    <div id="${canvasId}" class="w-full h-full flex items-center justify-center bg-white relative"></div>
-                                </div>
+                                ${this.buildScaleVizHtml(scaleDef, rootName, data.rootIndex, chordObj, avoidNotes, characteristicInterval, canvasId, true)}
                             </div>
                         `;
 
@@ -4063,9 +4155,7 @@
                             </div>
                             <p class="text-xs text-slate-400 mb-3 select-none">${scaleDef.desc}</p>
                             <div class="pt-2 border-t border-[#333333] w-full">
-                                <div class="bg-white border border-slate-300 rounded-lg shadow-sm text-slate-900 w-full mx-auto select-none h-[130px] flex items-center justify-center overflow-hidden relative">
-                                    <div id="${canvasId}" class="w-full h-full flex items-center justify-center bg-white relative"></div>
-                                </div>
+                                ${this.buildScaleVizHtml(scaleDef, rootName, step.rootIndex, chordObj, avoidNotes, characteristicInterval, canvasId)}
                             </div>`;
                         container.appendChild(card);
                         pendingStaves.push({ canvasId, intervals: scaleDef.intervals, rootName, isDesc: false, avoidNotes, characteristicInterval, chordObj, showTargetNotes: this.showTargetNotes });
@@ -4075,6 +4165,7 @@
                 }
 
                 pendingStaves.forEach(task => {
+                    if (this.visMode !== 'staff') return;
                     this.app.renderVexFlowStaff(task.canvasId, task.intervals, task.rootName, task.isDesc, task.avoidNotes, task.characteristicInterval, task.chordObj, false, task.showTargetNotes, true);
                 });
 
@@ -4124,9 +4215,7 @@
                                 <span class="text-xs font-semibold text-blue-400">Accord : ${rootName}${chordObj.name}</span>
                             </div>
                             <p class="text-xs text-slate-400 mb-2 select-none">${scaleDef.desc}</p>
-                            <div class="bg-white border border-slate-300 rounded-lg shadow-sm text-slate-900 w-full mx-auto select-none h-[130px] flex items-center justify-center overflow-hidden relative">
-                                <div id="jam-vexflow-canvas-${idx}${k === 0 ? '' : '-b'}" class="w-full h-full flex items-center justify-center bg-white relative"></div>
-                            </div>
+                            ${this.buildScaleVizHtml(scaleDef, rootName, h.rootIndex, chordObj, this.showAvoidNotes ? getAvoidNotes(h.scaleId, h.chordId) : [], this.showCharacteristic ? scaleDef.characteristicInterval : null, `jam-vexflow-canvas-${idx}${k === 0 ? '' : '-b'}`)}
                         </div>`;
                 }).join('');
 
@@ -5243,84 +5332,18 @@
                             </div>
                         `;
                         pendingStaves.push({ canvasId, intervals: scaleDef.intervals, rootName, isDesc, avoidNotes, characteristicInterval, chordObj });
-                    } else if (this.visMode === 'intervals') {
-                        let intervalsHtml = '';
-                        scaleDef.intervals.forEach((interval) => {
-                            const intervalName = getIntervalLabel(interval, chordObj.notes);
-                            const isMember = chordObj.notes.includes(interval);
-                            const isTarget = getTargetIntervals(chordObj).includes(interval);
-                            const highlightBlue = this.showTargetNotes && isTarget;
-                            const isAvoid = avoidNotes.includes(interval);
-                            const isChar = characteristicInterval === interval;
-
-                            let badgeClass = "bg-[#1a1a1a] text-slate-400 border border-[#333333]";
-                            if (isAvoid) badgeClass = "bg-rose-500/20 text-rose-300 border border-rose-500/50";
-                            else if (isChar) badgeClass = "bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold";
-                            else if (highlightBlue) badgeClass = "bg-[#3b82f6] text-white shadow-sm font-semibold";
-
-                            intervalsHtml += `<span onclick="app.playSingleNote(${interval}); event.stopPropagation();" class="px-2.5 py-1.5 text-xs font-mono rounded-lg cursor-pointer transition flex items-center justify-center ${badgeClass}">${intervalName}</span>`;
-                        });
-                        visualizationHtml = `
-                            <div class="bg-transparent border border-[#333333] rounded-lg p-3 shadow-sm text-slate-100 w-full mx-auto cursor-pointer select-none transition hover:border-blue-500"
-                                 data-scale-key="${scaleKey}"
+                    } else {
+                        // Même rendu et même comportement des pastilles que dans le mode Jam.
+                        visualizationHtml = buildPastillesHtml({
+                            visMode: this.visMode, scaleDef, rootName, chordObj, avoidNotes, characteristicInterval,
+                            showTargetNotes: this.showTargetNotes, large: false,
+                            angloToFrench: (a) => this.angloToFrench(a),
+                            noteOnclick: (interval) => `app.playSingleNote(${interval}); event.stopPropagation();`,
+                            wrapperClass: 'cursor-pointer transition hover:border-blue-500',
+                            wrapperAttrs: `data-scale-key="${scaleKey}"
                                  onclick="app.toggleScalePlayback('${scaleKey}', ${JSON.stringify(scaleDef.intervals)}, '${scaleDef.name}', this)"
-                                 oncontextmenu="app.toggleScaleDirection('${scaleKey}', this.closest('.group')); event.preventDefault();">
-                                <div class="flex flex-wrap gap-1.5">${intervalsHtml}</div>
-                            </div>
-                        `;
-                    } else if (this.visMode === 'notes') {
-                        let notesHtml = '';
-                        fullSpilledNotesWithOctave.forEach((anglo, i) => {
-                            const frenchName = this.angloToFrench(anglo);
-                            const interval = i < scaleDef.intervals.length ? scaleDef.intervals[i] : 12;
-                            const checkInterval = interval === 12 ? 0 : interval;
-                            const isMember = chordObj.notes.includes(checkInterval);
-                            const isTarget = getTargetIntervals(chordObj).includes(checkInterval);
-                            const highlightBlue = this.showTargetNotes && isTarget;
-                            const isAvoid = avoidNotes.includes(checkInterval);
-                            const isChar = characteristicInterval === checkInterval;
-
-                            let badgeClass = "bg-[#1a1a1a] text-slate-400 border border-[#333333]";
-                            if (isAvoid) badgeClass = "bg-rose-500/20 text-rose-300 border border-rose-500/50";
-                            else if (isChar) badgeClass = "bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold";
-                            else if (highlightBlue && i < scaleDef.intervals.length) badgeClass = "bg-[#3b82f6] text-white shadow-sm font-semibold";
-
-                            notesHtml += `<span onclick="app.playSingleNote(${interval}); event.stopPropagation();" class="px-2.5 py-1.5 text-xs font-mono rounded-lg cursor-pointer transition flex items-center justify-center ${badgeClass}">${frenchName}</span>`;
+                                 oncontextmenu="app.toggleScaleDirection('${scaleKey}', this.closest('.group')); event.preventDefault();"`
                         });
-                        visualizationHtml = `
-                            <div class="bg-transparent border border-[#333333] rounded-lg p-3 shadow-sm text-slate-100 w-full mx-auto cursor-pointer select-none transition hover:border-blue-500"
-                                 data-scale-key="${scaleKey}"
-                                 onclick="app.toggleScalePlayback('${scaleKey}', ${JSON.stringify(scaleDef.intervals)}, '${scaleDef.name}', this)"
-                                 oncontextmenu="app.toggleScaleDirection('${scaleKey}', this.closest('.group')); event.preventDefault();">
-                                <div class="flex flex-wrap gap-1.5">${notesHtml}</div>
-                            </div>
-                        `;
-                    } else if (this.visMode === 'letters') {
-                        let notesHtml = '';
-                        fullSpilledNotesWithOctave.forEach((noteName, i) => {
-                            const interval = i < scaleDef.intervals.length ? scaleDef.intervals[i] : 12;
-                            const checkInterval = interval === 12 ? 0 : interval;
-                            const isMember = chordObj.notes.includes(checkInterval);
-                            const isTarget = getTargetIntervals(chordObj).includes(checkInterval);
-                            const highlightBlue = this.showTargetNotes && isTarget;
-                            const isAvoid = avoidNotes.includes(checkInterval);
-                            const isChar = characteristicInterval === checkInterval;
-
-                            let badgeClass = "bg-[#1a1a1a] text-slate-400 border border-[#333333]";
-                            if (isAvoid) badgeClass = "bg-rose-500/20 text-rose-300 border border-rose-500/50";
-                            else if (isChar) badgeClass = "bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold";
-                            else if (highlightBlue && i < scaleDef.intervals.length) badgeClass = "bg-[#3b82f6] text-white shadow-sm font-semibold";
-
-                            notesHtml += `<span onclick="app.playSingleNote(${interval}); event.stopPropagation();" class="px-2.5 py-1.5 text-xs font-mono rounded-lg cursor-pointer transition flex items-center justify-center ${badgeClass}">${noteName}</span>`;
-                        });
-                        visualizationHtml = `
-                            <div class="bg-transparent border border-[#333333] rounded-lg p-3 shadow-sm text-slate-100 w-full mx-auto cursor-pointer select-none transition hover:border-blue-500"
-                                 data-scale-key="${scaleKey}"
-                                 onclick="app.toggleScalePlayback('${scaleKey}', ${JSON.stringify(scaleDef.intervals)}, '${scaleDef.name}', this)"
-                                 oncontextmenu="app.toggleScaleDirection('${scaleKey}', this.closest('.group')); event.preventDefault();">
-                                <div class="flex flex-wrap gap-1.5">${notesHtml}</div>
-                            </div>
-                        `;
                     }
 
                     card.innerHTML = `
