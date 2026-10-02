@@ -19,6 +19,15 @@
         .vf-stavenote { transition: opacity 0.1s; }
         .vf-stavenote:hover { opacity: 0.7; }
         #scales-container { grid-auto-rows: max-content; }
+        /* Petit curseur de volume discret sous les boutons de lecture (mode Entraînement) */
+        /* width:0 + min-width:100% : le curseur n'impose pas sa largeur par défaut, il épouse celle des boutons */
+        .chord-volume { -webkit-appearance: none; appearance: none; display: block; box-sizing: border-box; width: 0; min-width: 100%; height: 12px; margin: 0; padding: 0; background: transparent; cursor: pointer; opacity: .5; transition: opacity .15s; }
+        .chord-volume:hover, .chord-volume:focus-visible, .chord-volume:active { opacity: 1; outline: none; }
+        .chord-volume::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: #4a4a4c; }
+        .chord-volume::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; margin-top: -3.5px; border-radius: 50%; background: #cbd5e1; border: 0; }
+        .chord-volume::-moz-range-track { height: 3px; border-radius: 2px; background: #4a4a4c; }
+        .chord-volume::-moz-range-thumb { width: 10px; height: 10px; border-radius: 50%; background: #cbd5e1; border: 0; }
+        @media (hover: none) and (pointer: coarse) { .chord-volume { height: 18px; } }
         .jam-drag-handle { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; color: #64748b; font-size: 15px; line-height: 1; padding: 3px 4px; border-radius: 4px; flex-shrink: 0; }
         .jam-drag-handle:hover { color: #e2e8f0; background: #333333; }
         .jam-drag-handle.is-locked { opacity: .25; cursor: not-allowed; }
@@ -34,9 +43,11 @@
         #jam-chord-sequence-display .jam-arp-btn {
             position: absolute; left: 3px; bottom: 2px; z-index: 2;
             padding: 3px 5px 2px; border-radius: 4px;
-            font: 700 10px/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: -1px;
+            font: 700 14px/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: -1.5px;
             color: #94a3b8; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;
         }
+        /* Mesure à deux accords : le second chevron se place au début du second demi-domino */
+        #jam-chord-sequence-display .jam-arp-btn.jam-arp-btn-b { left: calc(50% + 3px); }
         #jam-chord-sequence-display .jam-arp-btn:hover { color: #2563eb; background: rgba(37,99,235,.14); }
         #jam-chord-sequence-display .jam-cell.bg-blue-600 .jam-arp-btn { color: #bfdbfe; }
         #jam-chord-sequence-display .jam-cell.bg-blue-600 .jam-arp-btn:hover { color: #fff; background: rgba(255,255,255,.2); }
@@ -70,7 +81,6 @@
         #view-jam #jam-next-chord-display .jam-next-chord-label { font-size: 9px !important; line-height: 1 !important; transform: translateX(5px); letter-spacing: .08em; opacity: .8; }
         #view-jam #jam-next-chord-display #jam-next-chord-title { font-size: 1.5rem !important; line-height: 1 !important; }
         #view-jam #jam-next-chord-display #jam-next-chord-notes { gap: 6px !important; }
-        #view-jam #jam-next-chord-display #jam-next-chord-notes span { padding: 3px 7px !important; font-size: 14px !important; }
 
         /* Petit bouton d'affichage de la fonction tonale, inspiré du bouton de référence */
         .jam-tonal-function-toggle {
@@ -319,8 +329,9 @@
                 font-size: 0.8rem !important; right: 4px; bottom: 2px;
             }
             #jam-chord-sequence-display .jam-half-fn { font-size: 0.7rem; }
-            #jam-chord-sequence-display .jam-arp-btn { left: 0; bottom: 0; padding: 7px 8px 4px; }
-            #jam-chord-sequence-display .jam-half-fn[style*="left"] { left: 26px !important; }
+            #jam-chord-sequence-display .jam-arp-btn { left: 0; bottom: 0; padding: 6px 6px 3px; font-size: 13px; }
+            #jam-chord-sequence-display .jam-arp-btn.jam-arp-btn-b { left: 50%; }
+            #jam-chord-sequence-display .jam-half-fn[style*="left"] { left: 30px !important; }
             #jam-chord-sequence-display .jam-half-fn[style*="right"] { right: 3px !important; }
 
             /* Pied de carte : l'accord courant sur sa ligne, les boutons de lecture sur la suivante */
@@ -356,8 +367,9 @@
                     <div class="flex justify-between items-start mb-2">
                         <div>
                             <span class="text-[10px] font-semibold text-blue-400 uppercase tracking-wider">Accord Actuel</span>
-                            <div class="text-2xl font-bold tracking-tight text-white mt-0.5" id="display-chord-name">Cmaj7</div>
+                            <div class="text-2xl font-bold tracking-tight text-white mt-0.5 cursor-pointer select-none hover:text-blue-400 transition" id="display-chord-name" onclick="app.playArpeggio()" title="Écouter l'arpège">Cmaj7</div>
                         </div>
+                        <div class="flex flex-col items-stretch gap-1">
                         <div class="flex items-center gap-1.5">
                             <button onclick="app.playChord()" id="play-chord-btn" class="bg-[#3a3a3c] hover:bg-[#4a4a4c] text-slate-200 p-2 rounded-md border border-[#4a4a4c] transition flex items-center justify-center" title="Écouter l'accord plaqué">
                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
@@ -368,6 +380,8 @@
                             <button onclick="app.toggleLoopMode()" id="loop-chord-btn" class="bg-[#3a3a3c] hover:bg-[#4a4a4c] text-slate-200 p-2 rounded-md border border-[#4a4a4c] transition flex items-center justify-center" title="Activer/Désactiver le mode boucle">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                             </button>
+                        </div>
+                        <input type="range" id="chord-volume" class="chord-volume" min="0" max="1.5" step="0.05" value="1" oninput="app.setChordVolume(this.value)" title="Volume de l'accord" aria-label="Volume des sons de la zone d'accord">
                         </div>
                     </div>
                     <div class="mt-3 pt-2.5 border-t border-[#3a3a3c]">
@@ -578,7 +592,7 @@
                             </div>
                             <div id="jam-next-chord-display" class="hidden items-center gap-2 min-w-0 ml-[8px]">
                                 <span class="jam-next-chord-label text-slate-300 whitespace-nowrap shrink-0" role="img" aria-label="Accord suivant" title="Accord suivant">
-                                    <svg width="40" height="18" viewBox="0 0 40 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block"><path d="M2 10.5 C9 7.5 17 12.5 24 9.5 S33 9 37 9.2"/><path d="M30 3.2 C32.5 5.6 35 7.6 37.4 9.1 C34.6 10.8 32.2 12.8 29.6 15.6"/></svg>
+                                    <svg width="40" height="18" viewBox="0 0 40 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block"><path d="M3 4.5 Q3 10 8 10 L37 10"/><path d="M31 4.8 L37 10 L31 15.2"/></svg>
                                 </span>
                                 <div class="flex items-center gap-3 min-w-0">
                                     <span id="jam-next-chord-title" class="font-bold text-white text-2xl whitespace-nowrap cursor-pointer select-none hover:text-blue-400 transition" onclick="app.jam.playNextChordArpeggio()" title="Écouter l'arpège">---</span>
@@ -833,17 +847,45 @@
             }
         }
 
+        // Notes cibles d'un accord : tierce (ou quarte dans un accord suspendu), septième
+        // (ou sixte / double bémol 7 quand l'accord n'a pas de septième : 6, dim7) et quinte
+        // (juste, sinon diminuée, sinon augmentée). Retourne des intervalles en demi-tons.
+        function getTargetIntervals(chordObj) {
+            if (!chordObj || !Array.isArray(chordObj.notes)) return [];
+            const n = chordObj.notes;
+            const has = (i) => n.includes(i);
+            const targets = [];
+            const thirds = [3, 4].filter(has);
+            if (thirds.length) targets.push(...thirds); else if (has(5)) targets.push(5);
+            const sevenths = [10, 11].filter(has);
+            if (sevenths.length) targets.push(...sevenths); else if (has(9)) targets.push(9);
+            if (has(7)) targets.push(7); else if (has(6)) targets.push(6); else if (has(8)) targets.push(8);
+            return targets;
+        }
+
+        // Notes à éviter : note de la gamme située un demi-ton au-dessus d'une note essentielle de l'accord
+        // (fondamentale, tierce, septième). Ne sont PAS considérées comme à éviter :
+        //  - les altérations voulues d'une dominante ou d'un accord suspendu (b9, b13) ;
+        //  - la b6 / #5 au-dessus d'un accord à septième majeure (maj7, mMaj7) : couleur de quinte augmentée ;
+        //  - les notes de passage chromatiques des gammes bebop et blues.
+        // La b13 (b6) n'est à éviter que sur les accords mineurs (éolien, phrygien).
         function getAvoidNotes(scaleId, chordId) {
             const avoids = [];
             const isDom = ['7', '9', '7alt', '7b9', '7sharp5'].includes(chordId);
-            
-            if (['ionian', 'majorBebop'].includes(scaleId)) avoids.push(5);
+
+            // Quarte juste au-dessus de la tierce majeure
+            if (['ionian', 'majorBebop', 'harmonicMajor'].includes(scaleId)) avoids.push(5);
             if (['mixolydian', 'mixolydianFlat13', 'phrygianDominant', 'mixolydianFlat9', 'dominantBebop'].includes(scaleId) && chordId !== '7sus4') avoids.push(5);
-            if (['aeolian', 'harmonicMinor'].includes(scaleId)) avoids.push(8);
-            if (scaleId === 'phrygian') { avoids.push(1); avoids.push(8); }
+            // Sur un accord suspendu, c'est la tierce majeure qui frotte avec la quarte
+            if (scaleId === 'mixolydian' && chordId === '7sus4') avoids.push(4);
+            // Accords mineurs : b13 au-dessus de la quinte juste (éolien) ; phrygien : b9 et b13
+            if (scaleId === 'aeolian') avoids.push(8);
+            // Sur 7sus4, le phrygien donne un 7sus4(b9, b13) : ces altérations sont voulues
+            if (scaleId === 'phrygian' && chordId !== '7sus4') { avoids.push(1); avoids.push(8); }
             if (scaleId === 'locrian') avoids.push(1);
+            // Blues sur dominante : la b3 frotte contre la tierce majeure
             if (scaleId === 'bluesScale' && isDom) avoids.push(3);
-            
+
             return avoids;
         }
 
@@ -873,7 +915,7 @@
             halfWholeDim: { name: "Demi-Ton / Ton (Octatonique)", category: "Symétrique", intervals: [0, 1, 3, 4, 6, 7, 9, 10], characteristicInterval: 1, desc: "Sur accords 7b9 ou 7#9, garde la quinte juste et la 13e majeure." },
             wholeTone: { name: "Par Tons (Hexatonique)", category: "Symétrique", intervals: [0, 2, 4, 6, 8, 10], characteristicInterval: 6, desc: "Sur les accords 7#5 (dominantes sans 9ème altérée)." },
             locrianSharp2: { name: "Locrien bécarre 2", category: "Mineur Mélodique", intervals: [0, 2, 3, 5, 6, 8, 10], characteristicInterval: 2, desc: "Choix moderne par défaut sur le degré II d'un ii-V-I mineur. La seconde majeure sonne mieux que la b2." },
-            locrian: { name: "Locrien", category: "Diatonique", intervals: [0, 1, 3, 5, 6, 8, 10], characteristicInterval: 1, desc: "Degré VII de la gamme majeure." },
+            locrian: { name: "Locrien", category: "Diatonique", intervals: [0, 1, 3, 5, 6, 8, 10], characteristicInterval: 6, desc: "Degré VII de la gamme majeure." },
             minorPentatonicFlat5: { name: "Pentatonique mineure b5", category: "Pentatonique", intervals: [0, 3, 5, 6, 10], characteristicInterval: 6, desc: "Version allégée du Locrien." },
             wholeHalfDim: { name: "Ton / Demi-Ton (Octatonique)", category: "Symétrique", intervals: [0, 2, 3, 5, 6, 8, 9, 11], characteristicInterval: 9, desc: "Option principale, couvre la structure symétrique de l'accord diminué et ajoute une note d'approche." }
         };
@@ -3570,7 +3612,7 @@
                             if (showSplit) {
                                 const fa = this.getHarmonicFunctionLabel({ rootIndex: m.rootIndex, chordId: m.chordId, harmonicFunction: null }, flatMeasures, flatIdx);
                                 const fb = this.getHarmonicFunctionLabel({ rootIndex: m.split.rootIndex, chordId: m.split.chordId, harmonicFunction: null }, flatMeasures, flatIdx);
-                                bottomHtml = `<div class="jam-half-fn" style="left:24px">${fa}</div><div class="jam-half-fn" style="right:8px">${fb}</div>`;
+                                bottomHtml = `<div class="jam-half-fn" style="left:30px">${fa}</div><div class="jam-half-fn" style="right:8px">${fb}</div>`;
                             } else {
                                 bottomHtml = `<div class="jam-cell-bottom text-[10px] text-right font-normal jam-realbook-chord text-red-500">${this.getHarmonicFunctionLabel(m, flatMeasures, flatIdx)}</div>`;
                             }
@@ -3608,13 +3650,19 @@
                             ${centerHtml}
                             ${bottomHtml}
                             <span class="jam-arp-btn" role="button" aria-label="Écouter l'arpège" title="Écouter l'arpège">&gt;&gt;</span>
+                            ${showSplit ? `<span class="jam-arp-btn jam-arp-btn-b" role="button" aria-label="Écouter l'arpège du second accord" title="Écouter l'arpège du second accord">&gt;&gt;</span>` : ''}
                         `;
-                        // Un clic sur « >> » joue seulement l'arpège de l'accord (le premier de la mesure s'il y en a deux),
-                        // sans changer la sélection ni déclencher le clic de la case.
-                        mBox.querySelector('.jam-arp-btn').onclick = (ev) => {
-                            ev.stopPropagation();
-                            this.playChordArpeggioFor({ rootIndex: m.rootIndex, chordId: m.chordId });
-                        };
+                        // Un clic sur « >> » joue seulement l'arpège de l'accord concerné, sans changer
+                        // la sélection ni déclencher le clic de la case. Sur une mesure à deux accords,
+                        // le premier « >> » joue le premier accord, le second joue le deuxième accord.
+                        mBox.querySelectorAll('.jam-arp-btn').forEach((btn) => {
+                            const second = btn.classList.contains('jam-arp-btn-b');
+                            btn.onclick = (ev) => {
+                                ev.stopPropagation();
+                                const chord = (second && m.split) ? m.split : m;
+                                this.playChordArpeggioFor({ rootIndex: chord.rootIndex, chordId: chord.chordId });
+                            };
+                        });
                         systemRow.appendChild(mBox);
                     });
 
@@ -4585,6 +4633,8 @@
                 this.audioCtx = null;
                 this.pianoInstrument = null;
                 this.reverbInput = null;
+                // Volume des sons joués depuis la zone « Accord actuel » (accord, arpège, notes de l'accord)
+                this.chordVolume = 1;
                 this.activePlaybacks = {};
                 this.scaleDirections = {};
                 this.activeAudioNodes = [];
@@ -4593,6 +4643,9 @@
                 this.isLoopMode = false;
                 this.currentLoopType = null;
                 this.loopInterval = null;
+                // Boucle d'arpège : cycles planifiés sur l'horloge audio (montée puis descente sans pause)
+                this.arpLoopNextStart = 0;
+                this.arpLoopCycles = [];
                 this.wakeLock = null;
 
                 this.jam = new JamEngine(this);
@@ -4760,6 +4813,7 @@
                     clearInterval(this.loopInterval);
                     this.loopInterval = null;
                 }
+                this.cancelPendingArpeggioCycles();
                 this.currentLoopType = null;
                 this.isLoopMode = false;
                 const btn = document.getElementById('loop-chord-btn');
@@ -4787,6 +4841,19 @@
                 }
             }
 
+            // soundfont-player n'honore pas l'option « destination » par note : le volume de la zone
+            // d'accord est donc appliqué directement au gain de chaque note jouée. Un nouveau réglage
+            // vaut pour les notes suivantes (relance de l'accord, cycle d'arpège suivant, clic...).
+            getChordNoteGain() {
+                return Math.max(0.0001, this.chordVolume); // 0 est ignoré par la bibliothèque : quasi-silence
+            }
+
+            setChordVolume(value) {
+                const v = parseFloat(value);
+                if (!isFinite(v)) return;
+                this.chordVolume = Math.max(0, Math.min(1.5, v));
+            }
+
             playChord(fromLoop = false) {
                 if (!this.pianoInstrument) {
                     this.loadPiano();
@@ -4796,6 +4863,7 @@
                     this.audioCtx.resume();
                 }
                 // Dans la boucle, on ne coupe que l'accord précédent (pas les gammes / notes en cours)
+                if (!fromLoop) this.cancelPendingArpeggioCycles();
                 if (fromLoop) this.stopChordSounds(); else this.stopAllSounds();
 
                 const chordObj = this.getCurrentChordObj();
@@ -4804,7 +4872,7 @@
                 chordObj.notes.forEach(interval => {
                     const noteStr = this.getAudioNoteName(this.selectedRootIndex, interval, PLAY_BASE_OCTAVE);
                     try {
-                        const node = this.pianoInstrument.play(noteStr, now, { duration: 2.5, destination: this.reverbInput || this.audioCtx.destination });
+                        const node = this.pianoInstrument.play(noteStr, now, { duration: 2.5, gain: this.getChordNoteGain(), destination: this.reverbInput || this.audioCtx.destination });
                         this.activeAudioNodes.push(node);
                     } catch(e) {}
                 });
@@ -4816,6 +4884,67 @@
                 }
             }
 
+            // Séquence d'indices de notes de l'arpège. En boucle : montée puis descente
+            // (sans répéter la note la plus haute ni la fondamentale, qui ouvre le cycle suivant).
+            buildArpeggioSequence(chordObj, pingPong) {
+                const seq = chordObj.notes.map((_, i) => i);
+                if (pingPong) {
+                    for (let i = chordObj.notes.length - 2; i >= 1; i--) seq.push(i);
+                }
+                return seq;
+            }
+
+            // Planifie un cycle d'arpège à l'instant `start` (horloge audio). Vitesse constante.
+            // Retourne la durée du cycle en secondes.
+            scheduleArpeggioCycle(start, pingPong) {
+                const chordObj = this.getCurrentChordObj();
+                const spacing = 0.3; // mode Entraînement : arpège un peu plus lent (0,25 s auparavant)
+                const seq = this.buildArpeggioSequence(chordObj, pingPong);
+                const nodes = [];
+                seq.forEach((noteIdx, step) => {
+                    const noteStr = this.getAudioNoteName(this.selectedRootIndex, chordObj.notes[noteIdx], PLAY_BASE_OCTAVE);
+                    try {
+                        const node = this.pianoInstrument.play(noteStr, start + step * spacing, { duration: 1.5, gain: this.getChordNoteGain(), destination: this.reverbInput || this.audioCtx.destination });
+                        this.activeAudioNodes.push(node);
+                        nodes.push(node);
+                    } catch(e) {}
+                });
+                if (pingPong) {
+                    this.arpLoopCycles.push({ start, nodes });
+                    // On ne garde que les cycles récents / à venir, et un nombre borné de nœuds
+                    const now = this.audioCtx.currentTime;
+                    this.arpLoopCycles = this.arpLoopCycles.filter(c => c.start > now - 5);
+                    if (this.activeAudioNodes.length > 64) this.activeAudioNodes.splice(0, this.activeAudioNodes.length - 64);
+                }
+                return seq.length * spacing;
+            }
+
+            // Annule les cycles d'arpège planifiés mais pas encore commencés (arrêt de la boucle) ;
+            // le cycle en cours se termine normalement.
+            cancelPendingArpeggioCycles() {
+                if (!this.arpLoopCycles || !this.arpLoopCycles.length || !this.audioCtx) { this.arpLoopCycles = []; return; }
+                const now = this.audioCtx.currentTime;
+                this.arpLoopCycles.forEach(c => {
+                    if (c.start > now) c.nodes.forEach(n => { try { if (n && typeof n.stop === 'function') n.stop(); } catch (e) {} });
+                });
+                this.arpLoopCycles = [];
+            }
+
+            // Appelé très souvent : planifie les prochains cycles un peu à l'avance sur l'horloge audio,
+            // pour un enchaînement continu, sans dépendre de la précision du minuteur.
+            tickArpeggioLoop() {
+                if (!this.isLoopMode) { this.stopLoop(); return; }
+                if (this.currentLoopType !== 'arpeggio' || !this.audioCtx || !this.pianoInstrument) return;
+                const LOOKAHEAD = 0.4;
+                let guard = 0;
+                while (this.arpLoopNextStart < this.audioCtx.currentTime + LOOKAHEAD && guard++ < 4) {
+                    let start = this.arpLoopNextStart;
+                    // Onglet mis en veille : on se recale plutôt que de rattraper les cycles manqués
+                    if (start < this.audioCtx.currentTime - 0.05) start = this.audioCtx.currentTime;
+                    this.arpLoopNextStart = start + this.scheduleArpeggioCycle(start, true);
+                }
+            }
+
             playArpeggio(fromLoop = false) {
                 if (!this.pianoInstrument) {
                     this.loadPiano();
@@ -4824,23 +4953,17 @@
                 if (this.audioCtx && this.audioCtx.state === 'suspended') {
                     this.audioCtx.resume();
                 }
-                // Dans la boucle, on ne coupe que l'arpège précédent (pas les gammes / notes en cours)
-                if (fromLoop) this.stopChordSounds(); else this.stopAllSounds();
+                // Le démarrage (ou redémarrage) coupe les sons précédents et les cycles déjà planifiés
+                this.cancelPendingArpeggioCycles();
+                this.stopAllSounds();
 
-                const chordObj = this.getCurrentChordObj();
-                const now = this.audioCtx ? this.audioCtx.currentTime : 0;
-                const spacing = 0.25;
+                const loop = this.isLoopMode;
+                const start = this.audioCtx ? this.audioCtx.currentTime : 0;
+                const period = this.scheduleArpeggioCycle(start, loop);
 
-                chordObj.notes.forEach((interval, idx) => {
-                    const noteStr = this.getAudioNoteName(this.selectedRootIndex, interval, PLAY_BASE_OCTAVE);
-                    try {
-                        const node = this.pianoInstrument.play(noteStr, now + (idx * spacing), { duration: 1.5, destination: this.reverbInput || this.audioCtx.destination });
-                        this.activeAudioNodes.push(node);
-                    } catch(e) {}
-                });
-
-                if (this.isLoopMode) {
+                if (loop) {
                     this.currentLoopType = 'arpeggio';
+                    this.arpLoopNextStart = start + period;
                     this.updatePlayButtonStates();
                     this.startLoopIfNeeded();
                 }
@@ -4861,21 +4984,24 @@
                 if (this.loopInterval) clearInterval(this.loopInterval);
                 if (!this.isLoopMode) return;
 
-                const intervalTime = this.currentLoopType === 'arpeggio' ? (this.getCurrentChordObj().notes.length * 250 + 500) : 2000;
+                if (this.currentLoopType === 'arpeggio') {
+                    // Arpège : montée puis descente sans pause, à vitesse constante.
+                    // Le minuteur ne fait que planifier à l'avance sur l'horloge audio.
+                    this.loopInterval = setInterval(() => this.tickArpeggioLoop(), 100);
+                    return;
+                }
+
+                // Accord : relancé plus souvent (1,2 s au lieu de 2 s) pour éviter les trous de son
                 this.loopInterval = setInterval(() => {
                     if (!this.isLoopMode) {
                         this.stopLoop();
                         return;
                     }
-                    if (this.currentLoopType === 'arpeggio') {
-                        this.playArpeggio(true);
-                    } else {
-                        this.playChord(true);
-                    }
-                }, intervalTime);
+                    this.playChord(true);
+                }, 1200);
             }
 
-            playSingleNote(interval) {
+            playSingleNote(interval, fromChordArea = false) {
                 if (!this.pianoInstrument) {
                     this.loadPiano();
                     return;
@@ -4885,7 +5011,9 @@
                 }
                 const noteStr = this.getAudioNoteName(this.selectedRootIndex, interval, PLAY_BASE_OCTAVE);
                 try {
-                    const node = this.pianoInstrument.play(noteStr, this.audioCtx.currentTime, { duration: 2.0, destination: this.reverbInput || this.audioCtx.destination });
+                    const node = this.pianoInstrument.play(noteStr, this.audioCtx.currentTime, fromChordArea
+                        ? { duration: 2.0, gain: this.getChordNoteGain(), destination: this.reverbInput || this.audioCtx.destination }
+                        : { duration: 2.0, destination: this.reverbInput || this.audioCtx.destination });
                     this.activeScaleNodes.push(node);
                 } catch(e) {}
             }
@@ -5071,7 +5199,7 @@
                     badge.textContent = n;
                     badge.onclick = (e) => {
                         e.stopPropagation();
-                        this.playSingleNote(interval);
+                        this.playSingleNote(interval, true);
                     };
                     chordNotesContainer.appendChild(badge);
                 });
@@ -5120,7 +5248,7 @@
                         scaleDef.intervals.forEach((interval) => {
                             const intervalName = getIntervalLabel(interval, chordObj.notes);
                             const isMember = chordObj.notes.includes(interval);
-                            const isTarget = (interval === 3 || interval === 4 || interval === 10 || interval === 11) && isMember;
+                            const isTarget = getTargetIntervals(chordObj).includes(interval);
                             const highlightBlue = this.showTargetNotes && isTarget;
                             const isAvoid = avoidNotes.includes(interval);
                             const isChar = characteristicInterval === interval;
@@ -5147,7 +5275,7 @@
                             const interval = i < scaleDef.intervals.length ? scaleDef.intervals[i] : 12;
                             const checkInterval = interval === 12 ? 0 : interval;
                             const isMember = chordObj.notes.includes(checkInterval);
-                            const isTarget = (checkInterval === 3 || checkInterval === 4 || checkInterval === 10 || checkInterval === 11) && isMember;
+                            const isTarget = getTargetIntervals(chordObj).includes(checkInterval);
                             const highlightBlue = this.showTargetNotes && isTarget;
                             const isAvoid = avoidNotes.includes(checkInterval);
                             const isChar = characteristicInterval === checkInterval;
@@ -5173,7 +5301,7 @@
                             const interval = i < scaleDef.intervals.length ? scaleDef.intervals[i] : 12;
                             const checkInterval = interval === 12 ? 0 : interval;
                             const isMember = chordObj.notes.includes(checkInterval);
-                            const isTarget = (checkInterval === 3 || checkInterval === 4 || checkInterval === 10 || checkInterval === 11) && isMember;
+                            const isTarget = getTargetIntervals(chordObj).includes(checkInterval);
                             const highlightBlue = this.showTargetNotes && isTarget;
                             const isAvoid = avoidNotes.includes(checkInterval);
                             const isChar = characteristicInterval === checkInterval;
@@ -5335,15 +5463,15 @@
                         }
 
                         const checkInterval = interval >= 12 ? interval % 12 : interval;
-                        const isMember = chordObj ? chordObj.notes.includes(checkInterval) : false;
-                        const isTarget = chordObj && (checkInterval === 3 || checkInterval === 4 || checkInterval === 10 || checkInterval === 11) && isMember;
+                        const isTarget = !!chordObj && getTargetIntervals(chordObj).includes(checkInterval);
 
-                        if (showTargetNotes && isTarget) {
-                            staveNote.setStyle({ fillStyle: '#2563eb', strokeStyle: '#2563eb' });
-                        } else if (avoidNotes.includes(checkInterval)) {
+                        // Priorité des couleurs : à éviter (rouge) > caractéristique (ambre) > cible (bleu)
+                        if (avoidNotes.includes(checkInterval)) {
                             staveNote.setStyle({ fillStyle: '#e11d48', strokeStyle: '#e11d48' });
                         } else if (characteristicInterval === checkInterval) {
                             staveNote.setStyle({ fillStyle: '#d97706', strokeStyle: '#d97706' });
+                        } else if (showTargetNotes && isTarget) {
+                            staveNote.setStyle({ fillStyle: '#2563eb', strokeStyle: '#2563eb' });
                         }
 
                         return staveNote;
