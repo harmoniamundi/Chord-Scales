@@ -286,6 +286,47 @@
             #jam-print-area .jam-print-split .jam-print-chord { flex: 1 1 0; text-align: center; font-size: 17pt; }
             #jam-print-area .jam-print-split .jam-print-chord + .jam-print-chord { border-left: 1.5pt solid #000000; }
         }
+
+        /* ===== Édition d'une mesure depuis la grille (pop-up) ===== */
+        #jam-chord-sequence-display .jam-edit-btn { display: inline-block; margin-left: 3px; padding: 0 3px; border-radius: 3px; cursor: pointer; font-size: 11px; line-height: 1.25; opacity: .5; -webkit-tap-highlight-color: transparent; }
+        #jam-chord-sequence-display .jam-cell:hover .jam-edit-btn { opacity: 1; }
+        #jam-chord-sequence-display .jam-edit-btn:hover { background: rgba(37,99,235,.18); }
+        #jam-chord-sequence-display .jam-add-cell { align-self: stretch; min-height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 1.5px dashed #2f6f57; background: rgba(16,185,129,.06); color: #34d399; font-size: 24px; line-height: 1; cursor: pointer; user-select: none; transition: background .12s, border-color .12s; }
+        #jam-chord-sequence-display .jam-add-cell:hover { background: rgba(16,185,129,.16); border-color: #34d399; }
+        .jm-pop { position: fixed; z-index: 2000; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); color: #e2e8f0; padding: 10px 12px 12px; font-size: 12px; }
+        .jm-pop.jm-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; max-height: 62vh; }
+        .jm-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .jm-title { font-size: 13px; font-weight: 700; }
+        .jm-sec { margin-top: 9px; }
+        .jm-sec-t { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #94a3b8; margin-bottom: 4px; }
+        .jm-row { display: flex; flex-wrap: wrap; gap: 4px; }
+        .jm-chip { min-width: 34px; padding: 5px 7px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #e2e8f0; font: 600 12px/1.15 inherit; font-family: inherit; cursor: pointer; text-align: center; -webkit-tap-highlight-color: transparent; }
+        .jm-chip small { display: block; font-size: 9px; font-weight: 500; color: #94a3b8; margin-top: 1px; }
+        .jm-chip:hover { border-color: #60a5fa; }
+        .jm-chip.is-on { background: #2563eb; border-color: #93c5fd; color: #fff; }
+        .jm-chip.is-on small { color: #dbeafe; }
+        .jm-deg { flex: 1 1 0; min-width: 0; padding: 5px 2px; }
+        .jm-scale { font-size: 11px; font-weight: 500; padding: 4px 7px; }
+        .jm-select { width: 100%; margin-top: 5px; padding: 5px 6px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #e2e8f0; font-size: 12px; }
+        .jm-foot { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; padding-top: 9px; border-top: 1px solid #333; }
+        .jm-btn { padding: 6px 10px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #e2e8f0; font: 600 12px/1 inherit; font-family: inherit; cursor: pointer; }
+        .jm-btn:hover { border-color: #60a5fa; }
+        .jm-btn.jm-danger { color: #fca5a5; }
+        .jm-btn.jm-danger:hover { border-color: #f87171; }
+        .jm-btn.jm-primary { background: #2563eb; border-color: #3b82f6; color: #fff; margin-left: auto; }
+        .jm-hint { margin-top: 8px; font-size: 10px; color: #64748b; }
+
+        /* ===== Sélection de mesures + copier/coller (grille du mode Jam) ===== */
+        #jam-chord-sequence-display .jam-cell.jam-sel { box-shadow: inset 0 0 0 3px #f59e0b; }
+        #jam-chord-sequence-display .jam-cell.jam-sel:not(.bg-blue-600) { background: #fff4d6; }
+        .jam-eb { padding: 3px 8px; border-radius: 6px; border: 1px solid #3a3a3c; background: #1f1f21; color: #cbd5e1; font: 600 11px/1.2 inherit; font-family: inherit; cursor: pointer; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
+        .jam-eb:hover:not(:disabled) { border-color: #60a5fa; color: #fff; }
+        .jam-eb:disabled { opacity: .35; cursor: default; }
+        .jam-eb.is-on { background: #2563eb; border-color: #60a5fa; color: #fff; }
+        .jam-eb.jam-eb-danger:hover:not(:disabled) { border-color: #f87171; color: #fca5a5; }
+        .jam-eb-info { color: #94a3b8; font-size: 11px; margin: 0 4px; min-width: 0; }
+        .jam-eb-sep { width: 1px; align-self: stretch; background: #333; margin: 0 2px; }
+        #view-jam.jam-playing #jam-edit-bar { display: none; }
     </style>
     <style>
         /* ===== Adaptation téléphone (aucun effet sur ordinateur) ===== */
@@ -580,6 +621,18 @@
                                 </svg>
                             </button>
                         </div>
+                    </div>
+
+                    <div id="jam-edit-bar" class="flex items-center gap-1.5 flex-wrap">
+                        <button type="button" id="jam-sel-mode-btn" class="jam-eb" onclick="app.jam.toggleSelectMode()" title="Mode sélection (utile au toucher) : touchez une première mesure, puis une seconde pour sélectionner la plage">☐ Sélection</button>
+                        <span id="jam-sel-info" class="jam-eb-info"></span>
+                        <span class="jam-eb-sep"></span>
+                        <button type="button" id="jam-eb-copy" class="jam-eb" onclick="app.jam.gridCopy()" title="Copier (⌘C / Ctrl+C)">Copier</button>
+                        <button type="button" id="jam-eb-cut" class="jam-eb" onclick="app.jam.gridCut()" title="Couper (⌘X / Ctrl+X)">Couper</button>
+                        <button type="button" id="jam-eb-paste" class="jam-eb" onclick="app.jam.gridPaste()" title="Coller après la sélection (⌘V / Ctrl+V)">Coller</button>
+                        <button type="button" id="jam-eb-dup" class="jam-eb" onclick="app.jam.gridDuplicate()" title="Dupliquer la sélection juste après elle (⌘D / Ctrl+D)">Dupliquer</button>
+                        <button type="button" id="jam-eb-del" class="jam-eb jam-eb-danger" onclick="app.jam.gridDelete()" title="Supprimer la sélection (Suppr)">Supprimer</button>
+                        <button type="button" id="jam-eb-all" class="jam-eb" onclick="app.jam.gridSelectAll()" title="Tout sélectionner (⌘A / Ctrl+A)">Tout</button>
                     </div>
 
                     <div id="jam-chord-sequence-display" class="py-2 border-y border-[#333333] min-h-[80px] custom-scrollbar overflow-x-auto"></div>
@@ -1114,6 +1167,7 @@
                 this.activeSlot = 0; // créneau (0 = gauche/haut, 1 = droite/bas) occupé par la gamme active
                 this.timer = null;
                 this._LEAD = 0.12;       // avance (s) des ticks sur leur temps audio
+                this._FIRST_LEAD = 0.35; // délai (s) avant le tout premier temps : laisse la sortie audio se réveiller
                 this._beatAudio = null;  // instant audio du prochain temps
                 this._beatAudioTime = null;
                 
@@ -1159,6 +1213,7 @@
                 this.undoLimit = 100;
                 this.initDefaultGrid();
                 this.bindUndoShortcuts();
+                this.bindGridEditShortcuts();
             }
 
             resetGrid() {
@@ -1398,6 +1453,16 @@
             }
 
             withUndo(fn) {
+                // Pendant une session d'édition de mesure (pop-up), toutes les modifications forment UNE seule
+                // entrée d'annulation, enregistrée à la fermeture du pop-up.
+                if (this._undoGroup) {
+                    this._skipCustom = false;
+                    fn();
+                    if (!this._skipCustom && JSON.stringify(this._undoGroup.before.grid) !== JSON.stringify(this.grid)) {
+                        this.setStyleMenuCustom();
+                    }
+                    return;
+                }
                 const before = this.captureState();
                 this._skipCustom = false;
                 fn();
@@ -1429,6 +1494,7 @@
             }
 
             undo() {
+                this.closeMeasureEditor();
                 if (this.undoStack.length === 0) return;
                 this.redoStack.push(this.captureState());
                 this.applyState(this.undoStack.pop());
@@ -1436,6 +1502,7 @@
             }
 
             redo() {
+                this.closeMeasureEditor();
                 if (this.redoStack.length === 0) return;
                 this.undoStack.push(this.captureState());
                 this.applyState(this.redoStack.pop());
@@ -3641,6 +3708,705 @@
                 return degreeLabel;
             }
 
+            // ===== Sélection de mesures et copier / coller dans la grille =====
+
+            _totalMeasures() { return this.getFlatMeasureList().length; }
+
+            _activeMeasureNumber() {
+                if (this.currentStepIndex < 0 || this.currentStepIndex >= this.grid.length) return null;
+                let count = 0;
+                for (let i = 0; i < this.currentStepIndex; i++) count += this.grid[i].measures;
+                return count + Math.floor(this.currentBeat / 4) + 1;
+            }
+
+            // Plage sur laquelle agissent les commandes : la sélection, sinon la mesure cliquée / active.
+            _actionRange() {
+                const total = this._totalMeasures();
+                if (total === 0) return null;
+                if (this._sel) {
+                    const from = Math.max(1, Math.min(this._sel.from, total));
+                    const to = Math.max(from, Math.min(this._sel.to, total));
+                    return { from, to };
+                }
+                const n = this._selAnchor || this._activeMeasureNumber();
+                if (!n || n > total) return null;
+                return { from: n, to: n };
+            }
+
+            setSelection(a, b) {
+                const from = Math.min(a, b), to = Math.max(a, b);
+                this._sel = { from, to };
+                this._applySelectionClasses();
+                this.updateEditBar();
+            }
+
+            clearSelection() {
+                this._sel = null;
+                this._selPhase = null;
+                this._applySelectionClasses();
+                this.updateEditBar();
+            }
+
+            _applySelectionClasses() {
+                document.querySelectorAll('#jam-chord-sequence-display .jam-cell[data-measure-number]').forEach(c => {
+                    const n = parseInt(c.dataset.measureNumber, 10);
+                    c.classList.toggle('jam-sel', !!this._sel && n >= this._sel.from && n <= this._sel.to);
+                });
+            }
+
+            toggleSelectMode() {
+                this._selMode = !this._selMode;
+                this._selPhase = null;
+                if (!this._selMode) this._sel = null;
+                this._applySelectionClasses();
+                this.updateEditBar();
+            }
+
+            // Appelé au clic sur une case ; renvoie true si le clic doit être ignoré (fin d'un glisser-sélection).
+            _noteSelectionClick(ev, n) {
+                if (this._justDragged) { this._justDragged = false; return true; }
+                if (this._editor || this.isPlaying) return false;
+                if (ev.shiftKey) {
+                    const a = this._selAnchor || this._activeMeasureNumber() || n;
+                    this.setSelection(a, n);
+                } else if (this._selMode) {
+                    if (this._selPhase !== 'anchor') {
+                        this._selAnchor = n;
+                        this._selPhase = 'anchor';
+                        this.setSelection(n, n);
+                    } else {
+                        this._selPhase = 'done';
+                        this.setSelection(this._selAnchor, n);
+                    }
+                } else {
+                    this._selAnchor = n;
+                    if (this._sel) this.clearSelection();
+                }
+                return false;
+            }
+
+            bindGridEditShortcuts() {
+                if (this._gridEditBound) return;
+                this._gridEditBound = true;
+
+                // Glisser à la souris sur plusieurs cases = sélection d'une plage
+                document.addEventListener('pointerdown', (ev) => {
+                    if (ev.button !== 0 || ev.pointerType !== 'mouse' || ev.shiftKey || this.isPlaying || this._editor) return;
+                    const t = ev.target;
+                    if (!t.closest || t.closest('.jam-arp-btn, .jam-edit-btn, .jam-add-cell')) return;
+                    const cell = t.closest('#jam-chord-sequence-display .jam-cell[data-measure-number]');
+                    if (!cell) return;
+                    this._dragSel = { start: parseInt(cell.dataset.measureNumber, 10), moved: false };
+                });
+                document.addEventListener('pointermove', (ev) => {
+                    const d = this._dragSel;
+                    if (!d) return;
+                    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+                    const cell = el && el.closest ? el.closest('#jam-chord-sequence-display .jam-cell[data-measure-number]') : null;
+                    if (!cell) return;
+                    const n = parseInt(cell.dataset.measureNumber, 10);
+                    if (n !== d.start) d.moved = true;
+                    if (d.moved) {
+                        this._selAnchor = d.start;
+                        this.setSelection(d.start, n);
+                    }
+                });
+                const endDrag = () => {
+                    const d = this._dragSel;
+                    this._dragSel = null;
+                    if (d && d.moved) {
+                        this._justDragged = true;
+                        setTimeout(() => { this._justDragged = false; }, 0);
+                    }
+                };
+                document.addEventListener('pointerup', endDrag);
+                document.addEventListener('pointercancel', endDrag);
+
+                document.addEventListener('keydown', (e) => {
+                    const view = document.getElementById('view-jam');
+                    if (!view || view.classList.contains('hidden')) return;
+                    if (this.isPlaying || this._editor) return;
+                    const t = e.target;
+                    const nonText = ['range', 'checkbox', 'radio', 'button', 'file'];
+                    if (t && (t.isContentEditable || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' ||
+                        (t.tagName === 'INPUT' && !nonText.includes(t.type)))) return;
+                    const mod = e.metaKey || e.ctrlKey;
+                    const k = (e.key || '').toLowerCase();
+                    if (mod && !e.altKey && !e.shiftKey) {
+                        if (k === 'c') { e.preventDefault(); this.gridCopy(); }
+                        else if (k === 'x') { e.preventDefault(); this.gridCut(); }
+                        else if (k === 'v') { e.preventDefault(); this.gridPaste(); }
+                        else if (k === 'd') { e.preventDefault(); this.gridDuplicate(); }
+                        else if (k === 'a') { e.preventDefault(); this.gridSelectAll(); }
+                    } else if (!mod && !e.altKey) {
+                        if ((e.key === 'Delete' || e.key === 'Backspace') && this._sel) { e.preventDefault(); this.gridDelete(); }
+                        else if (e.key === 'Escape' && (this._sel || this._selMode)) {
+                            this._selMode = false;
+                            this.clearSelection();
+                        }
+                    }
+                });
+            }
+
+            _getClip() {
+                if (!this._clip) {
+                    try { this._clip = JSON.parse(localStorage.getItem('jamMeasureClipboard')) || []; }
+                    catch (e) { this._clip = []; }
+                }
+                return this._clip;
+            }
+
+            _setClip(items) {
+                this._clip = items;
+                try { localStorage.setItem('jamMeasureClipboard', JSON.stringify(items)); } catch (e) {}
+            }
+
+            _flash(msg) {
+                this._flashMsg = msg;
+                clearTimeout(this._flashTimer);
+                this._flashTimer = setTimeout(() => { this._flashMsg = null; this.updateEditBar(); }, 2600);
+                this.updateEditBar();
+            }
+
+            updateEditBar() {
+                const info = document.getElementById('jam-sel-info');
+                if (!info) return;
+                const range = this._actionRange();
+                const clip = this._getClip();
+                if (this._flashMsg) info.textContent = this._flashMsg;
+                else if (this._sel) {
+                    const n = this._sel.to - this._sel.from + 1;
+                    info.textContent = `${n} mesure${n > 1 ? 's' : ''} sélectionnée${n > 1 ? 's' : ''} (|${this._sel.from}${n > 1 ? '–|' + this._sel.to : ''})`;
+                } else if (this._selMode) info.textContent = 'Touchez une première puis une seconde mesure';
+                else info.textContent = 'Maj+clic ou glisser pour sélectionner des mesures';
+                const dis = (id, d) => { const b = document.getElementById(id); if (b) b.disabled = !!d; };
+                dis('jam-eb-copy', !range);
+                dis('jam-eb-cut', !range);
+                dis('jam-eb-dup', !range);
+                dis('jam-eb-del', !range);
+                dis('jam-eb-paste', clip.length === 0);
+                dis('jam-eb-all', this._totalMeasures() === 0);
+                const paste = document.getElementById('jam-eb-paste');
+                if (paste) paste.textContent = clip.length ? `Coller (${clip.length})` : 'Coller';
+                const modeBtn = document.getElementById('jam-sel-mode-btn');
+                if (modeBtn) {
+                    modeBtn.classList.toggle('is-on', !!this._selMode);
+                    modeBtn.textContent = this._selMode ? '☑ Sélection' : '☐ Sélection';
+                }
+            }
+
+            // Copie profonde des mesures from..to (numéros 1-based) sous forme de mesures isolées.
+            _measureItems(from, to) {
+                return this.getFlatMeasureList().slice(from - 1, to).map(m => {
+                    const it = { rootIndex: m.rootIndex, chordId: m.chordId, scaleId: m.scaleId };
+                    if (Number.isInteger(m.bassRootIndex)) it.bassRootIndex = m.bassRootIndex;
+                    if (m.harmonicFunction) it.harmonicFunction = m.harmonicFunction;
+                    if (m.split) it.split = { rootIndex: m.split.rootIndex, chordId: m.split.chordId, scaleId: m.split.scaleId };
+                    return it;
+                });
+            }
+
+            // Isole chaque mesure de la plage dans son propre bloc ; renvoie l'index des blocs extrêmes.
+            _isolateRange(from, to) {
+                for (let n = to; n >= from; n--) this._isolateMeasure(n);
+                const flat = this.getFlatMeasureList();
+                return { i0: flat[from - 1].stepIndex, i1: flat[to - 1].stepIndex };
+            }
+
+            // Fusionne les blocs voisins identiques autour d'une zone modifiée (évite l'éparpillement en blocs d'1 mesure).
+            _mergeAround(i0, i1) {
+                const strip = (o) => { const c = { ...o }; delete c.measures; return JSON.stringify(c); };
+                let i = Math.max(0, i0 - 1);
+                let end = Math.min(this.grid.length - 1, i1 + 1);
+                while (i < end && i < this.grid.length - 1) {
+                    const a = this.grid[i], b = this.grid[i + 1];
+                    if (!a.split && !b.split && strip(a) === strip(b)) {
+                        a.measures += b.measures;
+                        this.grid.splice(i + 1, 1);
+                        end--;
+                    } else i++;
+                }
+            }
+
+            _selectMeasureView(n) {
+                const flat = this.getFlatMeasureList();
+                const m = flat[Math.max(0, Math.min(n, flat.length) - 1)];
+                if (!m) { this.currentStepIndex = -1; this.currentBeat = 0; return; }
+                this.currentStepIndex = m.stepIndex;
+                this.currentBeat = (m.measureInStep - 1) * 4;
+            }
+
+            gridCopy() {
+                if (this.isPlaying) return;
+                const r = this._actionRange();
+                if (!r) { this._flash('Rien à copier : sélectionnez des mesures'); return; }
+                const items = this._measureItems(r.from, r.to);
+                this._setClip(items);
+                this._flash(`${items.length} mesure${items.length > 1 ? 's' : ''} copiée${items.length > 1 ? 's' : ''}`);
+            }
+
+            gridCut() {
+                if (this.isPlaying) return;
+                const r = this._actionRange();
+                if (!r) { this._flash('Rien à couper : sélectionnez des mesures'); return; }
+                const items = this._measureItems(r.from, r.to);
+                this._setClip(items);
+                if (r.to - r.from + 1 >= this._totalMeasures()) {
+                    this._flash('Copié — la grille doit garder au moins une mesure');
+                    return;
+                }
+                this._deleteRange(r);
+                this._flash(`${items.length} mesure${items.length > 1 ? 's' : ''} coupée${items.length > 1 ? 's' : ''}`);
+            }
+
+            gridDelete() {
+                if (this.isPlaying) return;
+                const r = this._actionRange();
+                if (!r) return;
+                if (r.to - r.from + 1 >= this._totalMeasures()) {
+                    this._flash('La grille doit garder au moins une mesure');
+                    return;
+                }
+                this._deleteRange(r);
+            }
+
+            _deleteRange(r) {
+                this.withUndo(() => {
+                    const { i0, i1 } = this._isolateRange(r.from, r.to);
+                    this.grid.splice(i0, i1 - i0 + 1);
+                    this._mergeAround(i0 - 1, i0);
+                });
+                const total = this._totalMeasures();
+                const n = Math.min(r.from, total);
+                this._sel = null;
+                this._selPhase = null;
+                this._selAnchor = n;
+                this._selectMeasureView(n);
+                this.renderGridUI();
+            }
+
+            // Insère les mesures « items » juste après la mesure afterMeasure (0 = au début) et les sélectionne.
+            _insertItemsAfter(afterMeasure, items) {
+                if (!items.length) return;
+                this.withUndo(() => {
+                    let at = 0;
+                    if (this._totalMeasures() > 0 && afterMeasure >= 1) {
+                        const idx = this._isolateMeasure(afterMeasure);
+                        at = idx + 1;
+                    }
+                    const steps = items.map(it => ({ ...JSON.parse(JSON.stringify(it)), measures: 1 }));
+                    this.grid.splice(at, 0, ...steps);
+                    this._mergeAround(at - 1, at + steps.length);
+                });
+                const first = afterMeasure + 1;
+                const last = afterMeasure + items.length;
+                this._selAnchor = first;
+                this._selPhase = 'done';
+                this._selectMeasureView(first);
+                this.setSelection(first, last);
+                this.renderGridUI();
+                const cell = document.querySelector(`#jam-chord-sequence-display .jam-cell[data-measure-number="${first}"]`);
+                if (cell && cell.scrollIntoView) cell.scrollIntoView({ block: 'nearest' });
+            }
+
+            gridPaste() {
+                if (this.isPlaying) return;
+                const clip = this._getClip();
+                if (!clip.length) { this._flash('Presse-papiers vide : copiez d\'abord des mesures'); return; }
+                const total = this._totalMeasures();
+                const r = this._actionRange();
+                const after = total === 0 ? 0 : (r ? r.to : total);
+                this._insertItemsAfter(after, clip);
+                this._flash(`${clip.length} mesure${clip.length > 1 ? 's' : ''} collée${clip.length > 1 ? 's' : ''}`);
+            }
+
+            gridDuplicate() {
+                if (this.isPlaying) return;
+                const r = this._actionRange();
+                if (!r) { this._flash('Rien à dupliquer : sélectionnez des mesures'); return; }
+                const items = this._measureItems(r.from, r.to);
+                this._insertItemsAfter(r.to, items);
+                this._flash(`${items.length} mesure${items.length > 1 ? 's' : ''} dupliquée${items.length > 1 ? 's' : ''}`);
+            }
+
+            gridSelectAll() {
+                if (this.isPlaying) return;
+                const total = this._totalMeasures();
+                if (!total) return;
+                this._selAnchor = 1;
+                this.setSelection(1, total);
+            }
+
+            // ===== Édition d'une mesure directement depuis la grille (pop-up) =====
+
+            // Accords diatoniques de la tonalité et du mode en cours : un clic = fondamentale + accord + gamme.
+            getDiatonicDegrees() {
+                const T = [
+                    { off: 0,  c: 'maj7', s: 'ionian' },
+                    { off: 2,  c: 'm7',   s: 'dorian' },
+                    { off: 4,  c: 'm7',   s: 'phrygian' },
+                    { off: 5,  c: 'maj7', s: 'lydian' },
+                    { off: 7,  c: '7',    s: 'mixolydian' },
+                    { off: 9,  c: 'm7',   s: 'aeolian' },
+                    { off: 11, c: 'm7b5', s: 'locrianSharp2' }
+                ];
+                const ROT = { ionian: 0, dorian: 1, phrygian: 2, lydian: 3, mixolydian: 4, aeolian: 5, locrian: 6 };
+                const rot = ROT[this.mainQuality] ?? 0;
+                const numerals = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+                return numerals.map((num, i) => {
+                    const target = T[(rot + i) % 7];
+                    const off = (target.off - T[rot].off + 12) % 12;
+                    const lower = target.c === 'm7' || target.c === 'm7b5';
+                    let label = lower ? num.toLowerCase() : num;
+                    if (target.c === 'm7b5') label += 'ø';
+                    const co = this.findChordObj(target.c);
+                    const scaleId = (co && co.scales.some(sc => sc.id === target.s)) ? target.s : (co ? co.scales[0].id : target.s);
+                    return { label, rootIndex: (this.mainKey + off) % 12, chordId: target.c, scaleId };
+                });
+            }
+
+            // Isole une mesure dans son propre bloc (un bloc de 4 mesures devient jusqu'à 3 blocs) et renvoie son index.
+            _isolateMeasure(measureNumber) {
+                const m = this.getFlatMeasureList().find(x => x.measureNumber === measureNumber);
+                if (!m) return -1;
+                const s = this.grid[m.stepIndex];
+                if (s.measures === 1) return m.stepIndex;
+                const base = JSON.parse(JSON.stringify(s));
+                delete base.split;
+                const before = m.measureInStep - 1;
+                const after = s.measures - m.measureInStep;
+                const parts = [];
+                if (before > 0) parts.push({ ...base, measures: before });
+                const editedPos = parts.length;
+                parts.push({ ...base, measures: 1 });
+                if (after > 0) parts.push({ ...base, measures: after });
+                this.grid.splice(m.stepIndex, 1, ...parts);
+                return m.stepIndex + editedPos;
+            }
+
+            openAddMeasure() {
+                if (this.isPlaying) return;
+                this.closeMeasureEditor();
+                this._beginEditor(true);
+                this.withUndo(() => {
+                    const flat = this.getFlatMeasureList();
+                    let nc;
+                    if (flat.length) {
+                        const last = flat[flat.length - 1];
+                        const c = last.split || last;
+                        nc = { rootIndex: c.rootIndex, chordId: c.chordId, scaleId: c.scaleId, measures: 1 };
+                    } else {
+                        const d = this.getDiatonicDegrees()[0];
+                        nc = { rootIndex: d.rootIndex, chordId: d.chordId, scaleId: d.scaleId, measures: 1 };
+                    }
+                    this.grid.push(nc);
+                });
+                this._editor.measureNumber = this.getFlatMeasureList().length;
+                this._editorSelect();
+            }
+
+            openMeasureEditor(measureNumber, opts = {}) {
+                if (this.isPlaying) return;
+                const total = this.getFlatMeasureList().length;
+                if (measureNumber < 1 || measureNumber > total) return;
+                if (!this._editor) this._beginEditor(false);
+                this._editor.measureNumber = measureNumber;
+                this._editor.half = opts.half === 1 ? 1 : 0;
+                this._editorSelect();
+            }
+
+            _beginEditor(isNew) {
+                this._undoGroup = { before: this.captureState() };
+                const el = document.createElement('div');
+                el.className = 'jm-pop';
+                el.addEventListener('click', (ev) => {
+                    const t = ev.target.closest('[data-act]');
+                    if (!t || t.tagName === 'SELECT') return;
+                    this._editorOnAction(t.dataset.act, t.dataset.v, t.dataset.i);
+                });
+                el.addEventListener('change', (ev) => {
+                    const t = ev.target;
+                    if (t.dataset && t.dataset.act === 'chordsel' && t.value) this._editorApply({ chordId: t.value });
+                });
+                (document.fullscreenElement || document.body).appendChild(el);
+                this._editor = { measureNumber: 1, half: 0, touched: false, isNew: !!isNew, el };
+
+                this._edOutside = (ev) => {
+                    if (!this._editor) return;
+                    const t = ev.target;
+                    if (this._editor.el.contains(t)) return;
+                    if (t.closest && (t.closest('#jam-chord-sequence-display .jam-cell') || t.closest('.jam-add-cell'))) return;
+                    this.closeMeasureEditor();
+                };
+                this._edKeys = (ev) => {
+                    if (!this._editor) return;
+                    const tag = (ev.target.tagName || '').toLowerCase();
+                    const typing = tag === 'input' || tag === 'textarea' || tag === 'select';
+                    if (ev.key === 'Escape') { this.closeMeasureEditor(); ev.preventDefault(); return; }
+                    if (typing || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+                    if (ev.key === 'Enter') { this._editor.touched = true; this.closeMeasureEditor(); ev.preventDefault(); }
+                    else if (ev.key === 'ArrowRight') { this._editorGo(1); ev.preventDefault(); }
+                    else if (ev.key === 'ArrowLeft') { this._editorGo(-1); ev.preventDefault(); }
+                    else if (/^[1-7]$/.test(ev.key)) { this._editorOnAction('degree', null, String(parseInt(ev.key, 10) - 1)); ev.preventDefault(); }
+                };
+                this._edReposition = () => this._positionEditor();
+                document.addEventListener('pointerdown', this._edOutside, true);
+                document.addEventListener('keydown', this._edKeys);
+                window.addEventListener('resize', this._edReposition);
+                const seq = document.getElementById('jam-chord-sequence-display');
+                if (seq) seq.addEventListener('scroll', this._edReposition);
+            }
+
+            closeMeasureEditor() {
+                const ed = this._editor;
+                if (!ed) return;
+                this._editor = null;
+                if (ed.el) ed.el.remove();
+                document.removeEventListener('pointerdown', this._edOutside, true);
+                document.removeEventListener('keydown', this._edKeys);
+                window.removeEventListener('resize', this._edReposition);
+                const seq = document.getElementById('jam-chord-sequence-display');
+                if (seq) seq.removeEventListener('scroll', this._edReposition);
+
+                const g = this._undoGroup;
+                this._undoGroup = null;
+                if (g && ed.isNew && !ed.touched) {
+                    // Mesure ajoutée puis abandonnée sans rien choisir : on annule.
+                    this.applyState(g.before);
+                } else if (g && JSON.stringify(g.before) !== JSON.stringify(this.captureState())) {
+                    this.undoStack.push(g.before);
+                    if (this.undoStack.length > this.undoLimit) this.undoStack.shift();
+                    this.redoStack = [];
+                }
+                this.updateUndoButtons();
+                this.renderSequenceUI();
+            }
+
+            // Sélectionne la mesure éditée dans la grille (case en surbrillance) puis rafraîchit grille et pop-up.
+            _editorSelect() {
+                const ed = this._editor;
+                if (!ed) return;
+                const m = this.getFlatMeasureList().find(x => x.measureNumber === ed.measureNumber);
+                if (!m) { this.closeMeasureEditor(); return; }
+                const step = this.grid[m.stepIndex];
+                if (ed.half === 1 && !this.isSplit(step)) ed.half = 0;
+                this.currentStepIndex = m.stepIndex;
+                this.currentBeat = (m.measureInStep - 1) * 4 + (ed.half === 1 ? 2 : 0);
+                this.renderGridUI();
+                this._renderEditor();
+                const cell = document.querySelector(`#jam-chord-sequence-display .jam-cell[data-measure-number="${ed.measureNumber}"]`);
+                if (cell && cell.scrollIntoView) cell.scrollIntoView({ block: 'nearest' });
+                this._positionEditor();
+            }
+
+            _editorOnAction(act, v, i) {
+                const ed = this._editor;
+                if (!ed) return;
+                switch (act) {
+                    case 'degree': {
+                        const d = this.getDiatonicDegrees()[parseInt(i, 10)];
+                        if (d) this._editorApply({ rootIndex: d.rootIndex, chordId: d.chordId, scaleId: d.scaleId });
+                        break;
+                    }
+                    case 'root': this._editorApply({ rootIndex: parseInt(v, 10) }); break;
+                    case 'chord': this._editorApply({ chordId: v }); break;
+                    case 'scale': this._editorApply({ scaleId: v }); break;
+                    case 'dur': this._editorDuration(v); break;
+                    case 'half': ed.half = parseInt(v, 10); this._editorSelect(); break;
+                    case 'del': this._editorDelete(); break;
+                    case 'ins': this._editorInsertAfter(); break;
+                    case 'prev': this._editorGo(-1); break;
+                    case 'next': this._editorGo(1); break;
+                    case 'close': ed.touched = true; this.closeMeasureEditor(); break;   // OK : on garde
+                    case 'cancel': this.closeMeasureEditor(); break;                       // ✕ : une mesure ajoutée vierge est annulée
+                }
+            }
+
+            _editorApply(patch) {
+                const ed = this._editor;
+                if (!ed) return;
+                ed.touched = true;
+                this.withUndo(() => {
+                    const idx = this._isolateMeasure(ed.measureNumber);
+                    if (idx < 0) return;
+                    const step = this.grid[idx];
+                    const useSplit = ed.half === 1 && this.isSplit(step);
+                    const target = useSplit ? step.split : step;
+                    const chordChanged = 'chordId' in patch || 'rootIndex' in patch;
+                    Object.assign(target, patch);
+                    if ('chordId' in patch && !('scaleId' in patch)) {
+                        const co = this.findChordObj(target.chordId);
+                        if (co && co.scales.length) target.scaleId = co.scales[0].id;
+                    }
+                    if (chordChanged && !useSplit) {
+                        delete step.bassRootIndex;
+                        delete step.harmonicFunction;
+                    }
+                });
+                this._editorSelect();
+                // Retour sonore : on entend l'accord choisi
+                const m = this.getFlatMeasureList().find(x => x.measureNumber === ed.measureNumber);
+                if (m) {
+                    const c = (ed.half === 1 && m.split) ? m.split : m;
+                    try { this.app.playJamChord(c.rootIndex, c.chordId); } catch (e) {}
+                }
+            }
+
+            _editorDuration(v) {
+                const ed = this._editor;
+                if (!ed) return;
+                ed.touched = true;
+                this.withUndo(() => {
+                    const idx = this._isolateMeasure(ed.measureNumber);
+                    if (idx < 0) return;
+                    const step = this.grid[idx];
+                    if (v === 'half') {
+                        if (!step.split) step.split = { rootIndex: step.rootIndex, chordId: step.chordId, scaleId: step.scaleId };
+                        ed.half = 1; // le second accord démarre identique : on passe directement à son édition
+                    } else {
+                        delete step.split;
+                        ed.half = 0;
+                    }
+                });
+                this._editorSelect();
+            }
+
+            _editorDelete() {
+                const ed = this._editor;
+                if (!ed) return;
+                if (this.getFlatMeasureList().length <= 1) return; // la grille garde au moins une mesure
+                ed.touched = true;
+                this.withUndo(() => {
+                    const idx = this._isolateMeasure(ed.measureNumber);
+                    if (idx >= 0) this.grid.splice(idx, 1);
+                });
+                const total = this.getFlatMeasureList().length;
+                if (ed.measureNumber > total) ed.measureNumber = total;
+                ed.half = 0;
+                this._editorSelect();
+            }
+
+            _editorInsertAfter() {
+                const ed = this._editor;
+                if (!ed) return;
+                ed.touched = true;
+                this.withUndo(() => {
+                    const idx = this._isolateMeasure(ed.measureNumber);
+                    if (idx < 0) return;
+                    this.grid.splice(idx + 1, 0, JSON.parse(JSON.stringify(this.grid[idx])));
+                });
+                ed.measureNumber += 1;
+                ed.half = 0;
+                this._editorSelect();
+            }
+
+            // Mesure précédente / suivante ; au-delà de la dernière, une nouvelle mesure (copie de la dernière) est ajoutée.
+            _editorGo(delta) {
+                const ed = this._editor;
+                if (!ed) return;
+                const total = this.getFlatMeasureList().length;
+                const n = ed.measureNumber + delta;
+                if (n < 1) return;
+                if (n > total) {
+                    ed.touched = true;
+                    this.withUndo(() => {
+                        const last = JSON.parse(JSON.stringify(this.grid[this.grid.length - 1]));
+                        if (last.measures !== 1) delete last.split;
+                        last.measures = 1;
+                        this.grid.push(last);
+                    });
+                }
+                ed.measureNumber = n;
+                ed.half = 0;
+                this._editorSelect();
+            }
+
+            _renderEditor() {
+                const ed = this._editor;
+                if (!ed || !ed.el) return;
+                const flat = this.getFlatMeasureList();
+                const m = flat.find(x => x.measureNumber === ed.measureNumber);
+                if (!m) return;
+                const step = this.grid[m.stepIndex];
+                const isHalf = this.isSplit(step);
+                if (ed.half === 1 && !isHalf) ed.half = 0;
+                const cur = (ed.half === 1 && isHalf) ? step.split : step;
+                const chordObj = this.findChordObj(cur.chordId);
+                const symbol = (c) => `${rootLabels[c.rootIndex]}${this.getJazzChordNotation(c.chordId)}`;
+                const chip = (on, attrs, inner, extra = '') => `<button type="button" class="jm-chip${extra}${on ? ' is-on' : ''}" ${attrs}>${inner}</button>`;
+
+                const degrees = this.getDiatonicDegrees().map((d, i) =>
+                    chip(d.rootIndex === cur.rootIndex && d.chordId === cur.chordId,
+                        `data-act="degree" data-i="${i}" title="Raccourci clavier : ${i + 1}"`,
+                        `${d.label}<small>${rootLabels[d.rootIndex]}${this.getJazzChordNotation(d.chordId)}</small>`, ' jm-deg')
+                ).join('');
+                const roots = rootLabels.map((r, i) => chip(i === cur.rootIndex, `data-act="root" data-v="${i}"`, r)).join('');
+                const common = ['maj7', '6', 'maj9', 'm7', 'm9', 'm11', '7', '9', '7alt', '7b9', '7sus4', 'm7b5', 'dim7', 'majTriad', 'minTriad'];
+                const commonObjs = common.map(id => this.findChordObj(id)).filter(c => c && c.id !== undefined);
+                const chords = commonObjs.map(c => chip(c.id === cur.chordId, `data-act="chord" data-v="${c.id}" title="${c.fullName || ''}"`, this.getJazzChordNotation(c.id))).join('');
+                const allChords = Object.values(chordTypes).flat();
+                const options = allChords.map(c => `<option value="${c.id}">${this.getJazzChordNotation(c.id)} — ${c.fullName || c.name}</option>`).join('');
+                const scales = (chordObj ? chordObj.scales : []).map(sc => {
+                    const db = scalesDb[sc.id];
+                    return chip(sc.id === cur.scaleId, `data-act="scale" data-v="${sc.id}" title="${sc.role || ''}"`, db ? db.name : sc.id, ' jm-scale');
+                }).join('');
+
+                const durSeg = `
+                    <div class="jm-row">
+                        ${chip(!isHalf, 'data-act="dur" data-v="1" title="Un seul accord sur la mesure"', '1 accord')}
+                        ${chip(isHalf, 'data-act="dur" data-v="half" title="Deux accords dans la mesure (temps 1-2 puis 3-4)"', '2 accords')}
+                    </div>
+                    ${isHalf ? `<div class="jm-row" style="margin-top:4px">
+                        ${chip(ed.half === 0, 'data-act="half" data-v="0"', `Temps 1–2 <small>${symbol(step)}</small>`)}
+                        ${chip(ed.half === 1, 'data-act="half" data-v="1"', `Temps 3–4 <small>${symbol(step.split)}</small>`)}
+                    </div>` : ''}`;
+
+                const prevScroll = ed.el.scrollTop;
+                ed.el.innerHTML = `
+                    <div class="jm-head">
+                        <span class="jm-title">Mesure ${m.measureNumber} · ${symbol(cur)}</span>
+                        <button type="button" class="jm-btn" data-act="cancel" title="Fermer (Échap)">✕</button>
+                    </div>
+                    <div class="jm-sec"><div class="jm-sec-t">Durée</div>${durSeg}</div>
+                    <div class="jm-sec"><div class="jm-sec-t">Degrés de la tonalité</div><div class="jm-row">${degrees}</div></div>
+                    <div class="jm-sec"><div class="jm-sec-t">Fondamentale</div><div class="jm-row">${roots}</div></div>
+                    <div class="jm-sec"><div class="jm-sec-t">Accord</div><div class="jm-row">${chords}</div>
+                        <select class="jm-select" data-act="chordsel"><option value="">Autres accords…</option>${options}</select></div>
+                    <div class="jm-sec"><div class="jm-sec-t">Gamme</div><div class="jm-row">${scales}</div></div>
+                    <div class="jm-foot">
+                        <button type="button" class="jm-btn" data-act="prev" title="Mesure précédente (←)">‹</button>
+                        <button type="button" class="jm-btn" data-act="next" title="Mesure suivante (→) — ajoute une mesure après la dernière">›</button>
+                        <button type="button" class="jm-btn" data-act="ins" title="Insérer une copie de cette mesure juste après">+ Insérer après</button>
+                        <button type="button" class="jm-btn jm-danger" data-act="del" title="Supprimer cette mesure">Supprimer</button>
+                        <button type="button" class="jm-btn jm-primary" data-act="close" title="Entrée">OK</button>
+                    </div>
+                    <div class="jm-hint">Touches : 1–7 degrés · ← → mesures · Entrée / Échap pour fermer</div>`;
+                ed.el.scrollTop = prevScroll;
+            }
+
+            _positionEditor() {
+                const ed = this._editor;
+                if (!ed || !ed.el) return;
+                const el = ed.el;
+                const vw = window.innerWidth, vh = window.innerHeight;
+                if (vw < 640) {
+                    el.classList.add('jm-sheet');
+                    el.style.left = ''; el.style.top = '';
+                    return;
+                }
+                el.classList.remove('jm-sheet');
+                const cell = document.querySelector(`#jam-chord-sequence-display .jam-cell[data-measure-number="${ed.measureNumber}"]`);
+                if (!cell) return;
+                const r = cell.getBoundingClientRect();
+                const pw = el.offsetWidth, ph = el.offsetHeight;
+                const left = Math.min(Math.max(8, r.left + r.width / 2 - pw / 2), vw - pw - 8);
+                let top = r.bottom + 8;
+                if (top + ph > vh - 8) top = r.top - ph - 8;
+                if (top < 8) top = Math.max(8, vh - ph - 8);
+                el.style.left = `${left}px`;
+                el.style.top = `${top}px`;
+            }
+
             renderSequenceUI() {
                 const container = document.getElementById('jam-chord-sequence-display');
                 if (!container) return;
@@ -3648,8 +4414,21 @@
                 container.innerHTML = '';
 
                 const flatMeasures = this.getFlatMeasureList();
+                if (this._sel && this._sel.from > flatMeasures.length) { this._sel = null; this._selPhase = null; }
+                else if (this._sel && this._sel.to > flatMeasures.length) this._sel.to = flatMeasures.length;
+                if (this._selAnchor && this._selAnchor > flatMeasures.length) this._selAnchor = null;
                 if (flatMeasures.length === 0) {
                     container.innerHTML = '<span class="text-slate-500 text-xs px-2">Aucun accord sélectionné</span>';
+                    this.updateEditBar();
+                    if (!this.isPlaying) {
+                        const addBtn = document.createElement('div');
+                        addBtn.className = 'jam-add-cell';
+                        addBtn.style.cssText = 'margin:8px 4px 0;max-width:120px;';
+                        addBtn.title = 'Ajouter une mesure';
+                        addBtn.textContent = '+';
+                        addBtn.onclick = () => this.openAddMeasure();
+                        container.appendChild(addBtn);
+                    }
                     return;
                 }
 
@@ -3671,7 +4450,16 @@
                 const gridWrapper = document.createElement('div');
                 gridWrapper.className = "jam-wrapper space-y-1.5 w-full px-1";
 
-                systems.forEach((systemMeasures) => {
+                const makeAddCell = () => {
+                    const c = document.createElement('div');
+                    c.className = 'jam-add-cell';
+                    c.title = 'Ajouter une mesure';
+                    c.textContent = '+';
+                    c.onclick = () => this.openAddMeasure();
+                    return c;
+                };
+
+                systems.forEach((systemMeasures, sysIdx) => {
                     const systemRow = document.createElement('div');
                     systemRow.className = "jam-row grid grid-cols-4 gap-1.5 bg-[#1a1a1a] p-1.5 rounded-lg border border-[#333333]";
 
@@ -3712,12 +4500,22 @@
                                 : 'bg-white border-slate-300 hover:border-slate-500 text-slate-900'
                         }`;
                         
+                        if (this._sel && m.measureNumber >= this._sel.from && m.measureNumber <= this._sel.to) mBox.classList.add('jam-sel');
+
                         mBox.onclick = (ev) => {
+                            if (this._noteSelectionClick(ev, m.measureNumber)) return;
                             // Sur une case à deux accords, la moitié cliquée détermine l'accord sélectionné et joué
                             let half = 0;
                             if (showSplit) {
                                 const r = mBox.getBoundingClientRect();
                                 half = (ev.clientX - r.left) >= r.width / 2 ? 1 : 0;
+                            }
+                            // Pop-up d'édition ouvert : un clic sur une autre mesure l'édite à son tour
+                            if (this._editor) {
+                                const c = half === 1 ? m.split : m;
+                                try { this.app.playJamChord(c.rootIndex, c.chordId); } catch (e) {}
+                                this.openMeasureEditor(m.measureNumber, { half });
+                                return;
                             }
                             this.currentStepIndex = m.stepIndex;
                             this.currentBeat = (m.measureInStep - 1) * 4 + (half === 1 ? 2 : 0);
@@ -3730,7 +4528,7 @@
 
                         mBox.innerHTML = `
                             <div class="jam-cell-top flex justify-between items-center text-[9px] font-mono ${isActive ? 'text-blue-200 font-bold' : 'text-slate-400'}">
-                                <span>|${m.measureNumber}</span>
+                                <span>|${m.measureNumber}<span class="jam-edit-btn" role="button" aria-label="Éditer la mesure" title="Éditer cette mesure">✎</span></span>
                                 <span class="text-[8px] text-emerald-400 font-medium truncate max-w-[60px]">${scaleLabel}</span>
                             </div>
                             ${centerHtml}
@@ -3741,6 +4539,17 @@
                         // Un clic sur « >> » joue seulement l'arpège de l'accord concerné, sans changer
                         // la sélection ni déclencher le clic de la case. Sur une mesure à deux accords,
                         // le premier « >> » joue le premier accord, le second joue le deuxième accord.
+                        const editBtn = mBox.querySelector('.jam-edit-btn');
+                        if (editBtn) editBtn.onclick = (ev) => { ev.stopPropagation(); this.openMeasureEditor(m.measureNumber); };
+                        mBox.ondblclick = (ev) => {
+                            let half = 0;
+                            if (showSplit) {
+                                const r = mBox.getBoundingClientRect();
+                                half = (ev.clientX - r.left) >= r.width / 2 ? 1 : 0;
+                            }
+                            this.openMeasureEditor(m.measureNumber, { half });
+                        };
+                        mBox.oncontextmenu = (ev) => { if (this.isPlaying) return; ev.preventDefault(); this.openMeasureEditor(m.measureNumber); };
                         mBox.querySelectorAll('.jam-arp-btn').forEach((btn) => {
                             const second = btn.classList.contains('jam-arp-btn-b');
                             btn.onclick = (ev) => {
@@ -3753,6 +4562,10 @@
                     });
 
                     for (let k = systemMeasures.length; k < 4; k++) {
+                        if (k === systemMeasures.length && sysIdx === systems.length - 1 && !this.isPlaying) {
+                            systemRow.appendChild(makeAddCell());
+                            continue;
+                        }
                         const emptyCell = document.createElement('div');
                         emptyCell.className = "jam-cell p-2 rounded border border-dashed border-[#2a2a2c] bg-[#161616] opacity-30 flex items-center justify-center h-[64px]";
                         emptyCell.innerHTML = `<span class="text-[10px] font-mono text-slate-600">—</span>`;
@@ -3762,7 +4575,22 @@
                     gridWrapper.appendChild(systemRow);
                 });
 
+                // Dernière ligne pleine : une nouvelle ligne propose « + » pour ajouter une mesure
+                if (!this.isPlaying && flatMeasures.length % 4 === 0) {
+                    const addRow = document.createElement('div');
+                    addRow.className = "jam-row grid grid-cols-4 gap-1.5 bg-[#1a1a1a] p-1.5 rounded-lg border border-[#333333]";
+                    addRow.appendChild(makeAddCell());
+                    for (let k = 1; k < 4; k++) {
+                        const emptyCell = document.createElement('div');
+                        emptyCell.className = "jam-cell p-2 rounded border border-dashed border-[#2a2a2c] bg-[#161616] opacity-30 flex items-center justify-center h-[64px]";
+                        emptyCell.innerHTML = `<span class="text-[10px] font-mono text-slate-600">—</span>`;
+                        addRow.appendChild(emptyCell);
+                    }
+                    gridWrapper.appendChild(addRow);
+                }
+
                 container.appendChild(gridWrapper);
+                this.updateEditBar();
 
                 const activeMeasure = flatMeasures.find(m => m.measureNumber === currentMeasureNum) || flatMeasures[0];
                 if (activeMeasure) {
@@ -4349,6 +5177,10 @@
 
             async start() {
                 if (this.grid.length === 0) return;
+                this.closeMeasureEditor();
+                this._sel = null;
+                this._selMode = false;
+                this._selPhase = null;
                 this.app.stopAllSounds();
                 this.app.stopLoop();
                 
@@ -4361,6 +5193,7 @@
                     try { await this.app.audioCtx.resume(); } catch (e) {}
                 }
                 this.initGainNode();
+                this._warmUpAudio();
                 if (this.orchestrationMode === 'orchestra') this.ensureBandAudio();
 
                 this._clockClear(this.timer);
@@ -4478,6 +5311,28 @@
                 w.postMessage({ t: 'clear', id });
             }
 
+            // Réveille la sortie audio avant le premier temps : sur un AudioContext fraîchement créé ou
+            // repris, le matériel met un instant à démarrer et « avale » le tout début du son (le premier clic).
+            // On crée le gain du métronome et on fait tourner un signal inaudible pendant l'intro.
+            _warmUpAudio() {
+                const ctx = this.app.audioCtx;
+                if (!ctx) return;
+                try {
+                    if (!this.metroGain) {
+                        this.metroGain = ctx.createGain();
+                        this.metroGain.gain.value = this.metronomeVolume;
+                        this.metroGain.connect(ctx.destination);
+                    }
+                    const osc = ctx.createOscillator();
+                    const g = ctx.createGain();
+                    g.gain.value = 0.0001;
+                    osc.connect(g);
+                    g.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.8);
+                } catch (e) {}
+            }
+
             // Instant audio (horloge matérielle de l'AudioContext) auquel doit sonner le temps en cours de
             // programmation. Les fonctions de jeu (arpèges, orchestre) l'utilisent à la place de currentTime.
             _audioNow() {
@@ -4521,7 +5376,9 @@
 
                 const intervalSec = 60 / this.bpm;
                 // Grille de temps en secondes AUDIO : premier temps, ou recalage après un retard de plus d'un temps.
-                if (this._beatAudio == null || this._beatAudio < ctx.currentTime - intervalSec) {
+                if (this._beatAudio == null) {
+                    this._beatAudio = ctx.currentTime + this._FIRST_LEAD;
+                } else if (this._beatAudio < ctx.currentTime - intervalSec) {
                     this._beatAudio = ctx.currentTime + this._LEAD;
                 }
                 const t = this._beatAudio;
