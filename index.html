@@ -306,9 +306,12 @@
         }
 
         /* ===== Édition d'une mesure depuis la grille (pop-up) ===== */
-        #jam-chord-sequence-display .jam-edit-btn { display: inline-block; margin-left: 3px; padding: 0 3px; border-radius: 3px; cursor: pointer; font-size: 11px; line-height: 1.25; opacity: .5; -webkit-tap-highlight-color: transparent; }
+        #jam-chord-sequence-display .jam-edit-btn { display: inline-block; margin-left: 4px; padding: 1px 4px; border-radius: 4px; cursor: pointer; font-size: 16px; line-height: 1; vertical-align: middle; opacity: .6; -webkit-tap-highlight-color: transparent; }
         #jam-chord-sequence-display .jam-cell:hover .jam-edit-btn { opacity: 1; }
         #jam-chord-sequence-display .jam-edit-btn:hover { background: rgba(37,99,235,.18); }
+        #view-jam.jam-playing .jam-edit-btn { display: none; }
+        #jam-chord-sequence-display .jam-cell-top > span:first-child { white-space: nowrap; flex: none; }
+        #jam-chord-sequence-display .jam-cell-top > span:last-child { min-width: 0; }
         #jam-chord-sequence-display .jam-add-cell { align-self: stretch; min-height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 1.5px dashed #2f6f57; background: rgba(16,185,129,.06); color: #34d399; font-size: 24px; line-height: 1; cursor: pointer; user-select: none; transition: background .12s, border-color .12s; }
         #jam-chord-sequence-display .jam-add-cell:hover { background: rgba(16,185,129,.16); border-color: #34d399; }
         .jm-pop { position: fixed; z-index: 2000; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); color: #e2e8f0; padding: 10px 12px 12px; font-size: 12px; }
@@ -456,6 +459,7 @@
             #jam-chord-sequence-display .jam-row { padding: 4px; gap: 4px; }
             #jam-chord-sequence-display .jam-cell { padding: 4px; height: 68px; min-height: 68px; }
             #jam-chord-sequence-display .jam-cell-top { font-size: 8px; gap: 2px; }
+            #jam-chord-sequence-display .jam-edit-btn { font-size: 14px; padding: 1px 3px; margin-left: 2px; }
             #jam-chord-sequence-display .jam-cell-top > span:last-child { max-width: 46px; font-size: 7px; }
 
             #view-jam #jam-chord-sequence-display .jam-cell > .jam-realbook-chord:not(.jam-cell-bottom) {
