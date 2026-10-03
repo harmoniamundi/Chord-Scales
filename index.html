@@ -28,10 +28,6 @@
         .chord-volume::-moz-range-track { height: 3px; border-radius: 2px; background: #4a4a4c; }
         .chord-volume::-moz-range-thumb { width: 10px; height: 10px; border-radius: 50%; background: #cbd5e1; border: 0; }
         @media (hover: none) and (pointer: coarse) { .chord-volume { height: 18px; } }
-        .jam-drag-handle { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; color: #64748b; font-size: 15px; line-height: 1; padding: 3px 4px; border-radius: 4px; flex-shrink: 0; }
-        .jam-drag-handle:hover { color: #e2e8f0; background: #333333; }
-        .jam-drag-handle.is-locked { opacity: .25; cursor: not-allowed; }
-        .jam-drag-handle.is-locked:hover { color: #64748b; background: transparent; }
         /* Mesure à deux accords : la case est coupée en deux « demi-dominos » */
         #jam-chord-sequence-display .jam-split { display: flex; align-items: center; width: 100%; }
         #jam-chord-sequence-display .jam-half { flex: 1 1 0; min-width: 0; text-align: center; padding: 3px 0; border-radius: 4px; }
@@ -51,7 +47,6 @@
         #jam-chord-sequence-display .jam-arp-btn:hover { color: #2563eb; background: rgba(37,99,235,.14); }
         #jam-chord-sequence-display .jam-cell.bg-blue-600 .jam-arp-btn { color: #bfdbfe; }
         #jam-chord-sequence-display .jam-cell.bg-blue-600 .jam-arp-btn:hover { color: #fff; background: rgba(255,255,255,.2); }
-        .jam-dragging { position: relative; z-index: 30; opacity: .92; box-shadow: 0 8px 20px rgba(0,0,0,.55); transition: none !important; cursor: grabbing; }
 
         /* Style des symboles d'accords façon Real Book — uniquement dans la grille d'accords du mode Jam */
         #jam-chord-sequence-display .jam-cell-bottom {
@@ -318,7 +313,10 @@
         #jam-chord-sequence-display .jam-add-cell:hover { background: rgba(16,185,129,.16); border-color: #34d399; }
         .jm-pop { position: fixed; z-index: 2000; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); color: #e2e8f0; padding: 10px 12px 12px; font-size: 12px; }
         .jm-pop.jm-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; max-height: 62vh; }
-        .jm-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .jm-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+        .jm-pop.jm-dragging { opacity: .96; box-shadow: 0 16px 48px rgba(0,0,0,.7); }
+        .jm-pop.jm-dragging .jm-head { cursor: grabbing; }
+        .jm-pop.jm-sheet .jm-head { cursor: default; }
         .jm-title { font-size: 13px; font-weight: 700; }
         .jm-sec { margin-top: 9px; }
         .jm-sec-t { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #94a3b8; margin-bottom: 4px; }
@@ -385,13 +383,6 @@
         .jam-edit-toggle:hover { color: #fff; border-color: #3a3a3c; }
         .jam-edit-toggle.is-on { background: #2563eb; border-color: #60a5fa; color: #fff; }
         #view-jam.jam-playing #jam-edit-toggle { display: none; }
-        .jam-editor-toggle { display: none; align-items: center; justify-content: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #3a3a3c; background: #1f1f21; color: #cbd5e1; font: 600 11px/1.2 inherit; font-family: inherit; cursor: pointer; }
-        .jam-editor-chevron { transition: transform .15s; }
-        @media (max-width: 639px) {
-            .jam-editor-toggle { display: inline-flex; }
-            #jam-grid-editor[data-collapsed="true"] #jam-editor-body { display: none; }
-            #jam-grid-editor[data-collapsed="true"] .jam-editor-chevron { transform: rotate(-90deg); }
-        }
 
         /* ===== Pop-up d'édition de la fonction tonale ===== */
         #jam-chord-sequence-display.edit-on .jam-fn-label { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
@@ -403,6 +394,37 @@
         .jm-fn-row.is-on b { color: #fff; }
         .jm-fn-row.is-on span { color: #dbeafe; }
         .jm-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+        /* ===== Agencement du mode Jam : colonne de réglages étroite + gammes sur toute la largeur ===== */
+        .jr-actions { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap; }
+        @media (min-width: 1024px) {
+            #view-jam:not(.hidden) {
+                display: grid;
+                grid-template-columns: 280px minmax(0, 1fr);
+                grid-template-rows: minmax(0, auto) minmax(300px, 1fr);
+                background: #1e1e1e;
+            }
+            #view-jam > #jam-grid-editor { grid-column: 1; grid-row: 1; width: auto; min-height: 0; }
+            #view-jam > main { display: contents; }
+            #view-jam #jam-chord-card { grid-column: 2; grid-row: 1; margin: 24px 24px 0 24px; min-height: 0; min-width: 0; display: flex !important; flex-direction: column; overflow: hidden; }
+            #view-jam #jam-scales-card { grid-column: 1 / -1; grid-row: 2; margin: 16px 24px 24px 24px; min-height: 0; min-width: 0; }
+            #view-jam.jam-playing #jam-scales-card { align-self: start; }
+
+            #jam-grid-editor .jr-wrap { flex-wrap: wrap; }
+            #jam-grid-editor .jr-full { flex: 1 1 100% !important; width: 100%; }
+            #jam-grid-editor .jr-half { flex: 1 1 0; min-width: 0; text-align: center; }
+            #jam-grid-editor .jr-center { justify-content: center; }
+
+            #view-jam #jam-chord-sequence-display { flex: 1 1 auto !important; min-height: 0 !important; display: flex !important; flex-direction: column; overflow-x: hidden; overflow-y: auto; }
+            #view-jam #jam-chord-sequence-display .jam-wrapper { flex: 1 1 auto !important; min-height: 0; display: flex !important; flex-direction: column; }
+            #view-jam #jam-chord-sequence-display .jam-row { flex: 1 1 0 !important; min-height: 76px !important; max-height: 112px; }
+            #view-jam #jam-chord-sequence-display .jam-cell { height: auto !important; min-height: 64px !important; }
+
+            /* Gammes : on affiche autant de cartes par ligne que la largeur le permet (3 à 1440 px, 4 à 1920 px) ;
+               pendant la lecture, les deux cartes (active + suivante) se partagent la largeur. */
+            #view-jam:not(.jam-playing) #jam-scale-visualizer { grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); }
+            #view-jam.jam-playing #jam-scale-visualizer { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
     </style>
     <style>
         /* ===== Adaptation téléphone (aucun effet sur ordinateur) ===== */
@@ -598,7 +620,7 @@
         <!-- VUE MODE JAM -->
         <div id="view-jam" class="flex-1 flex flex-col lg:flex-row lg:overflow-hidden min-h-0 min-w-0">
             
-            <aside id="jam-grid-editor" data-collapsed="true" class="w-full lg:w-[420px] bg-[#222222] border-r border-[#333333] flex flex-col p-4 space-y-4 shrink-0 lg:overflow-y-auto custom-scrollbar">
+            <aside id="jam-grid-editor" class="w-full lg:w-[280px] bg-[#222222] border-r border-[#333333] flex flex-col p-4 space-y-4 shrink-0 lg:overflow-y-auto custom-scrollbar">
                 
                 <div class="bg-[#2c2c2e] border border-[#3a3a3c] rounded-lg p-3 shadow-inner space-y-3">
                     <div class="flex items-center justify-between">
@@ -606,8 +628,8 @@
                         <span id="jam-bar-counter" class="text-xs font-mono font-bold px-2 py-0.5 bg-blue-500/20 text-blue-300 rounded">Mesure : -/-</span>
                     </div>
 
-                    <div class="flex items-center gap-2">
-                        <select id="jam-style-select" onchange="app.jam.changeStyle(this.value)" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-2.5 rounded-lg transition text-xs shadow cursor-pointer border-0 outline-none">
+                    <div class="flex items-center gap-2 jr-wrap">
+                        <select id="jam-style-select" onchange="app.jam.changeStyle(this.value)" class="jr-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-2.5 rounded-lg transition text-xs shadow cursor-pointer border-0 outline-none">
                             <option value="ii-v-i" selected>II-V-I</option>
                             <option value="anatole">Anatole (I-VI-II-V)</option>
                             <option value="i-got-rythm">I got rythm</option>
@@ -628,10 +650,10 @@
                             <option value="trad">Traditionnel</option>
                             <option value="custom">Personnalisé</option>
                         </select>
-                        <select id="jam-key-select" onchange="app.jam.setMainKey(this.value)" title="Tonalité principale" class="bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-2 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
+                        <select id="jam-key-select" onchange="app.jam.setMainKey(this.value)" title="Tonalité principale" class="jr-half bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-2 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
                             <option value="0">C</option><option value="1">Db</option><option value="2">D</option><option value="3">Eb</option><option value="4">E</option><option value="5">F</option><option value="6">F#</option><option value="7">G</option><option value="8">Ab</option><option value="9">A</option><option value="10">Bb</option><option value="11">B</option>
                         </select>
-                        <select id="jam-quality-select" onchange="app.jam.setMainQuality(this.value)" title="Qualité de la tonalité" class="bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-2 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
+                        <select id="jam-quality-select" onchange="app.jam.setMainQuality(this.value)" title="Qualité de la tonalité" class="jr-half bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-2 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
                             <option value="ionian" selected>Majeur</option>
                             <option value="aeolian">Mineur</option>
                             <option value="dorian">Dorien</option>
@@ -642,13 +664,13 @@
                         </select>
                     </div>
 
-                    <div class="flex items-center gap-4 pt-1">
-                        <div class="flex-1 flex items-center gap-2">
+                    <div class="flex items-center gap-4 pt-1 jr-wrap">
+                        <div class="jr-full flex-1 flex items-center gap-2">
                             <span class="text-xs font-semibold text-slate-400">BPM</span>
                             <input type="range" id="jam-bpm-slider" min="50" max="220" value="120" oninput="app.jam.setBpm(this.value)" class="w-full accent-blue-500">
                             <span id="jam-bpm-display" class="text-xs font-mono font-bold text-slate-200 min-w-[32px]">120</span>
                         </div>
-                        <button onclick="app.jam.openBandModal()" title="Orchestration de la jam" class="flex items-center gap-1.5 text-xs bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-2 px-2.5 rounded-lg transition shadow shrink-0">
+                        <button onclick="app.jam.openBandModal()" title="Orchestration de la jam" class="jr-full jr-center flex items-center gap-1.5 text-xs bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-2 px-2.5 rounded-lg transition shadow shrink-0">
                             <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1014 17V7h4V3h-6z"/></svg>
                             <span id="band-btn-label">Swing</span>
                         </button>
@@ -664,29 +686,20 @@
                         </div>
                     </div>
 
-<div class="flex items-center gap-1.5 px-1 pt-1">
-                    <div class="relative flex-1 min-w-0" id="jam-saved-grids-wrapper">
+<div class="flex items-center gap-1.5 px-1 pt-1 jr-wrap">
+                    <div class="jr-full relative flex-1 min-w-0" id="jam-saved-grids-wrapper">
                         <button type="button" onclick="app.jam.toggleSavedGridsMenu()" class="w-full flex items-center justify-between text-xs bg-[#1a1a1a] border border-[#333333] rounded px-2 py-1 text-slate-300">
                             <span id="jam-saved-grids-label" class="truncate">Sauvegardes</span>
                             <span class="text-slate-500">▾</span>
                         </button>
                         <div id="jam-saved-grids-dropdown" class="hidden absolute left-0 right-0 z-20 mt-1 bg-[#1a1a1a] border border-[#333333] rounded shadow-lg max-h-48 overflow-y-auto"></div>
                     </div>
-                    <button onclick="app.jam.exportGrid()" title="Exporter la grille en cours dans un fichier .json" class="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2.5 py-1 rounded transition whitespace-nowrap">Exporter</button>
-                    <button onclick="document.getElementById('jam-import-file').click()" title="Importer une grille depuis un fichier .json" class="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2.5 py-1 rounded transition whitespace-nowrap">Importer</button>
+                    <button onclick="app.jam.exportGrid()" title="Exporter la grille en cours dans un fichier .json" class="jr-half text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2.5 py-1 rounded transition whitespace-nowrap">Exporter</button>
+                    <button onclick="document.getElementById('jam-import-file').click()" title="Importer une grille depuis un fichier .json" class="jr-half text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2.5 py-1 rounded transition whitespace-nowrap">Importer</button>
                     <input type="file" id="jam-import-file" accept=".json,application/json" class="hidden" onchange="app.jam.importGridFile(this)">
                 </div>
 
-<div class="px-1 pt-1 flex items-center justify-between gap-2">
-                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Éditeur de grille</span>
-                    <button type="button" id="jam-editor-toggle" class="jam-editor-toggle" onclick="app.jam.toggleEditorPanel()" aria-expanded="false" aria-controls="jam-editor-body" title="Afficher / replier l'éditeur de grille">
-                        <span id="jam-editor-toggle-label">Afficher</span>
-                        <svg class="w-3 h-3 jam-editor-chevron" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
-                    </button>
-                </div>
-
-                <div id="jam-editor-body" class="space-y-4">
-                <div class="flex justify-between items-center px-1">
+<div class="jr-actions px-1 pt-1">
                     <div class="flex items-center gap-1.5">
                         <button id="jam-undo-btn" onclick="app.jam.undo()" title="Annuler (⌘Z)" aria-label="Annuler" disabled style="opacity:.4;cursor:not-allowed" class="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2 py-1 rounded transition">↶</button>
                         <button id="jam-redo-btn" onclick="app.jam.redo()" title="Rétablir (⌘⇧Z)" aria-label="Rétablir" disabled style="opacity:.4;cursor:not-allowed" class="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2 py-1 rounded transition">↷</button>
@@ -694,11 +707,7 @@
                     <div class="flex items-center gap-1.5">
                         <button onclick="app.jam.clearGrid()" class="text-xs bg-rose-600 hover:bg-rose-500 text-white font-semibold px-2.5 py-1 rounded transition">Effacer</button>
                         <button onclick="app.jam.resetGrid()" class="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2.5 py-1 rounded transition">Générer</button>
-                        <button onclick="app.jam.addChordStep()" class="text-xs bg-blue-600 hover:bg-blue-500 text-white font-semibold px-2.5 py-1 rounded transition">+ Ajouter</button>
                     </div>
-                </div>
-
-                <div id="jam-grid-container" class="space-y-2 flex-1"></div>
                 </div>
 
             </aside>
@@ -1453,115 +1462,6 @@
             }
 
             // --- Déplacement d'un accord par glisser-déposer (poignée ⠿, souris + tactile) ---
-            moveStep(from, to) {
-                if (from === to || from < 0 || from >= this.grid.length || to < 0 || to >= this.grid.length) return;
-                this.withUndo(() => {
-                    const [step] = this.grid.splice(from, 1);
-                    this.grid.splice(to, 0, step);
-                    const cur = this.currentStepIndex;
-                    if (cur >= 0) {
-                        if (cur === from) this.currentStepIndex = to;
-                        else if (from < cur && cur <= to) this.currentStepIndex = cur - 1;
-                        else if (to <= cur && cur < from) this.currentStepIndex = cur + 1;
-                    }
-                    this.renderGridUI();
-                });
-            }
-
-            startStepDrag(e, fromIdx) {
-                if (this.isPlaying || this._stepDrag) return;
-                if (e.button !== undefined && e.button !== 0) return;
-                const handle = e.currentTarget;
-                const container = document.getElementById('jam-grid-container');
-                if (!handle || !container) return;
-                const cards = Array.from(container.querySelectorAll('[data-step-index]'));
-                const card = cards[fromIdx];
-                if (!card) return;
-                e.preventDefault();
-
-                // Ancêtre défilant (le panneau latéral sur grand écran, la page sinon)
-                let scroller = null;
-                for (let p = container.parentElement; p; p = p.parentElement) {
-                    if (/(auto|scroll)/.test(getComputedStyle(p).overflowY) && p.scrollHeight > p.clientHeight) { scroller = p; break; }
-                }
-                const scrollPos = () => scroller ? scroller.scrollTop : window.scrollY;
-
-                const indicator = document.createElement('div');
-                indicator.style.cssText = 'position:absolute;left:0;right:0;height:3px;margin:0;border-radius:2px;background:#3b82f6;pointer-events:none;display:none;z-index:40';
-                const prevPosition = container.style.position;
-                container.style.position = 'relative';
-                container.appendChild(indicator);
-                card.classList.add('jam-dragging');
-                const prevUserSelect = document.body.style.userSelect;
-                document.body.style.userSelect = 'none';
-                try { handle.setPointerCapture(e.pointerId); } catch (err) {}
-
-                const d = this._stepDrag = {
-                    from: fromIdx, slot: fromIdx, card, cards, container, indicator, handle, scroller,
-                    startY: e.clientY, lastY: e.clientY, startScroll: scrollPos(), raf: null
-                };
-
-                const update = () => {
-                    d.card.style.transform = `translateY(${d.lastY - d.startY + (scrollPos() - d.startScroll)}px)`;
-                    const yIn = d.lastY - d.container.getBoundingClientRect().top;
-                    let slot = 0;
-                    d.cards.forEach(c => { if (c.offsetTop + c.offsetHeight / 2 < yIn) slot++; });
-                    d.slot = slot;
-                    if (slot === d.from || slot === d.from + 1) { d.indicator.style.display = 'none'; return; }
-                    let top;
-                    if (slot === 0) top = d.cards[0].offsetTop - 5;
-                    else if (slot >= d.cards.length) { const l = d.cards[d.cards.length - 1]; top = l.offsetTop + l.offsetHeight + 3; }
-                    else { const a = d.cards[slot - 1], b = d.cards[slot]; top = (a.offsetTop + a.offsetHeight + b.offsetTop) / 2 - 1; }
-                    d.indicator.style.top = Math.max(0, top) + 'px';
-                    d.indicator.style.display = 'block';
-                };
-
-                const tick = () => {
-                    if (this._stepDrag !== d) return;
-                    if (this.isPlaying) { finish(false); return; }
-                    const rect = d.scroller ? d.scroller.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
-                    const edge = 48;
-                    let dy = 0;
-                    if (d.lastY < rect.top + edge) dy = -Math.ceil((rect.top + edge - d.lastY) / 4);
-                    else if (d.lastY > rect.bottom - edge) dy = Math.ceil((d.lastY - (rect.bottom - edge)) / 4);
-                    dy = Math.max(-18, Math.min(18, dy));
-                    if (dy) { if (d.scroller) d.scroller.scrollTop += dy; else window.scrollBy(0, dy); }
-                    update();
-                    d.raf = requestAnimationFrame(tick);
-                };
-
-                const onMove = (ev) => { d.lastY = ev.clientY; update(); };
-                const onUp = () => finish(true);
-                const onCancel = () => finish(false);
-                const onKey = (ev) => { if (ev.key === 'Escape') finish(false); };
-
-                const finish = (commit) => {
-                    if (this._stepDrag !== d) return;
-                    this._stepDrag = null;
-                    if (d.raf) cancelAnimationFrame(d.raf);
-                    handle.removeEventListener('pointermove', onMove);
-                    handle.removeEventListener('pointerup', onUp);
-                    handle.removeEventListener('pointercancel', onCancel);
-                    document.removeEventListener('keydown', onKey);
-                    try { handle.releasePointerCapture(e.pointerId); } catch (err) {}
-                    d.card.classList.remove('jam-dragging');
-                    d.card.style.transform = '';
-                    d.indicator.remove();
-                    d.container.style.position = prevPosition;
-                    document.body.style.userSelect = prevUserSelect;
-                    if (commit) {
-                        const to = d.slot > d.from ? d.slot - 1 : d.slot;
-                        if (to !== d.from) this.moveStep(d.from, to);
-                    }
-                };
-
-                handle.addEventListener('pointermove', onMove);
-                handle.addEventListener('pointerup', onUp);
-                handle.addEventListener('pointercancel', onCancel);
-                document.addEventListener('keydown', onKey);
-                d.raf = requestAnimationFrame(tick);
-            }
-
             // --- Historique annuler / rétablir (grille, nom chargé, tonalité et qualité) ---
             captureState() {
                 return {
@@ -3864,6 +3764,44 @@
                 return regions;
             }
 
+            // ===== Lecture d'une plage de mesures sélectionnée =====
+            // Premier / dernier numéro de mesure (1-based) du bloc idx
+            _stepSpan(idx) {
+                let first = 1;
+                for (let i = 0; i < idx; i++) first += this.grid[i].measures;
+                return { first, last: first + this.grid[idx].measures - 1 };
+            }
+
+            // Bloc et rang dans le bloc (1-based) de la mesure n
+            _stepOfMeasure(n) {
+                let c = 0;
+                for (let i = 0; i < this.grid.length; i++) {
+                    if (n <= c + this.grid[i].measures) return { idx: i, measureInStep: n - c };
+                    c += this.grid[i].measures;
+                }
+                const last = this.grid.length - 1;
+                return { idx: last, measureInStep: this.grid[last].measures };
+            }
+
+            // Plage jouée = la sélection ; null (lecture normale) s'il n'y a pas de sélection ou si elle couvre toute la grille.
+            _computePlayRange() {
+                if (!this._sel) return null;
+                const total = this._totalMeasures();
+                if (!total) return null;
+                const from = Math.max(1, Math.min(this._sel.from, total));
+                const to = Math.max(from, Math.min(this._sel.to, total));
+                if (from === 1 && to === total) return null;
+                return { from, to };
+            }
+
+            _updatePlayLabel() {
+                if (this.isPlaying) return;
+                const span = document.querySelector('#jam-play-btn span');
+                if (!span) return;
+                const rg = this._computePlayRange();
+                span.textContent = rg ? (rg.from === rg.to ? `Jam it! · m.${rg.from}` : `Jam it! · m.${rg.from}–${rg.to}`) : 'Jam it!';
+            }
+
             // Bloc joué après le bloc i, et indication « la grille est terminée » (wrapped).
             // commit = true : met à jour le compteur de passages (lecture réelle) ;
             // false : simple consultation (accord suivant affiché, basse), sans rien modifier.
@@ -3896,10 +3834,50 @@
 
             _nextStepIndex(i, commit = false) { return this._nextStepInfo(i, commit).idx; }
 
-            // Index du bloc suivant pour l'affichage / la basse ; -1 s'il n'y en a pas (fin de grille sans boucle).
+            // Index du bloc suivant pour l'affichage / la basse ; -1 s'il n'y en a pas
+            // (fin de grille ou de plage sélectionnée, sans boucle).
             _peekNextIndex(i) {
-                const n = this._nextStepInfo(i, false);
-                return (n.wrapped && !this.loopEnabled) ? -1 : n.idx;
+                const rg = this._playRange;
+                const pk = this._nextStepInfo(i, false);
+                if (!rg) return (pk.wrapped && !this.loopEnabled) ? -1 : pk.idx;
+                const span = this._stepSpan(i);
+                const nm = this._stepSpan(pk.idx).first;
+                const inside = !pk.wrapped && nm >= rg.from && nm <= rg.to;
+                const back = this.loopEnabled ? this._stepOfMeasure(rg.from).idx : -1;
+                if (rg.to >= span.first && rg.to <= span.last) {
+                    // la plage se termine dans ce bloc ; une reprise qui renvoie à l'intérieur de la plage est honorée
+                    return (span.last === rg.to && inside) ? pk.idx : back;
+                }
+                if (inside) return pk.idx;
+                // un saut (reprise) qui quitterait la plage est ignoré : on continue avec le bloc suivant
+                return (span.last + 1 <= rg.to) ? i + 1 : back;
+            }
+
+            // Même accord (fondamentale, type, gamme, éventuel second accord) ?
+            _sameChordStep(a, b) {
+                if (!a || !b) return false;
+                if (a.rootIndex !== b.rootIndex || a.chordId !== b.chordId || a.scaleId !== b.scaleId) return false;
+                if (!!a.split !== !!b.split) return false;
+                return !a.split || (a.split.rootIndex === b.split.rootIndex && a.split.chordId === b.split.chordId && a.split.scaleId === b.split.scaleId);
+            }
+
+            // Bloc « suivant » AFFICHÉ (carte de gamme « Suivante », accord suivant) : un accord répété sur plusieurs
+            // mesures ou blocs consécutifs compte pour UN seul accord. Dès la première mesure de la répétition, le suivant
+            // affiché est donc le premier accord DIFFÉRENT qui suit ; si la répétition va jusqu'à la fin de la grille, c'est le
+            // premier accord de la grille en boucle, et rien sans boucle. La basse de l'orchestre continue d'utiliser
+            // _peekNextIndex (le vrai bloc suivant), sinon elle annoncerait trop tôt le changement d'accord.
+            _peekNextDisplayIndex(i) {
+                const first = this._peekNextIndex(i);
+                const cur = this.grid[i];
+                if (first < 0 || !cur) return first;
+                let n = first;
+                const seen = new Set([i]);
+                while (n >= 0 && this._sameChordStep(this.grid[n], cur)) {
+                    if (seen.has(n)) return first; // grille entièrement répétée : on garde le suivant immédiat
+                    seen.add(n);
+                    n = this._peekNextIndex(n);
+                }
+                return n;
             }
 
             toggleLoop(force) {
@@ -4002,17 +3980,6 @@
                     this._selMode = false; this._selAnchor = null; this.clearSelection();
                 } else this.updateEditBar();
                 this.renderSequenceUI(); // affiche / masque les crayons ✎ et la case « + »
-            }
-
-            toggleEditorPanel() {
-                const panel = document.getElementById('jam-grid-editor');
-                if (!panel) return;
-                const collapsed = panel.dataset.collapsed !== 'true';
-                panel.dataset.collapsed = String(collapsed);
-                const btn = document.getElementById('jam-editor-toggle');
-                if (btn) btn.setAttribute('aria-expanded', String(!collapsed));
-                const lbl = document.getElementById('jam-editor-toggle-label');
-                if (lbl) lbl.textContent = collapsed ? 'Afficher' : 'Replier';
             }
 
             // ===== Fonction tonale : alternatives conformes à la théorie =====
@@ -4173,7 +4140,7 @@
                 const el = document.createElement('div');
                 el.className = 'jm-pop';
                 el.innerHTML = `
-                    <div class="jm-head">
+                    <div class="jm-head" title="Glisser pour déplacer">
                         <span class="jm-title">Fonction tonale · Mesure ${measureNumber} · ${esc(symbol)}</span>
                         <button type="button" class="jm-btn" data-close="1" title="Fermer (Échap)">✕</button>
                     </div>
@@ -4191,6 +4158,7 @@
                     this.applyFunctionLabel(measureNumber, useHalf ? 1 : 0, v === '__auto__' ? null : decodeURIComponent(v));
                 });
                 (document.fullscreenElement || document.body).appendChild(el);
+                this._enablePopupDrag(el);
                 this._fnEditor = { el, measureNumber };
                 this._fnOutside = (ev) => {
                     const t = ev.target;
@@ -4274,6 +4242,7 @@
             }
 
             _applySelectionClasses() {
+                this._updatePlayLabel();
                 document.querySelectorAll('#jam-chord-sequence-display .jam-cell[data-measure-number]').forEach(c => {
                     const n = parseInt(c.dataset.measureNumber, 10);
                     c.classList.toggle('jam-sel', !!this._sel && n >= this._sel.from && n <= this._sel.to);
@@ -4291,11 +4260,12 @@
             // Appelé au clic sur une case ; renvoie true si le clic doit être ignoré (fin d'un glisser-sélection).
             _noteSelectionClick(ev, n) {
                 if (this._justDragged) { this._justDragged = false; return true; }
-                if (!this._editBarOpen || this._editor || this.isPlaying) return false;
+                if (this._editor || this.isPlaying) return false;
+                // Maj+clic : sélection d'une plage, y compris hors mode édition (la plage sert alors à la lecture)
                 if (ev.shiftKey) {
                     const a = this._selAnchor || this._activeMeasureNumber() || n;
                     this.setSelection(a, n);
-                } else if (this._selMode) {
+                } else if (this._editBarOpen && this._selMode) {
                     if (this._selPhase !== 'anchor') {
                         this._selAnchor = n;
                         this._selPhase = 'anchor';
@@ -4317,7 +4287,7 @@
 
                 // Glisser à la souris sur plusieurs cases = sélection d'une plage
                 document.addEventListener('pointerdown', (ev) => {
-                    if (!this._editBarOpen || ev.button !== 0 || ev.pointerType !== 'mouse' || ev.shiftKey || this.isPlaying || this._editor) return;
+                    if (ev.button !== 0 || ev.pointerType !== 'mouse' || ev.shiftKey || this.isPlaying || this._editor) return;
                     const t = ev.target;
                     if (!t.closest || t.closest('.jam-arp-btn, .jam-edit-btn, .jam-add-cell, .jam-fn-label')) return;
                     const cell = t.closest('#jam-chord-sequence-display .jam-cell[data-measure-number]');
@@ -4351,13 +4321,20 @@
                 document.addEventListener('keydown', (e) => {
                     const view = document.getElementById('view-jam');
                     if (!view || view.classList.contains('hidden')) return;
-                    if (!this._editBarOpen || this.isPlaying || this._editor) return;
+                    if (this.isPlaying || this._editor) return;
                     const t = e.target;
                     const nonText = ['range', 'checkbox', 'radio', 'button', 'file'];
                     if (t && (t.isContentEditable || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' ||
                         (t.tagName === 'INPUT' && !nonText.includes(t.type)))) return;
                     const mod = e.metaKey || e.ctrlKey;
                     const k = (e.key || '').toLowerCase();
+                    // Échap efface la sélection (plage de lecture) même hors mode édition
+                    if (!mod && !e.altKey && e.key === 'Escape' && (this._sel || this._selMode)) {
+                        this._selMode = false;
+                        this.clearSelection();
+                        return;
+                    }
+                    if (!this._editBarOpen) return; // copier / coller / supprimer : seulement en mode édition
                     if (mod && !e.altKey && !e.shiftKey) {
                         if (k === 'c') { e.preventDefault(); this.gridCopy(); }
                         else if (k === 'x') { e.preventDefault(); this.gridCut(); }
@@ -4661,6 +4638,7 @@
                     if (t.dataset && t.dataset.act === 'chordsel' && t.value) this._editorApply({ chordId: t.value });
                 });
                 (document.fullscreenElement || document.body).appendChild(el);
+                this._enablePopupDrag(el);
                 this._editor = { measureNumber: 1, half: 0, touched: false, isNew: !!isNew, el };
 
                 this._edOutside = (ev) => {
@@ -4881,7 +4859,7 @@
                 const roots = rootLabels.map((r, i) => chip(i === cur.rootIndex, `data-act="root" data-v="${i}"`, r)).join('');
                 const common = ['maj7', '6', 'maj9', 'm7', 'm9', 'm11', '7', '9', '7alt', '7b9', '7sus4', 'm7b5', 'dim7', 'majTriad', 'minTriad'];
                 const commonObjs = common.map(id => this.findChordObj(id)).filter(c => c && c.id !== undefined);
-                const chords = commonObjs.map(c => chip(c.id === cur.chordId, `data-act="chord" data-v="${c.id}" title="${c.fullName || ''}"`, this.getJazzChordNotation(c.id))).join('');
+                const chords = commonObjs.map(c => chip(c.id === cur.chordId, `data-act="chord" data-v="${c.id}" title="${c.fullName || ''}"`, this.getJazzChordNotation(c.id) || c.name)).join('');
                 const allChords = Object.values(chordTypes).flat();
                 const options = allChords.map(c => `<option value="${c.id}">${this.getJazzChordNotation(c.id)} — ${c.fullName || c.name}</option>`).join('');
                 const scales = (chordObj ? chordObj.scales : []).map(sc => {
@@ -4910,7 +4888,7 @@
 
                 const prevScroll = ed.el.scrollTop;
                 ed.el.innerHTML = `
-                    <div class="jm-head">
+                    <div class="jm-head" title="Glisser pour déplacer">
                         <span class="jm-title">Mesure ${m.measureNumber} · ${symbol(cur)}</span>
                         <button type="button" class="jm-btn" data-act="cancel" title="Fermer (Échap)">✕</button>
                     </div>
@@ -4932,6 +4910,37 @@
                 ed.el.scrollTop = prevScroll;
             }
 
+            // Les pop-up se déplacent en glissant leur barre de titre (souris ou doigt) ; la position est mémorisée.
+            _enablePopupDrag(el) {
+                el.addEventListener('pointerdown', (ev) => {
+                    if (ev.button > 0) return;
+                    if (!ev.target.closest('.jm-head') || ev.target.closest('button')) return;
+                    if (el.classList.contains('jm-sheet')) return; // feuille du bas (téléphone) : non déplaçable
+                    const r = el.getBoundingClientRect();
+                    const dx = ev.clientX - r.left, dy = ev.clientY - r.top;
+                    try { el.setPointerCapture(ev.pointerId); } catch (e) {}
+                    el.classList.add('jm-dragging');
+                    const move = (e) => {
+                        const left = Math.min(Math.max(0, e.clientX - dx), Math.max(0, window.innerWidth - el.offsetWidth));
+                        const top = Math.min(Math.max(0, e.clientY - dy), Math.max(0, window.innerHeight - el.offsetHeight));
+                        el.style.left = `${left}px`;
+                        el.style.top = `${top}px`;
+                        this._popPos = { left, top };
+                    };
+                    const up = () => {
+                        el.classList.remove('jm-dragging');
+                        el.removeEventListener('pointermove', move);
+                        el.removeEventListener('pointerup', up);
+                        el.removeEventListener('pointercancel', up);
+                        try { el.releasePointerCapture(ev.pointerId); } catch (e) {}
+                    };
+                    el.addEventListener('pointermove', move);
+                    el.addEventListener('pointerup', up);
+                    el.addEventListener('pointercancel', up);
+                    ev.preventDefault();
+                });
+            }
+
             _positionEditor() {
                 const ed = this._editor;
                 if (!ed || !ed.el) return;
@@ -4950,11 +4959,22 @@
                     return;
                 }
                 el.classList.remove('jm-sheet');
+                // Position choisie par glisser-déposer : on la conserve (en la ramenant dans la fenêtre si besoin)
+                if (this._popPos) {
+                    const w = el.offsetWidth, h = el.offsetHeight;
+                    el.style.left = `${Math.min(Math.max(0, this._popPos.left), Math.max(0, vw - w))}px`;
+                    el.style.top = `${Math.min(Math.max(0, this._popPos.top), Math.max(0, vh - h))}px`;
+                    return;
+                }
+                el.style.width = '';
                 const pw = el.offsetWidth, ph = el.offsetHeight;
                 const aside = document.getElementById('jam-grid-editor');
                 if (vw >= 1024 && !document.fullscreenElement && aside && aside.offsetParent !== null) {
                     const r = aside.getBoundingClientRect();
-                    const left = Math.min(Math.max(8, r.left + (r.width - pw) / 2), vw - pw - 8);
+                    // la colonne de réglages est étroite : le pop-up s'y adapte pour ne pas déborder sur la grille
+                    const w = Math.max(264, Math.min(340, r.width - 16));
+                    el.style.width = `${w}px`;
+                    const left = Math.min(Math.max(8, r.left + (r.width - w) / 2), vw - w - 8);
                     let top = Math.max(8, r.top + 8);
                     if (top + ph > vh - 8) top = Math.max(8, vh - ph - 8);
                     el.style.left = `${left}px`;
@@ -5096,7 +5116,10 @@
                             }
                             this.currentStepIndex = m.stepIndex;
                             this.currentBeat = (m.measureInStep - 1) * 4 + (half === 1 ? 2 : 0);
-                            if (this.isPlaying) this._passes = {};
+                            if (this.isPlaying) {
+                                this._passes = {};
+                                if (this._playRange && (m.measureNumber < this._playRange.from || m.measureNumber > this._playRange.to)) this._playRange = null;
+                            }
                             const step = this.grid[m.stepIndex];
                             this.updateJamDisplay(step, half);
                             this.renderGridUI();
@@ -5319,120 +5342,13 @@
             }
 
             renderGridUI() {
-                const container = document.getElementById('jam-grid-container');
-                if (!container) return;
-                container.innerHTML = '';
-
-                if (this.grid.length === 0) {
-                    container.innerHTML = '<div class="text-slate-500 text-xs p-2 text-center">Grille vide. Cliquez dans la zone grise ci-dessous pour ajouter un accord.</div>';
-                    const addZone = document.createElement('div');
-                    addZone.className = 'mt-auto min-h-[42px] rounded-lg border border-[#383838] bg-[#2a2a2c] hover:bg-[#333333] transition cursor-pointer flex items-center justify-center text-xs text-slate-500 hover:text-slate-300 select-none';
-                    addZone.title = 'Ajouter un accord';
-                    addZone.textContent = '+ Ajouter un accord';
-                    addZone.addEventListener('click', () => this.addChordStep());
-                    container.appendChild(addZone);
-                    this.renderSequenceUI();
-                    this.renderJamScales();
-                    return;
-                }
-
-                this.grid.forEach((step, idx) => {
-                    const chordObj = this.findChordObj(step.chordId);
-                    const isActive = idx === this.currentStepIndex;
-
-                    const card = document.createElement('div');
-                    card.className = `p-3 rounded-lg border transition flex flex-col gap-2 ${isActive ? 'bg-blue-900/30 border-blue-500 shadow-md ring-1 ring-blue-500' : 'bg-[#1a1a1a] border-[#333333]'}`;
-
-                    const chordOpts = (selectedId) => {
-                        let html = '';
-                        for (const cat in chordTypes) {
-                            chordTypes[cat].forEach(c => {
-                                html += `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${c.name.replace(/[()]/g, '')}</option>`;
-                            });
-                        }
-                        return html;
-                    };
-                    const scaleOpts = (chordId, selectedId) => {
-                        let html = '';
-                        const co = this.findChordObj(chordId);
-                        if (co && co.scales) {
-                            co.scales.forEach(sc => {
-                                const scaleDef = scalesDb[sc.id];
-                                if (scaleDef) html += `<option value="${sc.id}" ${sc.id === selectedId ? 'selected' : ''}>${scaleDef.name} — ${sc.role}</option>`;
-                            });
-                        }
-                        return html;
-                    };
-                    const rootOpts = (selectedIdx) => rootLabels.map((r, rIdx) => `<option value="${rIdx}" ${rIdx === selectedIdx ? 'selected' : ''}>${r}</option>`).join('');
-                    const isHalf = this.isSplit(step);
-                    const measuresOpts = `<option value="half" ${isHalf ? 'selected' : ''}>1/2</option>` +
-                        [...new Set([1, 2, 3, 4, step.measures])].sort((x, y) => x - y)
-                            .map(n => `<option value="${n}" ${!isHalf && step.measures === n ? 'selected' : ''}>${n}</option>`).join('');
-                    const halfCaption = (label) => `<div class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider select-none">${label}</div>`;
-
-                    card.dataset.stepIndex = idx;
-                    card.innerHTML = `
-                        ${isHalf ? halfCaption('Temps 1–2') : ''}
-                        <div class="flex items-center justify-between gap-2">
-                            <div class="flex items-center gap-1.5 flex-1 min-w-0">
-                                <span class="jam-drag-handle${this.isPlaying ? ' is-locked' : ''}" title="${this.isPlaying ? 'Déplacement indisponible pendant la jam' : 'Glisser pour déplacer cet accord'}" aria-label="Déplacer l'accord" onpointerdown="app.jam.startStepDrag(event, ${idx})">⠿</span>
-                                <select onchange="app.jam.updateStep(${idx}, 'rootIndex', this.value)" class="bg-[#2a2a2c] text-white text-xs font-bold rounded p-1 border border-[#444]">
-                                    ${rootOpts(step.rootIndex)}
-                                </select>
-                                <select onchange="app.jam.updateStep(${idx}, 'chordId', this.value)" class="bg-[#2a2a2c] text-white text-xs font-bold rounded p-1 border border-[#444] flex-1 min-w-0">
-                                    ${chordOpts(step.chordId)}
-                                </select>
-                            </div>
-                            <div class="flex items-center gap-1 shrink-0">
-                                <span class="text-[10px] text-slate-400">Mesures:</span>
-                                <select onchange="app.jam.updateStep(${idx}, 'measures', this.value)" class="bg-[#2a2a2c] text-white text-xs font-bold rounded p-1 border border-[#444]">
-                                    ${measuresOpts}
-                                </select>
-                                <button onclick="app.jam.removeChordStep(${idx})" class="text-rose-400 hover:text-rose-300 px-1.5 py-0.5 text-xs font-bold">×</button>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-[10px] text-slate-400 w-12 shrink-0">Gamme :</span>
-                            <select onchange="app.jam.updateStep(${idx}, 'scaleId', this.value)" class="bg-[#2a2a2c] text-emerald-400 font-semibold text-xs rounded p-1 border border-[#444] flex-1 min-w-0 truncate">
-                                ${scaleOpts(step.chordId, step.scaleId)}
-                            </select>
-                        </div>
-                        ${isHalf ? `
-                        <div class="flex flex-col gap-2 pt-2 border-t border-[#333333]">
-                            ${halfCaption('Temps 3–4')}
-                            <div class="flex items-center gap-1.5">
-                                <select onchange="app.jam.updateSplit(${idx}, 'rootIndex', this.value)" class="bg-[#2a2a2c] text-white text-xs font-bold rounded p-1 border border-[#444]">
-                                    ${rootOpts(step.split.rootIndex)}
-                                </select>
-                                <select onchange="app.jam.updateSplit(${idx}, 'chordId', this.value)" class="bg-[#2a2a2c] text-white text-xs font-bold rounded p-1 border border-[#444] flex-1 min-w-0">
-                                    ${chordOpts(step.split.chordId)}
-                                </select>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <span class="text-[10px] text-slate-400 w-12 shrink-0">Gamme :</span>
-                                <select onchange="app.jam.updateSplit(${idx}, 'scaleId', this.value)" class="bg-[#2a2a2c] text-emerald-400 font-semibold text-xs rounded p-1 border border-[#444] flex-1 min-w-0 truncate">
-                                    ${scaleOpts(step.split.chordId, step.split.scaleId)}
-                                </select>
-                            </div>
-                        </div>` : ''}
-                    `;
-                    container.appendChild(card);
-                });
-
-                // Zone grise en bas de l'éditeur : un clic ajoute directement un accord.
-                const addZone = document.createElement('div');
-                addZone.className = 'mt-auto min-h-[42px] rounded-lg border border-[#383838] bg-[#2a2a2c] hover:bg-[#333333] transition cursor-pointer flex items-center justify-center text-xs text-slate-500 hover:text-slate-300 select-none';
-                addZone.title = 'Ajouter un accord';
-                addZone.textContent = '+ Ajouter un accord';
-                addZone.addEventListener('click', () => this.addChordStep());
-                container.appendChild(addZone);
-
+                // La liste d'accords de la colonne de gauche a été supprimée : l'édition se fait directement dans la grille.
                 this.renderSequenceUI();
                 this.renderJamScales();
 
                 // Hors lecture, conserver l'accord sélectionné comme référence
                 // pour calculer l'accord suivant (avec retour au premier en fin de grille).
-                if (!this.isPlaying) {
+                if (!this.isPlaying && this.grid.length > 0) {
                     this.updateNextJamChordDisplay(null, 0);
                 }
             }
@@ -5514,7 +5430,7 @@
                         nextItem = { idx: currentIdx, half: 1 };
                     } else {
                         // Fin d'une mesure (ou mesure simple) : premier accord du step suivant.
-                        const nextIdx = this._peekNextIndex(currentIdx);
+                        const nextIdx = this._peekNextDisplayIndex(currentIdx);
                         nextItem = nextIdx >= 0 ? { idx: nextIdx, half: this.isSplit(this.grid[nextIdx]) ? 0 : null } : null;
                     }
 
@@ -5799,7 +5715,6 @@
                 if (this.grid.length === 0) return;
                 this.closeMeasureEditor();
                 this.closeFunctionEditor();
-                this._sel = null;
                 this._selMode = false;
                 this._selPhase = null;
                 this._passes = {};
@@ -5822,8 +5737,11 @@
                 this._runId = (this._runId || 0) + 1; // invalide toute chaîne de temps précédente
                 this._beatAudio = null;
                 this.isPlaying = true;
-                this.currentStepIndex = 0;
-                this.currentBeat = 0;
+                // Une sélection de mesures limite la lecture à cette plage (en boucle si la boucle est activée)
+                this._playRange = this._computePlayRange();
+                const startPos = this._playRange ? this._stepOfMeasure(this._playRange.from) : { idx: 0, measureInStep: 1 };
+                this.currentStepIndex = startPos.idx;
+                this.currentBeat = (startPos.measureInStep - 1) * 4;
                 this.activeSlot = 0;
                 this._bandMeasureCounter = 0;
                 this._bandSeed = Math.floor(Math.random() * 1000000);
@@ -5875,6 +5793,7 @@
                 this._beatAudio = null;
                 this._beatAudioTime = null;
                 this._passes = {};
+                this._playRange = null;
                 this.currentStepIndex = -1;
                 this.currentBeat = 0;
 
@@ -5887,6 +5806,7 @@
                 if (btn) {
                     btn.className = "bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3 rounded-lg transition flex items-center justify-center gap-2 shadow text-xs";
                     btn.innerHTML = `<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>Jam it!</span>`;
+                    this._updatePlayLabel();
                 }
 
                 document.getElementById('jam-bar-counter').textContent = "Mesure : -/-";
@@ -6074,8 +5994,46 @@
                 });
 
                 this.currentBeat++;
+
+                // Lecture d'une plage sélectionnée : fin de plage = arrêt, ou retour à son début si la boucle est activée.
+                const rg = this._playRange;
+                let forwardIdx = null;
+                if (rg && beat % 4 === 3) {
+                    const finished = this._stepSpan(stepIdx).first + Math.floor(beat / 4); // mesure qui vient de se terminer
+                    const stepEnds = this.currentBeat >= totalBeatsInStep;
+                    let rangeEnd = false;
+                    if (!stepEnds) {
+                        rangeEnd = finished >= rg.to;
+                    } else {
+                        const pk = this._nextStepInfo(stepIdx, false);
+                        const nm = this._stepSpan(pk.idx).first;
+                        if (!pk.wrapped && nm >= rg.from && nm <= rg.to) {
+                            // suite normale (y compris une reprise qui renvoie à l'intérieur de la plage)
+                        } else if (finished + 1 <= rg.to) {
+                            forwardIdx = stepIdx + 1; // un saut qui quitterait la plage est ignoré
+                        } else {
+                            rangeEnd = true;
+                        }
+                    }
+                    if (rangeEnd) {
+                        if (!this.loopEnabled) {
+                            this._runAtAudioTime(t + intervalSec, runId, () => this.stop());
+                            return;
+                        }
+                        const st = this._stepOfMeasure(rg.from);
+                        this._passes = {};
+                        this.currentStepIndex = st.idx;
+                        this.currentBeat = (st.measureInStep - 1) * 4;
+                        this.activeSlot = 1 - this.activeSlot;
+                        const back = { currentStepIndex: this.currentStepIndex, currentBeat: this.currentBeat, activeSlot: this.activeSlot };
+                        this._runAtAudioTime(t, runId, () => this._withState(back, () => this.renderJamScales()));
+                        this._scheduleNextTick(runId);
+                        return;
+                    }
+                }
+
                 if (this.currentBeat >= totalBeatsInStep) {
-                    const nx = this._nextStepInfo(this.currentStepIndex, true);
+                    const nx = forwardIdx !== null ? { idx: forwardIdx, wrapped: false } : this._nextStepInfo(this.currentStepIndex, true);
                     if (nx.wrapped && !this.loopEnabled) {
                         // Fin de la grille sans boucle : le dernier temps sonne jusqu'au bout, puis la jam s'arrête.
                         this._runAtAudioTime(t + intervalSec, runId, () => this.stop());
@@ -6211,7 +6169,7 @@
                     };
                 }
 
-                const nextIdx = this._peekNextIndex(this.currentStepIndex);
+                const nextIdx = this._peekNextDisplayIndex(this.currentStepIndex);
                 const nextStep = nextIdx >= 0 ? this.grid[nextIdx] : null;
                 if (!nextStep) return null;
 
@@ -6254,7 +6212,7 @@
                     } else {
                         // Sinon, on passe au premier accord de la mesure suivante,
                         // avec retour au premier accord de la grille en fin de grille.
-                        const nextIdx = this._peekNextIndex(selectedIdx);
+                        const nextIdx = this._peekNextDisplayIndex(selectedIdx);
                         const nextStep = nextIdx >= 0 ? this.grid[nextIdx] : null;
                         nextChord = nextStep ? {
                             rootIndex: nextStep.rootIndex,
