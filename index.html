@@ -176,6 +176,9 @@
                 overflow: hidden;
                 padding: 8px;
             }
+            /* Jam lancée : la marge de 8px ci-dessus ne doit pas annuler le décalage des cases à barre de reprise */
+            #view-jam.jam-playing #jam-chord-sequence-display .jam-cell.rp-has-l { padding-left: 20px; }
+            #view-jam.jam-playing #jam-chord-sequence-display .jam-cell.rp-has-r { padding-right: 20px; }
             #view-jam.jam-playing #jam-chord-sequence-display .jam-realbook-chord {
                 font-size: 1.35rem;
             }
@@ -285,6 +288,26 @@
             #jam-print-area .jam-print-split { display: flex; width: 100%; align-items: center; }
             #jam-print-area .jam-print-split .jam-print-chord { flex: 1 1 0; text-align: center; font-size: 17pt; }
             #jam-print-area .jam-print-split .jam-print-chord + .jam-print-chord { border-left: 1.5pt solid #000000; }
+
+            /* Reprises et 1re / 2e fin */
+            #jam-print-area .jam-print-cell { position: relative; }
+            #jam-print-area .jam-print-cell.has-rs { padding-left: 17pt; }
+            #jam-print-area .jam-print-cell.has-re { padding-right: 17pt; }
+            #jam-print-area .jam-print-rs, #jam-print-area .jam-print-re { position: absolute; top: 0; bottom: 0; display: flex; align-items: stretch; }
+            #jam-print-area .jam-print-rs { left: 0; }
+            #jam-print-area .jam-print-re { right: 0; flex-direction: row-reverse; }
+            #jam-print-area .jam-print-rs i, #jam-print-area .jam-print-re i { display: block; width: 0; }
+            #jam-print-area .jam-print-rs i.b1 { border-left: 4pt solid #000000; }
+            #jam-print-area .jam-print-re i.b1 { border-right: 4pt solid #000000; }
+            #jam-print-area .jam-print-rs i.b2 { border-left: 1pt solid #000000; margin-left: 2pt; }
+            #jam-print-area .jam-print-re i.b2 { border-right: 1pt solid #000000; margin-right: 2pt; }
+            #jam-print-area .jam-print-rs svg { align-self: center; margin-left: 3pt; }
+            #jam-print-area .jam-print-re svg { align-self: center; margin-right: 3pt; }
+            #jam-print-area .jam-print-times { position: absolute; bottom: 3pt; right: 19pt; font: 700 9pt -apple-system, "Helvetica Neue", sans-serif; color: #000000; }
+            #jam-print-area .jam-print-vo { position: absolute; left: 0; right: 0; top: 5pt; border-top: 1.5pt solid #000000; }
+            #jam-print-area .jam-print-vt { position: absolute; left: 0; top: 5pt; height: 10pt; border-left: 1.5pt solid #000000; }
+            #jam-print-area .jam-print-vl { position: absolute; left: 4pt; top: 7pt; font: 700 10pt -apple-system, "Helvetica Neue", sans-serif; color: #000000; line-height: 1; }
+            #jam-print-area .jam-print-cell.has-rs .jam-print-vl { left: 20pt; }
         }
 
         /* ===== Édition d'une mesure depuis la grille (pop-up) ===== */
@@ -326,7 +349,60 @@
         .jam-eb.jam-eb-danger:hover:not(:disabled) { border-color: #f87171; color: #fca5a5; }
         .jam-eb-info { color: #94a3b8; font-size: 11px; margin: 0 4px; min-width: 0; }
         .jam-eb-sep { width: 1px; align-self: stretch; background: #333; margin: 0 2px; }
-        #view-jam.jam-playing #jam-edit-bar { display: none; }
+        #view-jam.jam-playing #jam-edit-bar, #jam-edit-bar.hidden { display: none !important; }
+        .jam-eb-ico { display: inline-flex; align-items: center; justify-content: center; padding: 4px 9px; }
+        .jam-eb-ico svg { display: block; }
+
+        /* ===== Signes de reprise (|: :| et 1re / 2e fin) ===== */
+        #jam-chord-sequence-display .jam-cell .rp-l, #jam-chord-sequence-display .jam-cell .rp-r { position: absolute; top: 4px; bottom: 4px; width: 14px; pointer-events: none; z-index: 2; }
+        #jam-chord-sequence-display .jam-cell .rp-l { left: 2px; background:
+            linear-gradient(currentColor, currentColor) left 0 top 0 / 3px 100% no-repeat,
+            linear-gradient(currentColor, currentColor) left 5px top 0 / 1px 100% no-repeat,
+            radial-gradient(circle, currentColor 1.7px, transparent 2.3px) left 8px top 34% / 6px 6px no-repeat,
+            radial-gradient(circle, currentColor 1.7px, transparent 2.3px) left 8px top 66% / 6px 6px no-repeat; }
+        #jam-chord-sequence-display .jam-cell .rp-r { right: 2px; background:
+            linear-gradient(currentColor, currentColor) right 0 top 0 / 3px 100% no-repeat,
+            linear-gradient(currentColor, currentColor) right 5px top 0 / 1px 100% no-repeat,
+            radial-gradient(circle, currentColor 1.7px, transparent 2.3px) right 8px top 34% / 6px 6px no-repeat,
+            radial-gradient(circle, currentColor 1.7px, transparent 2.3px) right 8px top 66% / 6px 6px no-repeat; }
+        #jam-chord-sequence-display .jam-cell .rp-vl { position: absolute; left: 0; right: 0; top: 0; height: 3px; background: currentColor; pointer-events: none; z-index: 2; }
+        #jam-chord-sequence-display .jam-cell .rp-vt { position: absolute; left: 0; top: 0; width: 2px; height: 14px; background: currentColor; pointer-events: none; z-index: 2; }
+        #jam-chord-sequence-display .jam-cell .rp-vtxt { margin-right: 3px; font-size: 11px; font-weight: 800; }
+        #jam-chord-sequence-display .jam-cell .rp-xn { font-size: 9px; font-weight: 700; }
+
+        /* Une case portant une barre de reprise décale son contenu pour ne rien chevaucher */
+        #jam-chord-sequence-display .jam-cell.rp-has-l { padding-left: 20px; }
+        #jam-chord-sequence-display .jam-cell.rp-has-r { padding-right: 20px; }
+        #jam-chord-sequence-display .jam-cell.rp-has-l .jam-arp-btn:not(.jam-arp-btn-b) { left: 18px; }
+        #jam-chord-sequence-display .jam-cell.rp-has-l:not(.rp-has-r) .jam-arp-btn.jam-arp-btn-b { left: calc(50% + 9px); }
+        #jam-chord-sequence-display .jam-cell.rp-has-r:not(.rp-has-l) .jam-arp-btn.jam-arp-btn-b { left: calc(50% - 3px); }
+        #jam-chord-sequence-display .jam-cell.rp-has-l .jam-half-fn[style*="left"] { left: 46px !important; }
+        #jam-chord-sequence-display .jam-cell.rp-has-r .jam-half-fn[style*="right"] { right: 24px !important; }
+        #jam-chord-sequence-display .jam-cell.rp-has-r .jam-cell-bottom { right: 24px; }
+
+        /* ===== Bouton « édition » (crayon) et panneau d'édition de grille repliable ===== */
+        .jam-edit-toggle { display: inline-flex; align-items: center; justify-content: center; padding: 3px 5px; border-radius: 6px; border: 1px solid transparent; background: transparent; color: #94a3b8; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+        .jam-edit-toggle:hover { color: #fff; border-color: #3a3a3c; }
+        .jam-edit-toggle.is-on { background: #2563eb; border-color: #60a5fa; color: #fff; }
+        #view-jam.jam-playing #jam-edit-toggle { display: none; }
+        .jam-editor-toggle { display: none; align-items: center; justify-content: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #3a3a3c; background: #1f1f21; color: #cbd5e1; font: 600 11px/1.2 inherit; font-family: inherit; cursor: pointer; }
+        .jam-editor-chevron { transition: transform .15s; }
+        @media (max-width: 639px) {
+            .jam-editor-toggle { display: inline-flex; }
+            #jam-grid-editor[data-collapsed="true"] #jam-editor-body { display: none; }
+            #jam-grid-editor[data-collapsed="true"] .jam-editor-chevron { transform: rotate(-90deg); }
+        }
+
+        /* ===== Pop-up d'édition de la fonction tonale ===== */
+        #jam-chord-sequence-display.edit-on .jam-fn-label { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+        .jm-fn-row { display: flex; align-items: baseline; gap: 8px; width: 100%; text-align: left; margin-top: 4px; padding: 6px 8px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #e2e8f0; cursor: pointer; font-family: inherit; }
+        .jm-fn-row b { flex: 0 0 auto; min-width: 66px; font-size: 13px; color: #fca5a5; }
+        .jm-fn-row span { font-size: 11px; line-height: 1.25; color: #94a3b8; }
+        .jm-fn-row:hover { border-color: #60a5fa; }
+        .jm-fn-row.is-on { background: #2563eb; border-color: #93c5fd; }
+        .jm-fn-row.is-on b { color: #fff; }
+        .jm-fn-row.is-on span { color: #dbeafe; }
+        .jm-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
     </style>
     <style>
         /* ===== Adaptation téléphone (aucun effet sur ordinateur) ===== */
@@ -375,6 +451,27 @@
             #jam-chord-sequence-display .jam-half-fn[style*="left"] { left: 30px !important; }
             #jam-chord-sequence-display .jam-half-fn[style*="right"] { right: 3px !important; }
 
+            /* Reprises (téléphone) */
+            #jam-chord-sequence-display .jam-cell .rp-l, #jam-chord-sequence-display .jam-cell .rp-r { width: 11px; top: 3px; bottom: 3px; }
+            #jam-chord-sequence-display .jam-cell .rp-l { left: 1px; background:
+                linear-gradient(currentColor, currentColor) left 0 top 0 / 2px 100% no-repeat,
+                linear-gradient(currentColor, currentColor) left 3.5px top 0 / 1px 100% no-repeat,
+                radial-gradient(circle, currentColor 1.2px, transparent 1.8px) left 6px top 34% / 5px 5px no-repeat,
+                radial-gradient(circle, currentColor 1.2px, transparent 1.8px) left 6px top 66% / 5px 5px no-repeat; }
+            #jam-chord-sequence-display .jam-cell .rp-r { right: 1px; background:
+                linear-gradient(currentColor, currentColor) right 0 top 0 / 2px 100% no-repeat,
+                linear-gradient(currentColor, currentColor) right 3.5px top 0 / 1px 100% no-repeat,
+                radial-gradient(circle, currentColor 1.2px, transparent 1.8px) right 6px top 34% / 5px 5px no-repeat,
+                radial-gradient(circle, currentColor 1.2px, transparent 1.8px) right 6px top 66% / 5px 5px no-repeat; }
+            #jam-chord-sequence-display .jam-cell.rp-has-l { padding-left: 15px; }
+            #jam-chord-sequence-display .jam-cell.rp-has-r { padding-right: 15px; }
+            #jam-chord-sequence-display .jam-cell.rp-has-l .jam-arp-btn:not(.jam-arp-btn-b) { left: 12px; }
+            #jam-chord-sequence-display .jam-cell.rp-has-l:not(.rp-has-r) .jam-arp-btn.jam-arp-btn-b { left: calc(50% + 5.5px); }
+            #jam-chord-sequence-display .jam-cell.rp-has-r:not(.rp-has-l) .jam-arp-btn.jam-arp-btn-b { left: calc(50% - 5.5px); }
+            #jam-chord-sequence-display .jam-cell.rp-has-l .jam-half-fn[style*="left"] { left: 42px !important; }
+            #jam-chord-sequence-display .jam-cell.rp-has-r .jam-half-fn[style*="right"] { right: 15px !important; }
+            #view-jam #jam-chord-sequence-display .jam-cell.rp-has-r .jam-cell-bottom { right: 16px; }
+
             /* Pied de carte : l'accord courant sur sa ligne, les boutons de lecture sur la suivante */
             #jam-chord-sequence-display + div { flex-wrap: wrap; row-gap: 10px; }
             #jam-chord-sequence-display + div > div:first-child { flex: 1 1 100%; flex-wrap: wrap; gap: 8px 14px; }
@@ -393,14 +490,14 @@
                 <span class="text-xs font-bold text-slate-200 tracking-wider uppercase">Chord Scales Machine</span>
                 <div class="h-4 w-[1px] bg-[#444]"></div>
                 <div class="flex bg-[#1a1a1a] p-0.5 rounded-lg border border-[#333333] text-xs font-medium">
-                    <button id="nav-btn-training" onclick="app.switchView('training')" class="px-3 py-1 rounded-md bg-[#3a3a3c] text-white transition shadow-sm">Entraînement</button>
-                    <button id="nav-btn-jam" onclick="app.switchView('jam')" class="px-3 py-1 rounded-md text-slate-400 hover:text-white transition">Mode Jam</button>
+                    <button id="nav-btn-training" onclick="app.switchView('training')" class="px-3 py-1 rounded-md text-slate-400 hover:text-white transition">Entraînement</button>
+                    <button id="nav-btn-jam" onclick="app.switchView('jam')" class="px-3 py-1 rounded-md bg-[#3a3a3c] text-white transition shadow-sm">Mode Jam</button>
                 </div>
             </div>
         </header>
 
         <!-- VUE ENTRAÎNEMENT -->
-        <div id="view-training" class="flex-1 flex flex-col lg:flex-row lg:overflow-hidden min-h-0 min-w-0">
+        <div id="view-training" class="hidden flex-1 flex flex-col lg:flex-row lg:overflow-hidden min-h-0 min-w-0">
             
             <aside class="w-full lg:w-[380px] bg-[#222222] border-r border-[#333333] flex flex-col p-4 space-y-5 shrink-0 lg:overflow-y-auto custom-scrollbar">
                 
@@ -499,9 +596,9 @@
         </div>
 
         <!-- VUE MODE JAM -->
-        <div id="view-jam" class="hidden flex-1 flex flex-col lg:flex-row lg:overflow-hidden min-h-0 min-w-0">
+        <div id="view-jam" class="flex-1 flex flex-col lg:flex-row lg:overflow-hidden min-h-0 min-w-0">
             
-            <aside class="w-full lg:w-[420px] bg-[#222222] border-r border-[#333333] flex flex-col p-4 space-y-4 shrink-0 lg:overflow-y-auto custom-scrollbar">
+            <aside id="jam-grid-editor" data-collapsed="true" class="w-full lg:w-[420px] bg-[#222222] border-r border-[#333333] flex flex-col p-4 space-y-4 shrink-0 lg:overflow-y-auto custom-scrollbar">
                 
                 <div class="bg-[#2c2c2e] border border-[#3a3a3c] rounded-lg p-3 shadow-inner space-y-3">
                     <div class="flex items-center justify-between">
@@ -580,10 +677,15 @@
                     <input type="file" id="jam-import-file" accept=".json,application/json" class="hidden" onchange="app.jam.importGridFile(this)">
                 </div>
 
-<div class="px-1 pt-1">
+<div class="px-1 pt-1 flex items-center justify-between gap-2">
                     <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Éditeur de grille</span>
+                    <button type="button" id="jam-editor-toggle" class="jam-editor-toggle" onclick="app.jam.toggleEditorPanel()" aria-expanded="false" aria-controls="jam-editor-body" title="Afficher / replier l'éditeur de grille">
+                        <span id="jam-editor-toggle-label">Afficher</span>
+                        <svg class="w-3 h-3 jam-editor-chevron" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
                 </div>
 
+                <div id="jam-editor-body" class="space-y-4">
                 <div class="flex justify-between items-center px-1">
                     <div class="flex items-center gap-1.5">
                         <button id="jam-undo-btn" onclick="app.jam.undo()" title="Annuler (⌘Z)" aria-label="Annuler" disabled style="opacity:.4;cursor:not-allowed" class="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2 py-1 rounded transition">↶</button>
@@ -597,6 +699,7 @@
                 </div>
 
                 <div id="jam-grid-container" class="space-y-2 flex-1"></div>
+                </div>
 
             </aside>
 
@@ -607,6 +710,9 @@
                         <div class="flex items-center gap-2 justify-self-start">
                             <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
                             <span class="text-xs font-bold text-blue-400 uppercase tracking-wider">Grille d'accords</span>
+                            <button type="button" id="jam-edit-toggle" class="jam-edit-toggle" onclick="app.jam.toggleEditBar()" title="Outils d'édition : sélection, copier/coller, reprises" aria-label="Outils d'édition de la grille" aria-pressed="false">
+                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                            </button>
                         </div>
                         <span id="jam-loaded-grid-name" class="text-sm font-bold text-slate-300 uppercase tracking-wide text-center justify-self-center"></span>
                         <div class="text-right justify-self-end flex items-center justify-end gap-2 whitespace-nowrap min-w-0">
@@ -623,16 +729,24 @@
                         </div>
                     </div>
 
-                    <div id="jam-edit-bar" class="flex items-center gap-1.5 flex-wrap">
-                        <button type="button" id="jam-sel-mode-btn" class="jam-eb" onclick="app.jam.toggleSelectMode()" title="Mode sélection (utile au toucher) : touchez une première mesure, puis une seconde pour sélectionner la plage">☐ Sélection</button>
-                        <span id="jam-sel-info" class="jam-eb-info"></span>
-                        <span class="jam-eb-sep"></span>
-                        <button type="button" id="jam-eb-copy" class="jam-eb" onclick="app.jam.gridCopy()" title="Copier (⌘C / Ctrl+C)">Copier</button>
-                        <button type="button" id="jam-eb-cut" class="jam-eb" onclick="app.jam.gridCut()" title="Couper (⌘X / Ctrl+X)">Couper</button>
-                        <button type="button" id="jam-eb-paste" class="jam-eb" onclick="app.jam.gridPaste()" title="Coller après la sélection (⌘V / Ctrl+V)">Coller</button>
-                        <button type="button" id="jam-eb-dup" class="jam-eb" onclick="app.jam.gridDuplicate()" title="Dupliquer la sélection juste après elle (⌘D / Ctrl+D)">Dupliquer</button>
-                        <button type="button" id="jam-eb-del" class="jam-eb jam-eb-danger" onclick="app.jam.gridDelete()" title="Supprimer la sélection (Suppr)">Supprimer</button>
-                        <button type="button" id="jam-eb-all" class="jam-eb" onclick="app.jam.gridSelectAll()" title="Tout sélectionner (⌘A / Ctrl+A)">Tout</button>
+                    <div id="jam-edit-bar" class="hidden flex flex-col gap-1.5">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <button type="button" id="jam-sel-mode-btn" class="jam-eb" onclick="app.jam.toggleSelectMode()" title="Mode sélection (utile au toucher) : touchez une première mesure, puis une seconde pour sélectionner la plage. Au clavier : Maj+clic ou glisser.">☐ Sélection</button>
+                            <span id="jam-sel-info" class="jam-eb-info"></span>
+                            <span class="jam-eb-sep"></span>
+                            <button type="button" id="jam-eb-copy" class="jam-eb" onclick="app.jam.gridCopy()" title="Copier (⌘C / Ctrl+C)">Copier</button>
+                            <button type="button" id="jam-eb-cut" class="jam-eb" onclick="app.jam.gridCut()" title="Couper (⌘X / Ctrl+X)">Couper</button>
+                            <button type="button" id="jam-eb-paste" class="jam-eb" onclick="app.jam.gridPaste()" title="Coller après la sélection (⌘V / Ctrl+V)">Coller</button>
+                            <button type="button" id="jam-eb-dup" class="jam-eb" onclick="app.jam.gridDuplicate()" title="Dupliquer la sélection juste après elle (⌘D / Ctrl+D)">Dupliquer</button>
+                            <button type="button" id="jam-eb-del" class="jam-eb jam-eb-danger" onclick="app.jam.gridDelete()" title="Supprimer la sélection (Suppr)">Supprimer</button>
+                        </div>
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <button type="button" id="jam-eb-rs" class="jam-eb jam-eb-ico" onclick="app.jam.gridRepeatStart()" title="Début de reprise : pose ou retire le signe sur la première mesure de la sélection" aria-label="Début de reprise"><svg width="16" height="14" viewBox="0 0 16 14" fill="currentColor" aria-hidden="true"><rect x="1" y="0" width="2.6" height="14"/><rect x="5.2" y="0" width="1.1" height="14"/><circle cx="10" cy="4.8" r="1.5"/><circle cx="10" cy="9.2" r="1.5"/></svg></button>
+                            <button type="button" id="jam-eb-re" class="jam-eb jam-eb-ico" onclick="app.jam.gridRepeatEnd()" title="Fin de reprise sur la dernière mesure de la sélection ; clics successifs : ×2, ×3, ×4, aucun" aria-label="Fin de reprise"><svg width="16" height="14" viewBox="0 0 16 14" fill="currentColor" aria-hidden="true"><rect x="12.4" y="0" width="2.6" height="14"/><rect x="9.7" y="0" width="1.1" height="14"/><circle cx="6" cy="4.8" r="1.5"/><circle cx="6" cy="9.2" r="1.5"/></svg></button>
+                            <button type="button" id="jam-eb-v1" class="jam-eb" onclick="app.jam.gridVolta(1)" title="Marque la sélection comme 1re fin (jouée au premier passage seulement)">1re fin</button>
+                            <button type="button" id="jam-eb-v2" class="jam-eb" onclick="app.jam.gridVolta(2)" title="Marque la sélection comme 2e fin (jouée au second passage)">2e fin</button>
+                            <button type="button" id="jam-eb-rclr" class="jam-eb" onclick="app.jam.gridClearRepeats()" title="Retire reprises et fins de la sélection">Retirer reprises</button>
+                        </div>
                     </div>
 
                     <div id="jam-chord-sequence-display" class="py-2 border-y border-[#333333] min-h-[80px] custom-scrollbar overflow-x-auto"></div>
@@ -654,6 +768,9 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
+                            <button id="jam-loop-toggle" onclick="app.jam.toggleLoop()" class="jam-metronome-toggle" title="Boucle : activée = la grille repart au début quand elle est terminée ; désactivée = la jam s'arrête à la fin de la grille" aria-label="Lecture en boucle de la grille" aria-pressed="false">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+                            </button>
                             <button id="jam-metronome-toggle" onclick="app.jam.toggleMetronome()" class="jam-metronome-toggle" title="Métronome : activé = clic pendant toute la jam, désactivé = intro d'une mesure seulement" aria-label="Activer/Désactiver le métronome" aria-pressed="false">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21L10 3h4l2 18z"/><path d="M12 17l4.5-10.5"/><circle cx="15" cy="10" r="1.3" fill="currentColor"/><path d="M6 21h12"/></svg>
                             </button>
@@ -1170,6 +1287,9 @@
                 this._FIRST_LEAD = 0.35; // délai (s) avant le tout premier temps : laisse la sortie audio se réveiller
                 this._beatAudio = null;  // instant audio du prochain temps
                 this._beatAudioTime = null;
+                this._passes = {};        // passages déjà effectués de chaque reprise (clé : index du bloc de fin)
+                this.loopEnabled = false; // lecture en boucle de la grille (désactivée par défaut)
+                this._editBarOpen = false; // barre d'outils d'édition (sélection, copier/coller, reprises)
                 
                 this.volume = 0.8;
                 this.gainNode = null;
@@ -1670,10 +1790,18 @@
                         let ss = item.split.scaleId;
                         if (typeof ss !== 'string' || !scalesDb[ss]) ss = this.findChordObj(item.split.chordId).scales[0].id;
                         step.split = { rootIndex: sr, chordId: item.split.chordId, scaleId: ss };
+                        if (typeof item.split.fnLabel === 'string' && item.split.fnLabel) step.split.fnLabel = item.split.fnLabel.slice(0, 24);
                     }
                     ['section', 'phrase', 'harmonicFunction'].forEach(k => {
                         if (typeof item[k] === 'string') step[k] = item[k].slice(0, 80);
                     });
+                    if (typeof item.fnLabel === 'string' && item.fnLabel) step.fnLabel = item.fnLabel.slice(0, 24);
+                    // Signes de reprise : début, fin (nombre de passages) et 1re / 2e fin
+                    if (item.repeatStart === true) step.repeatStart = true;
+                    const re = Number(item.repeatEnd);
+                    if (Number.isInteger(re) && re >= 2 && re <= 4) step.repeatEnd = re;
+                    const vo = Number(item.volta);
+                    if (vo === 1 || vo === 2) step.volta = vo;
                     clean.push(step);
                 }
                 return clean;
@@ -2929,7 +3057,8 @@
 
                 if (beatInMeasure === 0) {
                     this._bandMeasureCounter = (this._bandMeasureCounter + 1) % 1000000;
-                    const nextStep = this.grid[(this.currentStepIndex + 1) % this.grid.length];
+                    const nxIdx = this._peekNextIndex(this.currentStepIndex);
+                    const nextStep = nxIdx >= 0 ? this.grid[nxIdx] : null;
                     const measureInStep = Math.floor(this.currentBeat / 4);
                     this._bandPlan = this.buildBandPlan(step, nextStep, measureInStep, measureInStep === step.measures - 1);
                 }
@@ -2980,6 +3109,7 @@
                 } else {
                     step[key] = value;
                 }
+                if (key === 'rootIndex' || key === 'chordId') delete step.fnLabel;
 
                 if (key === 'chordId') {
                     const chordObj = this.findChordObj(step.chordId);
@@ -2999,6 +3129,7 @@
                 if (!step || !step.split) return;
                 if (key === 'rootIndex') step.split.rootIndex = parseInt(value, 10);
                 else step.split[key] = value;
+                if (key === 'rootIndex' || key === 'chordId') delete step.split.fnLabel;
                 if (key === 'chordId') {
                     const chordObj = this.findChordObj(step.split.chordId);
                     if (chordObj && chordObj.scales.length > 0) step.split.scaleId = chordObj.scales[0].id;
@@ -3644,8 +3775,9 @@
                             chordId: step.chordId,
                             scaleId: step.scaleId,
                             bassRootIndex: Number.isInteger(step.bassRootIndex) ? step.bassRootIndex : null,
-                            split: this.isSplit(step) ? { rootIndex: step.split.rootIndex, chordId: step.split.chordId, scaleId: step.split.scaleId } : null,
-                            harmonicFunction: step.harmonicFunction || null
+                            split: this.isSplit(step) ? { rootIndex: step.split.rootIndex, chordId: step.split.chordId, scaleId: step.split.scaleId, fnLabel: step.split.fnLabel || null } : null,
+                            harmonicFunction: step.harmonicFunction || null,
+                            fnLabel: step.fnLabel || null
                         });
                         measureNumber++;
                     }
@@ -3662,6 +3794,7 @@
             }
 
             getHarmonicFunctionLabel(measure, flatMeasures, index) {
+                if (measure.fnLabel) return measure.fnLabel; // fonction choisie par l'utilisateur
                 const root = ((measure.rootIndex - this.mainKey) % 12 + 12) % 12;
                 const majorOffsets = [0, 2, 4, 5, 7, 9, 11];
                 const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
@@ -3706,6 +3839,399 @@
                 if (fn === 'target') return degreeLabel;
                 if (fn === 'color') return degreeLabel;
                 return degreeLabel;
+            }
+
+            // ===== Reprises : calcul de l'ordre de lecture =====
+            // Un bloc porte repeatStart (début |:), repeatEnd = nombre de passages (fin :|) et/ou volta = 1 ou 2
+            // (1re / 2e fin). La 1re fin est jouée au premier passage seulement ; au passage suivant on la saute.
+            _repeatRegions() {
+                const g = this.grid;
+                const regions = [];
+                let start = 0;
+                for (let i = 0; i < g.length; i++) {
+                    if (g[i].repeatStart) start = i;
+                    if (g[i].repeatEnd) {
+                        let voltaStart = null;
+                        if (g[i].volta === 1) {
+                            let k = i;
+                            while (k - 1 > start && g[k - 1].volta === 1) k--;
+                            voltaStart = k;
+                        }
+                        regions.push({ start, end: i, times: g[i].repeatEnd, voltaStart });
+                        start = i + 1;
+                    }
+                }
+                return regions;
+            }
+
+            // Bloc joué après le bloc i, et indication « la grille est terminée » (wrapped).
+            // commit = true : met à jour le compteur de passages (lecture réelle) ;
+            // false : simple consultation (accord suivant affiché, basse), sans rien modifier.
+            _nextStepInfo(i, commit = false) {
+                const len = this.grid.length;
+                if (!len) return { idx: 0, wrapped: true };
+                const passes = commit ? this._passes : { ...this._passes };
+                const regions = this._repeatRegions();
+                const wrap = () => { if (commit) this._passes = {}; return { idx: 0, wrapped: true }; };
+
+                // Fin de reprise : on retourne au début tant que tous les passages ne sont pas faits
+                const r = regions.find(rg => rg.end === i);
+                if (r) {
+                    const p = passes[r.end] || 1;
+                    if (p < r.times) { passes[r.end] = p + 1; return { idx: r.start, wrapped: false }; }
+                    passes[r.end] = 1;
+                }
+                let j = i + 1;
+                if (j >= len) return wrap();
+                // Aux passages suivants, la 1re fin est sautée
+                for (const rg of regions) {
+                    if (rg.voltaStart !== null && j >= rg.voltaStart && j <= rg.end && (passes[rg.end] || 1) > 1) {
+                        j = rg.end + 1;
+                        passes[rg.end] = 1;
+                    }
+                }
+                if (j >= len) return wrap();
+                return { idx: j, wrapped: false };
+            }
+
+            _nextStepIndex(i, commit = false) { return this._nextStepInfo(i, commit).idx; }
+
+            // Index du bloc suivant pour l'affichage / la basse ; -1 s'il n'y en a pas (fin de grille sans boucle).
+            _peekNextIndex(i) {
+                const n = this._nextStepInfo(i, false);
+                return (n.wrapped && !this.loopEnabled) ? -1 : n.idx;
+            }
+
+            toggleLoop(force) {
+                this.loopEnabled = typeof force === 'boolean' ? force : !this.loopEnabled;
+                const btn = document.getElementById('jam-loop-toggle');
+                if (btn) { btn.classList.toggle('is-active', this.loopEnabled); btn.setAttribute('aria-pressed', String(this.loopEnabled)); }
+                if (this.isPlaying) this.renderJamScales(); // l'accord « suivant » dépend de la boucle
+                this.updateNextJamChordDisplay && this.currentStepIndex >= 0 && this.grid[this.currentStepIndex] && this.updateNextJamChordDisplay(this.grid[this.currentStepIndex], this.displayedChordHalf || 0);
+            }
+
+            // Pose / retire des signes de reprise sur la sélection (ou la mesure courante)
+            _markRange(r, fn) {
+                this.withUndo(() => {
+                    const { i0, i1 } = this._isolateRange(r.from, r.to);
+                    fn(i0, i1);
+                    this._mergeAround(i0 - 1, i1 + 1);
+                });
+                this._selectMeasureView(r.from);
+                this.renderGridUI();
+            }
+
+            gridRepeatStart() {
+                if (this.isPlaying) return;
+                const r = this._actionRange();
+                if (!r) { this._flash('Sélectionnez une mesure'); return; }
+                this._markRange(r, (i0) => {
+                    const a = this.grid[i0];
+                    if (a.repeatStart) delete a.repeatStart; else a.repeatStart = true;
+                });
+            }
+
+            gridRepeatEnd() {
+                if (this.isPlaying) return;
+                const r = this._actionRange();
+                if (!r) { this._flash('Sélectionnez une mesure'); return; }
+                let nt = 0;
+                this._markRange(r, (i0, i1) => {
+                    const b = this.grid[i1];
+                    const t = b.repeatEnd || 0;
+                    nt = t === 0 ? 2 : (t >= 4 ? 0 : t + 1);
+                    if (nt) b.repeatEnd = nt; else delete b.repeatEnd;
+                });
+                this._flash(nt ? `Fin de reprise ×${nt}` : 'Fin de reprise retirée');
+            }
+
+            gridVolta(v) {
+                if (this.isPlaying) return;
+                const r = this._actionRange();
+                if (!r) { this._flash('Sélectionnez les mesures de la ' + (v === 1 ? '1re' : '2e') + ' fin'); return; }
+                this._markRange(r, (i0, i1) => {
+                    let all = true;
+                    for (let i = i0; i <= i1; i++) if (this.grid[i].volta !== v) all = false;
+                    for (let i = i0; i <= i1; i++) { if (all) delete this.grid[i].volta; else this.grid[i].volta = v; }
+                });
+            }
+
+            gridClearRepeats() {
+                if (this.isPlaying) return;
+                const r = this._actionRange();
+                if (!r) return;
+                this._markRange(r, (i0, i1) => {
+                    for (let i = i0; i <= i1; i++) { delete this.grid[i].repeatStart; delete this.grid[i].repeatEnd; delete this.grid[i].volta; }
+                });
+            }
+
+            // Depuis le pop-up d'une mesure : début / fin (×2 → ×3 → ×4 → aucun) / 1re fin / 2e fin
+            _editorMark(kind) {
+                const ed = this._editor;
+                if (!ed) return;
+                ed.touched = true;
+                this.withUndo(() => {
+                    const idx = this._isolateMeasure(ed.measureNumber);
+                    if (idx < 0) return;
+                    const st = this.grid[idx];
+                    if (kind === 'start') {
+                        if (st.repeatStart) delete st.repeatStart; else st.repeatStart = true;
+                    } else if (kind === 'end') {
+                        const t = st.repeatEnd || 0;
+                        const nt = t === 0 ? 2 : (t >= 4 ? 0 : t + 1);
+                        if (nt) st.repeatEnd = nt; else delete st.repeatEnd;
+                    } else {
+                        const v = kind === 'v1' ? 1 : 2;
+                        if (st.volta === v) delete st.volta; else st.volta = v;
+                    }
+                    this._mergeAround(idx - 1, idx + 1);
+                });
+                this._editorSelect();
+            }
+
+            // ===== Barre d'outils d'édition (crayon) et panneau éditeur (téléphone) =====
+            toggleEditBar(force) {
+                this._editBarOpen = typeof force === 'boolean' ? force : !this._editBarOpen;
+                const bar = document.getElementById('jam-edit-bar');
+                const btn = document.getElementById('jam-edit-toggle');
+                if (bar) bar.classList.toggle('hidden', !this._editBarOpen);
+                if (btn) { btn.classList.toggle('is-on', this._editBarOpen); btn.setAttribute('aria-pressed', String(this._editBarOpen)); }
+                if (!this._editBarOpen) {
+                    this.closeMeasureEditor();
+                    this.closeFunctionEditor();
+                    this._selMode = false; this._selAnchor = null; this.clearSelection();
+                } else this.updateEditBar();
+                this.renderSequenceUI(); // affiche / masque les crayons ✎ et la case « + »
+            }
+
+            toggleEditorPanel() {
+                const panel = document.getElementById('jam-grid-editor');
+                if (!panel) return;
+                const collapsed = panel.dataset.collapsed !== 'true';
+                panel.dataset.collapsed = String(collapsed);
+                const btn = document.getElementById('jam-editor-toggle');
+                if (btn) btn.setAttribute('aria-expanded', String(!collapsed));
+                const lbl = document.getElementById('jam-editor-toggle-label');
+                if (lbl) lbl.textContent = collapsed ? 'Afficher' : 'Replier';
+            }
+
+            // ===== Fonction tonale : alternatives conformes à la théorie =====
+            _romanDeg(t, lower = false) {
+                const R = ['I', '♭II', 'II', '♭III', 'III', 'IV', '♯IV', 'V', '♭VI', 'VI', '♭VII', 'VII'];
+                const x = R[((t % 12) + 12) % 12];
+                return lower ? x.toLowerCase() : x;
+            }
+
+            _chordFamily(id) {
+                if (['minTriad', 'm7', 'm9', 'm11', 'mmaj7'].includes(id)) return 'min';
+                if (['7', '9', '7alt', '7b9', '7sharp5', '7sus4'].includes(id)) return 'dom';
+                if (id === 'm7b5') return 'hdim';
+                if (['dim7', 'dimTriad'].includes(id)) return 'dim';
+                if (id === 'augTriad') return 'aug';
+                return 'maj';
+            }
+
+            // Lectures possibles d'un accord dans la tonalité de la grille : degré diatonique, dominantes secondaires,
+            // substitutions, emprunts modaux, accords de passage / chromatisme et modulations.
+            // next : accord de la mesure suivante (pour les accords d'approche chromatique), ou null.
+            getFunctionAlternatives(chord, next = null) {
+                const key = this.mainKey;
+                const r = ((chord.rootIndex - key) % 12 + 12) % 12;
+                const R = (t, lower) => this._romanDeg(t, lower);
+                const K = (t) => rootLabels[(key + ((t % 12) + 12) % 12) % 12];
+                const mod = (n) => ((n % 12) + 12) % 12;
+                const fam = this._chordFamily(chord.chordId);
+                const diatonic = [0, 2, 4, 5, 7, 9, 11];
+                const groups = [];
+                const seen = new Set();
+                const add = (title, items) => {
+                    const clean = items.filter(it => it && it.label && !seen.has(it.label) && seen.add(it.label));
+                    if (clean.length) groups.push({ title, items: clean });
+                };
+                const it = (label, desc) => ({ label, desc });
+
+                // --- Fonction T / SD / D ---
+                const tsd = { maj: { 0: 'T', 5: 'SD' }, min: { 2: 'SD', 4: 'T', 9: 'T' }, dom: { 7: 'D' }, aug: { 7: 'D' }, hdim: { 11: 'D' }, dim: { 11: 'D' } }[fam] || {};
+                if (tsd[r]) {
+                    const txt = { T: 'Tonique : repos, stabilité', SD: 'Sous-dominante (prédominante) : éloignement, prépare la dominante', D: 'Dominante : tension, appelle la résolution sur la tonique' }[tsd[r]];
+                    add('Fonction (T / SD / D)', [it(tsd[r], txt)]);
+                }
+
+                if (fam === 'dom' || fam === 'aug') {
+                    const suf = chord.chordId === '7sus4' ? '7sus' : (fam === 'aug' ? '+' : '7');
+                    const tSec = mod(r + 5);
+                    add('Dominantes', [
+                        r === 7 ? it('V' + suf, 'Dominante principale : tend vers la tonique I') : null,
+                        r !== 7 ? it(`V${suf}/${R(tSec)}`, `Dominante secondaire (tonicisation) : résout sur ${R(tSec)} (${K(tSec)}), une quinte plus bas`) : null
+                    ]);
+                    const tTri = mod(r + 11);
+                    const tBd = mod(r + 2);
+                    add('Substitutions', [
+                        it(`subV${suf}/${R(tTri)}`, `Substitut de triton : remplace V7/${R(tTri)} ; sa fondamentale descend d'un demi-ton sur ${R(tTri)} (${K(tTri)})`),
+                        (fam === 'dom' && chord.chordId !== '7sus4') ? it(tBd === 0 ? '♭VII7' : `♭VII7/${R(tBd)}`, `Dominante « backdoor » (♭VII7) : résout par la sous-dominante mineure sur ${R(tBd)} (${K(tBd)})`) : null
+                    ]);
+                    add('Emprunts modaux', [
+                        r === 0 ? it('I7', 'Tonique dominante : couleur blues / mixolydienne') : null,
+                        r === 5 ? it('IV7', 'Sous-dominante dominante : couleur blues') : null,
+                        r === 3 ? it('♭III7', 'Dominante d\'emprunt (♭III7), couleur blues mineur') : null,
+                        r === 8 ? it('♭VI7', 'Sixte augmentée (♭VI7) : conduit à V') : null
+                    ]);
+                    if (r !== 7) add('Modulation', [it(`V${suf} de ${K(tSec)}`, `Modulation : cet accord devient la dominante de la nouvelle tonalité de ${K(tSec)}`)]);
+                } else if (fam === 'min') {
+                    const degreeInfo = {
+                        0: ['i', 'Tonique mineure (mode parallèle)'],
+                        1: ['♭ii', 'Accord chromatique (♭ii) : voisin chromatique de i'],
+                        2: ['ii', 'Sous-dominante : prépare V7 (ii–V–I)'],
+                        3: ['♭iii', 'Emprunt au mode parallèle mineur'],
+                        4: ['iii', 'Tonique relative : relie I à IV ou vi'],
+                        5: ['iv', 'Sous-dominante mineure : emprunt au mode parallèle mineur'],
+                        6: ['♯iv', 'Accord chromatique'],
+                        7: ['v', 'Dominante mineure : couleur modale (mixolydien / éolien)'],
+                        8: ['♭vi', 'Emprunt au mode parallèle mineur'],
+                        9: ['vi', 'Substitut de tonique : relatif mineur de I'],
+                        10: ['♭vii', 'Emprunt (couleur dorienne / éolienne)'],
+                        11: ['vii', 'Accord chromatique']
+                    }[r];
+                    add('Degré', [it(degreeInfo[0], degreeInfo[1])]);
+                    const tIi = mod(r - 2);
+                    if (r !== 2) add('Dominantes secondaires', [it(`ii/${R(tIi)}`, `Le ii d'un ii–V secondaire : mène à V7/${R(tIi)} puis ${R(tIi)} (${K(tIi)})`)]);
+                    const pivots = [
+                        [mod(r + 10), 'ii', `ii de ${K(r + 10)}`, 'sous-dominante'],
+                        [mod(r + 8), 'iii', `iii de ${K(r + 8)}`, 'tonique relative'],
+                        [mod(r + 3), 'vi', `vi de ${K(r + 3)}`, 'relatif mineur']
+                    ].filter(x => x[0] !== 0).map(x => it(x[2], `Modulation (accord pivot) : ${x[1]} de ${K(x[0])}, rôle de ${x[3]} dans la nouvelle tonalité`));
+                    add('Modulation', [...pivots, r !== 0 ? it(`i (${K(r)}m)`, `Modulation en ${K(r)} mineur : cet accord en devient la tonique`) : null]);
+                } else if (fam === 'maj') {
+                    const degreeInfo = {
+                        0: ['I', 'Tonique'],
+                        1: ['♭II', 'Sixte napolitaine : accord de ♭II qui précède V'],
+                        2: ['II', 'II majeur (lydien) : dominante secondaire V/V sans septième'],
+                        3: ['♭III', 'Emprunt au mode parallèle mineur'],
+                        4: ['III', 'III majeur : V/vi sans septième'],
+                        5: ['IV', 'Sous-dominante'],
+                        6: ['♯IV', 'Accord chromatique'],
+                        7: ['V', 'Dominante (accord majeur sur V)'],
+                        8: ['♭VI', 'Emprunt au mode parallèle mineur'],
+                        9: ['VI', 'VI majeur : V/ii sans septième'],
+                        10: ['♭VII', 'Emprunt au mode parallèle mineur / couleur mixolydienne'],
+                        11: ['VII', 'Accord chromatique']
+                    }[r];
+                    add('Degré', [it(degreeInfo[0], degreeInfo[1])]);
+                    const tIv = mod(r + 7), tV = mod(r + 5);
+                    add('Modulation', [
+                        r !== 0 ? it(`I de ${K(r)}`, `Modulation : cet accord devient la tonique de ${K(r)} majeur`) : null,
+                        tIv !== 0 ? it(`IV de ${K(tIv)}`, `Modulation (accord pivot) : sous-dominante de ${K(tIv)}`) : null,
+                        (chord.chordId === 'majTriad' && tV !== 0) ? it(`V de ${K(tV)}`, `Modulation : dominante (triade) de ${K(tV)}`) : null
+                    ]);
+                } else if (fam === 'hdim') {
+                    const tIi = mod(r - 2);
+                    add('Dominantes secondaires', [
+                        r === 11 ? it('viiø', 'Sensible demi-diminuée : fonction de dominante (V7 sans fondamentale) vers I') : null,
+                        it(tIi === 0 ? 'iiø' : `iiø/${R(tIi, true)}`, tIi === 0 ? 'Emprunt au mineur parallèle : iiø – V7(♭9) – i' : `ii–V mineur : iiø – V7(♭9) – ${R(tIi, true)} ; tonicisation de ${R(tIi, true)} (${K(tIi)} mineur)`)
+                    ]);
+                    add('Modulation', [it(`iiø de ${K(tIi)}m`, `Modulation en ${K(tIi)} mineur : cet accord en devient le iiø`)]);
+                } else if (fam === 'dim') {
+                    const tg = [1, 4, 7, 10].map(n => mod(r + n));
+                    add('Dominantes secondaires', tg.map(t => it(t === 0 ? 'vii°7' : `vii°7/${R(t)}`, `Remplace V7(♭9) de ${R(t)} (${K(t)}) : résolution par demi-ton ascendant sur ${R(t)}`)));
+                    const lo = mod(r - 1), hi = mod(r + 1);
+                    const passing = [];
+                    if (diatonic.includes(lo) && diatonic.includes(hi)) {
+                        passing.push(it(`♯${R(lo)}°7`, `Dim7 de passage ascendant entre ${R(lo)} et ${R(hi)} (notation en dièse)`));
+                        passing.push(it(`♭${R(hi)}°7`, `Dim7 de passage descendant entre ${R(hi)} et ${R(lo)} (notation en bémol)`));
+                    }
+                    if (diatonic.includes(r) && r !== 11) passing.push(it(`${R(r)}°7`, `Accord diminué auxiliaire (broderie) du degré ${R(r)}`));
+                    add('Accords de passage', passing);
+                }
+
+                // --- Accords d'approche chromatique (selon l'accord qui suit) ---
+                if (next) {
+                    const d = mod(next.rootIndex - chord.rootIndex);
+                    const tn = mod(next.rootIndex - key);
+                    if (d === 1) add('Accords de passage', [it(`↗ ${R(tn)}`, `Accord d'approche chromatique : monte d'un demi-ton vers ${R(tn)} (${K(tn)})`)]);
+                    if (d === 11) add('Accords de passage', [it(`↘ ${R(tn)}`, `Accord d'approche chromatique : descend d'un demi-ton vers ${R(tn)} (${K(tn)})`)]);
+                }
+                return groups;
+            }
+
+            openFunctionEditor(measureNumber, half = 0) {
+                if (this.isPlaying || !this._editBarOpen) return;
+                const flat = this.getFlatMeasureList();
+                const m = flat.find(x => x.measureNumber === measureNumber);
+                if (!m) return;
+                this.closeMeasureEditor();
+                this.closeFunctionEditor();
+                const useHalf = half === 1 && m.split;
+                const chord = useHalf ? m.split : m;
+                const nextM = flat[measureNumber] || null;
+                const groups = this.getFunctionAlternatives(chord, useHalf ? nextM : (m.split ? m.split : nextM));
+                const symbol = `${rootLabels[chord.rootIndex]}${this.getJazzChordNotation(chord.chordId)}`;
+                const auto = this.getHarmonicFunctionLabel({ rootIndex: chord.rootIndex, chordId: chord.chordId, harmonicFunction: useHalf ? null : m.harmonicFunction, fnLabel: null }, flat, measureNumber - 1);
+                const cur = chord.fnLabel || null;
+                const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+                const row = (label, desc, on, encoded) => `<button type="button" class="jm-fn-row${on ? ' is-on' : ''}" data-fn="${encoded}"><b>${esc(label)}</b><span>${esc(desc)}</span></button>`;
+
+                const el = document.createElement('div');
+                el.className = 'jm-pop';
+                el.innerHTML = `
+                    <div class="jm-head">
+                        <span class="jm-title">Fonction tonale · Mesure ${measureNumber} · ${esc(symbol)}</span>
+                        <button type="button" class="jm-btn" data-close="1" title="Fermer (Échap)">✕</button>
+                    </div>
+                    <div class="jm-sub">Tonalité de la grille : ${esc(rootLabels[this.mainKey])}. Choisissez une lecture de cet accord.</div>
+                    <div class="jm-sec">
+                        ${row(`Auto : ${auto}`, 'Fonction calculée d\'après la tonalité (par défaut)', !cur, '__auto__')}
+                    </div>
+                    ${groups.map(g => `<div class="jm-sec"><div class="jm-sec-t">${esc(g.title)}</div>${g.items.map(i => row(i.label, i.desc, cur === i.label, encodeURIComponent(i.label))).join('')}</div>`).join('')}
+                `;
+                el.addEventListener('click', (ev) => {
+                    if (ev.target.closest('[data-close]')) { this.closeFunctionEditor(); return; }
+                    const b = ev.target.closest('[data-fn]');
+                    if (!b) return;
+                    const v = b.dataset.fn;
+                    this.applyFunctionLabel(measureNumber, useHalf ? 1 : 0, v === '__auto__' ? null : decodeURIComponent(v));
+                });
+                (document.fullscreenElement || document.body).appendChild(el);
+                this._fnEditor = { el, measureNumber };
+                this._fnOutside = (ev) => {
+                    const t = ev.target;
+                    if (!this._fnEditor || this._fnEditor.el.contains(t)) return;
+                    if (t.closest && t.closest('.jam-fn-label')) return;
+                    this.closeFunctionEditor();
+                };
+                this._fnKeys = (ev) => { if (ev.key === 'Escape') { this.closeFunctionEditor(); ev.preventDefault(); } };
+                this._fnReposition = () => {
+                    if (!this._fnEditor) return;
+                    const cell = document.querySelector(`#jam-chord-sequence-display .jam-cell[data-measure-number="${this._fnEditor.measureNumber}"]`);
+                    this._placePopup(this._fnEditor.el, cell);
+                };
+                document.addEventListener('pointerdown', this._fnOutside, true);
+                document.addEventListener('keydown', this._fnKeys);
+                window.addEventListener('resize', this._fnReposition);
+                this._fnReposition();
+            }
+
+            closeFunctionEditor() {
+                const fe = this._fnEditor;
+                if (!fe) return;
+                this._fnEditor = null;
+                if (fe.el) fe.el.remove();
+                document.removeEventListener('pointerdown', this._fnOutside, true);
+                document.removeEventListener('keydown', this._fnKeys);
+                window.removeEventListener('resize', this._fnReposition);
+            }
+
+            // Enregistre (ou retire, label = null) la fonction tonale choisie pour une mesure ou une moitié de mesure.
+            applyFunctionLabel(measureNumber, half, label) {
+                this.withUndo(() => {
+                    const idx = this._isolateMeasure(measureNumber);
+                    if (idx < 0) return;
+                    const step = this.grid[idx];
+                    const target = (half === 1 && this.isSplit(step)) ? step.split : step;
+                    if (label) target.fnLabel = String(label).slice(0, 24); else delete target.fnLabel;
+                    this._mergeAround(idx - 1, idx + 1);
+                });
+                this.closeFunctionEditor();
+                this.renderGridUI();
             }
 
             // ===== Sélection de mesures et copier / coller dans la grille =====
@@ -3765,7 +4291,7 @@
             // Appelé au clic sur une case ; renvoie true si le clic doit être ignoré (fin d'un glisser-sélection).
             _noteSelectionClick(ev, n) {
                 if (this._justDragged) { this._justDragged = false; return true; }
-                if (this._editor || this.isPlaying) return false;
+                if (!this._editBarOpen || this._editor || this.isPlaying) return false;
                 if (ev.shiftKey) {
                     const a = this._selAnchor || this._activeMeasureNumber() || n;
                     this.setSelection(a, n);
@@ -3791,9 +4317,9 @@
 
                 // Glisser à la souris sur plusieurs cases = sélection d'une plage
                 document.addEventListener('pointerdown', (ev) => {
-                    if (ev.button !== 0 || ev.pointerType !== 'mouse' || ev.shiftKey || this.isPlaying || this._editor) return;
+                    if (!this._editBarOpen || ev.button !== 0 || ev.pointerType !== 'mouse' || ev.shiftKey || this.isPlaying || this._editor) return;
                     const t = ev.target;
-                    if (!t.closest || t.closest('.jam-arp-btn, .jam-edit-btn, .jam-add-cell')) return;
+                    if (!t.closest || t.closest('.jam-arp-btn, .jam-edit-btn, .jam-add-cell, .jam-fn-label')) return;
                     const cell = t.closest('#jam-chord-sequence-display .jam-cell[data-measure-number]');
                     if (!cell) return;
                     this._dragSel = { start: parseInt(cell.dataset.measureNumber, 10), moved: false };
@@ -3825,7 +4351,7 @@
                 document.addEventListener('keydown', (e) => {
                     const view = document.getElementById('view-jam');
                     if (!view || view.classList.contains('hidden')) return;
-                    if (this.isPlaying || this._editor) return;
+                    if (!this._editBarOpen || this.isPlaying || this._editor) return;
                     const t = e.target;
                     const nonText = ['range', 'checkbox', 'radio', 'button', 'file'];
                     if (t && (t.isContentEditable || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' ||
@@ -3873,19 +4399,15 @@
                 if (!info) return;
                 const range = this._actionRange();
                 const clip = this._getClip();
-                if (this._flashMsg) info.textContent = this._flashMsg;
-                else if (this._sel) {
-                    const n = this._sel.to - this._sel.from + 1;
-                    info.textContent = `${n} mesure${n > 1 ? 's' : ''} sélectionnée${n > 1 ? 's' : ''} (|${this._sel.from}${n > 1 ? '–|' + this._sel.to : ''})`;
-                } else if (this._selMode) info.textContent = 'Touchez une première puis une seconde mesure';
-                else info.textContent = 'Maj+clic ou glisser pour sélectionner des mesures';
+                // Pas de texte d'aide permanent : seuls les retours ponctuels (copié, refus…) s'affichent un instant.
+                info.textContent = this._flashMsg || '';
                 const dis = (id, d) => { const b = document.getElementById(id); if (b) b.disabled = !!d; };
                 dis('jam-eb-copy', !range);
                 dis('jam-eb-cut', !range);
                 dis('jam-eb-dup', !range);
                 dis('jam-eb-del', !range);
                 dis('jam-eb-paste', clip.length === 0);
-                dis('jam-eb-all', this._totalMeasures() === 0);
+                ['jam-eb-rs', 'jam-eb-re', 'jam-eb-v1', 'jam-eb-v2', 'jam-eb-rclr'].forEach(id => dis(id, !range));
                 const paste = document.getElementById('jam-eb-paste');
                 if (paste) paste.textContent = clip.length ? `Coller (${clip.length})` : 'Coller';
                 const modeBtn = document.getElementById('jam-sel-mode-btn');
@@ -3899,9 +4421,15 @@
             _measureItems(from, to) {
                 return this.getFlatMeasureList().slice(from - 1, to).map(m => {
                     const it = { rootIndex: m.rootIndex, chordId: m.chordId, scaleId: m.scaleId };
+                    const stp = this.grid[m.stepIndex];
+                    if (stp.repeatStart && m.measureInStep === 1) it.repeatStart = true;
+                    if (stp.repeatEnd && m.measureInStep === stp.measures) it.repeatEnd = stp.repeatEnd;
+                    if (stp.volta) it.volta = stp.volta;
+                    if (stp.fnLabel) it.fnLabel = stp.fnLabel;
                     if (Number.isInteger(m.bassRootIndex)) it.bassRootIndex = m.bassRootIndex;
                     if (m.harmonicFunction) it.harmonicFunction = m.harmonicFunction;
                     if (m.split) it.split = { rootIndex: m.split.rootIndex, chordId: m.split.chordId, scaleId: m.split.scaleId };
+                    if (m.split && m.split.fnLabel) it.split.fnLabel = m.split.fnLabel;
                     return it;
                 });
             }
@@ -4080,12 +4608,16 @@
                 const editedPos = parts.length;
                 parts.push({ ...base, measures: 1 });
                 if (after > 0) parts.push({ ...base, measures: after });
+                // Début de reprise : seulement sur la première partie ; fin de reprise : seulement sur la dernière.
+                parts.forEach(pt => { delete pt.repeatStart; delete pt.repeatEnd; });
+                if (s.repeatStart) parts[0].repeatStart = true;
+                if (s.repeatEnd) parts[parts.length - 1].repeatEnd = s.repeatEnd;
                 this.grid.splice(m.stepIndex, 1, ...parts);
                 return m.stepIndex + editedPos;
             }
 
             openAddMeasure() {
-                if (this.isPlaying) return;
+                if (this.isPlaying || !this._editBarOpen) return;
                 this.closeMeasureEditor();
                 this._beginEditor(true);
                 this.withUndo(() => {
@@ -4106,7 +4638,7 @@
             }
 
             openMeasureEditor(measureNumber, opts = {}) {
-                if (this.isPlaying) return;
+                if (this.isPlaying || !this._editBarOpen) return;
                 const total = this.getFlatMeasureList().length;
                 if (measureNumber < 1 || measureNumber > total) return;
                 if (!this._editor) this._beginEditor(false);
@@ -4217,6 +4749,10 @@
                     case 'ins': this._editorInsertAfter(); break;
                     case 'prev': this._editorGo(-1); break;
                     case 'next': this._editorGo(1); break;
+                    case 'rp-start': this._editorMark('start'); break;
+                    case 'rp-end': this._editorMark('end'); break;
+                    case 'rp-v1': this._editorMark('v1'); break;
+                    case 'rp-v2': this._editorMark('v2'); break;
                     case 'close': ed.touched = true; this.closeMeasureEditor(); break;   // OK : on garde
                     case 'cancel': this.closeMeasureEditor(); break;                       // ✕ : une mesure ajoutée vierge est annulée
                 }
@@ -4238,6 +4774,7 @@
                         const co = this.findChordObj(target.chordId);
                         if (co && co.scales.length) target.scaleId = co.scales[0].id;
                     }
+                    if (chordChanged) delete target.fnLabel;
                     if (chordChanged && !useSplit) {
                         delete step.bassRootIndex;
                         delete step.harmonicFunction;
@@ -4293,7 +4830,7 @@
                 this.withUndo(() => {
                     const idx = this._isolateMeasure(ed.measureNumber);
                     if (idx < 0) return;
-                    this.grid.splice(idx + 1, 0, JSON.parse(JSON.stringify(this.grid[idx])));
+                    { const cp = JSON.parse(JSON.stringify(this.grid[idx])); delete cp.repeatStart; delete cp.repeatEnd; delete cp.volta; this.grid.splice(idx + 1, 0, cp); }
                 });
                 ed.measureNumber += 1;
                 ed.half = 0;
@@ -4312,6 +4849,7 @@
                     this.withUndo(() => {
                         const last = JSON.parse(JSON.stringify(this.grid[this.grid.length - 1]));
                         if (last.measures !== 1) delete last.split;
+                        delete last.repeatStart; delete last.repeatEnd; delete last.volta; delete last.fnLabel;
                         last.measures = 1;
                         this.grid.push(last);
                     });
@@ -4351,6 +4889,15 @@
                     return chip(sc.id === cur.scaleId, `data-act="scale" data-v="${sc.id}" title="${sc.role || ''}"`, db ? db.name : sc.id, ' jm-scale');
                 }).join('');
 
+                const rpStart = !!step.repeatStart && m.measureInStep === 1;
+                const rpEnd = (step.repeatEnd && m.measureInStep === step.measures) ? step.repeatEnd : 0;
+                const marks = [
+                    chip(rpStart, 'data-act="rp-start" title="Début de reprise : le jeu revient ici à la fin de la reprise"', '|: Début'),
+                    chip(!!rpEnd, 'data-act="rp-end" title="Fin de reprise ; clics successifs : ×2, ×3, ×4, aucun"', rpEnd ? `:| Fin ×${rpEnd}` : ':| Fin'),
+                    chip(step.volta === 1, 'data-act="rp-v1" title="1re fin : jouée au premier passage seulement"', '1re fin'),
+                    chip(step.volta === 2, 'data-act="rp-v2" title="2e fin : jouée au second passage"', '2e fin')
+                ].join('');
+
                 const durSeg = `
                     <div class="jm-row">
                         ${chip(!isHalf, 'data-act="dur" data-v="1" title="Un seul accord sur la mesure"', '1 accord')}
@@ -4373,6 +4920,7 @@
                     <div class="jm-sec"><div class="jm-sec-t">Accord</div><div class="jm-row">${chords}</div>
                         <select class="jm-select" data-act="chordsel"><option value="">Autres accords…</option>${options}</select></div>
                     <div class="jm-sec"><div class="jm-sec-t">Gamme</div><div class="jm-row">${scales}</div></div>
+                    <div class="jm-sec"><div class="jm-sec-t">Reprises</div><div class="jm-row">${marks}</div></div>
                     <div class="jm-foot">
                         <button type="button" class="jm-btn" data-act="prev" title="Mesure précédente (←)">‹</button>
                         <button type="button" class="jm-btn" data-act="next" title="Mesure suivante (→) — ajoute une mesure après la dernière">›</button>
@@ -4387,7 +4935,14 @@
             _positionEditor() {
                 const ed = this._editor;
                 if (!ed || !ed.el) return;
-                const el = ed.el;
+                const cell = document.querySelector(`#jam-chord-sequence-display .jam-cell[data-measure-number="${ed.measureNumber}"]`);
+                this._placePopup(ed.el, cell);
+            }
+
+            // Placement commun aux pop-up d'édition : sur grand écran, ils s'ouvrent AU-DESSUS de l'éditeur de grille
+            // (colonne de gauche) pour ne pas masquer la grille ; sur téléphone, en feuille collée en bas ;
+            // sinon (tablette, plein écran) près de la case concernée.
+            _placePopup(el, cell) {
                 const vw = window.innerWidth, vh = window.innerHeight;
                 if (vw < 640) {
                     el.classList.add('jm-sheet');
@@ -4395,10 +4950,19 @@
                     return;
                 }
                 el.classList.remove('jm-sheet');
-                const cell = document.querySelector(`#jam-chord-sequence-display .jam-cell[data-measure-number="${ed.measureNumber}"]`);
+                const pw = el.offsetWidth, ph = el.offsetHeight;
+                const aside = document.getElementById('jam-grid-editor');
+                if (vw >= 1024 && !document.fullscreenElement && aside && aside.offsetParent !== null) {
+                    const r = aside.getBoundingClientRect();
+                    const left = Math.min(Math.max(8, r.left + (r.width - pw) / 2), vw - pw - 8);
+                    let top = Math.max(8, r.top + 8);
+                    if (top + ph > vh - 8) top = Math.max(8, vh - ph - 8);
+                    el.style.left = `${left}px`;
+                    el.style.top = `${top}px`;
+                    return;
+                }
                 if (!cell) return;
                 const r = cell.getBoundingClientRect();
-                const pw = el.offsetWidth, ph = el.offsetHeight;
                 const left = Math.min(Math.max(8, r.left + r.width / 2 - pw / 2), vw - pw - 8);
                 let top = r.bottom + 8;
                 if (top + ph > vh - 8) top = r.top - ph - 8;
@@ -4412,6 +4976,7 @@
                 if (!container) return;
                 const previousScrollTop = container.scrollTop;
                 container.innerHTML = '';
+                container.classList.toggle('edit-on', !!this._editBarOpen);
 
                 const flatMeasures = this.getFlatMeasureList();
                 if (this._sel && this._sel.from > flatMeasures.length) { this._sel = null; this._selPhase = null; }
@@ -4420,7 +4985,7 @@
                 if (flatMeasures.length === 0) {
                     container.innerHTML = '<span class="text-slate-500 text-xs px-2">Aucun accord sélectionné</span>';
                     this.updateEditBar();
-                    if (!this.isPlaying) {
+                    if (this._editBarOpen && !this.isPlaying) {
                         const addBtn = document.createElement('div');
                         addBtn.className = 'jam-add-cell';
                         addBtn.style.cssText = 'margin:8px 4px 0;max-width:120px;';
@@ -4484,12 +5049,22 @@
                         if (this.showHarmonicFunctions) {
                             const flatIdx = flatMeasures.indexOf(m);
                             if (showSplit) {
-                                const fa = this.getHarmonicFunctionLabel({ rootIndex: m.rootIndex, chordId: m.chordId, harmonicFunction: null }, flatMeasures, flatIdx);
-                                const fb = this.getHarmonicFunctionLabel({ rootIndex: m.split.rootIndex, chordId: m.split.chordId, harmonicFunction: null }, flatMeasures, flatIdx);
-                                bottomHtml = `<div class="jam-half-fn" style="left:30px">${fa}</div><div class="jam-half-fn" style="right:8px">${fb}</div>`;
+                                const fa = this.getHarmonicFunctionLabel({ rootIndex: m.rootIndex, chordId: m.chordId, harmonicFunction: null, fnLabel: m.fnLabel }, flatMeasures, flatIdx);
+                                const fb = this.getHarmonicFunctionLabel({ rootIndex: m.split.rootIndex, chordId: m.split.chordId, harmonicFunction: null, fnLabel: m.split.fnLabel }, flatMeasures, flatIdx);
+                                bottomHtml = `<div class="jam-half-fn jam-fn-label" data-fhalf="0" style="left:30px">${fa}</div><div class="jam-half-fn jam-fn-label" data-fhalf="1" style="right:8px">${fb}</div>`;
                             } else {
-                                bottomHtml = `<div class="jam-cell-bottom text-[10px] text-right font-normal jam-realbook-chord text-red-500">${this.getHarmonicFunctionLabel(m, flatMeasures, flatIdx)}</div>`;
+                                bottomHtml = `<div class="jam-cell-bottom jam-fn-label text-[10px] text-right font-normal jam-realbook-chord text-red-500" data-fhalf="0">${this.getHarmonicFunctionLabel(m, flatMeasures, flatIdx)}</div>`;
                             }
+                        }
+
+                        // Signes de reprise de cette mesure (barres |: et :|, ×N, 1re / 2e fin)
+                        const stp = this.grid[m.stepIndex];
+                        const hasRS = !!stp.repeatStart && m.measureInStep === 1;
+                        const hasRE = !!stp.repeatEnd && m.measureInStep === stp.measures;
+                        let voltaFirst = false;
+                        if (stp.volta) {
+                            const prevM = flatMeasures[m.measureNumber - 2];
+                            voltaFirst = !prevM || this.grid[prevM.stepIndex].volta !== stp.volta;
                         }
 
                         const mBox = document.createElement('div');
@@ -4501,6 +5076,8 @@
                         }`;
                         
                         if (this._sel && m.measureNumber >= this._sel.from && m.measureNumber <= this._sel.to) mBox.classList.add('jam-sel');
+                        if (hasRS) mBox.classList.add('rp-has-l');
+                        if (hasRE) mBox.classList.add('rp-has-r');
 
                         mBox.onclick = (ev) => {
                             if (this._noteSelectionClick(ev, m.measureNumber)) return;
@@ -4519,6 +5096,7 @@
                             }
                             this.currentStepIndex = m.stepIndex;
                             this.currentBeat = (m.measureInStep - 1) * 4 + (half === 1 ? 2 : 0);
+                            if (this.isPlaying) this._passes = {};
                             const step = this.grid[m.stepIndex];
                             this.updateJamDisplay(step, half);
                             this.renderGridUI();
@@ -4528,7 +5106,8 @@
 
                         mBox.innerHTML = `
                             <div class="jam-cell-top flex justify-between items-center text-[9px] font-mono ${isActive ? 'text-blue-200 font-bold' : 'text-slate-400'}">
-                                <span>|${m.measureNumber}<span class="jam-edit-btn" role="button" aria-label="Éditer la mesure" title="Éditer cette mesure">✎</span></span>
+                                <span>${voltaFirst ? `<b class="rp-vtxt" title="${stp.volta === 1 ? '1re' : '2e'} fin">${stp.volta}.</b>` : ''}|${m.measureNumber}${this._editBarOpen ? '<span class="jam-edit-btn" role="button" aria-label="Éditer la mesure" title="Éditer cette mesure">✎</span>' : ''}</span>
+                                ${(hasRE && stp.repeatEnd > 2) ? `<span class="rp-xn" title="Reprise jouée ${stp.repeatEnd} fois">×${stp.repeatEnd}</span>` : ''}
                                 <span class="text-[8px] text-emerald-400 font-medium truncate max-w-[60px]">${scaleLabel}</span>
                             </div>
                             ${centerHtml}
@@ -4539,9 +5118,17 @@
                         // Un clic sur « >> » joue seulement l'arpège de l'accord concerné, sans changer
                         // la sélection ni déclencher le clic de la case. Sur une mesure à deux accords,
                         // le premier « >> » joue le premier accord, le second joue le deuxième accord.
+                        mBox.querySelectorAll('.jam-fn-label').forEach((el) => {
+                            el.onclick = (ev) => {
+                                if (!this._editBarOpen || this.isPlaying) return; // hors mode édition : clic normal sur la case
+                                ev.stopPropagation();
+                                this.openFunctionEditor(m.measureNumber, parseInt(el.dataset.fhalf || '0', 10));
+                            };
+                        });
                         const editBtn = mBox.querySelector('.jam-edit-btn');
                         if (editBtn) editBtn.onclick = (ev) => { ev.stopPropagation(); this.openMeasureEditor(m.measureNumber); };
                         mBox.ondblclick = (ev) => {
+                            if (!this._editBarOpen) return;
                             let half = 0;
                             if (showSplit) {
                                 const r = mBox.getBoundingClientRect();
@@ -4549,7 +5136,7 @@
                             }
                             this.openMeasureEditor(m.measureNumber, { half });
                         };
-                        mBox.oncontextmenu = (ev) => { if (this.isPlaying) return; ev.preventDefault(); this.openMeasureEditor(m.measureNumber); };
+                        mBox.oncontextmenu = (ev) => { if (this.isPlaying || !this._editBarOpen) return; ev.preventDefault(); this.openMeasureEditor(m.measureNumber); };
                         mBox.querySelectorAll('.jam-arp-btn').forEach((btn) => {
                             const second = btn.classList.contains('jam-arp-btn-b');
                             btn.onclick = (ev) => {
@@ -4558,11 +5145,20 @@
                                 this.playChordArpeggioFor({ rootIndex: chord.rootIndex, chordId: chord.chordId });
                             };
                         });
+                        // Barres de reprise et ligne de 1re / 2e fin (le texte « 1. » et « ×N » est dans la ligne du haut)
+                        let marksHtml = '';
+                        if (hasRS) marksHtml += '<span class="rp-l" title="Début de reprise"></span>';
+                        if (hasRE) marksHtml += '<span class="rp-r" title="Fin de reprise"></span>';
+                        if (stp.volta) {
+                            marksHtml += '<span class="rp-vl"></span>';
+                            if (voltaFirst) marksHtml += '<span class="rp-vt"></span>';
+                        }
+                        if (marksHtml) mBox.insertAdjacentHTML('beforeend', marksHtml);
                         systemRow.appendChild(mBox);
                     });
 
                     for (let k = systemMeasures.length; k < 4; k++) {
-                        if (k === systemMeasures.length && sysIdx === systems.length - 1 && !this.isPlaying) {
+                        if (k === systemMeasures.length && sysIdx === systems.length - 1 && this._editBarOpen && !this.isPlaying) {
                             systemRow.appendChild(makeAddCell());
                             continue;
                         }
@@ -4576,7 +5172,7 @@
                 });
 
                 // Dernière ligne pleine : une nouvelle ligne propose « + » pour ajouter une mesure
-                if (!this.isPlaying && flatMeasures.length % 4 === 0) {
+                if (this._editBarOpen && !this.isPlaying && flatMeasures.length % 4 === 0) {
                     const addRow = document.createElement('div');
                     addRow.className = "jam-row grid grid-cols-4 gap-1.5 bg-[#1a1a1a] p-1.5 rounded-lg border border-[#333333]";
                     addRow.appendChild(makeAddCell());
@@ -4651,6 +5247,29 @@
             // Imprime uniquement la grille d'accords en cours (mode Jam), sur une page,
             // façon grille de lead sheet traditionnelle : titre en en-tête, cases blanches
             // entourées de traits noirs.
+            // Signes de reprise d'une mesure pour l'impression (classes de la case + éléments à ajouter)
+            _printMarks(m, flat) {
+                const st = this.grid[m.stepIndex];
+                const dots = '<svg viewBox="0 0 6 24" width="6pt" height="24pt" aria-hidden="true"><circle cx="3" cy="8" r="2" fill="#000"/><circle cx="3" cy="16" r="2" fill="#000"/></svg>';
+                let cls = '', html = '';
+                if (st.repeatStart && m.measureInStep === 1) {
+                    cls += ' has-rs';
+                    html += `<span class="jam-print-rs"><i class="b1"></i><i class="b2"></i>${dots}</span>`;
+                }
+                if (st.repeatEnd && m.measureInStep === st.measures) {
+                    cls += ' has-re';
+                    html += `<span class="jam-print-re"><i class="b1"></i><i class="b2"></i>${dots}</span>`;
+                    if (st.repeatEnd > 2) html += `<span class="jam-print-times">×${st.repeatEnd}</span>`;
+                }
+                if (st.volta) {
+                    const prev = flat[m.measureNumber - 2];
+                    const first = !prev || this.grid[prev.stepIndex].volta !== st.volta;
+                    html += '<span class="jam-print-vo"></span>';
+                    if (first) html += `<span class="jam-print-vt"></span><span class="jam-print-vl">${st.volta}.</span>`;
+                }
+                return { cls, html };
+            }
+
             printCurrentGrid() {
                 const printArea = document.getElementById('jam-print-area');
                 if (!printArea) return;
@@ -4672,11 +5291,12 @@
                     systemMeasures.forEach((m) => {
                         const previousMeasure = flatMeasures[m.measureNumber - 2];
                         const repeat = !!previousMeasure && this.getMeasureKey(previousMeasure) === this.getMeasureKey(m);
+                        const pm = this._printMarks(m, flatMeasures);
                         if (m.split && !repeat) {
-                            cellsHtml += `<div class="jam-print-cell"><div class="jam-print-split"><span class="jam-print-chord" data-symbol="${encodeURIComponent(this.getChordSymbol(m))}"></span><span class="jam-print-chord" data-symbol="${encodeURIComponent(this.getChordSymbol(m.split))}"></span></div></div>`;
+                            cellsHtml += `<div class="jam-print-cell${pm.cls}"><div class="jam-print-split"><span class="jam-print-chord" data-symbol="${encodeURIComponent(this.getChordSymbol(m))}"></span><span class="jam-print-chord" data-symbol="${encodeURIComponent(this.getChordSymbol(m.split))}"></span></div>${pm.html}</div>`;
                         } else {
                             const displayChordSymbol = repeat ? '%' : this.getChordSymbol(m);
-                            cellsHtml += `<div class="jam-print-cell"><span class="jam-print-chord" data-symbol="${encodeURIComponent(displayChordSymbol)}"></span></div>`;
+                            cellsHtml += `<div class="jam-print-cell${pm.cls}"><span class="jam-print-chord" data-symbol="${encodeURIComponent(displayChordSymbol)}"></span>${pm.html}</div>`;
                         }
                     });
                     for (let k = systemMeasures.length; k < 4; k++) {
@@ -4894,8 +5514,8 @@
                         nextItem = { idx: currentIdx, half: 1 };
                     } else {
                         // Fin d'une mesure (ou mesure simple) : premier accord du step suivant.
-                        const nextIdx = (currentIdx + 1) % this.grid.length;
-                        nextItem = { idx: nextIdx, half: this.isSplit(this.grid[nextIdx]) ? 0 : null };
+                        const nextIdx = this._peekNextIndex(currentIdx);
+                        nextItem = nextIdx >= 0 ? { idx: nextIdx, half: this.isSplit(this.grid[nextIdx]) ? 0 : null } : null;
                     }
 
                     const renderItem = (item, isCurrent) => {
@@ -4973,10 +5593,10 @@
                     };
 
                     renderItem(currentItem, true);
-                    renderItem(nextItem, false);
+                    if (nextItem) renderItem(nextItem, false);
 
                     const badge = document.getElementById('jam-scales-count-badge');
-                    if (badge) badge.textContent = '2 gammes actives';
+                    if (badge) badge.textContent = nextItem ? '2 gammes actives' : '1 gamme active';
                 } else {
                     // Hors lecture, on conserve l'affichage complet de la grille.
                     this.grid.forEach((step, idx) => {
@@ -5178,9 +5798,11 @@
             async start() {
                 if (this.grid.length === 0) return;
                 this.closeMeasureEditor();
+                this.closeFunctionEditor();
                 this._sel = null;
                 this._selMode = false;
                 this._selPhase = null;
+                this._passes = {};
                 this.app.stopAllSounds();
                 this.app.stopLoop();
                 
@@ -5252,6 +5874,7 @@
                 this.timer = null;
                 this._beatAudio = null;
                 this._beatAudioTime = null;
+                this._passes = {};
                 this.currentStepIndex = -1;
                 this.currentBeat = 0;
 
@@ -5452,8 +6075,14 @@
 
                 this.currentBeat++;
                 if (this.currentBeat >= totalBeatsInStep) {
+                    const nx = this._nextStepInfo(this.currentStepIndex, true);
+                    if (nx.wrapped && !this.loopEnabled) {
+                        // Fin de la grille sans boucle : le dernier temps sonne jusqu'au bout, puis la jam s'arrête.
+                        this._runAtAudioTime(t + intervalSec, runId, () => this.stop());
+                        return;
+                    }
                     this.currentBeat = 0;
-                    this.currentStepIndex = (this.currentStepIndex + 1) % this.grid.length;
+                    this.currentStepIndex = nx.idx;
                     this.activeSlot = 1 - this.activeSlot;
                     const after = { currentStepIndex: this.currentStepIndex, currentBeat: 0, activeSlot: this.activeSlot };
                     this._runAtAudioTime(t, runId, () => this._withState(after, () => this.renderJamScales()));
@@ -5582,8 +6211,8 @@
                     };
                 }
 
-                const nextIdx = (this.currentStepIndex + 1) % this.grid.length;
-                const nextStep = this.grid[nextIdx];
+                const nextIdx = this._peekNextIndex(this.currentStepIndex);
+                const nextStep = nextIdx >= 0 ? this.grid[nextIdx] : null;
                 if (!nextStep) return null;
 
                 return {
@@ -5625,12 +6254,12 @@
                     } else {
                         // Sinon, on passe au premier accord de la mesure suivante,
                         // avec retour au premier accord de la grille en fin de grille.
-                        const nextIdx = (selectedIdx + 1) % this.grid.length;
-                        const nextStep = this.grid[nextIdx];
-                        nextChord = {
+                        const nextIdx = this._peekNextIndex(selectedIdx);
+                        const nextStep = nextIdx >= 0 ? this.grid[nextIdx] : null;
+                        nextChord = nextStep ? {
                             rootIndex: nextStep.rootIndex,
                             chordId: nextStep.chordId
-                        };
+                        } : null;
                     }
                 } else {
                     nextChord = this.getNextJamChord(step, half);
@@ -5723,7 +6352,7 @@
                 this.selectedChordId = 'maj7';
                 this.visMode = 'staff';
                 this.instrumentKey = 'Bb';
-                this.currentView = 'training';
+                this.currentView = 'jam';
                 
                 this.showAvoidNotes = false;
                 this.showCharacteristic = false;
@@ -6603,6 +7232,7 @@
         }
 
         const app = new ChordScaleApp();
+        app.switchView('jam'); // la page s'ouvre sur le mode Jam
     </script>
     <div id="jam-print-area"></div>
 
