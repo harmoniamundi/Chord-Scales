@@ -316,6 +316,11 @@
         #jam-chord-sequence-display .jam-add-cell:hover { background: rgba(16,185,129,.16); border-color: #34d399; }
         .jm-pop { position: fixed; z-index: 2000; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); color: #e2e8f0; padding: 10px 12px 12px; font-size: 12px; }
         .jm-pop.jm-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; max-height: 62vh; }
+        /* Pop-up « Orchestre » : fenêtre flottante à gauche de l'écran, sans voile, déplaçable par sa barre de titre */
+        #band-modal { position: fixed; z-index: 1900; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow-y: auto; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+        #band-modal.hidden { display: none; }
+        #band-modal.band-dragging { opacity: .96; box-shadow: 0 16px 48px rgba(0,0,0,.7); }
+        #band-modal.band-dragging .jm-head { cursor: grabbing; }
         .jm-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
         .jm-pop.jm-dragging { opacity: .96; box-shadow: 0 16px 48px rgba(0,0,0,.7); }
         .jm-pop.jm-dragging .jm-head { cursor: grabbing; }
@@ -328,6 +333,7 @@
         .jm-chip small { display: block; font-size: 9px; font-weight: 500; color: #94a3b8; margin-top: 1px; }
         .jm-chip:hover { border-color: #60a5fa; }
         .jm-chip.is-on { background: #2563eb; border-color: #93c5fd; color: #fff; }
+        .jm-chip.jm-ct { border-color: #64748b; }
         .jm-chip.is-on small { color: #dbeafe; }
         .jm-deg { flex: 1 1 0; min-width: 0; padding: 5px 2px; }
         .jm-scale { font-size: 11px; font-weight: 500; padding: 4px 7px; }
@@ -674,7 +680,7 @@
                             <input type="range" id="jam-bpm-slider" min="50" max="220" value="120" oninput="app.jam.setBpm(this.value)" class="w-full accent-blue-500">
                             <span id="jam-bpm-display" class="text-xs font-mono font-bold text-slate-200 min-w-[32px]">120</span>
                         </div>
-                        <button onclick="app.jam.openBandModal()" title="Orchestration de la jam" class="jr-full jr-center flex items-center gap-1.5 text-xs bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-2 px-2.5 rounded-lg transition shadow shrink-0">
+                        <button onclick="app.jam.toggleBandModal()" title="Orchestre : style, tempo, volumes" aria-label="Orchestre" class="jr-full jr-center flex items-center gap-1.5 text-xs bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-2 px-2.5 rounded-lg transition shadow shrink-0">
                             <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1014 17V7h4V3h-6z"/></svg>
                             <span id="band-btn-label">Swing</span>
                         </button>
@@ -759,6 +765,22 @@
                             <button type="button" id="jam-eb-v1" class="jam-eb" onclick="app.jam.gridVolta(1)" title="Marque la sélection comme 1re fin (jouée au premier passage seulement)">1re fin</button>
                             <button type="button" id="jam-eb-v2" class="jam-eb" onclick="app.jam.gridVolta(2)" title="Marque la sélection comme 2e fin (jouée au second passage)">2e fin</button>
                             <button type="button" id="jam-eb-rclr" class="jam-eb" onclick="app.jam.gridClearRepeats()" title="Retire reprises et fins de la sélection">Retirer reprises</button>
+                            <span class="jam-eb-sep"></span>
+                            <button type="button" id="jam-eb-tr-dir" class="jam-eb jam-eb-ico" onclick="app.jam.toggleTransposeDir()" title="Sens de la transposition : vers l'aigu (↑) ou vers le grave (↓)" aria-label="Sens de la transposition">↑</button>
+                            <select id="jam-eb-tr-int" class="jam-eb" title="Intervalle de transposition" aria-label="Intervalle de transposition">
+                                <option value="1">Seconde mineure</option>
+                                <option value="2">Seconde majeure</option>
+                                <option value="3">Tierce mineure</option>
+                                <option value="4">Tierce majeure</option>
+                                <option value="5">Quarte juste</option>
+                                <option value="6">Triton</option>
+                                <option value="7">Quinte juste</option>
+                                <option value="8">Sixte mineure</option>
+                                <option value="9">Sixte majeure</option>
+                                <option value="10">Septième mineure</option>
+                                <option value="11">Septième majeure</option>
+                            </select>
+                            <button type="button" id="jam-eb-tr" class="jam-eb" onclick="app.jam.gridTranspose()" title="Transpose les mesures sélectionnées (ou la mesure active) de l'intervalle choisi">Transposer</button>
                         </div>
                     </div>
 
@@ -1286,6 +1308,145 @@
             }
         };
 
+        // --- Écriture du style Pop (gabarits musicaux) ---
+        // Arpèges du piano « ballade » : index de la voix dans l'accord (0 = grave), une entrée par croche.
+        const POP_ARP = [
+            [0, 2, 3, 2, 1, 2, 3, 2],
+            [0, 1, 2, 3, 2, 1, 2, 3],
+            [0, 3, 2, 3, 1, 3, 2, 3],
+            [0, 2, 1, 3, 2, 3, 1, 2],
+            [0, null, 2, 3, null, 2, 3, 1]
+        ];
+        // Comping syncopé du piano : [position, durée max (temps), vélocité, 'all' accord complet | 'upper' voix aiguës]
+        const POP_COMP = [
+            [[0, 1.4, 0.8, 'all'], [1.5, 0.9, 0.58, 'upper'], [3, 0.9, 0.66, 'all']],
+            [[0, 1, 0.8, 'all'], [1.5, 0.5, 0.55, 'upper'], [2, 1.5, 0.7, 'all'], [3.5, 0.5, 0.58, 'upper']],
+            [[0, 0.75, 0.8, 'all'], [0.75, 0.75, 0.52, 'upper'], [1.5, 1, 0.68, 'all'], [2.5, 0.75, 0.6, 'upper'], [3.25, 0.6, 0.55, 'upper']],
+            [[0, 2, 0.78, 'all'], [2.5, 0.5, 0.58, 'upper'], [3.5, 0.5, 0.6, 'upper']],
+            [[0, 0.9, 0.78, 'all'], [1.5, 0.6, 0.58, 'upper'], [2, 0.9, 0.7, 'all'], [3.5, 0.5, 0.58, 'upper']],
+            [[0, 1.5, 0.8, 'all'], [2, 1, 0.62, 'upper'], [3, 1, 0.7, 'all']],
+            [[0, 1.4, 0.8, 'all'], [1.5, 0.4, 0.5, 'upper'], [2.5, 1.4, 0.72, 'all']],
+            [[0, 0.5, 0.7, 'upper'], [1, 0.5, 0.55, 'upper'], [1.5, 1, 0.76, 'all'], [3, 0.5, 0.6, 'upper'], [3.5, 0.5, 0.64, 'all']]
+        ];
+        // Basse pop : [position, degré, durée max (temps), vélocité] ; degrés R fondamentale, F quinte, T tierce,
+        // 7 septième, O octave, A note de liaison vers l'accord suivant.
+        const popEighths = (tokens) => tokens.map((t, k) => [k * 0.5, t, k % 2 === 0 ? 0.5 : 0.4, [0.88, 0.5, 0.7, 0.54, 0.8, 0.5, 0.7, 0.58][k]]);
+        const POP_BASS = {
+            long: [
+                [[0, 'R', 3.8, 0.86]],
+                [[0, 'R', 1.95, 0.86], [2, 'F', 1.85, 0.72]],
+                [[0, 'R', 1.45, 0.86], [1.5, 'R', 0.5, 0.58], [2, 'F', 1.85, 0.7]],
+                [[0, 'R', 2.45, 0.86], [2.5, 'O', 1.0, 0.6], [3.5, 'A', 0.45, 0.62]]
+            ],
+            dotted: [
+                [[0, 'R', 1.4, 0.88], [1.5, 'R', 0.9, 0.66], [2.5, 'F', 0.4, 0.6], [3, 'R', 0.45, 0.66], [3.5, 'A', 0.45, 0.7]],
+                [[0, 'R', 1.4, 0.88], [1.5, 'R', 0.4, 0.58], [2, 'F', 0.9, 0.72], [3.5, 'A', 0.45, 0.7]],
+                [[0, 'R', 0.9, 0.88], [1, 'R', 0.45, 0.56], [1.5, 'O', 0.45, 0.62], [2, 'R', 0.9, 0.78], [3, 'F', 0.4, 0.62], [3.5, 'A', 0.45, 0.7]],
+                [[0, 'R', 1.4, 0.88], [1.5, 'T', 0.4, 0.6], [2, 'F', 0.9, 0.74], [3, 'T', 0.45, 0.62], [3.5, 'A', 0.45, 0.7]]
+            ],
+            eighths: [
+                popEighths(['R', 'R', 'R', 'O', 'R', 'R', 'F', 'A']),
+                popEighths(['R', 'R', 'O', 'R', 'R', 'R', 'F', 'A']),
+                popEighths(['R', 'R', 'R', 'O', 'R', 'F', 'R', 'A']),
+                popEighths(['R', 'R', 'R', 'R', 'F', 'R', 'R', 'A'])
+            ],
+            melodic: [
+                [[0, 'R', 0.95, 0.86], [1, 'F', 0.45, 0.62], [1.5, 'T', 0.45, 0.62], [2, 'F', 0.95, 0.74], [3, 'T', 0.45, 0.62], [3.5, 'A', 0.45, 0.68]],
+                [[0, 'R', 1.4, 0.86], [1.5, 'F', 0.45, 0.6], [2, 'O', 0.9, 0.72], [3, 'F', 0.45, 0.62], [3.5, 'A', 0.45, 0.68]],
+                [[0, 'R', 0.95, 0.86], [1, 'R', 0.45, 0.55], [1.5, 'F', 0.45, 0.62], [2, '7', 0.95, 0.72], [3, 'F', 0.45, 0.62], [3.5, 'A', 0.45, 0.68]]
+            ]
+        };
+
+        // --- Écriture du style Latin : guitare classique (nylon) + basse + batterie ---
+        // Cellules de guitare : [position, durée max (temps), type, vélocité]
+        // types : T pouce (fondamentale), t pouce (quinte, grave), C accord complet, U cordes aiguës (3 notes, coup montant),
+        // TC / tC pouce + accord, X accord étouffé (« chk »), aN note d'arpège (N = rang de la voix, 0 = grave).
+        // d = densité (0 à 1) : sert à choisir la cellule selon l'énergie de la phrase.
+        const LAT_VOICE_RANGE = { lo: 0, hi: 15, centre: 6, soft: 12 };
+        // Bossa nova : le pouce garde un balancement fondamentale / quinte, les doigts suivent la clave (3-2) :
+        // A = barre « 3 » (temps 1, 2&, 4), B = barre « 2 » (temps 2 et 3).
+        const LAT_BOSSA = [
+            { d: 0.18, pick: true,
+              A: [[0, 1.2, 'T', 0.62], [0.5, 2, 'a1', 0.4], [1, 2, 'a2', 0.44], [1.5, 2, 'a3', 0.5], [2, 1.2, 't', 0.54], [2.5, 2, 'a2', 0.4], [3, 2, 'a1', 0.44], [3.5, 2, 'a3', 0.5]],
+              B: [[0, 1.2, 'T', 0.62], [0.5, 2, 'a2', 0.4], [1, 2, 'a3', 0.46], [1.5, 2, 'a1', 0.42], [2, 1.2, 't', 0.54], [2.5, 2, 'a1', 0.4], [3, 2, 'a3', 0.46], [3.5, 2, 'a2', 0.44]] },
+            { d: 0.28,
+              A: [[0, 1.6, 'TC', 0.74], [1.5, 0.5, 'U', 0.48], [3, 0.5, 'U', 0.5]],
+              B: [[0, 0.9, 'T', 0.5], [1, 0.5, 'U', 0.5], [2, 1.4, 'TC', 0.66], [3.5, 0.5, 't', 0.42]] },
+            { d: 0.45,
+              A: [[0, 1.4, 'TC', 0.78], [1.5, 0.5, 'tC', 0.56], [2, 0.5, 'T', 0.46], [3, 0.5, 'U', 0.54]],
+              B: [[0, 0.5, 'T', 0.5], [1, 0.5, 'U', 0.54], [1.5, 0.5, 't', 0.44], [2, 1.4, 'TC', 0.7], [3.5, 0.5, 't', 0.46]] },
+            { d: 0.62,
+              A: [[0, 1.4, 'TC', 0.8], [1.5, 0.5, 'tC', 0.58], [2, 0.5, 'T', 0.46], [3, 0.45, 'U', 0.55], [3.5, 0.2, 'X', 0.32]],
+              B: [[0, 0.5, 'T', 0.5], [1, 0.5, 'U', 0.55], [1.5, 0.5, 't', 0.44], [2, 0.9, 'TC', 0.7], [3, 0.2, 'X', 0.3], [3.5, 0.5, 'tC', 0.55]] },
+            { d: 0.8,
+              A: [[0, 0.9, 'TC', 0.82], [0.5, 0.2, 'X', 0.3], [1.5, 0.5, 'tC', 0.6], [2, 0.5, 'T', 0.5], [2.5, 0.2, 'X', 0.3], [3, 0.45, 'U', 0.58], [3.5, 0.45, 'U', 0.5]],
+              B: [[0, 0.5, 'T', 0.52], [1, 0.45, 'U', 0.58], [1.5, 0.5, 't', 0.46], [2, 0.9, 'TC', 0.74], [2.5, 0.2, 'X', 0.3], [3, 0.2, 'X', 0.32], [3.5, 0.5, 'tC', 0.6]] }
+        ];
+        // Samba : batida de guitare (pouce sur chaque temps, accords étouffés sur les doubles croches)
+        const LAT_SAMBA = [
+            { d: 0.5, A: [[0, 0.5, 'T', 0.72], [0.75, 0.18, 'X', 0.4], [1.5, 0.4, 'U', 0.55], [2, 0.5, 't', 0.64], [2.75, 0.18, 'X', 0.4], [3.5, 0.4, 'U', 0.56]] },
+            { d: 0.6, A: [[0, 0.5, 'TC', 0.76], [0.75, 0.18, 'X', 0.38], [1, 0.45, 't', 0.56], [1.75, 0.18, 'X', 0.38], [2, 0.5, 'T', 0.66], [2.5, 0.18, 'X', 0.36], [3, 0.45, 't', 0.58], [3.75, 0.18, 'X', 0.38]] },
+            { d: 0.4, A: [[0, 0.9, 'TC', 0.76], [1.5, 0.4, 'U', 0.55], [2.25, 0.18, 'X', 0.4], [3, 0.5, 'tC', 0.66], [3.75, 0.18, 'X', 0.38]] },
+            { d: 0.7, A: [[0, 0.5, 'T', 0.72], [0.5, 0.2, 'X', 0.34], [0.75, 0.2, 'X', 0.4], [1.5, 0.4, 'U', 0.56], [2, 0.5, 't', 0.64], [2.5, 0.2, 'X', 0.34], [2.75, 0.2, 'X', 0.4], [3, 0.4, 'U', 0.5], [3.5, 0.4, 'U', 0.58]] }
+        ];
+        // Latin jazz / afro-cubain : guajeo arpégé syncopé sur le tumbao de la basse
+        const LAT_AFRO = [
+            { d: 0.5, A: [[0, 0.5, 'T', 0.62], [0.5, 0.9, 'a1', 0.48], [1, 0.9, 'a2', 0.52], [1.5, 0.9, 'a3', 0.58], [2.5, 0.9, 'a2', 0.5], [3, 0.9, 'a1', 0.5], [3.5, 0.9, 'a3', 0.58]] },
+            { d: 0.4, A: [[0, 0.6, 'TC', 0.7], [1.5, 0.5, 'U', 0.55], [2.5, 0.5, 'U', 0.5], [3, 0.5, 't', 0.5], [3.5, 0.5, 'U', 0.58]] },
+            { d: 0.65, A: [[0.5, 0.5, 'a2', 0.5], [1, 0.5, 'a3', 0.56], [1.5, 0.5, 'a1', 0.5], [2, 0.5, 'a2', 0.52], [2.5, 0.5, 'a3', 0.56], [3, 0.5, 'U', 0.55], [3.5, 0.5, 'U', 0.6]] }
+        ];
+        // Basse latine : [position, degré, durée max (temps), vélocité] ; R fondamentale, F quinte (grave), T tierce,
+        // O octave, A note de liaison vers l'accord suivant, N « anticipation » : fondamentale de l'accord suivant.
+        const LAT_BASS = {
+            bossa: [
+                [[0, 'R', 1.4, 0.88], [1.5, 'F', 0.45, 0.7], [2, 'R', 1.4, 0.82], [3.5, 'F', 0.45, 0.7]],
+                [[0, 'R', 1.4, 0.88], [1.5, 'F', 0.45, 0.7], [2, 'O', 0.9, 0.78], [3, 'F', 0.45, 0.64], [3.5, 'A', 0.45, 0.68]],
+                [[0, 'R', 0.9, 0.88], [1.5, 'F', 0.45, 0.7], [2, 'R', 0.9, 0.8], [3, 'T', 0.4, 0.62], [3.5, 'F', 0.45, 0.68]],
+                [[0, 'R', 1.9, 0.86], [2, 'F', 1.4, 0.72], [3.5, 'A', 0.45, 0.66]],
+                [[0, 'R', 1.4, 0.88], [1.5, 'F', 0.45, 0.68], [2, 'T', 0.9, 0.74], [3, 'F', 0.4, 0.62], [3.5, 'A', 0.45, 0.68]]
+            ],
+            samba: [
+                [[0, 'R', 0.45, 0.82], [1, 'F', 0.9, 0.82], [2, 'R', 0.45, 0.78], [3, 'F', 0.9, 0.82]],
+                [[0, 'R', 0.4, 0.82], [1, 'F', 0.4, 0.76], [1.5, 'R', 0.4, 0.62], [2, 'R', 0.4, 0.78], [3, 'F', 0.4, 0.76], [3.5, 'A', 0.45, 0.7]],
+                [[0, 'R', 0.45, 0.82], [0.75, 'R', 0.2, 0.55], [1, 'F', 0.9, 0.8], [2, 'R', 0.45, 0.78], [2.75, 'F', 0.2, 0.55], [3, 'F', 0.5, 0.78], [3.5, 'A', 0.45, 0.66]]
+            ],
+            afro: [
+                [[0, 'R', 0.45, 0.7], [1.5, 'R', 1.4, 0.82], [3, 'F', 0.45, 0.76], [3.5, 'N', 1.2, 0.8]],
+                [[0, 'R', 0.45, 0.7], [1.5, 'R', 0.45, 0.8], [2, 'F', 0.45, 0.68], [3, 'O', 0.45, 0.76], [3.5, 'N', 1.2, 0.8]],
+                [[0, 'R', 0.45, 0.7], [1.5, 'R', 0.9, 0.82], [3, 'T', 0.45, 0.7], [3.5, 'N', 1.2, 0.8]]
+            ]
+        };
+
+        // --- Style Classique : accompagnement en arpèges (notes de l'accord uniquement) ---
+        // Les motifs donnent, pour chaque position, le rang de la voix de l'accord (0 = grave, 3 = aigu ; au-delà du nombre de
+        // notes de l'accord, la voix est reprise à l'octave supérieure). null = silence.
+        const CLS_EIGHTS = [          // une mesure en croches (8 positions)
+            [0, 1, 2, 3, 2, 1, 2, 1],     // montée et redescente
+            [0, 2, 1, 3, 2, 3, 1, 2],     // arpège brisé
+            [0, 3, 1, 3, 2, 3, 1, 3],     // basse d'Alberti
+            [0, 1, 2, 1, 3, 2, 1, 2],     // vague
+            [0, 1, 2, 3, 3, 2, 1, 0],     // montée puis descente complète
+            [0, 1, 2, null, 3, 2, 1, null] // respirée
+        ];
+        const CLS_QUARTERS = [[0, 1, 2, 3], [0, 2, 1, 3], [0, 3, 2, 1], [0, 1, 2, 1], [0, 2, 3, 2]];
+        const CLS_MIXED = [            // rythmes variés : [position, voix]
+            [[0, 0], [1, 1], [1.5, 2], [2, 3], [3, 2], [3.5, 1]],
+            [[0, 0], [1.5, 1], [2, 2], [3, 3], [3.5, 2]],
+            [[0, 0], [0.5, 1], [1, 2], [2, 3], [3, 1], [3.5, 2]],
+            [[0, 0], [1, 2], [1.5, 1], [2, 3], [2.5, 2], [3, 1]]
+        ];
+        const CLS_UPPER = [            // voix aiguës en croches sous/sur une basse tenue (positions 0.5 à 3.5)
+            [1, 2, 3, 2, 1, 2, 3],
+            [1, 3, 2, 3, 1, 3, 2],
+            [1, 2, 3, 2, 3, 2, 1]
+        ];
+        // Le style « Classique » n'a ni basse ni batterie ni motifs de la bibliothèque : entrée factice pour le moteur commun.
+        BAND_PATTERNS.classic = {
+            rootlessProb: 0, fillProb: 0,
+            piano: [bandCell(1, [[0, 1, 'C', 0.8]])],
+            turn: [bandCell(1, [[0, 1, 'C', 0.8]])]
+        };
+
         class JamEngine {
             constructor(parentApp) {
                 this.app = parentApp;
@@ -1308,9 +1469,7 @@
                 this.gainNode = null;
                 this.instrumentKey = 'Bb';
 
-                // Orchestration de la jam : "arpeges" (comportement historique accord+arpège)
-                // ou "orchestre" (bande son piano + basse + batterie).
-                this.orchestrationMode = 'orchestra';
+                // Style de la bande son de la jam : swing, pop, latin ou classique (arpèges au piano).
                 this.bandStyle = 'swing';
                 this.bandVolumes = { piano: 0.5, bass: 0.85, drums: 0.25 };
                 this.bandReverb = 0.25;
@@ -1330,6 +1489,15 @@
                 this._bandPhrase = null;
                 this._bandPlan = null;
                 this._bandLastFill = false;
+                this.bassInstrumentPop = null;   // basse électrique du style Pop
+                this._bassPopLoading = false;
+                this._popVoice = null;           // dernier voicing du piano pop (conduite des voix)
+                this._popRunAt = -9;             // dernière mesure terminée par une petite phrase conjointe
+                this.guitarInstrument = null;    // guitare classique du style Latin
+                this._guitarLoading = false;
+                this._latVoice = null;           // dernier voicing de la guitare latine (conduite des voix)
+                this._latRunAt = -9;
+                this._latTie = false;            // la basse (tumbao) a anticipé : la note est tenue sur le 1 suivant
 
                 this.showTargetNotes = false;
                 this.showAvoidNotes = false;
@@ -1388,10 +1556,14 @@
                 this.mainKey = newKey;
                 this._skipCustom = true; // une transposition conserve le style affiché
                 if (delta === 0) return;
+                // La basse d'un accord sur basse (ex. C/E) suit la même transposition que la fondamentale : le renversement
+                // reste identique, il n'y a donc aucun conflit théorique.
                 this.grid.forEach(step => {
                     step.rootIndex = (step.rootIndex + delta) % 12;
+                    if (Number.isInteger(step.bassRootIndex)) step.bassRootIndex = (step.bassRootIndex + delta) % 12;
                     if (step.split && Number.isInteger(step.split.rootIndex)) {
                         step.split.rootIndex = (step.split.rootIndex + delta) % 12;
+                        if (Number.isInteger(step.split.bassRootIndex)) step.split.bassRootIndex = (step.split.bassRootIndex + delta) % 12;
                     }
                 });
                 this.renderGridUI();
@@ -1429,6 +1601,10 @@
                         half.rootIndex = (this.mainKey + offsetOf(rotNew, i)) % 12;
                         half.chordId = target.c;
                         half.scaleId = target.s;
+                        if (Number.isInteger(half.bassRootIndex)) {
+                            const tones = this.findChordObj(half.chordId).notes.map(n => (half.rootIndex + n) % 12);
+                            if (!tones.includes(half.bassRootIndex)) delete half.bassRootIndex;
+                        }
                         return;
                     }
                 };
@@ -1593,7 +1769,7 @@
                     quality: this.mainQuality,
                     bpm: this.bpm,
                     orchestration: {
-                        mode: this.orchestrationMode,
+                        mode: this.bandStyle === 'classic' ? 'arpeges' : 'orchestra', // compatibilité avec les anciens fichiers
                         style: this.bandStyle,
                         volumes: {
                             piano: this.bandVolumes.piano,
@@ -1688,12 +1864,15 @@
                         scaleId = chordObj.scales[0].id;
                     }
                     const step = { rootIndex, chordId: item.chordId, measures, scaleId };
+                    const bassOf = (v) => { const b = Number(v); return (v !== null && v !== undefined && Number.isInteger(b) && b >= 0 && b <= 11) ? b : null; };
+                    if (bassOf(item.bassRootIndex) !== null) step.bassRootIndex = bassOf(item.bassRootIndex);
                     if (measures === 1 && item.split && typeof item.split === 'object') {
                         const sr = Number(item.split.rootIndex);
                         if (!Number.isInteger(sr) || sr < 0 || sr > 11 || typeof item.split.chordId !== 'string' || !knownChord(item.split.chordId)) return null;
                         let ss = item.split.scaleId;
                         if (typeof ss !== 'string' || !scalesDb[ss]) ss = this.findChordObj(item.split.chordId).scales[0].id;
                         step.split = { rootIndex: sr, chordId: item.split.chordId, scaleId: ss };
+                        if (bassOf(item.split.bassRootIndex) !== null) step.split.bassRootIndex = bassOf(item.split.bassRootIndex);
                         if (typeof item.split.fnLabel === 'string' && item.split.fnLabel) step.split.fnLabel = item.split.fnLabel.slice(0, 24);
                     }
                     ['section', 'phrase', 'harmonicFunction'].forEach(k => {
@@ -1725,8 +1904,9 @@
                 const o = data.orchestration;
                 if (o && typeof o === 'object') {
                     const orch = {};
-                    if (o.mode === 'orchestra' || o.mode === 'arpeges') orch.mode = o.mode;
-                    if (['swing', 'pop', 'latin'].includes(o.style)) orch.style = o.style;
+                    if (['swing', 'pop', 'latin', 'classic'].includes(o.style)) orch.style = o.style;
+                    // anciens fichiers : le mode « Arpèges » est devenu le style « Classique »
+                    if (o.mode === 'arpeges') orch.style = 'classic';
                     if (o.volumes && typeof o.volumes === 'object') {
                         orch.volumes = {};
                         ['piano', 'bass', 'drums'].forEach(k => {
@@ -1755,7 +1935,6 @@
                 if (st.bpm !== undefined) this.setBpm(st.bpm);
                 const o = st.orchestration;
                 if (o) {
-                    if (o.mode !== undefined) this.setOrchestrationMode(o.mode);
                     if (o.style !== undefined) {
                         const styleSel = document.getElementById('band-style-select');
                         if (styleSel) styleSel.value = o.style;
@@ -1963,7 +2142,68 @@
                 this.ensureBandAudio();
                 this.updateBandModalUI();
                 const modal = document.getElementById('band-modal');
-                if (modal) modal.classList.remove('hidden');
+                if (!modal) return;
+                modal.classList.remove('hidden');
+                this._bindBandPopup();
+                this._placeBandPopup();
+            }
+
+            toggleBandModal() {
+                const modal = document.getElementById('band-modal');
+                if (modal && !modal.classList.contains('hidden')) this.closeBandModal();
+                else this.openBandModal();
+            }
+
+            // Le pop-up s'ouvre à gauche de l'écran ; une fois déplacé, il se rouvre où on l'a laissé (dans l'écran).
+            _placeBandPopup() {
+                const el = document.getElementById('band-modal');
+                if (!el) return;
+                const narrow = window.innerWidth <= 640;
+                const pos = this._bandPos || { left: narrow ? 8 : 16, top: narrow ? 56 : 72 };
+                const left = Math.min(Math.max(0, pos.left), Math.max(0, window.innerWidth - el.offsetWidth));
+                const top = Math.min(Math.max(0, pos.top), Math.max(0, window.innerHeight - el.offsetHeight));
+                el.style.left = `${left}px`;
+                el.style.top = `${top}px`;
+            }
+
+            // Déplacement par glisser de la barre de titre (souris ou doigt), Échap pour fermer, repositionnement si l'écran change.
+            _bindBandPopup() {
+                if (this._bandBound) return;
+                const el = document.getElementById('band-modal');
+                const head = document.getElementById('band-modal-head');
+                if (!el || !head) return;
+                this._bandBound = true;
+                head.addEventListener('pointerdown', (ev) => {
+                    if (ev.button > 0 || (ev.target.closest && ev.target.closest('button'))) return;
+                    const r = el.getBoundingClientRect();
+                    const dx = ev.clientX - r.left, dy = ev.clientY - r.top;
+                    try { head.setPointerCapture(ev.pointerId); } catch (e) {}
+                    el.classList.add('band-dragging');
+                    const move = (e) => {
+                        const left = Math.min(Math.max(0, e.clientX - dx), Math.max(0, window.innerWidth - el.offsetWidth));
+                        const top = Math.min(Math.max(0, e.clientY - dy), Math.max(0, window.innerHeight - el.offsetHeight));
+                        el.style.left = `${left}px`;
+                        el.style.top = `${top}px`;
+                        this._bandPos = { left, top };
+                    };
+                    const up = () => {
+                        el.classList.remove('band-dragging');
+                        head.removeEventListener('pointermove', move);
+                        head.removeEventListener('pointerup', up);
+                        head.removeEventListener('pointercancel', up);
+                        try { head.releasePointerCapture(ev.pointerId); } catch (e) {}
+                    };
+                    head.addEventListener('pointermove', move);
+                    head.addEventListener('pointerup', up);
+                    head.addEventListener('pointercancel', up);
+                    ev.preventDefault();
+                });
+                window.addEventListener('resize', () => { if (!el.classList.contains('hidden')) this._placeBandPopup(); });
+                document.addEventListener('keydown', (ev) => {
+                    if (ev.key !== 'Escape' || el.classList.contains('hidden')) return;
+                    ev.stopPropagation();
+                    this.closeBandModal();
+                }, true);
             }
 
             closeBandModal() {
@@ -1973,19 +2213,14 @@
 
             updateBandModalUI() {
                 this.updateMetronomeUI();
-                const isOrchestra = this.orchestrationMode === 'orchestra';
-                const btnArp = document.getElementById('band-mode-btn-arpeges');
-                const btnOrch = document.getElementById('band-mode-btn-orchestra');
-                const activeClass = "flex-1 py-1.5 rounded-md transition bg-[#3a3a3c] text-white shadow-sm";
-                const inactiveClass = "flex-1 py-1.5 rounded-md transition text-slate-400 hover:text-white";
-                if (btnArp) btnArp.className = isOrchestra ? inactiveClass : activeClass;
-                if (btnOrch) btnOrch.className = isOrchestra ? activeClass : inactiveClass;
-
-                const options = document.getElementById('band-orchestra-options');
-                if (options) options.classList.toggle('opacity-40', !isOrchestra);
-                ['band-style-select', 'band-vol-piano', 'band-vol-bass', 'band-vol-drums', 'band-reverb-slider'].forEach(id => {
+                this.updateBandInstrumentLabel();
+                // En « Classique » (piano seul) : la basse, la batterie et la réverbération de l'orchestre ne servent pas.
+                const solo = this.bandStyle === 'classic';
+                ['band-vol-bass', 'band-vol-drums', 'band-reverb-slider'].forEach(id => {
                     const el = document.getElementById(id);
-                    if (el) el.disabled = !isOrchestra;
+                    if (!el) return;
+                    el.disabled = solo;
+                    if (el.parentElement) el.parentElement.classList.toggle('opacity-40', solo);
                 });
 
                 const styleSelect = document.getElementById('band-style-select');
@@ -2082,29 +2317,26 @@
                 osc.stop(t + 0.018);
             }
 
-            setOrchestrationMode(mode) {
-                this.orchestrationMode = mode === 'orchestra' ? 'orchestra' : 'arpeges';
-                if (this.orchestrationMode === 'orchestra') this.ensureBandAudio();
-                this.updateBandModalUI();
-                this.updateBandButtonLabel();
-            }
-
             setBandStyle(style) {
-                this.bandStyle = style;
+                this.bandStyle = ['swing', 'pop', 'latin', 'classic'].includes(style) ? style : 'swing';
                 this.updateBandButtonLabel();
+                this.updateBandInstrumentLabel();
+                this.updateBandModalUI();
+                this.ensureBandAudio(); // lance le chargement de la guitare / de la basse selon le style
             }
 
-            // Le bouton affiche le mode d'orchestration actif : « Arpège » ou le style
-            // en cours (Swing / Pop / Latin) quand la bande son "Orchestre" est active.
+            // Le premier curseur de volume règle le piano, ou la guitare classique en style Latin.
+            updateBandInstrumentLabel() {
+                const el = document.getElementById('band-vol-piano-label');
+                if (el) el.textContent = this.bandStyle === 'latin' ? 'Guitare' : 'Piano';
+            }
+
+            // Le bouton affiche le style actif (Swing / Pop / Latin / Classique).
             updateBandButtonLabel() {
                 const label = document.getElementById('band-btn-label');
                 if (!label) return;
-                if (this.orchestrationMode !== 'orchestra') {
-                    label.textContent = 'Arpège';
-                } else {
-                    const names = { swing: 'Swing', pop: 'Pop', latin: 'Latin' };
-                    label.textContent = names[this.bandStyle] || 'Swing';
-                }
+                const names = { swing: 'Swing', pop: 'Pop', latin: 'Latin', classic: 'Classique' };
+                label.textContent = names[this.bandStyle] || 'Swing';
             }
 
             setBandVolume(instrument, val) {
@@ -2171,7 +2403,9 @@
                     this.bandGains.drums.gain.value = this.bandVolumes.drums;
                     this.bandGains.drums.connect(dest);
                 }
-                if (!this.bassInstrument) this.loadBass();
+                if (this.bandStyle !== 'classic' && !this.bassInstrument) this.loadBass();
+                if (this.bandStyle === 'pop') this.loadBassPop();
+                if (this.bandStyle === 'latin') this.loadGuitarLatin();
             }
 
             loadBass() {
@@ -2182,6 +2416,65 @@
                 })
                     .then(instr => { this.bassInstrument = instr; })
                     .catch(() => {});
+            }
+
+            // Basse électrique (doigts) pour le style Pop ; tant qu'elle n'est pas chargée, la contrebasse prend le relais.
+            loadBassPop() {
+                if (this.bassInstrumentPop || this._bassPopLoading || !this.app.audioCtx) return;
+                this._bassPopLoading = true;
+                Soundfont.instrument(this.app.audioCtx, 'electric_bass_finger', {
+                    soundfont: 'FluidR3_GM',
+                    destination: this.bandGains.bass || this.app.audioCtx.destination
+                })
+                    .then(instr => { this.bassInstrumentPop = instr; })
+                    .catch(() => {});
+            }
+
+            // Guitare classique (nylon) du style Latin ; elle passe par le bus « piano » (curseur de volume du premier
+            // instrument, réverbération de l'orchestre). Tant qu'elle n'est pas chargée, le piano joue les mêmes notes.
+            // Chaîne de traitement de la guitare : retire le grave inutile, ajoute du corps (résonance de la caisse
+            // vers 110 Hz, léger relief vers 250 Hz), creuse le « pincé » métallique du médium-aigu (3 kHz) et adoucit
+            // les aigus ; un compresseur doux calme les attaques. C'est ce qui enlève le côté « casserole ».
+            _getGuitarBus() {
+                if (this._guitarBus) return this._guitarBus;
+                const ctx = this.app.audioCtx;
+                const f = (type, freq, gain, q) => {
+                    const n = ctx.createBiquadFilter();
+                    n.type = type; n.frequency.value = freq;
+                    if (gain !== undefined) n.gain.value = gain;
+                    if (q !== undefined) n.Q.value = q;
+                    return n;
+                };
+                const hp = f('highpass', 70, undefined, 0.7);
+                const body = f('peaking', 115, 3.5, 1.1);
+                const warm = f('lowshelf', 260, 2.5);
+                const ping = f('peaking', 2900, -4.5, 0.9);
+                const air = f('highshelf', 4200, -7);
+                const lp = f('lowpass', 7000, undefined, 0.5);
+                const comp = ctx.createDynamicsCompressor();
+                comp.threshold.value = -26; comp.knee.value = 18; comp.ratio.value = 2.5;
+                comp.attack.value = 0.006; comp.release.value = 0.18;
+                const makeup = ctx.createGain();
+                makeup.gain.value = 1.35;
+                const chain = [hp, body, warm, ping, air, lp, comp, makeup];
+                for (let k = 0; k + 1 < chain.length; k++) chain[k].connect(chain[k + 1]);
+                makeup.connect(this.bandGains.piano || ctx.destination);
+                this._guitarBus = hp;
+                return hp;
+            }
+
+            loadGuitarLatin() {
+                if (this.guitarInstrument || this._guitarLoading || !this.app.audioCtx) return;
+                this._guitarLoading = true;
+                const ctx = this.app.audioCtx;
+                const destination = this._getGuitarBus();
+                const done = (instr) => { this.guitarInstrument = instr; };
+                // Banque « MusyngKite » : nylon bien plus riche que celle de FluidR3_GM ; repli sur cette dernière si besoin.
+                Soundfont.instrument(ctx, 'acoustic_guitar_nylon', { soundfont: 'MusyngKite', destination })
+                    .then(done)
+                    .catch(() => Soundfont.instrument(ctx, 'acoustic_guitar_nylon', { soundfont: 'FluidR3_GM', destination })
+                        .then(done)
+                        .catch(() => { this._guitarLoading = false; }));
             }
 
             getNoiseBuffer() {
@@ -2535,16 +2828,18 @@
 
             // --- Basse ---
 
-            playBassAbs(absSemi, time, duration, vel = 0.85) {
-                if (!this.bassInstrument) return;
+            playBassAbs(absSemi, time, duration, vel = 0.85, wide = false) {
+                const inst = (this.bandStyle === 'pop' && this.bassInstrumentPop) ? this.bassInstrumentPop : this.bassInstrument;
+                if (!inst) return;
                 const noteStr = this.getJamAudioNoteName(absSemi, 0, PLAY_BASE_OCTAVE - 1);
                 try {
                     // soundfont-player n'honore l'option "destination" qu'à la création de
                     // l'instrument, pas par note : le curseur de volume de la basse doit donc
                     // être appliqué directement au gain de la note plutôt qu'à un nœud de sortie.
-                    const node = this.bassInstrument.play(noteStr, time, {
+                    // wide : dynamique élargie (style Pop), pour que les accents et les notes douces s'entendent
+                    const node = inst.play(noteStr, time, {
                         duration,
-                        gain: Math.min(1.05, 0.6 + 0.45 * vel) * this.bandVolumes.bass
+                        gain: (wide ? Math.min(1.05, 0.35 + 0.75 * vel) : Math.min(1.05, 0.6 + 0.45 * vel)) * this.bandVolumes.bass
                     });
                     this.bandAudioNodes.push(node);
                 } catch (e) {}
@@ -2565,7 +2860,7 @@
                     case 'O': { const r = base + tones[0]; return r > 5 ? r - 12 : r + 12; }
                     case 'A': {
                         if (isLastMeasureOfStep && nextStep) {
-                            const target = nextStep.rootIndex + this.findChordObj(nextStep.chordId).notes[0];
+                            const target = this._bassNear(nextStep);
                             return target + (rng() < 0.65 ? -1 : 1);
                         }
                         return fifth;
@@ -2580,7 +2875,7 @@
             buildWalkingBass(step, nextStep, isLastMeasureOfStep, rng, swing) {
                 const tones = this.findChordObj(step.chordId).notes;
                 const rt = step.rootIndex;
-                const root = rt + tones[0];
+                const root = this._bassNear(step);
                 const third = rt + (tones[1] !== undefined ? tones[1] : 4);
                 const fifth = rt + (tones[2] !== undefined ? tones[2] : 7);
                 const seventh = rt + (tones[3] !== undefined ? tones[3] : 12);
@@ -2590,7 +2885,7 @@
 
                 let approach = null;
                 if (isLastMeasureOfStep && nextStep) {
-                    const target = nextStep.rootIndex + this.findChordObj(nextStep.chordId).notes[0];
+                    const target = this._bassNear(nextStep);
                     approach = target + (rng() < 0.65 ? -1 : 1);
                 }
 
@@ -2633,7 +2928,7 @@
                 const tonesOf = (c) => {
                     const t = this.findChordObj(c.chordId).notes, rt = c.rootIndex;
                     return {
-                        root: rt + t[0],
+                        root: this._bassNear(c),
                         third: rt + (t[1] !== undefined ? t[1] : 4),
                         fifth: rt + (t[2] !== undefined ? t[2] : 7)
                     };
@@ -2644,7 +2939,7 @@
                 const approach = (from, toRoot, fallbacks) =>
                     pc(toRoot) === pc(from.root) ? pick(fallbacks) : toRoot + (rng() < 0.65 ? -1 : 1);
 
-                const nextRoot = nextStep ? nextStep.rootIndex + this.findChordObj(nextStep.chordId).notes[0] : null;
+                const nextRoot = nextStep ? this._bassNear(nextStep) : null;
                 const midNote = approach(a, b.root, [a.fifth, a.third]);
                 const endNote = nextRoot !== null ? approach(b, nextRoot, [b.fifth, b.third]) : pick([b.fifth, b.third]);
 
@@ -2707,13 +3002,18 @@
                 // soundfont-player n'honore l'option "destination" qu'à la création de
                 // l'instrument, pas par note : le curseur de volume du piano doit donc être
                 // appliqué directement au gain de la note plutôt qu'à un nœud de sortie.
-                const gain = Math.min(1.05, 0.5 + 0.6 * vel) * this.bandVolumes.piano;
+                // e.wide (style Pop) : dynamique élargie ; e.noteVels : poids de chaque voix (la voix aiguë chante) ;
+                // e.roll : délai (s) entre les notes d'un accord « roulé » du grave vers l'aigu.
+                const baseGain = e.wide ? Math.min(1.05, 0.28 + 0.8 * vel) : Math.min(1.05, 0.5 + 0.6 * vel);
+                const gain = baseGain * this.bandVolumes.piano * (e.gainMul || 1);
                 const dur = Math.max(0.12, e.dur * beatSec);
+                const roll = e.roll !== undefined ? e.roll : 0.006;
                 e.intervals.forEach((interval, idx) => {
                     const noteStr = this.getJamAudioNoteName(e.rootIndex, interval, PLAY_BASE_OCTAVE);
                     try {
-                        const when = Math.max(this.app.audioCtx.currentTime, time + idx * 0.006); // léger "roulé"
-                        const node = this.app.pianoInstrument.play(noteStr, when, { duration: dur, gain, destination: this.bandGains.piano || this.app.audioCtx.destination });
+                        const when = Math.max(this.app.audioCtx.currentTime, time + idx * roll); // léger "roulé"
+                        const g = e.noteVels ? Math.min(1.05, gain * e.noteVels[idx]) : gain;
+                        const node = this.app.pianoInstrument.play(noteStr, when, { duration: dur, gain: g, destination: this.bandGains.piano || this.app.audioCtx.destination });
                         this.bandAudioNodes.push(node);
                     } catch (err) {}
                 });
@@ -2776,7 +3076,7 @@
                 // Une phrase sur trois environ reprend le motif de la précédente (effet "question / réponse")
                 const keep = !!(prev && prev.style === style && rng() < 0.35);
                 const motif = keep ? prev.motif : this.pickWeighted(lib.piano, rng).hits;
-                return {
+                const phrase = {
                     index, style, rng,
                     motif,
                     second: rng() < 0.5 ? motif : this.varyCell(motif, rng),
@@ -2793,6 +3093,10 @@
                     fill: rng() < lib.fillProb,
                     fillKind: Math.floor(rng() * 2)
                 };
+                if (style === 'pop') Object.assign(phrase, this.popPhraseExtras(rng, prev, index));
+                else if (style === 'latin') Object.assign(phrase, this.latinPhraseExtras(rng, prev, index));
+                else if (style === 'classic') Object.assign(phrase, this.classicPhraseExtras(rng, prev, index));
+                return phrase;
             }
 
             buildBandPlan(step, nextStep, measureInStep, isLastMeasureOfStep) {
@@ -2815,6 +3119,9 @@
                 // annonce déjà l'accord suivant (anticipation).
                 // Mesure à deux accords : temps 1-2 sur le premier accord, temps 3-4 sur le second
                 const halves = this.isSplitEffective(step) ? this.getStepHalves(step) : null;
+                if (style === 'pop') return this.buildPopPlan(step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
+                if (style === 'latin') return this.buildLatinPlan(step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
+                if (style === 'classic') return this.buildClassicPlan(step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 const chordFor = (pos) => {
                     if (isLastMeasureOfStep && pos >= 3.5 && nextStep) return nextStep;
                     if (halves) return pos >= 2 ? halves[1] : halves[0];
@@ -2951,6 +3258,1066 @@
                 return d;
             }
 
+            // ===================== Orchestration POP =====================
+            // Chaque phrase reçoit une « énergie » (0 à 1) qui pilote ensemble le piano (nappe tenue, arpèges liés,
+            // comping syncopé), la basse (notes longues, rythmes pointés, croches, lignes chantantes) et la batterie
+            // (charleston en noires / croches / « drive », cross-stick, demi-tempo, fills). Le piano enchaîne ses accords
+            // par conduite des voix, tient ses notes comme avec la pédale, retarde parfois la tierce (sus4 → 3) et relie
+            // les accords par de courtes phrases conjointes ; la basse anticipe l'accord suivant en même temps que le
+            // piano, et la grosse caisse se cale sur les attaques de la basse.
+
+            _jamTransOffset() {
+                return ({ C: 0, Bb: -2, Eb: -9 })[this.instrumentKey] || 0;
+            }
+
+            // Ramène une note de basse (hauteur écrite) dans le registre de la basse (mi1 à ré#2 réels).
+            _popFoldBass(abs) {
+                const off = this._jamTransOffset();
+                let a = abs;
+                while (a + off > 3) a -= 12;
+                while (a + off < -8) a += 12;
+                return a;
+            }
+
+            // Hauteur (0 à 11) de la note que la basse joue pour cet accord : la basse choisie (accord sur basse) ou la fondamentale.
+            _bassPc(cs) {
+                if (Number.isInteger(cs.bassRootIndex)) return cs.bassRootIndex;
+                return (cs.rootIndex + (this.findChordObj(cs.chordId).notes[0] || 0)) % 12;
+            }
+
+            // Même note, placée à moins d'un triton de la fondamentale de l'accord (pour les lignes de basse « walking »).
+            _bassNear(cs) {
+                const croot = cs.rootIndex + (this.findChordObj(cs.chordId).notes[0] || 0);
+                if (!Number.isInteger(cs.bassRootIndex)) return croot;
+                let d = (((cs.bassRootIndex - croot) % 12) + 12) % 12;
+                if (d > 6) d -= 12;
+                return croot + d;
+            }
+
+            _popBassTones(cs) {
+                const off = this._jamTransOffset();
+                const t = this.findChordObj(cs.chordId).notes;
+                const r0 = t[0] || 0;
+                const croot = this._popFoldBass(cs.rootIndex + r0);   // fondamentale de l'accord, dans le registre de la basse
+                const root = Number.isInteger(cs.bassRootIndex) ? this._popFoldBass(cs.bassRootIndex) : croot; // note jouée par la basse
+                const fit = (x) => { let a = x; while (a + off > 11) a -= 12; while (a + off < -8) a += 12; return a; };
+                const rel = (k, d) => ((((t[k] !== undefined ? t[k] : d) - r0) % 12) + 12) % 12;
+                return {
+                    root,
+                    third: fit(croot + rel(1, 4)),
+                    fifth: fit(croot + rel(2, 7)),
+                    seventh: fit(croot + rel(3, 10)),
+                    octave: root + 12
+                };
+            }
+
+            // Note de liaison vers la fondamentale de l'accord suivant : degré conjoint de sa gamme (dessous ou dessus),
+            // chromatique, ou quinte inférieure — jamais le même chromatisme systématique.
+            _popBassApproach(fromRoot, nextCs, rng) {
+                const off = this._jamTransOffset();
+                const nt = this.findChordObj(nextCs.chordId).notes;
+                let target = this._popFoldBass(this._bassPc(nextCs));
+                while (target - fromRoot > 6) target -= 12;
+                while (fromRoot - target > 6) target += 12;
+                const sc = (scalesDb[nextCs.scaleId] && scalesDb[nextCs.scaleId].intervals) || [0, 2, 4, 5, 7, 9, 11];
+                const inScale = (n) => sc.includes((((n - nextCs.rootIndex) % 12) + 12) % 12);
+                const below = [-1, -2].map(d => target + d).find(inScale);
+                const above = [1, 2].map(d => target + d).find(inScale);
+                const r = rng();
+                let n;
+                if (r < 0.5 && below !== undefined) n = below;
+                else if (r < 0.75 && above !== undefined) n = above;
+                else if (r < 0.9) n = target - 1;
+                else n = target - 5;
+                while (n + off > 6) n -= 12;
+                while (n + off < -9) n += 12;
+                return n;
+            }
+
+            // Voicing du piano (hauteurs écrites) : parmi les renversements de l'accord, celui qui bouge le moins
+            // par rapport au précédent (conduite des voix), dans un registre médium (la3 à fa4 réels environ).
+            _popVoicing(cs, prev, range) {
+                const off = this._jamTransOffset();
+                const notes = this.getJamChordPlaybackNotes(this.findChordObj(cs.chordId));
+                const pcs = [];
+                notes.forEach(iv => {
+                    const pc = (((cs.rootIndex + iv) % 12) + 12) % 12;
+                    if (!pcs.includes(pc)) pcs.push(pc);
+                });
+                if (!pcs.length) return [];
+                const rg = range || { lo: -3, hi: 17, centre: 7, soft: 14 };
+                const LO = rg.lo - off, HI = rg.hi - off;
+                let cands = [];
+                for (const slack of [0, 5, 12]) {
+                    for (let r = 0; r < pcs.length; r++) {
+                        const order = pcs.slice(r).concat(pcs.slice(0, r));
+                        for (let oct = 0; oct <= 12; oct += 12) {
+                            let cur = LO + ((((order[0] - LO) % 12) + 12) % 12) + oct;
+                            const v = [cur];
+                            for (let k = 1; k < order.length; k++) {
+                                cur += ((((order[k] - cur) % 12) + 12) % 12) || 12;
+                                v.push(cur);
+                            }
+                            if (v[v.length - 1] <= HI + slack) cands.push(v);
+                        }
+                    }
+                    if (cands.length) break;
+                }
+                if (!cands.length) return [];
+                const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+                const centre = rg.centre - off;
+                let best = cands[0], bestCost = Infinity;
+                cands.forEach(v => {
+                    let c = 0.3 * Math.abs(mean(v) - centre) + Math.max(0, v[v.length - 1] - (rg.soft - off)) * 0.6;
+                    if (prev && prev.length) {
+                        const n = Math.min(v.length, prev.length);
+                        for (let j = 0; j < n; j++) c += Math.abs(v[v.length - 1 - j] - prev[prev.length - 1 - j]);
+                    }
+                    // Pas de seconde serrée dans le grave (son brouillé) : elle écarte les renversements « boueux »
+                    for (let k = 0; k + 1 < v.length; k++) {
+                        const gap = v[k + 1] - v[k];
+                        if (gap > 2) continue;
+                        const low = v[k] + off;
+                        if (low < 5) c += gap === 1 ? 8 : 5;
+                        else if (low < 8) c += gap === 1 ? 4 : 2;
+                    }
+                    if (c < bestCost - 1e-9) { bestCost = c; best = v; }
+                });
+                return best;
+            }
+
+            // Retard de la tierce par la quarte (sus4 → 3), très pop ; null si l'accord ne s'y prête pas.
+            _popSusVoicing(cs, V) {
+                const t = this.findChordObj(cs.chordId).notes;
+                if (t[1] !== 3 && t[1] !== 4) return null;
+                if (t.some((iv, k) => k > 0 && (iv % 12) === 5)) return null;
+                const third = (((cs.rootIndex + t[1]) % 12) + 12) % 12;
+                const idx = V.findIndex(x => (((x % 12) + 12) % 12) === third);
+                if (idx < 0) return null;
+                const sus = V.slice();
+                sus[idx] = V[idx] + (5 - t[1]);
+                return { sus, resolved: V };
+            }
+
+            _popScaleNotes(cs, lo, hi) {
+                const sc = (scalesDb[cs.scaleId] && scalesDb[cs.scaleId].intervals) || [0, 2, 4, 5, 7, 9, 11];
+                const out = [];
+                for (let n = Math.ceil(lo); n <= hi; n++) {
+                    if (sc.includes((((n - cs.rootIndex) % 12) + 12) % 12)) out.push(n);
+                }
+                return out;
+            }
+
+            // Note voisine (par degré conjoint de la gamme) d'une note de départ : le « chant » du piano.
+            _popLineNote(cs, from, rng, dir) {
+                const off = this._jamTransOffset();
+                const S = this._popScaleNotes(cs, from - 7, from + 7)
+                    .filter(n => n !== from && n + off >= 0 && n + off <= 19);
+                if (!S.length) return from;
+                const near = S.filter(n => (dir > 0 ? n > from : dir < 0 ? n < from : true) && Math.abs(n - from) <= 3);
+                const pool = (near.length ? near : S).slice().sort((a, b) => Math.abs(a - from) - Math.abs(b - from));
+                return pool[Math.min(pool.length - 1, rng() < 0.7 ? 0 : 1)];
+            }
+
+            // Petite montée / descente conjointe qui se termine juste à côté de la note visée (haut du prochain accord).
+            _popRun(cs, startAbs, targetAbs, count) {
+                const off = this._jamTransOffset();
+                const S = this._popScaleNotes(cs, -2 - off, 21 - off);
+                if (S.length < count + 2) return [];
+                let ti = 0;
+                S.forEach((n, k) => { if (Math.abs(n - targetAbs) < Math.abs(S[ti] - targetAbs)) ti = k; });
+                const mk = (dir) => {
+                    const arr = [];
+                    for (let k = count; k >= 1; k--) {
+                        const idx = ti - dir * k;
+                        if (idx < 0 || idx >= S.length) return null;
+                        arr.push(S[idx]);
+                    }
+                    return arr;
+                };
+                const opts = [mk(1), mk(-1)].filter(Boolean);
+                if (!opts.length) return [];
+                opts.sort((a, b) => Math.abs(a[0] - startAbs) - Math.abs(b[0] - startAbs));
+                return opts[0];
+            }
+
+            // Caractère d'une phrase pop : énergie, instrumentation du piano / de la basse, feeling de batterie.
+            popPhraseExtras(rng, prev, index) {
+                const prevI = (prev && prev.style === 'pop' && typeof prev.intensity === 'number') ? prev.intensity : 0.5;
+                let I = index === 0 ? 0.38 + rng() * 0.2 : prevI + (0.62 - prevI) * 0.25 + (rng() - 0.5) * 0.55;
+                I = Math.max(0.25, Math.min(1, I));
+                const pickW = (opts) => {
+                    const tot = opts.reduce((a, o) => a + o[1], 0);
+                    let r = rng() * tot;
+                    for (const o of opts) { r -= o[1]; if (r <= 0) return o[0]; }
+                    return opts[opts.length - 1][0];
+                };
+                return {
+                    intensity: I,
+                    lift: index > 0 && I - prevI > 0.18,
+                    pianoStyle: pickW([['pad', I < 0.45 ? 3 : 0.6], ['ballad', I < 0.75 ? 3 : 1.5], ['comp', 1 + 3 * I]]),
+                    bassStyle: pickW([['long', I < 0.45 ? 3 : 0.6], ['melodic', 2], ['dotted', 1.5 + 2 * I], ['eighths', I > 0.62 ? 3 * I : 0.4]]),
+                    arpPattern: POP_ARP[Math.floor(rng() * POP_ARP.length)],
+                    compIdx: Math.floor(rng() * POP_COMP.length),
+                    bassSeed: rng(),
+                    feel: I < 0.42 ? 'quarter' : (I < 0.72 ? 'eighths' : 'drive'),
+                    halfTime: I > 0.35 && I < 0.7 && rng() < 0.16,
+                    hat16: rng() < 0.35,
+                    fill: rng() < 0.55,
+                    fillKind: Math.floor(rng() * 4)
+                };
+            }
+
+            buildPopPlan(step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
+                const rng = ph.rng;
+                const I = ph.intensity;
+                const prog = L > 1 ? i / (L - 1) : 0;
+                const pv = (0.7 + 0.36 * I) * (0.9 + 0.1 * prog); // échelle de vélocité du piano (crescendo dans la phrase)
+                const segs = halves
+                    ? [{ s: 0, e: 2, cs: halves[0] }, { s: 2, e: 4, cs: halves[1] }]
+                    : [{ s: 0, e: 4, cs: step }];
+                const lastSeg = segs[segs.length - 1];
+                const sameChord = (a, b) => !!a && !!b && a.rootIndex === b.rootIndex && a.chordId === b.chordId
+                    && (Number.isInteger(a.bassRootIndex) ? a.bassRootIndex : -1) === (Number.isInteger(b.bassRootIndex) ? b.bassRootIndex : -1);
+                const changeNext = !!nextStep && isLastMeasureOfStep && !sameChord(lastSeg.cs, nextStep);
+                // Anticipation : la basse (et souvent le piano) joue l'accord suivant sur le « et » du temps 4
+                const anticip = changeNext && rng() < 0.2 + 0.4 * I;
+
+                // ---- conduite des voix : un voicing par accord, calculé dans l'ordre chronologique ----
+                const cache = {};
+                let lastV = this._popVoice ? this._popVoice.v : null;
+                let lastKey = this._popVoice ? this._popVoice.key : null;
+                const keyOf = (cs) => cs.rootIndex + ':' + cs.chordId;
+                const voiceFor = (cs) => {
+                    const key = keyOf(cs);
+                    if (cache[key]) return cache[key];
+                    const v = (this._popVoice && this._popVoice.key === key) ? this._popVoice.v : this._popVoicing(cs, lastV);
+                    cache[key] = v; lastV = v; lastKey = key;
+                    return v;
+                };
+                const peekVoice = (cs) => {
+                    const key = keyOf(cs);
+                    if (cache[key]) return cache[key];
+                    if (this._popVoice && this._popVoice.key === key) return this._popVoice.v;
+                    return this._popVoicing(cs, lastV);
+                };
+
+                // ---- piano ----
+                const piano = [];
+                const csAtPos = (pos) => (anticip && pos >= 3.5) ? nextStep : (halves && pos >= 2 ? segs[1].cs : segs[0].cs);
+                // Fin de tenue d'une note : le changement d'accord coupe la « pédale » ; sinon la note résonne jusqu'à la fin
+                const endOf = (pos) => {
+                    if (anticip && pos >= 3.5) return 4.9;
+                    if (halves && pos < 2) return 2.05;
+                    return anticip ? 3.55 : 4.05;
+                };
+                const mk = (pos, dur, notes, vel, roll) => {
+                    const n = notes.length;
+                    return {
+                        pos,
+                        dur: Math.max(0.15, Math.min(dur, endOf(pos) - pos)),
+                        vel: Math.max(0.1, Math.min(1, vel)),
+                        rootIndex: 0, intervals: notes,
+                        noteVels: notes.map((_, k) => n === 1 ? 1 : (k === n - 1 ? 1.1 : (k === 0 ? 0.8 : 0.9))),
+                        roll: n > 1 ? (roll !== undefined ? roll : 0.008 + rng() * 0.014) : 0,
+                        lay: 0.003 + rng() * 0.012,
+                        wide: true
+                    };
+                };
+                const hit = (pos, maxDur, vel, part) => {
+                    const V = voiceFor(csAtPos(pos));
+                    if (!V.length) return;
+                    piano.push(mk(pos, maxDur, (part === 'upper' && V.length > 2) ? V.slice(1) : V, vel * pv));
+                };
+                const dropFrom = (p) => {
+                    for (let k = piano.length - 1; k >= 0; k--) if (piano[k].pos >= p - 1e-6) piano.splice(k, 1);
+                };
+
+                const ps = ph.pianoStyle;
+                let susUsed = false;
+                if (ps === 'pad') {
+                    // Nappe : accord tenu, ré-attaque douce à mi-mesure, parfois retard sus4 → 3 et note de couleur conjointe
+                    segs.forEach(sg => {
+                        const len = sg.e - sg.s;
+                        const V0 = voiceFor(sg.cs);
+                        if (!V0.length) return;
+                        const upper = V0.length > 2 ? V0.slice(1) : V0;
+                        const sus = (len >= 4 && !isTurn && rng() < 0.3) ? this._popSusVoicing(sg.cs, V0) : null;
+                        if (sus) {
+                            susUsed = true;
+                            const rp = sg.s + (rng() < 0.5 ? 1.5 : 2);
+                            piano.push(mk(sg.s, rp - sg.s + 0.1, sus.sus, 0.66 * pv));
+                            piano.push(mk(rp, 4, sus.resolved, 0.5 * pv)); // résolution : la tierce arrive
+                        } else {
+                            piano.push(mk(sg.s, 4, V0, 0.62 * pv));
+                            if (len >= 4 && rng() < 0.5) piano.push(mk(sg.s + 2, 4, upper, 0.4 * pv));
+                        }
+                        if (len >= 4 && rng() < 0.45) {
+                            const p = rng() < 0.5 ? 2.5 : 3;
+                            const n = this._popLineNote(sg.cs, V0[V0.length - 1], rng, 0);
+                            piano.push(mk(p, 0.9, [n], 0.5 * pv));
+                        }
+                    });
+                } else if (ps === 'ballad') {
+                    // Arpège lié : toutes les notes résonnent jusqu'au changement d'accord (effet de pédale),
+                    // accents sur les temps, respirations, voix aiguë légèrement en avant
+                    const pat = ph.arpPattern;
+                    segs.forEach(sg => {
+                        const V = voiceFor(sg.cs);
+                        if (!V.length) return;
+                        const n = V.length;
+                        const steps = Math.round((sg.e - sg.s) * 2);
+                        for (let k = 0; k < steps; k++) {
+                            const idx = pat[k % 8];
+                            if (idx === null || idx === undefined) continue;
+                            if (k % 2 === 1 && rng() < 0.06 + 0.1 * (1 - I)) continue;
+                            const note = V[idx % n] + (idx >= n ? 12 : 0);
+                            const strong = k % 4 === 0 ? 0.66 : (k % 2 === 0 ? 0.52 : 0.44);
+                            piano.push(mk(sg.s + k * 0.5, 4, [note], (strong + (idx % n === n - 1 ? 0.05 : 0)) * pv));
+                        }
+                    });
+                } else {
+                    // Comping syncopé : accords complets et voix aiguës en alternance, durées liées au rythme
+                    segs.forEach(sg => {
+                        let idx = ph.compIdx;
+                        if (i > 0 && rng() > 0.6) idx = (ph.compIdx + 1 + Math.floor(rng() * (POP_COMP.length - 1))) % POP_COMP.length;
+                        const tpl = POP_COMP[idx].filter(h => (sg.e - sg.s) >= 4 || h[0] < 2);
+                        tpl.forEach(([p, d, v, part], k) => {
+                            if (k > 0 && part === 'upper' && rng() < 0.15 * (1 - I)) return;
+                            hit(sg.s + p, d * 1.25, v, part);
+                        });
+                    });
+                    // Note de « chant » conjointe sur un temps libre
+                    if (!halves && rng() < 0.3 + 0.35 * I) {
+                        const cand = [0.5, 1, 1.5, 2.5, 3].filter(p => piano.every(e => Math.abs(e.pos - p) >= 0.49));
+                        if (cand.length) {
+                            const p = cand[Math.floor(rng() * cand.length)];
+                            const V = voiceFor(step);
+                            if (V.length) piano.push(mk(p, 0.45, [this._popLineNote(step, V[V.length - 1], rng, 0)], 0.46 * pv));
+                        }
+                    }
+                }
+
+                // Petite phrase mélodique conjointe qui amène l'accord suivant (fin de phrase ou changement d'accord)
+                let ran = false;
+                if (!susUsed && this._popRunAt !== m - 1 && (isTurn || changeNext) && rng() < (isTurn ? 0.42 : 0.2) * (0.55 + 0.6 * I)) {
+                    const fromV = voiceFor(lastSeg.cs);
+                    const tcs = changeNext ? nextStep : lastSeg.cs;
+                    const tV = changeNext ? peekVoice(nextStep) : fromV;
+                    if (fromV.length && tV.length) {
+                        const count = rng() < 0.5 ? 3 : 4;
+                        const sixteenth = count === 4 && rng() < 0.5;
+                        const startPos = sixteenth ? 3 : 4 - count * 0.5;
+                        const notes = this._popRun(tcs, fromV[fromV.length - 1], tV[tV.length - 1], count);
+                        if (notes.length === count) {
+                            dropFrom(startPos);
+                            piano.forEach(e => { if (e.pos < startPos) e.dur = Math.min(e.dur, startPos - e.pos + 0.1); });
+                            const sl = sixteenth ? 0.25 : 0.5;
+                            notes.forEach((n, k) => piano.push(mk(startPos + k * sl, k === count - 1 ? sl * 1.4 : sl * 1.1, [n], (0.42 + 0.3 * (k / (count - 1))) * pv)));
+                            ran = true;
+                            this._popRunAt = m;
+                        }
+                    }
+                }
+                if (anticip && !ran && (ps !== 'ballad' || rng() < 0.4)) {
+                    dropFrom(3.5);
+                    hit(3.5, 1.4, 0.6, 'all');
+                }
+                piano.sort((a, b) => a.pos - b.pos);
+
+                // ---- basse ----
+                const bass = [];
+                const tpls = POP_BASS[ph.bassStyle];
+                const tplIdx = (i === 0 || rng() < 0.6) ? Math.floor(ph.bassSeed * tpls.length) : Math.floor(rng() * tpls.length);
+                segs.forEach((sg, si) => {
+                    const T = this._popBassTones(sg.cs);
+                    const len = sg.e - sg.s;
+                    const follow = si < segs.length - 1 ? segs[si + 1].cs : (changeNext ? nextStep : null);
+                    const approach = follow ? this._popBassApproach(T.root, follow, rng) : null;
+                    const resolve = (tok) => {
+                        switch (tok) {
+                            case 'F': return T.fifth;
+                            case 'T': return T.third;
+                            case '7': return T.seventh;
+                            case 'O': return T.octave;
+                            case 'A': return approach !== null ? approach : (rng() < 0.5 ? T.fifth : T.root);
+                            default: return T.root;
+                        }
+                    };
+                    const tpl = len >= 4
+                        ? tpls[tplIdx]
+                        : [[0, 'R', 1.9, 0.86]].concat(follow && rng() < 0.5 ? [[1.5, 'A', 0.45, 0.64]] : []);
+                    tpl.forEach(([p, tok, d, v], k) => {
+                        if (ph.bassStyle === 'eighths' && len >= 4 && k % 2 === 1 && rng() < 0.4 * (1 - I) + 0.05) return;
+                        let abs = resolve(tok);
+                        const prevB = bass[bass.length - 1];
+                        if (tok === 'A' && follow && prevB && prevB.abs === abs) { // pas de note répétée avant la liaison
+                            for (let t = 0; t < 4 && abs === prevB.abs; t++) abs = this._popBassApproach(T.root, follow, rng);
+                            if (abs === prevB.abs) abs = T.fifth;
+                        }
+                        bass.push({
+                            pos: sg.s + p, abs, dur: d, tok,
+                            vel: Math.min(1, v * (0.8 + 0.25 * I) * (0.92 + 0.08 * prog)), wide: true
+                        });
+                    });
+                });
+                if (anticip) {
+                    for (let k = bass.length - 1; k >= 0; k--) if (bass[k].pos >= 3.5 - 1e-6) bass.splice(k, 1);
+                    bass.push({ pos: 3.5, abs: this._popBassTones(nextStep).root, dur: 1.2, tok: 'nR', vel: 0.74 * (0.85 + 0.2 * I), wide: true });
+                }
+                bass.sort((a, b) => a.pos - b.pos);
+                // Legato : une note de basse tient jusqu'à la suivante (sans chevauchement notable)
+                bass.forEach((b, k) => {
+                    const nx = bass[k + 1];
+                    const limit = nx ? nx.pos - b.pos + 0.03 : (b.tok === 'nR' ? 1.2 : 4 - b.pos - 0.03);
+                    b.dur = Math.max(0.12, Math.min(b.dur, limit));
+                });
+
+                const drums = this.buildPopDrums(ph, i, L, isTurn, bass, rng, I);
+                this._popVoice = lastKey ? { key: lastKey, v: lastV } : null;
+                return { piano, bass, drums };
+            }
+
+            // Batterie pop : feeling choisi par phrase (noires douces + cross-stick / croches / drive), dynamique qui
+            // monte dans la phrase, grosse caisse calée sur la basse, fantômes, demi-tempo, quatre types de fills.
+            buildPopDrums(ph, i, L, isTurn, bass, rng, I) {
+                const d = [];
+                const prog = L > 1 ? i / (L - 1) : 0;
+                const dv = (0.7 + 0.35 * I) * (0.9 + 0.1 * prog);
+                const doFill = isTurn && ph.fill;
+                const kind = ph.fillKind;
+                const fillFrom = doFill ? (kind === 2 ? 2.5 : 3) : 99;
+                const add = (pos, drum, vel) => d.push({
+                    pos, drum,
+                    vel: Math.max(0.06, Math.min(1, vel * dv)),
+                    lay: (drum === 'snare' || drum === 'rim') ? 0.006 : 0
+                });
+                const jit = () => (rng() - 0.5) * 0.08;
+
+                if (i === 0) {
+                    const want = this._bandLastFill ? 0.7 : (ph.lift ? 0.5 : 0);
+                    if (want && rng() < want) add(0, 'crash', 0.85);
+                    this._bandLastFill = false;
+                }
+                if (isTurn) this._bandLastFill = doFill;
+
+                const feel = ph.feel;
+                const half = !!ph.halfTime;
+                if (feel === 'quarter') {
+                    [0, 1, 2, 3].forEach(p => { if (p < fillFrom) add(p, 'hat', [0.5, 0.34, 0.44, 0.34][p] + jit()); });
+                    [0.5, 1.5, 2.5, 3.5].forEach(p => { if (p < fillFrom && rng() < 0.2) add(p, 'hat', 0.2 + rng() * 0.05); });
+                } else {
+                    const HC = feel === 'drive'
+                        ? [0.66, 0.4, 0.55, 0.42, 0.62, 0.4, 0.55, 0.44]
+                        : [0.58, 0.32, 0.46, 0.34, 0.54, 0.32, 0.46, 0.36];
+                    for (let k = 0; k < 8; k++) {
+                        const p = k * 0.5;
+                        if (p >= fillFrom) break;
+                        if (k % 2 === 1 && rng() < 0.07) continue; // petit trou : le charleston respire
+                        const open = (p === 3.5 && rng() < 0.18 + 0.25 * I) || (feel === 'drive' && p === 1.5 && rng() < 0.12);
+                        add(p, open ? 'ohat' : 'hat', HC[k] + jit());
+                    }
+                    if (feel === 'drive' && ph.hat16) {
+                        for (let p = 0.25; p < 4; p += 0.5) if (p < fillFrom && rng() < 0.7) add(p, 'hat', 0.16 + rng() * 0.06);
+                    }
+                }
+
+                const useRim = feel === 'quarter' && rng() < 0.75;
+                (half ? [2] : [1, 3]).filter(p => p < fillFrom)
+                    .forEach(p => add(p, useRim ? 'rim' : 'snare', (p === 3 ? 0.88 : 0.84) + (rng() - 0.5) * 0.1));
+                if (!useRim && I > 0.55 && rng() < 0.4) {
+                    const gp = half ? 1.75 : [0.75, 2.75][Math.floor(rng() * 2)];
+                    if (gp < fillFrom) add(gp, 'ghost', 0.42 + rng() * 0.08);
+                }
+
+                // Grosse caisse : toujours sur le 1, puis sur certaines attaques de fondamentale de la basse
+                const kicks = [0];
+                bass.forEach(b => {
+                    if (b.pos <= 0 || b.pos >= fillFrom) return;
+                    if (b.tok !== 'R' && b.tok !== 'nR' && b.tok !== 'O') return;
+                    if (!half && (b.pos === 1 || b.pos === 3)) return;
+                    if (half && b.pos === 2) return;
+                    const pK = (feel === 'quarter' ? 0.25 : 0.4) + 0.4 * I;
+                    if (b.tok === 'nR' ? rng() < 0.75 : rng() < pK) kicks.push(b.pos);
+                });
+                [...new Set(kicks)].sort((a, b) => a - b).slice(0, feel === 'quarter' ? 2 : 4)
+                    .forEach(p => add(p, 'kick', p === 0 ? 0.95 : 0.7 + rng() * 0.12));
+
+                if (doFill) {
+                    const fills = {
+                        0: [[3, 'snare', 0.5], [3.25, 'tom1', 0.62], [3.5, 'tom2', 0.72], [3.75, 'tom3', 0.82]],
+                        1: [[3, 'snare', 0.45], [3.25, 'snare', 0.52], [3.5, 'snare', 0.66], [3.75, 'snare', 0.82]],
+                        2: [[2.5, 'tom1', 0.6], [3, 'tom2', 0.68], [3.5, 'tom3', 0.8], [3.5, 'kick', 0.7]],
+                        3: [[3, 'snare', 0.5], [3.5, 'snare', 0.66], [3.75, 'snare', 0.86], [3.5, 'kick', 0.8]]
+                    };
+                    (fills[kind] || []).forEach(([p, dr, v]) => add(p, dr, v));
+                }
+                return d;
+            }
+
+            // ===================== Orchestration LATIN =====================
+            // Guitare classique, basse et batterie travaillent ensemble sur un « groove » choisi par phrase :
+            //  - bossa nova : le pouce de la guitare garde le balancement fondamentale / quinte pendant que les doigts
+            //    suivent la clave 3-2 (temps 1, 2&, 4 puis 2, 3), arpèges de pouce en mode doux, basse en « noire pointée »,
+            //    charleston en croches, cross-stick sur la clave ;
+            //  - samba : batida de guitare avec accords étouffés sur les doubles croches, basse « courte-longue »,
+            //    surdo à la grosse caisse (temps 2 et 4 forts), charleston en doubles croches ;
+            //  - afro-cubain : guajeo arpégé, basse en tumbao qui anticipe l'accord suivant (note tenue sur le 1),
+            //    clave et petites toms façon congas.
+            // Le groove tend à rester stable d'une phrase à l'autre (il suit aussi le tempo) ; l'énergie de la phrase choisit
+            // la densité de la guitare et de la batterie. Les accords de guitare sont placés dans un registre de guitare et
+            // enchaînés par conduite des voix, avec coups descendants (accords pleins) et montants (cordes aiguës).
+
+            // Basse latine : fondamentale grave, quinte placée sous la fondamentale quand elle serait trop haute.
+            _latBassTones(cs) {
+                const off = this._jamTransOffset();
+                const T = this._popBassTones(cs);
+                const fifth = (T.fifth + off > 4) ? T.fifth - 12 : T.fifth;
+                const octave = (T.root + off + 12 <= 8) ? T.root + 12 : fifth;
+                return { root: T.root, third: T.third, fifth, seventh: T.seventh, octave };
+            }
+
+            // Notes du pouce de la guitare (même hauteur écrite que la basse, mais à l'octave de la guitare).
+            _latThumb(cs) {
+                const T = this._latBassTones(cs);
+                return { root: T.root, fifth: T.fifth };
+            }
+
+            // Petite variation d'une cellule de guitare : une frappe légère retirée, ou un accord étouffé ajouté.
+            _latVary(cell, rng, I, i) {
+                const out = cell.map(h => h.slice());
+                if (i === 0) return out;
+                const r = rng();
+                if (r < 0.3 * (1.1 - I) && out.length > 3) {
+                    const idx = out.map((h, k) => k).filter(k => out[k][2] === 'U' || out[k][2] === 'X');
+                    if (idx.length) out.splice(idx[Math.floor(rng() * idx.length)], 1);
+                } else if (r < 0.3 + 0.3 * I) {
+                    const taken = new Set(out.map(h => h[0]));
+                    const free = [0.5, 1, 1.5, 2.5, 3, 3.5].filter(p => !taken.has(p));
+                    if (free.length) out.push([free[Math.floor(rng() * free.length)], 0.2, 'X', 0.32]);
+                }
+                return out.sort((a, b) => a[0] - b[0]);
+            }
+
+            latinPhraseExtras(rng, prev, index) {
+                const pl = (prev && prev.style === 'latin') ? prev : null;
+                const prevI = (pl && typeof pl.intensity === 'number') ? pl.intensity : 0.5;
+                let I = index === 0 ? 0.36 + rng() * 0.22 : prevI + (0.58 - prevI) * 0.25 + (rng() - 0.5) * 0.5;
+                I = Math.max(0.25, Math.min(1, I));
+                const pickW = (opts) => {
+                    const tot = opts.reduce((a, o) => a + o[1], 0);
+                    let r = rng() * tot;
+                    for (const o of opts) { r -= o[1]; if (r <= 0) return o[0]; }
+                    return opts[opts.length - 1][0];
+                };
+                const bpm = this.bpm;
+                const wg = bpm < 125 ? [0.72, 0.08, 0.2] : (bpm < 175 ? [0.42, 0.33, 0.25] : [0.12, 0.6, 0.28]);
+                const groove = (pl && pl.groove && rng() < 0.75) ? pl.groove : pickW([['bossa', wg[0]], ['samba', wg[1]], ['afro', wg[2]]]);
+                const byDensity = (list) => pickW(list.map((c, k) => [k, 0.25 + 1.6 * Math.max(0, 1 - Math.abs(c.d - I) * 2)]));
+                const keep = !!(pl && pl.groove === groove && rng() < 0.35);
+                return {
+                    intensity: I, groove,
+                    bossaIdx: (keep && pl.bossaIdx !== undefined) ? pl.bossaIdx : byDensity(LAT_BOSSA),
+                    sambaIdx: (keep && pl.sambaIdx !== undefined) ? pl.sambaIdx : byDensity(LAT_SAMBA),
+                    afroIdx: (keep && pl.afroIdx !== undefined) ? pl.afroIdx : byDensity(LAT_AFRO),
+                    bassIdx: Math.floor(rng() * LAT_BASS[groove].length),
+                    bassAlt: Math.floor(rng() * LAT_BASS[groove].length),
+                    claveOn: rng() < 0.88,
+                    fill: rng() < 0.45,
+                    fillKind: Math.floor(rng() * 3)
+                };
+            }
+
+            buildLatinPlan(step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
+                const rng = ph.rng;
+                const I = ph.intensity;
+                const g = ph.groove;
+                const prog = L > 1 ? i / (L - 1) : 0;
+                const gv = (0.74 + 0.3 * I) * (0.92 + 0.08 * prog); // échelle de vélocité de la guitare (crescendo dans la phrase)
+                const segs = halves
+                    ? [{ s: 0, e: 2, cs: halves[0] }, { s: 2, e: 4, cs: halves[1] }]
+                    : [{ s: 0, e: 4, cs: step }];
+                const lastSeg = segs[segs.length - 1];
+                const sameChord = (a, b) => !!a && !!b && a.rootIndex === b.rootIndex && a.chordId === b.chordId
+                    && (Number.isInteger(a.bassRootIndex) ? a.bassRootIndex : -1) === (Number.isInteger(b.bassRootIndex) ? b.bassRootIndex : -1);
+                const changeNext = !!nextStep && isLastMeasureOfStep && !sameChord(lastSeg.cs, nextStep);
+                // Anticipation : l'accord suivant est joué sur le « et » du temps 4 (toujours, dans le tumbao)
+                const anticip = changeNext && (g === 'afro' || rng() < 0.4 + 0.35 * I);
+                const tied = this._latTie;
+
+                // ---- conduite des voix de la guitare ----
+                const cache = {};
+                let lastV = this._latVoice ? this._latVoice.v : null;
+                let lastKey = this._latVoice ? this._latVoice.key : null;
+                const keyOf = (cs) => cs.rootIndex + ':' + cs.chordId;
+                const voiceFor = (cs) => {
+                    const key = keyOf(cs);
+                    if (cache[key]) return cache[key];
+                    const v = (this._latVoice && this._latVoice.key === key) ? this._latVoice.v : this._popVoicing(cs, lastV, LAT_VOICE_RANGE);
+                    cache[key] = v; lastV = v; lastKey = key;
+                    return v;
+                };
+                const peekVoice = (cs) => {
+                    const key = keyOf(cs);
+                    if (cache[key]) return cache[key];
+                    if (this._latVoice && this._latVoice.key === key) return this._latVoice.v;
+                    return this._popVoicing(cs, lastV, LAT_VOICE_RANGE);
+                };
+
+                // ---- guitare ----
+                const gtr = [];
+                const csAtPos = (pos) => (anticip && pos >= 3.5) ? nextStep : (halves && pos >= 2 ? segs[1].cs : segs[0].cs);
+                const endOf = (pos) => {
+                    if (anticip && pos >= 3.5) return 4.9;
+                    if (halves && pos < 2) return 2.05;
+                    return anticip ? 3.55 : 4.05;
+                };
+                const mkGtr = (pos, dur, notes, vel, dir, roll, damped) => {
+                    const n = notes.length;
+                    return {
+                        pos,
+                        dur: Math.max(damped ? 0.1 : 0.15, Math.min(dur, endOf(pos) - pos)),
+                        vel: Math.max(0.1, Math.min(1, vel * gv)),
+                        rootIndex: 0, intervals: notes,
+                        noteVels: notes.map((_, k) => n === 1 ? 1 : (k === 0 ? 1 : (k === n - 1 ? 0.9 : 0.78))),
+                        dir, roll: n > 1 ? roll : 0,
+                        lay: 0.002 + rng() * 0.01
+                    };
+                };
+                const mk = (pos, dur, kind, vel) => {
+                    const cs = csAtPos(pos);
+                    const V = voiceFor(cs);
+                    if (!V.length) return null;
+                    const th = this._latThumb(cs);
+                    const upper = V.length > 3 ? V.slice(-3) : V.slice();
+                    const above = (lo) => { const a = V.filter(n => n > lo + 2); return a.length >= 2 ? a : V.slice(-2); };
+                    let notes, dir = 1, roll = 0.011 + rng() * 0.012;
+                    switch (kind) {
+                        case 'T': notes = [th.root]; break;
+                        case 't': notes = [th.fifth]; break;
+                        case 'C': notes = V; break;
+                        case 'U': notes = upper; dir = -1; roll = 0.005 + rng() * 0.007; break;
+                        case 'X': notes = upper; dir = rng() < 0.5 ? 1 : -1; roll = 0.003 + rng() * 0.003; break;
+                        case 'TC': notes = [th.root].concat(above(th.root)); break;
+                        case 'tC': notes = [th.fifth].concat(above(th.fifth)); break;
+                        default: { // aN : une note de l'accord (arpège), qui résonne jusqu'au changement d'accord
+                            const idx = parseInt(kind.slice(1), 10) || 0;
+                            notes = [V[Math.min(idx, V.length - 1)]];
+                        }
+                    }
+                    notes = notes.slice().sort((a, b) => a - b).filter((n, k, arr) => k === 0 || n !== arr[k - 1]); // pas de note doublée
+                    return mkGtr(pos, dur, notes, vel, dir, roll, kind === 'X');
+                };
+
+                let cell;
+                if (g === 'bossa') { const pair = LAT_BOSSA[ph.bossaIdx]; cell = (m % 2 === 0) ? pair.A : pair.B; }
+                else if (g === 'samba') cell = LAT_SAMBA[ph.sambaIdx].A;
+                else cell = LAT_AFRO[ph.afroIdx].A;
+                let ev = this._latVary(cell, rng, I, i);
+                if (halves) { // mesure à deux accords : chaque accord commence par un pouce + accord
+                    [0, 2].forEach(st => { if (!ev.some(h => Math.abs(h[0] - st) < 0.01)) ev.push([st, 1.4, 'TC', 0.7]); });
+                    ev.sort((a, b) => a[0] - b[0]);
+                }
+                ev.forEach(([p, d, k, v]) => { const e = mk(p, d, k, v); if (e) gtr.push(e); });
+
+                // Petite phrase conjointe qui amène l'accord suivant (fin de phrase ou changement d'accord)
+                let ran = false;
+                if (g !== 'samba' && this._latRunAt !== m - 1 && (isTurn || changeNext)
+                    && rng() < (isTurn ? 0.4 : 0.16) * (0.5 + 0.6 * I)) {
+                    const fromV = voiceFor(lastSeg.cs);
+                    const tcs = changeNext ? nextStep : lastSeg.cs;
+                    const tV = changeNext ? peekVoice(nextStep) : fromV;
+                    if (fromV.length && tV.length) {
+                        const count = rng() < 0.5 ? 3 : 4;
+                        const startPos = 4 - count * 0.5;
+                        const notes = this._popRun(tcs, fromV[fromV.length - 1], tV[tV.length - 1], count);
+                        if (notes.length === count) {
+                            for (let k = gtr.length - 1; k >= 0; k--) if (gtr[k].pos >= startPos - 1e-6) gtr.splice(k, 1);
+                            gtr.forEach(e => { if (e.pos < startPos) e.dur = Math.min(e.dur, startPos - e.pos + 0.1); });
+                            notes.forEach((n, k) => gtr.push(mkGtr(startPos + k * 0.5, k === count - 1 ? 0.7 : 0.55, [n], (0.44 + 0.28 * (k / (count - 1))) * 1, 1, 0, false)));
+                            ran = true;
+                            this._latRunAt = m;
+                        }
+                    }
+                }
+                if (anticip && !ran) {
+                    for (let k = gtr.length - 1; k >= 0; k--) if (gtr[k].pos >= 3.5 - 1e-6) gtr.splice(k, 1);
+                    const a = mk(3.5, 1.4, rng() < 0.5 ? 'tC' : 'C', 0.62);
+                    if (a) gtr.push(a);
+                }
+                gtr.sort((a, b) => a.pos - b.pos);
+
+                // ---- basse ----
+                const bass = [];
+                const bassSet = LAT_BASS[g];
+                const bi = (i === 2 && rng() < 0.5) ? ph.bassAlt : ph.bassIdx;
+                segs.forEach((sg, si) => {
+                    const T = this._latBassTones(sg.cs);
+                    const len = sg.e - sg.s;
+                    const isLast = si === segs.length - 1;
+                    const follow = !isLast ? segs[si + 1].cs : (changeNext ? nextStep : null);
+                    const approach = follow ? this._popBassApproach(T.root, follow, rng) : null;
+                    const resolve = (tok) => {
+                        switch (tok) {
+                            case 'F': return T.fifth;
+                            case 'T': return T.third;
+                            case 'O': return T.octave;
+                            case 'A': return approach !== null ? approach : T.fifth;
+                            case 'N': return (isLast && changeNext) ? this._latBassTones(nextStep).root : T.root;
+                            default: return T.root;
+                        }
+                    };
+                    const tpl = len >= 4
+                        ? bassSet[bi % bassSet.length]
+                        : (g === 'samba'
+                            ? [[0, 'R', 0.45, 0.82], [1, follow && rng() < 0.4 ? 'A' : 'F', 0.9, 0.78]]
+                            : [[0, 'R', g === 'afro' ? 0.9 : 1.4, 0.84], [1.5, follow && rng() < 0.5 ? 'A' : 'F', 0.45, 0.66]]);
+                    tpl.forEach(([p, tok, d, v]) => {
+                        if (g === 'afro' && tied && sg.s === 0 && p < 0.75) return; // note anticipée tenue sur le 1
+                        let abs = resolve(tok);
+                        const prevB = bass[bass.length - 1];
+                        if (tok === 'A' && follow && prevB && prevB.abs === abs) {
+                            for (let t = 0; t < 4 && abs === prevB.abs; t++) abs = this._popBassApproach(T.root, follow, rng);
+                            if (abs === prevB.abs) abs = T.fifth;
+                        }
+                        bass.push({
+                            pos: sg.s + p, abs, dur: d, tok,
+                            vel: Math.min(1, v * (0.82 + 0.22 * I) * (0.92 + 0.08 * prog)), wide: true
+                        });
+                    });
+                });
+                if (anticip) {
+                    for (let k = bass.length - 1; k >= 0; k--) if (bass[k].pos >= 3.5 - 1e-6) bass.splice(k, 1);
+                    bass.push({ pos: 3.5, abs: this._latBassTones(nextStep).root, dur: 1.2, tok: 'N', vel: 0.76 * (0.85 + 0.2 * I), wide: true });
+                }
+                bass.sort((a, b) => a.pos - b.pos);
+                bass.forEach((b, k) => {
+                    const nx = bass[k + 1];
+                    const limit = nx ? nx.pos - b.pos + 0.03 : (b.tok === 'N' ? 1.2 : 4 - b.pos - 0.03);
+                    b.dur = Math.max(0.12, Math.min(b.dur, limit));
+                });
+                this._latTie = g === 'afro' && bass.some(b => b.tok === 'N' && b.pos >= 3.5 - 1e-6);
+
+                const drums = this.buildLatinDrums(ph, i, L, isTurn, bass, rng, I, m);
+                this._latVoice = lastKey ? { key: lastKey, v: lastV } : null;
+                return { piano: gtr, bass, drums, guitar: true };
+            }
+
+            // Batterie latine : trois grooves (bossa, samba, afro-cubain), dynamique qui monte dans la phrase,
+            // grosse caisse calée sur les attaques de la basse, petits fills en fin de phrase.
+            buildLatinDrums(ph, i, L, isTurn, bass, rng, I, m) {
+                const d = [];
+                const prog = L > 1 ? i / (L - 1) : 0;
+                const dv = (0.72 + 0.32 * I) * (0.92 + 0.08 * prog);
+                const doFill = isTurn && ph.fill;
+                const kind = ph.fillKind;
+                const fillFrom = doFill ? (kind === 2 ? 2.5 : 3) : 99;
+                const add = (pos, drum, vel) => d.push({
+                    pos, drum,
+                    vel: Math.max(0.06, Math.min(1, vel * dv)),
+                    lay: (drum === 'rim' || drum === 'snare') ? 0.004 : 0
+                });
+                const jit = () => (rng() - 0.5) * 0.08;
+                const g = ph.groove;
+                const claveA = m % 2 === 0; // barre « 3 » puis barre « 2 » de la clave
+
+                if (i === 0) {
+                    if (this._bandLastFill && rng() < 0.3) add(0, 'crash', 0.55);
+                    this._bandLastFill = false;
+                }
+                if (isTurn) this._bandLastFill = doFill;
+
+                const clave = (vel) => {
+                    if (!ph.claveOn) return;
+                    (claveA ? [0, 1.5, 3] : [1, 2]).forEach(p => { if (p < fillFrom) add(p, 'rim', vel + (rng() - 0.5) * 0.1); });
+                };
+                const kicksOnBass = (base, maxN, pR, pF) => {
+                    const ks = new Set(base);
+                    bass.forEach(b => {
+                        if (b.pos >= fillFrom || ks.has(b.pos)) return;
+                        const strong = b.tok === 'R' || b.tok === 'N' || b.tok === 'O';
+                        if (rng() < (strong ? pR : pF)) ks.add(b.pos);
+                    });
+                    return [...ks].sort((a, b) => a - b).slice(0, maxN);
+                };
+
+                if (g === 'bossa') {
+                    const hb = 0.34 + 0.2 * I;
+                    for (let k = 0; k < 8; k++) {
+                        const p = k * 0.5;
+                        if (p >= fillFrom) break;
+                        if (k % 2 === 1 && rng() < 0.06) continue;
+                        const open = p === 3.5 && rng() < 0.12 + 0.2 * I;
+                        add(p, open ? 'ohat' : 'hat', (k % 2 === 0 ? hb : hb * 0.62) + jit());
+                    }
+                    clave(0.5);
+                    const ks = kicksOnBass([0, 2], 4, 0.5, 0.3 + 0.3 * I);
+                    ks.forEach(p => { if (p < fillFrom) add(p, 'kick', p === 0 ? 0.78 : (p === 2 ? 0.6 : 0.46 + rng() * 0.1)); });
+                } else if (g === 'samba') {
+                    for (let k = 0; k < 16; k++) {
+                        const p = k * 0.25;
+                        if (p >= fillFrom) break;
+                        const r4 = k % 4;
+                        if (r4 % 2 === 1 && rng() < 0.08) continue;
+                        add(p, 'hat', (r4 === 0 ? 0.46 : (r4 === 2 ? 0.34 : 0.2)) + jit() * 0.6);
+                    }
+                    [[0, 0.5], [1, 0.85], [2, 0.5], [3, 0.85]].forEach(([p, v]) => { if (p < fillFrom) add(p, 'kick', v + (rng() - 0.5) * 0.08); });
+                    const tam = claveA ? [0.75, 1.5, 2.25, 3] : [0, 0.75, 1.25, 2, 2.75, 3.5];
+                    tam.forEach(p => { if (p < fillFrom && rng() < 0.9) add(p, 'rim', 0.36 + (rng() - 0.5) * 0.08); });
+                } else {
+                    for (let k = 0; k < 8; k++) {
+                        const p = k * 0.5;
+                        if (p >= fillFrom) break;
+                        const open = p === 3.5 && rng() < 0.2;
+                        add(p, open ? 'ohat' : 'hat', (k % 2 === 0 ? 0.4 : 0.26) + jit());
+                    }
+                    clave(0.52);
+                    const ks = kicksOnBass([0], 3, 0.0, 0.0);
+                    ks.forEach(p => add(p, 'kick', 0.5));
+                    if (3 < fillFrom) add(3, 'kick', 0.68);
+                    if (3.5 < fillFrom && bass.some(b => b.tok === 'N') && rng() < 0.7) add(3.5, 'kick', 0.58);
+                    [[1, 'tom3', 0.28], [1.5, 'tom2', 0.36], [3, 'tom3', 0.28]].forEach(([p, dr, v]) => { if (p < fillFrom && rng() < 0.85) add(p, dr, v); });
+                }
+
+                if (doFill) {
+                    const fills = {
+                        0: [[3, 'rim', 0.5], [3.5, 'tom2', 0.6], [3.75, 'tom3', 0.7]],
+                        1: [[3, 'snare', 0.4], [3.25, 'snare', 0.46], [3.5, 'snare', 0.58], [3.75, 'snare', 0.74]],
+                        2: [[2.5, 'tom1', 0.5], [3, 'tom2', 0.6], [3.5, 'tom3', 0.7], [3.75, 'tom3', 0.62]]
+                    };
+                    (fills[kind] || []).forEach(([p, dr, v]) => add(p, dr, v));
+                }
+                return d;
+            }
+
+            // Jeu d'une frappe de guitare : notes de l'accord « grattées » (coup descendant du grave à l'aigu, coup
+            // montant de l'aigu au grave), voix extrêmes un peu en avant. Sans guitare chargée, le piano prend le relais.
+            playGuitarHit(e, time, beatSec) {
+                const inst = this.guitarInstrument;
+                if (!inst || !this.app.audioCtx) { this.playPianoHit(e, time, beatSec); return; }
+                const ctx = this.app.audioCtx;
+                const vel = e.vel * (0.94 + Math.random() * 0.12);
+                // Le volume est réglé par le bus (bandGains.piano) : pas de second facteur de volume ici.
+                const gain = Math.min(1.2, 0.34 + 0.85 * vel);
+                const dur = Math.max(0.1, e.dur * beatSec);
+                const roll = e.roll !== undefined ? e.roll : 0.012;
+                const n = e.intervals.length;
+                const off = this._jamTransOffset();
+                const release = 0.18 + 0.2 * Math.min(1, dur);
+                e.intervals.forEach((interval, idx) => {
+                    const order = e.dir < 0 ? (n - 1 - idx) : idx;
+                    const noteStr = this.getJamAudioNoteName(e.rootIndex, interval, PLAY_BASE_OCTAVE);
+                    try {
+                        const when = Math.max(ctx.currentTime, time + order * roll);
+                        // les notes aiguës des cordes fines sont plus fines et plus douces : on les adoucit progressivement
+                        const tilt = 1 - 0.022 * Math.min(14, Math.max(0, interval + off - 7));
+                        const g = (e.noteVels ? Math.min(1.25, gain * e.noteVels[idx]) : gain) * tilt;
+                        const node = inst.play(noteStr, when, { duration: dur, gain: g, attack: 0.004, release });
+                        this.bandAudioNodes.push(node);
+                    } catch (err) {}
+                });
+            }
+
+            // ===================== Style CLASSIQUE (arpèges au piano) =====================
+            // Écriture volontairement simple, uniquement avec les notes de l'accord (celles de l'affichage en jam : 4 notes) :
+            // chaque phrase de 4 mesures choisit une « famille » (arpège en croches, en noires, rythmes variés, basse tenue +
+            // voix aiguës, accord plaqué + arpège) selon l'énergie de la phrase et le tempo. La mesure 1 pose le motif, la 2
+            // le reprend ou en propose un cousin, la 3 le varie légèrement, la dernière le « referme » (moins de notes, note
+            // aiguë tenue ou accord doux). Les notes résonnent comme avec la pédale jusqu'au changement d'accord ; les accents
+            // tombent sur les temps, la voix aiguë chante un peu plus. Un accord sur basse fait entendre sa basse, en dessous.
+
+            // Notes de l'accord (hauteurs écrites croissantes), dans un registre médium stable quel que soit l'accord.
+            _clsVoicing(cs, off) {
+                const notes = this.getJamChordPlaybackNotes(this.findChordObj(cs.chordId));
+                let base = cs.rootIndex;
+                while (base + off > 6) base -= 12;
+                while (base + off < -5) base += 12;
+                return notes.map(iv => base + iv);
+            }
+
+            // Note grave sous l'arpège : la basse de l'accord (basse choisie ou fondamentale), à l'octave inférieure.
+            _clsLowNote(cs, off) {
+                let b = this._bassPc(cs);
+                while (b + off > -6) b -= 12;
+                while (b + off < -17) b += 12;
+                return b;
+            }
+
+            // Petite variation d'un motif en croches : deux notes voisines échangées, un silence, ou une voix décalée d'un rang.
+            _clsMutate(slots, rng) {
+                const o = slots.slice();
+                const r = rng();
+                if (r < 0.4) {
+                    const k = 1 + Math.floor(rng() * 6);
+                    const t = o[k]; o[k] = o[k + 1]; o[k + 1] = t;
+                } else if (r < 0.7) {
+                    o[[3, 5, 7][Math.floor(rng() * 3)]] = null;
+                } else {
+                    const k = 1 + Math.floor(rng() * 7);
+                    if (o[k] !== null) o[k] = Math.max(0, Math.min(3, o[k] + (rng() < 0.5 ? -1 : 1)));
+                }
+                return o;
+            }
+
+            classicPhraseExtras(rng, prev, index) {
+                const pl = (prev && prev.style === 'classic') ? prev : null;
+                const prevI = (pl && typeof pl.intensity === 'number') ? pl.intensity : 0.5;
+                let I = index === 0 ? 0.35 + rng() * 0.2 : prevI + (0.55 - prevI) * 0.25 + (rng() - 0.5) * 0.45;
+                I = Math.max(0.25, Math.min(0.9, I));
+                const pickW = (opts) => {
+                    const tot = opts.reduce((a, o) => a + o[1], 0);
+                    let r = rng() * tot;
+                    for (const o of opts) { r -= o[1]; if (r <= 0) return o[0]; }
+                    return opts[opts.length - 1][0];
+                };
+                const fast = this.bpm > 165; // trop vite pour des croches continues
+                let family;
+                if (pl && pl.family && rng() < 0.45 && !(fast && (pl.family === 'roll' || pl.family === 'bassup'))) family = pl.family;
+                else if (fast) family = pickW([['quarter', 3], ['blockarp', 2], ['mixed', 2]]);
+                else if (I < 0.45) family = pickW([['quarter', 3], ['blockarp', 2], ['mixed', 1.5], ['roll', 1]]);
+                else if (I < 0.7) family = pickW([['roll', 3], ['mixed', 2], ['bassup', 2], ['quarter', 1], ['blockarp', 1]]);
+                else family = pickW([['roll', 3], ['bassup', 3], ['mixed', 1]]);
+                const idx = (n) => Math.floor(rng() * n);
+                return {
+                    intensity: I, family,
+                    eightIdx: idx(CLS_EIGHTS.length), eightAlt: idx(CLS_EIGHTS.length),
+                    quarterIdx: idx(CLS_QUARTERS.length), quarterAlt: idx(CLS_QUARTERS.length),
+                    mixedIdx: idx(CLS_MIXED.length), mixedAlt: idx(CLS_MIXED.length),
+                    upperIdx: idx(CLS_UPPER.length), upperAlt: idx(CLS_UPPER.length),
+                    bassLow: rng() < 0.45,       // une basse grave sous le motif
+                    blockOnOne: rng() < 0.35,    // accord doux sur le premier temps
+                    ending: idx(2),
+                    endingOn: rng() < 0.75
+                };
+            }
+
+            buildClassicPlan(step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
+                const rng = ph.rng;
+                const I = ph.intensity;
+                const fam = ph.family;
+                const off = this._jamTransOffset();
+                const fast = this.bpm > 165;
+                const prog = L > 1 ? i / (L - 1) : 0;
+                const gv = (0.7 + 0.32 * I) * (0.94 + 0.06 * prog);
+                const segs = halves
+                    ? [{ s: 0, e: 2, cs: halves[0] }, { s: 2, e: 4, cs: halves[1] }]
+                    : [{ s: 0, e: 4, cs: step }];
+                const sameChord = (a, b) => !!a && !!b && a.rootIndex === b.rootIndex && a.chordId === b.chordId
+                    && (Number.isInteger(a.bassRootIndex) ? a.bassRootIndex : -1) === (Number.isInteger(b.bassRootIndex) ? b.bassRootIndex : -1);
+                const lastSeg = segs[segs.length - 1];
+                const holdOn = !(isLastMeasureOfStep && nextStep && !sameChord(lastSeg.cs, nextStep)) && !!nextStep; // même accord ensuite : ça résonne
+                const ev = [];
+                const clamp = (v) => Math.max(0.12, Math.min(1, v));
+
+                segs.forEach((sg, si) => {
+                    const len = sg.e - sg.s;
+                    const V = this._clsVoicing(sg.cs, off);
+                    const n = V.length;
+                    if (!n) return;
+                    const note = (k) => k < n ? V[k] : V[k - n] + 12;
+                    const low = this._clsLowNote(sg.cs, off);
+                    const slash = Number.isInteger(sg.cs.bassRootIndex);
+                    const lastOne = si === segs.length - 1;
+                    const endPos = sg.e + ((lastOne && holdOn) ? 1.2 : 0.05); // fin de résonance
+                    const ring = (pos, max) => Math.max(0.2, Math.min(endPos - pos, max));
+                    const rel = (pos) => sg.s + pos;
+                    const push = (pos, max, notes, vel, roll) => {
+                        const sorted = notes.slice().sort((a, b) => a - b).filter((x, k, arr) => k === 0 || x !== arr[k - 1]);
+                        const c = sorted.length;
+                        ev.push({
+                            pos, dur: ring(pos, max), vel: clamp(vel * gv),
+                            rootIndex: 0, intervals: sorted,
+                            noteVels: sorted.map((_, k) => c === 1 ? 1 : (k === c - 1 ? 1 : (k === 0 ? 0.9 : 0.84))),
+                            roll: c > 1 ? (roll !== undefined ? roll : 0.012 + rng() * 0.012) : 0,
+                            lay: rng() * 0.008, wide: true, gainMul: 1.7 // piano seul : pas de basse ni de batterie, on compense le niveau
+                        });
+                    };
+                    const eightVel = (k, v) => (k === 0 ? 0.76 : (k % 4 === 0 ? 0.62 : (k % 2 === 0 ? 0.55 : 0.47))) + (v === n - 1 ? 0.05 : 0);
+                    const quarterVel = [0.76, 0.54, 0.64, 0.54];
+
+                    // ---------- demi-mesure (deux accords dans la mesure) ----------
+                    if (len < 4) {
+                        if (slash || (fam === 'bassup') || ph.bassLow) push(rel(0), 1.9, [low], 0.62);
+                        if (fam === 'blockarp') {
+                            push(rel(0), 1.5, V, 0.62);
+                            if (!fast) push(rel(1.5), 1, [note(n - 1)], 0.5);
+                        } else if (fam === 'quarter' || fast) {
+                            push(rel(0), 2, [note(0)], 0.74);
+                            push(rel(1), 1.4, [note(2)], 0.55);
+                        } else if (fam === 'mixed') {
+                            push(rel(0), 2, [note(0)], 0.74);
+                            push(rel(1), 1.4, [note(1)], 0.55);
+                            push(rel(1.5), 1.2, [note(2)], 0.5);
+                        } else {
+                            CLS_EIGHTS[ph.eightIdx].slice(0, 4).forEach((v, k) => {
+                                if (v === null) return;
+                                push(rel(k * 0.5), 2, [note(v)], eightVel(k, v));
+                            });
+                        }
+                        return;
+                    }
+
+                    // ---------- mesure entière ----------
+                    // Basse sous le motif (toujours pour un accord sur basse)
+                    const bassFam = fam === 'bassup';
+                    if (slash || bassFam || (ph.bassLow && fam !== 'blockarp')) {
+                        push(rel(0), bassFam || slash ? 2 : 2.4, [low], bassFam ? 0.68 : 0.6);
+                        if (bassFam && (i % 2 === 1 || rng() < 0.4)) push(rel(2), 1.9, [low], 0.5);
+                    }
+
+                    const items = []; // { pos, v | block, vel, max }
+                    if (fam === 'roll') {
+                        const base = CLS_EIGHTS[ph.eightIdx], alt = CLS_EIGHTS[ph.eightAlt];
+                        let slots;
+                        if (i === 0) slots = base;
+                        else if (i === 1) slots = rng() < 0.5 ? base : alt;
+                        else slots = this._clsMutate(rng() < 0.5 ? alt : base, rng);
+                        slots.forEach((v, k) => { if (v !== null) items.push({ pos: k * 0.5, v, vel: eightVel(k, v), max: 2.1 }); });
+                    } else if (fam === 'quarter') {
+                        const pat = CLS_QUARTERS[(i === 1 && rng() < 0.5) || i === 2 ? ph.quarterAlt : ph.quarterIdx];
+                        pat.forEach((v, k) => items.push({ pos: k, v, vel: quarterVel[k], max: 2.2 }));
+                    } else if (fam === 'mixed') {
+                        const pat = CLS_MIXED[(i === 1 && rng() < 0.5) || i === 2 ? ph.mixedAlt : ph.mixedIdx];
+                        pat.forEach(([pos, v]) => items.push({ pos, v, vel: pos === 0 ? 0.76 : (Number.isInteger(pos) ? 0.6 : 0.5), max: 2.0 }));
+                    } else if (fam === 'bassup') {
+                        const up = CLS_UPPER[i === 2 ? ph.upperAlt : ph.upperIdx];
+                        up.forEach((v, k) => items.push({ pos: 0.5 + k * 0.5, v, vel: (k % 2 === 1 ? 0.55 : 0.47) + (v === 3 ? 0.04 : 0), max: 1.9 }));
+                    } else { // blockarp : accord doux sur le 1, puis arpège sur les temps 3-4
+                        items.push({ pos: 0, block: true, vel: 0.62, max: 1.9 });
+                        const tail = i % 2 === 0 ? [1, 2, 3, 2] : [0, 2, 3, 2];
+                        tail.forEach((v, k) => items.push({ pos: 2 + k * 0.5, v, vel: k === 0 ? 0.56 : 0.5, max: 1.7 }));
+                        if (!fast && rng() < 0.4) { // sur le 3, un second accord très doux à la place de la première note de l'arpège
+                            const k = items.findIndex(it => it.pos === 2 && !it.block);
+                            if (k >= 0) items.splice(k, 1);
+                            items.push({ pos: 2, block: true, vel: 0.42, max: 1.9 });
+                        }
+                    }
+
+                    // Accord doux sur le premier temps (une phrase sur trois environ), à la place de la première note
+                    if (ph.blockOnOne && fam !== 'blockarp' && fam !== 'bassup' && i % 2 === 0) {
+                        const first = items.find(it => it.pos === 0);
+                        if (first) { first.block = true; first.vel = 0.62; first.max = 2.2; }
+                    }
+
+                    // Dernière mesure de la phrase : le motif se « referme »
+                    if (isTurn && L > 1 && ph.endingOn) {
+                        const keep = items.filter(it => it.pos < 2 || (it.pos < 3 && Number.isInteger(it.pos)));
+                        items.length = 0;
+                        keep.forEach(it => items.push(it));
+                        if (ph.ending === 0) items.push({ pos: 3, v: n - 1, vel: 0.62, max: 2.6 });  // note aiguë tenue
+                        else items.push({ pos: 3, block: true, vel: 0.5, max: 2.4 });                  // accord doux
+                    }
+
+                    items.forEach(it => {
+                        if (it.block) push(rel(it.pos), it.max, V, it.vel);
+                        else push(rel(it.pos), it.max, [note(it.v)], it.vel);
+                    });
+                });
+
+                ev.sort((a, b) => a.pos - b.pos);
+                return { piano: ev, bass: [], drums: [] };
+            }
+
             playBandBeat(step, beatInMeasure) {
                 if (!this.app.audioCtx) return;
                 this.ensureBandAudio();
@@ -2971,10 +4338,10 @@
 
                 const inBeat = (e) => e.pos >= beatInMeasure - 1e-6 && e.pos < beatInMeasure + 1 - 1e-6;
                 // Léger jitter d'humanisation (±6 ms), jamais dans le passé
-                const at = (e) => Math.max(now, now + (e.pos - beatInMeasure) * beatSec + (Math.random() - 0.5) * 0.012);
+                const at = (e) => Math.max(now, now + (e.pos - beatInMeasure) * beatSec + (e.lay || 0) + (Math.random() - 0.5) * 0.012);
                 plan.drums.filter(inBeat).forEach(e => this.playBandDrum(e, at(e)));
-                plan.bass.filter(inBeat).forEach(e => this.playBassAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12)));
-                plan.piano.filter(inBeat).forEach(e => this.playPianoHit(e, at(e), beatSec));
+                plan.bass.filter(inBeat).forEach(e => this.playBassAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), !!e.wide));
+                plan.piano.filter(inBeat).forEach(e => plan.guitar ? this.playGuitarHit(e, at(e), beatSec) : this.playPianoHit(e, at(e), beatSec));
             }
 
 
@@ -3630,13 +4997,17 @@
 
             // Vrai si les deux moitiés sonnent différemment (sinon la mesure est jouée comme une mesure normale).
             isSplitEffective(step) {
-                return this.isSplit(step) && !(step.split.rootIndex === step.rootIndex && step.split.chordId === step.chordId);
+                const bs = (o) => Number.isInteger(o.bassRootIndex) ? o.bassRootIndex : -1;
+                return this.isSplit(step) && !(step.split.rootIndex === step.rootIndex && step.split.chordId === step.chordId && bs(step.split) === bs(step));
             }
 
             getStepHalves(step) {
                 const first = { rootIndex: step.rootIndex, chordId: step.chordId, scaleId: step.scaleId };
+                if (Number.isInteger(step.bassRootIndex)) first.bassRootIndex = step.bassRootIndex;
                 if (!this.isSplit(step)) return [first];
-                return [first, { rootIndex: step.split.rootIndex, chordId: step.split.chordId, scaleId: step.split.scaleId }];
+                const second = { rootIndex: step.split.rootIndex, chordId: step.split.chordId, scaleId: step.split.scaleId };
+                if (Number.isInteger(step.split.bassRootIndex)) second.bassRootIndex = step.split.bassRootIndex;
+                return [first, second];
             }
 
             // 0 = temps 1-2, 1 = temps 3-4 (d'après le temps courant)
@@ -3679,7 +5050,7 @@
                             chordId: step.chordId,
                             scaleId: step.scaleId,
                             bassRootIndex: Number.isInteger(step.bassRootIndex) ? step.bassRootIndex : null,
-                            split: this.isSplit(step) ? { rootIndex: step.split.rootIndex, chordId: step.split.chordId, scaleId: step.split.scaleId, fnLabel: step.split.fnLabel || null } : null,
+                            split: this.isSplit(step) ? { rootIndex: step.split.rootIndex, chordId: step.split.chordId, scaleId: step.split.scaleId, bassRootIndex: Number.isInteger(step.split.bassRootIndex) ? step.split.bassRootIndex : null, fnLabel: step.split.fnLabel || null } : null,
                             harmonicFunction: step.harmonicFunction || null,
                             fnLabel: step.fnLabel || null
                         });
@@ -4388,7 +5759,7 @@
                 dis('jam-eb-dup', !range);
                 dis('jam-eb-del', !range);
                 dis('jam-eb-paste', clip.length === 0);
-                ['jam-eb-rs', 'jam-eb-re', 'jam-eb-v1', 'jam-eb-v2', 'jam-eb-rclr'].forEach(id => dis(id, !range));
+                ['jam-eb-rs', 'jam-eb-re', 'jam-eb-v1', 'jam-eb-v2', 'jam-eb-rclr', 'jam-eb-tr'].forEach(id => dis(id, !range));
                 const paste = document.getElementById('jam-eb-paste');
                 if (paste) paste.textContent = clip.length ? `Coller (${clip.length})` : 'Coller';
                 const modeBtn = document.getElementById('jam-sel-mode-btn');
@@ -4411,6 +5782,7 @@
                     if (m.harmonicFunction) it.harmonicFunction = m.harmonicFunction;
                     if (m.split) it.split = { rootIndex: m.split.rootIndex, chordId: m.split.chordId, scaleId: m.split.scaleId };
                     if (m.split && m.split.fnLabel) it.split.fnLabel = m.split.fnLabel;
+                    if (m.split && Number.isInteger(m.split.bassRootIndex)) it.split.bassRootIndex = m.split.bassRootIndex;
                     return it;
                 });
             }
@@ -4536,6 +5908,68 @@
                 const items = this._measureItems(r.from, r.to);
                 this._insertItemsAfter(r.to, items);
                 this._flash(`${items.length} mesure${items.length > 1 ? 's' : ''} dupliquée${items.length > 1 ? 's' : ''}`);
+            }
+
+            // ===== Transposition des mesures sélectionnées =====
+            toggleTransposeDir() {
+                this._trDir = this._trDir === -1 ? 1 : -1;
+                const b = document.getElementById('jam-eb-tr-dir');
+                if (b) b.textContent = this._trDir === -1 ? '↓' : '↑';
+            }
+
+            // Coupe le bloc qui contient la mesure n juste avant elle (n devient la première mesure d'un bloc).
+            _splitBeforeMeasure(n) {
+                const m = this.getFlatMeasureList().find(x => x.measureNumber === n);
+                if (!m || m.measureInStep === 1) return;
+                const st = this.grid[m.stepIndex];
+                const base = JSON.parse(JSON.stringify(st));
+                delete base.split;
+                const before = m.measureInStep - 1;
+                const parts = [{ ...base, measures: before }, { ...base, measures: st.measures - before }];
+                parts.forEach(pt => { delete pt.repeatStart; delete pt.repeatEnd; });
+                if (st.repeatStart) parts[0].repeatStart = true;
+                if (st.repeatEnd) parts[1].repeatEnd = st.repeatEnd;
+                this.grid.splice(m.stepIndex, 1, ...parts);
+            }
+
+            // Transpose les mesures de la sélection (ou la mesure cliquée / active) de l'intervalle choisi, vers l'aigu
+            // ou vers le grave : fondamentales, second accord d'une mesure divisée et basse d'un accord sur basse.
+            // Les fonctions tonales choisies à la main sont retirées (elles étaient relatives à l'ancienne position).
+            gridTranspose() {
+                if (this.isPlaying) return;
+                const r = this._actionRange();
+                if (!r) { this._flash('Rien à transposer : sélectionnez des mesures'); return; }
+                const sel = document.getElementById('jam-eb-tr-int');
+                const n = parseInt(sel && sel.value, 10);
+                if (!(n >= 1 && n <= 11)) return;
+                const down = this._trDir === -1;
+                const delta = (((down ? -n : n) % 12) + 12) % 12;
+                const shift = (o) => {
+                    if (Number.isInteger(o.rootIndex)) o.rootIndex = (o.rootIndex + delta) % 12;
+                    if (Number.isInteger(o.bassRootIndex)) o.bassRootIndex = (o.bassRootIndex + delta) % 12;
+                    delete o.fnLabel;
+                };
+                this.withUndo(() => {
+                    // On ne coupe un bloc que là où la plage commence ou se termine en son milieu : les blocs
+                    // entièrement transposés gardent leur nombre de mesures, leurs reprises et leurs fins.
+                    this._splitBeforeMeasure(r.to + 1);
+                    this._splitBeforeMeasure(r.from);
+                    const flat = this.getFlatMeasureList();
+                    const i0 = flat[r.from - 1].stepIndex, i1 = flat[r.to - 1].stepIndex;
+                    for (let k = i0; k <= i1; k++) {
+                        const st = this.grid[k];
+                        shift(st);
+                        delete st.harmonicFunction;
+                        if (st.split) shift(st.split);
+                    }
+                    this._mergeAround(i0 - 1, i1 + 1);
+                });
+                this._selAnchor = r.from;
+                this._selectMeasureView(r.from);
+                this.renderGridUI();
+                const names = ['', 'seconde mineure', 'seconde majeure', 'tierce mineure', 'tierce majeure', 'quarte juste', 'triton', 'quinte juste', 'sixte mineure', 'sixte majeure', 'septième mineure', 'septième majeure'];
+                const cnt = r.to - r.from + 1;
+                this._flash(`${cnt} mesure${cnt > 1 ? 's' : ''} transposée${cnt > 1 ? 's' : ''} : ${names[n]} ${down ? '↓' : '↑'}`);
             }
 
             gridSelectAll() {
@@ -4725,6 +6159,7 @@
                     case 'root': this._editorApply({ rootIndex: parseInt(v, 10) }); break;
                     case 'chord': this._editorApply({ chordId: v }); break;
                     case 'scale': this._editorApply({ scaleId: v }); break;
+                    case 'bass': this._editorSetBass(v); break;
                     case 'dur': this._editorDuration(v); break;
                     case 'half': ed.half = parseInt(v, 10); this._editorSelect(); break;
                     case 'del': this._editorDelete(); break;
@@ -4751,16 +6186,15 @@
                     const useSplit = ed.half === 1 && this.isSplit(step);
                     const target = useSplit ? step.split : step;
                     const chordChanged = 'chordId' in patch || 'rootIndex' in patch;
+                    const rootMoved = 'rootIndex' in patch && patch.rootIndex !== target.rootIndex;
                     Object.assign(target, patch);
+                    if (rootMoved) delete target.bassRootIndex;
                     if ('chordId' in patch && !('scaleId' in patch)) {
                         const co = this.findChordObj(target.chordId);
                         if (co && co.scales.length) target.scaleId = co.scales[0].id;
                     }
                     if (chordChanged) delete target.fnLabel;
-                    if (chordChanged && !useSplit) {
-                        delete step.bassRootIndex;
-                        delete step.harmonicFunction;
-                    }
+                    if (chordChanged && !useSplit) delete step.harmonicFunction;
                 });
                 this._editorSelect();
                 // Retour sonore : on entend l'accord choisi
@@ -4768,6 +6202,40 @@
                 if (m) {
                     const c = (ed.half === 1 && m.split) ? m.split : m;
                     try { this.app.playJamChord(c.rootIndex, c.chordId); } catch (e) {}
+                }
+            }
+
+            // Choisit la note de basse de l'accord édité (sur le premier ou le second accord d'une mesure divisée).
+            // Choisir la fondamentale de l'accord revient à retirer l'accord sur basse.
+            _editorSetBass(v) {
+                const ed = this._editor;
+                if (!ed) return;
+                ed.touched = true;
+                const pc = parseInt(v, 10);
+                this.withUndo(() => {
+                    const idx = this._isolateMeasure(ed.measureNumber);
+                    if (idx < 0) return;
+                    const step = this.grid[idx];
+                    const target = (ed.half === 1 && this.isSplit(step)) ? step.split : step;
+                    const rootPc = (target.rootIndex + (this.findChordObj(target.chordId).notes[0] || 0)) % 12;
+                    if (!(pc >= 0 && pc <= 11) || pc === rootPc) delete target.bassRootIndex;
+                    else target.bassRootIndex = pc;
+                });
+                this._editorSelect();
+                // Retour sonore : l'accord, puis la note de basse choisie
+                const m = this.getFlatMeasureList().find(x => x.measureNumber === ed.measureNumber);
+                if (m) {
+                    const c = (ed.half === 1 && m.split) ? m.split : m;
+                    try {
+                        this.app.playJamChord(c.rootIndex, c.chordId);
+                        if (this.app.pianoInstrument && this.app.audioCtx) {
+                            this.initGainNode();
+                            const bpc = Number.isInteger(c.bassRootIndex) ? c.bassRootIndex : (c.rootIndex + (this.findChordObj(c.chordId).notes[0] || 0)) % 12;
+                            const node = this.app.pianoInstrument.play(this.getJamAudioNoteName(bpc, 0, PLAY_BASE_OCTAVE - 1), this.app.audioCtx.currentTime,
+                                { duration: 2.2, gain: 1.1, destination: this.gainNode });
+                            this.app.activeAudioNodes.push(node);
+                        }
+                    } catch (e) {}
                 }
             }
 
@@ -4852,7 +6320,7 @@
                 if (ed.half === 1 && !isHalf) ed.half = 0;
                 const cur = (ed.half === 1 && isHalf) ? step.split : step;
                 const chordObj = this.findChordObj(cur.chordId);
-                const symbol = (c) => `${rootLabels[c.rootIndex]}${this.getJazzChordNotation(c.chordId)}`;
+                const symbol = (c) => `${rootLabels[c.rootIndex]}${this.getJazzChordNotation(c.chordId)}${Number.isInteger(c.bassRootIndex) ? '/' + rootLabels[c.bassRootIndex] : ''}`;
                 const chip = (on, attrs, inner, extra = '') => `<button type="button" class="jm-chip${extra}${on ? ' is-on' : ''}" ${attrs}>${inner}</button>`;
 
                 const degrees = this.getDiatonicDegrees().map((d, i) =>
@@ -4869,6 +6337,20 @@
                 const scales = (chordObj ? chordObj.scales : []).map(sc => {
                     const db = scalesDb[sc.id];
                     return chip(sc.id === cur.scaleId, `data-act="scale" data-v="${sc.id}" title="${sc.role || ''}"`, db ? db.name : sc.id, ' jm-scale');
+                }).join('');
+
+                // Basse : les 12 notes ; les notes de l'accord sont cerclées (avec leur rôle), la fondamentale est le choix par défaut
+                const plainChord = `${rootLabels[cur.rootIndex]}${this.getJazzChordNotation(cur.chordId)}`;
+                const chordPcs = (chordObj ? chordObj.notes : []).map(n => (cur.rootIndex + n) % 12);
+                const rootPc = (cur.rootIndex + ((chordObj && chordObj.notes[0]) || 0)) % 12;
+                const degName = ['R', '♭9', '9', '♭3', '3', '11', '♭5', '5', '♯5', '6', '♭7', '7'];
+                const curBass = Number.isInteger(cur.bassRootIndex) ? cur.bassRootIndex : rootPc;
+                const basses = rootLabels.map((r, pc) => {
+                    const ct = chordPcs.includes(pc);
+                    const sub = ct ? `<small>${degName[(pc - rootPc + 12) % 12]}</small>` : '';
+                    const tip = pc === rootPc ? `Fondamentale : pas d'accord sur basse`
+                        : (ct ? `${plainChord}/${r} : note de l'accord à la basse` : `${plainChord}/${r} : basse étrangère à l'accord`);
+                    return chip(pc === curBass, `data-act="bass" data-v="${pc}" title="${tip}"`, `${r}${sub}`, ct ? ' jm-ct' : '');
                 }).join('');
 
                 const rpStart = !!step.repeatStart && m.measureInStep === 1;
@@ -4901,6 +6383,7 @@
                     <div class="jm-sec"><div class="jm-sec-t">Fondamentale</div><div class="jm-row">${roots}</div></div>
                     <div class="jm-sec"><div class="jm-sec-t">Accord</div><div class="jm-row">${chords}</div>
                         <select class="jm-select" data-act="chordsel"><option value="">Autres accords…</option>${options}</select></div>
+                    <div class="jm-sec"><div class="jm-sec-t">Basse</div><div class="jm-row">${basses}</div></div>
                     <div class="jm-sec"><div class="jm-sec-t">Gamme</div><div class="jm-row">${scales}</div></div>
                     <div class="jm-sec"><div class="jm-sec-t">Reprises</div><div class="jm-row">${marks}</div></div>
                     <div class="jm-foot">
@@ -5735,7 +7218,7 @@
                 }
                 this.initGainNode();
                 this._warmUpAudio();
-                if (this.orchestrationMode === 'orchestra') this.ensureBandAudio();
+                this.ensureBandAudio();
 
                 this._clockClear(this.timer);
                 this._runId = (this._runId || 0) + 1; // invalide toute chaîne de temps précédente
@@ -5752,6 +7235,11 @@
                 this._bandPhrase = null;
                 this._bandPlan = null;
                 this._bandLastFill = false;
+                this._popVoice = null;
+                this._popRunAt = -9;
+                this._latVoice = null;
+                this._latRunAt = -9;
+                this._latTie = false;
                 this._countInBeats = 4; // l'intro d'une mesure est toujours jouée
                 document.getElementById('view-jam')?.classList.add('jam-playing');
 
@@ -5965,18 +7453,7 @@
                 this._beatAudioTime = t;
                 try {
                     // Mesure à deux accords : les temps 1-2 et 3-4 ont chacun leur accord
-                    const halves = this.isSplitEffective(step) ? this.getStepHalves(step) : null;
-                    if (beat % 4 === 0) {
-                        if (this.orchestrationMode !== 'orchestra') {
-                            if (halves) this.playStepArpeggio(halves[0], 2);
-                            else this.playStepArpeggio(step, 4);
-                        }
-                    } else if (this.isSplit(step) && beat % 4 === 2) {
-                        if (halves && this.orchestrationMode !== 'orchestra') this.playStepArpeggio(halves[1], 2);
-                    }
-                    if (this.orchestrationMode === 'orchestra') {
-                        this.playBandBeat(step, beat % 4);
-                    }
+                    this.playBandBeat(step, beat % 4);
                 } catch (e) {
                     console.error('Jam audio', e);
                 } finally {
@@ -6054,44 +7531,6 @@
             }
 
             // spanBeats : durée occupée par l'accord (4 = mesure entière, 2 = moitié de mesure).
-            playStepArpeggio(step, spanBeats = 4) {
-                if (!this.app.pianoInstrument || !this.app.audioCtx) return;
-                this.initGainNode();
-
-                const chordObj = this.findChordObj(step.chordId);
-                // En jam, on joue toujours exactement 4 notes (les plus significatives),
-                // pour une durée de lecture constante quel que soit l'accord.
-                const playedNotes = this.getJamChordPlaybackNotes(chordObj);
-                const now = this._audioNow();
-                const beatSec = 60 / this.bpm;
-                const spacing = beatSec * spanBeats / 4;
-                const sustain = spanBeats >= 4 ? 2.2 : Math.min(2.2, beatSec * spanBeats * 1.1);
-
-                playedNotes.forEach((interval) => {
-                    const noteStr = this.getJamAudioNoteName(step.rootIndex, interval, PLAY_BASE_OCTAVE);
-                    try {
-                        const node = this.app.pianoInstrument.play(
-                            noteStr, 
-                            now, 
-                            { duration: sustain, destination: this.gainNode }
-                        );
-                        this.app.activeAudioNodes.push(node);
-                    } catch(e) {}
-                });
-
-                playedNotes.forEach((interval, idx) => {
-                    const noteStr = this.getJamAudioNoteName(step.rootIndex, interval, PLAY_BASE_OCTAVE);
-                    try {
-                        const node = this.app.pianoInstrument.play(
-                            noteStr, 
-                            now + (idx * spacing), 
-                            { duration: spacing * 1.5, destination: this.gainNode }
-                        );
-                        this.app.activeAudioNodes.push(node);
-                    } catch(e) {}
-                });
-            }
-
             // Accord actuellement affiché sous la grille : un clic sur son nom joue son arpège,
             // un clic sur l'une de ses notes joue cette note.
             playDisplayedChordArpeggio() {
@@ -7198,19 +8637,14 @@
     </script>
     <div id="jam-print-area"></div>
 
-    <!-- Popup Band : choix de l'orchestration de la jam (Arpèges / Orchestre) -->
-    <div id="band-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="if(event.target.id==='band-modal') app.jam.closeBandModal()">
-        <div class="bg-[#222222] border border-[#3a3a3c] rounded-xl shadow-2xl w-full max-w-sm p-4 space-y-4">
-            <div class="flex items-center justify-between">
-                <span class="text-sm font-bold text-white uppercase tracking-wider">Bande son de la jam</span>
-                <button onclick="app.jam.closeBandModal()" class="text-slate-400 hover:text-white p-1 rounded transition">
+    <!-- Pop-up « Orchestre » : style (Swing / Pop / Latin / Classique), tempo, réverbération, volumes, métronome -->
+    <div id="band-modal" class="hidden" role="dialog" aria-label="Orchestre">
+        <div class="bg-[#222222] border border-[#3a3a3c] rounded-xl w-full p-4 space-y-4">
+            <div id="band-modal-head" class="flex items-center justify-between jm-head" title="Glisser pour déplacer">
+                <span class="text-sm font-bold text-white uppercase tracking-wider">Orchestre</span>
+                <button onclick="app.jam.closeBandModal()" title="Fermer (Échap)" aria-label="Fermer" class="text-slate-400 hover:text-white p-1 rounded transition">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
-            </div>
-
-            <div class="flex bg-[#1a1a1a] p-1 rounded-lg text-xs font-medium border border-[#333333]">
-                <button id="band-mode-btn-arpeges" onclick="app.jam.setOrchestrationMode('arpeges')" class="flex-1 py-1.5 rounded-md transition">Arpèges</button>
-                <button id="band-mode-btn-orchestra" onclick="app.jam.setOrchestrationMode('orchestra')" class="flex-1 py-1.5 rounded-md transition">Orchestre</button>
             </div>
 
             <div id="band-orchestra-options" class="space-y-3">
@@ -7220,6 +8654,7 @@
                         <option value="swing">Swing</option>
                         <option value="pop">Pop</option>
                         <option value="latin">Latin</option>
+                        <option value="classic">Classique</option>
                     </select>
                 </div>
 
@@ -7237,7 +8672,7 @@
 
                 <div class="pt-1 space-y-2">
                     <div class="flex items-center gap-2">
-                        <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Piano</span>
+                        <span id="band-vol-piano-label" class="text-xs font-semibold text-slate-400 w-16 shrink-0">Piano</span>
                         <input type="range" id="band-vol-piano" min="0" max="100" value="50" oninput="app.jam.setBandVolume('piano', this.value)" class="w-full accent-emerald-500">
                     </div>
                     <div class="flex items-center gap-2">
