@@ -754,9 +754,9 @@
                                 <option value="12/8">12/8</option>
                             </select>
                         </div>
-                        <button onclick="app.jam.toggleBandModal()" title="Orchestre : style, tempo, volumes" aria-label="Orchestre" class="jr-full jr-center flex items-center gap-1.5 text-xs bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-2 px-2.5 rounded-lg transition shadow shrink-0">
+                        <button onclick="app.jam.toggleBandModal()" title="Orchestre : style et volumes" aria-label="Orchestre" class="jr-full jr-center flex items-center gap-1.5 text-xs bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-2 px-2.5 rounded-lg transition shadow shrink-0">
                             <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1014 17V7h4V3h-6z"/></svg>
-                            <span id="band-btn-label">Swing</span>
+                            <span id="band-btn-label">Orchestre Swing</span>
                         </button>
                     </div>
                 </div>
@@ -1932,6 +1932,17 @@
         };
         METER_LIB['6/8'] = METER_LIB['9/8'] = METER_LIB['12/8'] = TERN_LIB;
 
+        // --- Master de l'orchestre ---
+        // Le curseur va de 0 à 100 %. À MASTER_UNITY (50 %) le niveau est celui d'origine ; au-dessus, on gagne jusqu'à
+        // MASTER_MAX_DB décibels (+12 dB = gain ×4). Un limiteur doux (sans latence, donc sans décalage avec le métronome) suit le gain :
+        // il laisse passer tel quel tout ce qui est sous MASTER_KNEE puis arrondit les pointes sous 0 dBFS, sans écrêtage.
+        const MASTER_UNITY = 0.5;
+        const MASTER_MAX_DB = 12;
+        const MASTER_KNEE = 0.7;
+        const masterGainFor = (pos) => pos <= MASTER_UNITY
+            ? pos / MASTER_UNITY
+            : Math.pow(10, ((pos - MASTER_UNITY) / (1 - MASTER_UNITY)) * MASTER_MAX_DB / 20);
+
         // Clic de métronome mécanique : enregistrement réel (fichier fourni par l'utilisateur, 48 kHz), un seul clic coupé à
         // 120 ms avec un fondu final, converti en PCM 16 bits mono puis en base64 (15 Ko). `lead` = nombre d'échantillons de
         // silence avant l'attaque : on démarre la lecture un peu plus tôt pour que l'attaque tombe exactement sur le temps.
@@ -1967,6 +1978,8 @@
                 this.bandStyle = 'swing';
                 this.bandVolumes = { piano: 0.5, bass: 0.85, drums: 0.25 };
                 this.bandReverb = 0.25;
+                this.bandMaster = MASTER_UNITY; // position du curseur Master (0-1), hors sauvegardes / export / import ; le métronome a son propre volume
+                this.masterBus = null;
                 // Métronome (hors sauvegardes / export / import) : intro d'une mesure toujours jouée ; clic pendant la grille seulement si activé
                 this.metronomeEnabled = false;
                 this.metronomeSubdivision = false; // clic léger sur les croches, en plus des temps (réglage du métronome)
@@ -1993,6 +2006,7 @@
                 this.bandReverbInput = null;
                 this.bandReverbWet = null;
                 this.bassInstrument = null;
+                this.bandPianoInstrument = null; // piano de l'orchestre : instrument dédié, branché sur le bus bandGains.piano (donc sous le Master)
                 this.bandAudioNodes = [];
                 this._noiseBuffer = null;
                 this._bandMeasureCounter = 0;
@@ -2074,12 +2088,23 @@
                     if (Number.isInteger(step.bassRootIndex)) step.bassRootIndex = (step.bassRootIndex + delta) % 12;
                     if (step.modKey) step.modKey = { ...step.modKey, root: (step.modKey.root + delta) % 12 };
                     if (step.split && step.split.modKey) step.split.modKey = { ...step.split.modKey, root: (step.split.modKey.root + delta) % 12 };
+                    // Un libellé qui nomme une tonalité (« I de G », « i (Cm) ») suit la transposition.
+                    if (step.fnLabel) step.fnLabel = this._shiftLabelKeys(step.fnLabel, delta);
+                    if (step.split && step.split.fnLabel) step.split.fnLabel = this._shiftLabelKeys(step.split.fnLabel, delta);
                     if (step.split && Number.isInteger(step.split.rootIndex)) {
                         step.split.rootIndex = (step.split.rootIndex + delta) % 12;
                         if (Number.isInteger(step.split.bassRootIndex)) step.split.bassRootIndex = (step.split.bassRootIndex + delta) % 12;
                     }
                 });
                 this.renderGridUI();
+            }
+
+            // Décale les noms de tonalité d'un libellé de fonction (« V7 de Eb », « i (Cm) », « iiø de Gm ») de delta demi-tons.
+            _shiftLabelKeys(label, delta) {
+                return String(label).replace(/( de |\()([A-G][b#]?)(m?)/g, (all, pre, name, m) => {
+                    const i = rootLabels.indexOf(name);
+                    return i < 0 ? all : pre + rootLabels[(i + delta) % 12] + m;
+                });
             }
 
             setMainQuality(quality) { this._qualityAuto = false; this.withUndo(() => this._setMainQuality(quality)); }
@@ -2293,7 +2318,7 @@
             }
 
             // Paramètres de jam communs à la sauvegarde et à l'export :
-            // tonalité, qualité, BPM, orchestration (mode, style, volumes, reverb).
+            // tonalité, qualité, BPM, orchestration (mode, style, volumes, reverb). Le Master n'en fait pas partie (réglage de session).
             collectSettings() {
                 return {
                     key: this.mainKey,
@@ -2797,7 +2822,7 @@
                 // En mesure composée, le BPM compte les noires pointées
                 const unit = mt.ternary ? 'BPM ♩.' : 'BPM';
                 const tip = mt.ternary ? 'Tempo en pulsations (noires pointées) par minute' : 'Tempo en noires par minute';
-                ['jam-bpm-label', 'band-bpm-label'].forEach(id => {
+                ['jam-bpm-label'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) { el.textContent = unit; el.title = tip; }
                 });
@@ -2808,11 +2833,7 @@
                 this.bpm = parseInt(val, 10);
                 document.getElementById('jam-bpm-display').textContent = this.bpm;
                 const slider1 = document.getElementById('jam-bpm-slider');
-                const slider2 = document.getElementById('band-bpm-slider');
-                const display2 = document.getElementById('band-bpm-display');
                 if (slider1) slider1.value = this.bpm;
-                if (slider2) slider2.value = this.bpm;
-                if (display2) display2.textContent = this.bpm;
             }
 
             // --- Popup Band : choix de l'orchestration (Arpèges / Orchestre) ---
@@ -2894,9 +2915,9 @@
             updateBandModalUI() {
                 this.updateMetronomeUI();
                 this.updateBandInstrumentLabel();
-                // En « Classique » (piano seul) : la basse, la batterie et la réverbération de l'orchestre ne servent pas.
+                // En « Classique » (piano seul) : la basse et la batterie de l'orchestre ne servent pas.
                 const solo = this.bandStyle === 'classic';
-                ['band-vol-bass', 'band-vol-drums', 'band-reverb-slider'].forEach(id => {
+                ['band-vol-bass', 'band-vol-drums'].forEach(id => {
                     const el = document.getElementById(id);
                     if (!el) return;
                     el.disabled = solo;
@@ -2906,18 +2927,10 @@
                 const styleSelect = document.getElementById('band-style-select');
                 if (styleSelect) styleSelect.value = this.bandStyle;
 
-                const bpmSlider = document.getElementById('band-bpm-slider');
-                const bpmDisplay = document.getElementById('band-bpm-display');
-                if (bpmSlider) bpmSlider.value = this.bpm;
-                if (bpmDisplay) bpmDisplay.textContent = this.bpm;
-
                 document.getElementById('band-vol-piano').value = Math.round(this.bandVolumes.piano * 100);
                 document.getElementById('band-vol-bass').value = Math.round(this.bandVolumes.bass * 100);
                 document.getElementById('band-vol-drums').value = Math.round(this.bandVolumes.drums * 100);
-                const reverbSlider = document.getElementById('band-reverb-slider');
-                const reverbDisplay = document.getElementById('band-reverb-display');
-                if (reverbSlider) reverbSlider.value = Math.round(this.bandReverb * 100);
-                if (reverbDisplay) reverbDisplay.textContent = `${Math.round(this.bandReverb * 100)}%`;
+                this.setBandMaster(Math.round(this.bandMaster * 100));
             }
 
             // --- Métronome : mesure d'intro (4 clics) puis clic à chaque temps, synchrone avec le tick de la jam ---
@@ -2956,21 +2969,6 @@
                 if (subIcon) {
                     subIcon.classList.toggle('is-active', this.metronomeSubdivision);
                     subIcon.setAttribute('aria-pressed', String(this.metronomeSubdivision));
-                }
-                const btn = document.getElementById('band-metro-btn');
-                if (btn) {
-                    btn.textContent = this.metronomeEnabled ? 'Activé' : 'Désactivé';
-                    btn.className = this.metronomeEnabled
-                        ? 'flex-1 py-1.5 rounded-md transition text-xs font-medium bg-[#3a3a3c] text-white shadow-sm border border-[#4a4a4c]'
-                        : 'flex-1 py-1.5 rounded-md transition text-xs font-medium text-slate-400 hover:text-white bg-[#1a1a1a] border border-[#333333]';
-                }
-                const sub = document.getElementById('band-metro-sub-btn');
-                if (sub) {
-                    sub.textContent = this.metronomeSubdivision ? 'Activé' : 'Désactivé';
-                    sub.setAttribute('aria-pressed', String(this.metronomeSubdivision));
-                    sub.className = this.metronomeSubdivision
-                        ? 'flex-1 py-1.5 rounded-md transition text-xs font-medium bg-[#3a3a3c] text-white shadow-sm border border-[#4a4a4c]'
-                        : 'flex-1 py-1.5 rounded-md transition text-xs font-medium text-slate-400 hover:text-white bg-[#1a1a1a] border border-[#333333]';
                 }
                 const vol = document.getElementById('band-metro-vol');
                 if (vol) vol.value = Math.round(this.metronomeVolume * 100);
@@ -3065,18 +3063,53 @@
                 if (el) el.textContent = this.bandStyle === 'latin' ? 'Guitare' : 'Piano';
             }
 
-            // Le bouton affiche le style actif (Swing / Pop / Latin / Classique).
+            // Le bouton affiche « Orchestre » suivi du style actif (Swing / Pop / Latin / Classique).
             updateBandButtonLabel() {
                 const label = document.getElementById('band-btn-label');
                 if (!label) return;
                 const names = { swing: 'Swing', pop: 'Pop', latin: 'Latin', classic: 'Classique' };
-                label.textContent = names[this.bandStyle] || 'Swing';
+                label.textContent = 'Orchestre ' + (names[this.bandStyle] || 'Swing');
             }
 
             setBandVolume(instrument, val) {
                 const v = parseInt(val, 10) / 100;
                 this.bandVolumes[instrument] = v;
                 if (this.bandGains[instrument]) this.bandGains[instrument].gain.value = v;
+            }
+
+            // Volume général de l'orchestre (piano, basse, batterie, réverbération) : gain, puis limiteur doux, puis sortie.
+            // Le métronome a sa propre voie et son propre curseur : il ne passe pas ici.
+            _getMasterBus(ctx) {
+                if (this.masterBus) return this.masterBus;
+                const g = ctx.createGain();
+                g.gain.value = masterGainFor(this.bandMaster);
+                const span = 8;                               // la courbe couvre ±8 en amplitude (marge pour le gain max ×4)
+                const pre = ctx.createGain();
+                pre.gain.value = 1 / span;
+                const shaper = ctx.createWaveShaper();
+                const n = 4096, curve = new Float32Array(2 * n + 1);
+                const t = MASTER_KNEE;
+                for (let i = 0; i <= 2 * n; i++) {
+                    const x = span * (i / n - 1), ax = Math.abs(x);
+                    const y = ax <= t ? ax : t + (1 - t) * Math.tanh((ax - t) / (1 - t));
+                    curve[i] = x < 0 ? -y : y;
+                }
+                shaper.curve = curve;
+                shaper.oversample = 'none';                   // pas de suréchantillonnage : il ajouterait de la latence
+                g.connect(pre);
+                pre.connect(shaper);
+                shaper.connect(ctx.destination);
+                this.masterBus = g;
+                return g;
+            }
+
+            setBandMaster(val) {
+                this.bandMaster = Math.max(0, Math.min(1, parseInt(val, 10) / 100));
+                if (this.masterBus) this.masterBus.gain.value = masterGainFor(this.bandMaster);
+                const slider = document.getElementById('band-master-slider');
+                const display = document.getElementById('band-master-display');
+                if (slider) slider.value = Math.round(this.bandMaster * 100);
+                if (display) display.textContent = `${Math.round(this.bandMaster * 100)}%`;
             }
 
             setBandReverb(val) {
@@ -3118,7 +3151,7 @@
                     dry.connect(output);
                     convolver.connect(wet);
                     wet.connect(output);
-                    output.connect(ctx.destination);
+                    output.connect(this._getMasterBus(ctx));
                 }
 
                 const dest = this.bandReverbInput;
@@ -3137,9 +3170,25 @@
                     this.bandGains.drums.gain.value = this.bandVolumes.drums;
                     this.bandGains.drums.connect(dest);
                 }
+                this.loadBandPiano();
                 if (this.bandStyle !== 'classic' && !this.bassInstrument) this.loadBass();
                 if (this.bandStyle === 'pop') this.loadBassPop();
                 if (this.bandStyle === 'latin') this.loadGuitarLatin();
+            }
+
+            // Piano de l'orchestre. soundfont-player n'honore l'option « destination » qu'à la création de l'instrument (pas
+            // note par note) : le piano partagé de l'application sort donc directement vers la sortie audio et contourne le
+            // bus de l'orchestre (réverbération, Master). On charge donc une seconde instance, branchée dès sa création sur
+            // bandGains.piano, exactement comme la basse.
+            loadBandPiano() {
+                if (this.bandPianoInstrument || this._bandPianoLoading || !this.app.audioCtx || !this.bandGains.piano) return;
+                this._bandPianoLoading = true;
+                Soundfont.instrument(this.app.audioCtx, 'acoustic_grand_piano', {
+                    soundfont: 'FluidR3_GM',
+                    destination: this.bandGains.piano
+                })
+                    .then(instr => { this.bandPianoInstrument = instr; })
+                    .catch(() => { this._bandPianoLoading = false; });
             }
 
             loadBass() {
@@ -3731,23 +3780,24 @@
             }
 
             playPianoHit(e, time, beatSec) {
-                if (!this.app.pianoInstrument || !this.app.audioCtx) return;
+                // Piano de l'orchestre (branché sur le bus : volume du piano, réverbération et Master s'appliquent). Tant qu'il
+                // n'est pas chargé, le piano partagé prend le relais, avec volume et Master appliqués directement au gain.
+                const inst = this.bandPianoInstrument || this.app.pianoInstrument;
+                if (!inst || !this.app.audioCtx) return;
+                const viaBus = !!this.bandPianoInstrument;
                 const vel = e.vel * (0.94 + Math.random() * 0.12);
-                // soundfont-player n'honore l'option "destination" qu'à la création de
-                // l'instrument, pas par note : le curseur de volume du piano doit donc être
-                // appliqué directement au gain de la note plutôt qu'à un nœud de sortie.
                 // e.wide (style Pop) : dynamique élargie ; e.noteVels : poids de chaque voix (la voix aiguë chante) ;
                 // e.roll : délai (s) entre les notes d'un accord « roulé » du grave vers l'aigu.
                 const baseGain = e.wide ? Math.min(1.05, 0.28 + 0.8 * vel) : Math.min(1.05, 0.5 + 0.6 * vel);
-                const gain = baseGain * this.bandVolumes.piano * (e.gainMul || 1);
+                const gain = baseGain * (viaBus ? 1 : this.bandVolumes.piano * masterGainFor(this.bandMaster)) * (e.gainMul || 1);
                 const dur = Math.max(0.12, e.dur * beatSec);
                 const roll = e.roll !== undefined ? e.roll : 0.006;
                 e.intervals.forEach((interval, idx) => {
                     const noteStr = this.getJamAudioNoteName(e.rootIndex, interval, PLAY_BASE_OCTAVE);
                     try {
                         const when = Math.max(this.app.audioCtx.currentTime, time + idx * roll); // léger "roulé"
-                        const g = e.noteVels ? Math.min(1.05, gain * e.noteVels[idx]) : gain;
-                        const node = this.app.pianoInstrument.play(noteStr, when, { duration: dur, gain: g, destination: this.bandGains.piano || this.app.audioCtx.destination });
+                        const g = e.noteVels ? Math.min(viaBus ? 2.5 : 1.05, gain * e.noteVels[idx]) : gain;
+                        const node = inst.play(noteStr, when, viaBus ? { duration: dur, gain: g, destination: this.bandGains.piano } : { duration: dur, gain: g });
                         this.bandAudioNodes.push(node);
                     } catch (err) {}
                 });
@@ -6389,7 +6439,7 @@
                     Object.keys(c).forEach(key => { if (key[0] === '_') delete c[key]; });
                     if (c.split) c.split = { ...c.split };
                     const last = out[out.length - 1];
-                    const same = last && !last.split && !c.split && ['r', 'c', 's', 'function', 'section', 'phrase', 'bassRootIndex'].every(key => last[key] === c[key]);
+                    const same = last && !last.split && !c.split && ['r', 'c', 's', 'function', 'section', 'phrase', 'bassRootIndex', 'kc'].every(key => last[key] === c[key]);
                     if (same) last.m++; else out.push({ ...c, m: 1 });
                 });
                 return out;
@@ -7036,7 +7086,7 @@
 
             enforceChordRepeatLimits(items) {
                 if (!items.length) return items;
-                const same = (a,b) => a && b && !a.split && !b.split && a.r === b.r && a.c === b.c && a.section === b.section; // ni mesure à deux accords, ni changement de section
+                const same = (a,b) => a && b && !a.split && !b.split && a.r === b.r && a.c === b.c && a.section === b.section && a.kc === b.kc; // ni mesure à deux accords, ni changement de section
                 const out = [];
                 items.forEach(item => {
                     const prev = out[out.length - 1];
@@ -7174,6 +7224,20 @@
                 // Les copies jumelles : A2 reprend A (même contenu, étiquettes propres), B2 reprend B.
                 const withTwin = (A, secA, B, secB) => join(A, twinOf(A, secA), B, twinOf(B, secB));
 
+                // Ponts à 8 mesures des formes AABA jazz. Cellule : [décalage, accord, gamme, mesures, fonction, kc, phrase] ; kc = tonalité
+                // traversée (décalage de la tonique en demi-tons, 0 = tonalité d'origine) : elle sert à poser le marqueur de modulation « I de X ».
+                const JBR = [
+                    // 0. chaîne de dominantes (rhythm changes) : pas de modulation
+                    [[4,'7','mixolydian',2,'secondaryDominant',0,'B1'], [9,'7','mixolydian',2,'secondaryDominant',0,'B1'], [2,'7','mixolydian',2,'secondaryDominant',0,'B2'], [7,'7','mixolydian',2,'dominant',0,'B2']],
+                    // 1. pont à la sous-dominante : ii-V-I de IV, puis ii-V de IV ; vi de IV sert de pivot (c'est le ii de la tonalité d'origine)
+                    [[7,'m7','dorian',1,'predominant',5,'B1'], [0,'7','mixolydian',1,'dominant',5,'B1'], [5,'maj7','lydian',2,'tonic',5,'B1'],
+                     [7,'m7','dorian',1,'predominant',5,'B2'], [0,'7','mixolydian',1,'dominant',5,'B2'], [2,'m7','dorian',1,'predominant',0,'B2'], [7,'7','mixolydian',1,'dominant',0,'B2']],
+                    // 2. pont en bIII : ii-V-I de bIII, retour par le ii-V de la tonalité d'origine
+                    [[5,'m7','dorian',1,'predominant',3,'B1'], [10,'7','mixolydian',1,'dominant',3,'B1'], [3,'maj7','lydian',2,'tonic',3,'B1'],
+                     [2,'m7','dorian',2,'predominant',0,'B2'], [7,'7','mixolydian',2,'dominant',0,'B2']]
+                ];
+                const jbr = (spec, sec) => spec.map(([off, c, sc, m, fn, kc, ph]) => Object.assign(abs(off, c, m, sc, sec, ph, fn), { kc }));
+
                 switch (styleKey) {
                     // ============ 3/4 ============
                     case 'valsejazz': {
@@ -7185,9 +7249,11 @@
                             : join(absCell(pick(['T0','T1','T3','T4','T5']), sec, 'A1'), absCell(pick(['T1','T0','T3']), sec, 'A2'));
                         const A1 = makeA('A');
                         const A2 = A1.map(x => ({...x, section:'A2', phrase:x.phrase.replace('A','A2')}));
+                        // Pont : en mineur, soit une marche diatonique, soit une modulation au relatif majeur (bIII) ; en majeur, rhythm changes ou pont modulant
+                        const MB = [[['maj7',8,2],['D',10,2],['maj7',3,2],['hd',2,1],['alt',7,1]], [['maj7',8,2],['m7',5,2],['hd',2,2],['alt',7,2]]];
                         const B = minor
-                            ? cells(pick([[['maj7',8,2],['D',10,2],['maj7',3,2],['hd',2,1],['alt',7,1]], [['maj7',8,2],['m7',5,2],['hd',2,2],['alt',7,2]]]), 'B', 'B1')
-                            : [abs(4,'7',2,'mixolydian','B','B1','secondaryDominant'), abs(9,'7',2,'mixolydian','B','B1','secondaryDominant'), abs(2,'7',2,'mixolydian','B','B2','secondaryDominant'), abs(7,'7',2,'mixolydian','B','B2','dominant')];
+                            ? (() => { const spec = pick(MB); const it = cells(spec, 'B', 'B1'); if (spec === MB[0]) [3,3,3,0,0].forEach((k, ix) => { it[ix].kc = k; }); return it; })()
+                            : jbr(pick(JBR), 'B');
                         const A3src = (R && libOK && R() >= 0.7) ? makeA('A') : A1;
                         const A3 = A3src.map(x => ({...x, section:'A3', phrase:x.phrase.replace(/^A[12]?/,'A3')}));
                         template = join(A1, A2, B, A3);
@@ -7493,7 +7559,11 @@
                         const a1 = pick(PA);
                         const A1 = phraseOf(a1, 'A', 'A1', 'A2');
                         const A2 = A1.map(x => ({...x, section:'A2', phrase:x.phrase.replace('A','A2')}));
-                        const B = phraseOf(pick(BR), 'B', 'B1', 'B2');
+                        // Tonalité traversée à chaque mesure du pont (décalage de la tonique) : 1 = ii-V-I de IV puis de bIII ; 2 = ii-V-I de bVII puis de bVI
+                        const BRK = [[5,5,3,3,0,0,0,0], [0,0,10,10,8,8,0,0], [0,0,0,0,0,0,0,0]];
+                        const brSpec = pick(BR);
+                        const B = phraseOf(brSpec, 'B', 'B1', 'B2');
+                        B.forEach((x, ix) => { x.kc = BRK[BR.indexOf(brSpec)][ix]; });
                         let a3 = a1;
                         if (R && libOK && R() >= 0.5) a3 = pick(PA); // le dernier A peut changer de phrase
                         const A3 = phraseOf(a3, 'A3', 'A3', 'A3');
@@ -7508,12 +7578,8 @@
                         const q2 = pick(['T1','T0','T3']);
                         const A1 = join(turnCell(q1,'A','A1'), turnCell(q2,'A','A2'));
                         const A2 = A1.map(x => ({...x, section:'A2', phrase:x.phrase.replace('A','A2')}));
-                        const B = [
-                            abs(4,'7',2,'mixolydian','B','B1','secondaryDominant'),
-                            abs(9,'7',2,'mixolydian','B','B1','secondaryDominant'),
-                            abs(2,'7',2,'mixolydian','B','B2','secondaryDominant'),
-                            abs(7,'7',2,'mixolydian','B','B2','dominant')
-                        ];
+                        // Pont : rhythm changes (forme de référence) ou, au renouvellement, pont modulant (à IV ou à bIII)
+                        const B = jbr(pick(JBR), 'B');
                         let A3src = A1;
                         if (R && libOK && R() >= 0.7) A3src = join(turnCell(pick(['T0','T1','T3','T4','T5']),'A','A1'), turnCell(pick(['T1','T0','T3','T4','T5']),'A','A2'));
                         const A3 = A3src.map(x => ({...x, section:'A3', phrase:x.phrase.replace(/^A[12]?/,'A3')}));
@@ -7582,6 +7648,7 @@
                         const A=[...cad1, ...ph2];
                         const A2=A.map(x=>({...x,section:'A2',phrase:x.phrase.replace(/^A/,'A2')}));
                         const B=[abs(5,'maj7',2,'lydian','B','B1','predominant'),abs(10,'7',2,'mixolydian','B','B1','dominant'),abs(3,'maj7',2,'lydian','B','B2','tonic'),abs(8,'7',2,'mixolydian','B','B2','dominant')];
+                        [0,3,3,3].forEach((k, ix) => { B[ix].kc = k; }); // IV dans la tonalité d'origine, puis modulation en bIII (V7 de bIII, I, IV7)
                         const A3=A.map(x=>({...x,section:'A3',phrase:x.phrase.replace(/^A/,'A3')}));
                         template=join(A,A2,B,A3);
                         break;
@@ -7766,6 +7833,8 @@
                         template = [chord('I',4,'A','A1','tonic')];
                         break;
                 }
+                // Styles à ponts modulants : tout bloc sans tonalité explicite est dans la tonalité d'origine (kc = 0).
+                if (template.some(x => Number.isInteger(x.kc))) template.forEach(x => { if (!Number.isInteger(x.kc)) x.kc = 0; });
                 return template.map(item => ({ ...item }));
                 };
 
@@ -7781,7 +7850,7 @@
 
                 let generated = template.map(item => ({
                     rootIndex:item.r, chordId:item.c, measures:item.m, scaleId:item.s,
-                    section:item.section, phrase:item.phrase, harmonicFunction:item.function,
+                    section:item.section, phrase:item.phrase, harmonicFunction:item.function, kc:item.kc,
                     bassRootIndex:Number.isInteger(item.bassRootIndex) ? item.bassRootIndex : undefined,
                     split:item.split ? { rootIndex:item.split.r, chordId:item.split.c, scaleId:item.split.s } : undefined
                 }));
@@ -7793,7 +7862,7 @@
                     template = styleKey === 'i-got-rythm' ? template : this.normalizeGeneratedGrid(template, styleKey);
                     generated = template.map(item => ({
                         rootIndex:item.r, chordId:item.c, measures:item.m, scaleId:item.s,
-                        section:item.section, phrase:item.phrase, harmonicFunction:item.function,
+                        section:item.section, phrase:item.phrase, harmonicFunction:item.function, kc:item.kc,
                         bassRootIndex:Number.isInteger(item.bassRootIndex) ? item.bassRootIndex : undefined,
                         split:item.split ? { rootIndex:item.split.r, chordId:item.split.c, scaleId:item.split.s } : undefined
                     }));
@@ -7803,11 +7872,112 @@
                 this._rememberGenerated(styleKey, generated);
                 this._syncTonalityToStyle(styleKey, generated);
                 this.grid = this.compactGridRepeats(generated); // signature calculée sur la grille complète : « Générer » varie comme avant
+                this._annotateModulations(styleKey); // sections écrites dans une autre tonalité : marqueur « I de X » (comme l'éditeur de fonction tonale)
+                this.grid.forEach(st => { delete st.kc; }); // champ de travail du générateur, jamais conservé dans la grille
                 this._skipCustom = true;
                 this.loadedGridName = null;
                 this.updateLoadedGridNameDisplay();
                 this.lastGeneratedSignature = signature;
                 this.renderGridUI();
+            }
+
+            // ===== Modulations écrites dans les styles =====
+            // Certains styles ont une section dans une autre tonalité (trio de la valse viennoise à la dominante, partie B en relatif
+            // majeur pour la valse musette, la tarentelle, la samba, le tango, le piazzolla, pont de la bossa). Après génération, on
+            // pose sur la bonne mesure le même marqueur que l'éditeur de fonction tonale (fnLabel « I de G » + modKey) : les mesures
+            // suivantes sont alors analysées dans la nouvelle tonalité, jusqu'au marqueur de retour.
+            // `to` : décalage (demi-tons) de la nouvelle tonique par rapport à la tonique du style, ou 'home' pour le retour.
+            // Un marqueur n'est posé que si l'accord y joue bien un rôle dans la nouvelle tonalité (tonique, dominante, ii ou IV) :
+            // si une variation a réécrit l'endroit, on cherche le premier accord qui convient dans la section, sinon on ne pose rien.
+            _styleModulations() {
+                const sec = (name) => (s) => s.section === name;
+                const phr = (name) => (s) => s.phrase === name;
+                return {
+                    valsemusette:   [{ at: sec('B'),  to: 3 }, { at: sec('B2'), to: 'home' }],
+                    valseviennoise: [{ at: sec('B'),  to: 7 }, { at: (s, i, n) => i === n - 1, to: 'home' }],
+                    tarentelle:     [{ at: sec('B'),  to: 3 }, { at: sec('C'),  to: 'home' }],
+                    samba:          [{ at: sec('B'),  to: 3 }, { at: sec('A3'), to: 'home' }],
+                    tango:          [{ at: sec('B'),  to: 3 }, { at: phr('B4'), to: 'home' }],
+                    piazzolla:      [{ at: phr('B1'), to: 3 }, { at: phr('B2'), to: 'home' }],
+                    bossa:          [{ at: phr('B1'), to: 3 }, { at: sec('A3'), to: 'home' }]
+                };
+            }
+
+            // Libellé de lecture d'un accord dans la tonalité cible { root, minor }, même vocabulaire que getFunctionAlternatives ;
+            // null si l'accord n'y joue aucun des rôles retenus.
+            _modReading(chord, tgt) {
+                const r = (((chord.rootIndex - tgt.root) % 12) + 12) % 12;
+                const fam = this._chordFamily(chord.chordId);
+                const K = rootLabels[tgt.root];
+                if (!tgt.minor) {
+                    if (r === 0 && fam === 'maj') return `I de ${K}`;
+                    if (r === 7 && fam === 'dom') return `V7 de ${K}`;
+                    if (r === 2 && fam === 'min') return `ii de ${K}`;
+                    if (r === 5 && fam === 'maj') return `IV de ${K}`;
+                } else {
+                    if (r === 0 && fam === 'min') return `i (${K}m)`;
+                    if (r === 7 && fam === 'dom') return `V7 de ${K}m`;
+                    if (r === 2 && fam === 'hdim') return `iiø de ${K}m`;
+                    if (r === 5 && fam === 'min') return `iv de ${K}m`;
+                }
+                return null;
+            }
+
+            // Tonalité traversée par chaque bloc de la grille, en demi-tons depuis la tonique (0 = tonalité d'origine) :
+            // soit posée par le style lui-même (champ kc des cellules de ses ponts modulants), soit déduite des règles par section.
+            // Un marqueur (fnLabel + modKey) est posé au premier accord du bloc qui joue un rôle dans la nouvelle tonalité (parmi les
+            // 4 premières mesures) ; si aucun ne convient, on ne module pas. Le retour à la tonalité d'origine reçoit toujours un
+            // marqueur (étiquette automatique à défaut de lecture), pour que la fin de la grille ne reste jamais dans une autre tonalité.
+            _annotateModulations(styleKey) {
+                const g = this.grid;
+                if (!g.length || !Number.isInteger(this.mainKey)) return;
+                const n0 = g.length;
+                let cur = 0, kcs = null;
+                if (g.some(s => Number.isInteger(s.kc))) {
+                    kcs = g.map(s => { if (Number.isInteger(s.kc)) cur = s.kc; return cur; });
+                } else {
+                    const rules = this._styleModulations()[styleKey];
+                    if (rules) kcs = g.map((s, i) => { rules.forEach(r => { if (r.at(s, i, n0)) cur = r.to === 'home' ? 0 : r.to; }); return cur; });
+                }
+                if (!kcs || !kcs.some(k => k !== 0)) return;
+                // Tonalité d'origine : mineure si la tonique du mode choisi (ou du style, via _syncTonalityToStyle) est un accord mineur ; on ne la lit
+                // pas sur le premier accord, qui peut être un ii (ballade, ii-V-I…).
+                const home = { root: this.mainKey, minor: ['dorian', 'phrygian', 'aeolian', 'locrian'].includes(this.mainQuality) };
+                let active = 0, i = 0;
+                while (i < g.length) {
+                    if (kcs[i] === active) { i++; continue; }
+                    const k = kcs[i];
+                    const tgt = k === 0 ? home : { root: (home.root + k) % 12, minor: false };
+                    let found = -1, label = null, acc = 0;
+                    for (let t = i; t < g.length && acc < 4 && kcs[t] === k; acc += g[t].measures, t++) {
+                        const lb = this._modReading(g[t], tgt);
+                        if (lb) { found = t; label = lb; break; }
+                    }
+                    if (found < 0 && k === 0) { found = i; label = this._homeLabel(i, home); }
+                    if (found < 0) { // pas de lecture possible : on ne module pas, on passe au bloc suivant
+                        let j = i; while (j < g.length && kcs[j] === k) j++;
+                        i = j; continue;
+                    }
+                    // Le marqueur ne vaut que pour une mesure (comme dans l'éditeur) : on détache la première mesure du bloc.
+                    if (g[found].measures > 1) {
+                        const head = JSON.parse(JSON.stringify(g[found])); head.measures = 1;
+                        const rest = JSON.parse(JSON.stringify(g[found])); rest.measures = g[found].measures - 1;
+                        delete head.repeatEnd; delete rest.repeatStart; // début de reprise sur la 1re partie, fin sur la dernière
+                        g.splice(found, 1, head, rest);
+                        kcs.splice(found, 1, kcs[found], kcs[found]);
+                    }
+                    g[found].fnLabel = String(label).slice(0, 24);
+                    g[found].modKey = { root: tgt.root, minor: tgt.minor };
+                    active = k; i = found + 1;
+                }
+            }
+
+            // Étiquette automatique d'un bloc, lue dans la tonalité d'origine (retour de modulation sans lecture « I de X »).
+            _homeLabel(stepIndex, home) {
+                const flat = this.getFlatMeasureList();
+                const idx = this.getStepStartMeasure(stepIndex) - 1;
+                if (!flat[idx]) return '';
+                return this.getHarmonicFunctionLabel(flat[idx], flat, idx, 0, home.root) || '';
             }
 
             // Un style écrit en absolu (bossa, modal, latin, blues, funk, pop, fusion…) définit lui-même sa tonalité : le sélecteur
@@ -8031,6 +8201,7 @@
                         const targetOffsets = [0, 2, 4, 5, 7, 9, 11];
                         const targetRoman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
                         const ti = targetOffsets.indexOf(targetRoot);
+                        if (ti === 0 && root === 7) return 'V'; // dominante de la tonalité en vigueur (après une modulation, par exemple)
                         if (ti >= 0) return `V/${targetRoman[ti].toLowerCase()}`;
                     }
                     return 'V/?';
@@ -11626,7 +11797,7 @@
     </script>
     <div id="jam-print-area"></div>
 
-    <!-- Pop-up « Orchestre » : style (Swing / Pop / Latin / Classique), tempo, réverbération, volumes, métronome -->
+    <!-- Pop-up « Orchestre » : style (Swing / Pop / Latin / Classique), volume général de l'orchestre (Master), volumes des instruments, volume du métronome -->
     <div id="band-modal" class="hidden" role="dialog" aria-label="Orchestre">
         <div class="bg-[#222222] border border-[#3a3a3c] rounded-xl w-full p-4 space-y-4">
             <div id="band-modal-head" class="flex items-center justify-between jm-head" title="Glisser pour déplacer">
@@ -11648,15 +11819,9 @@
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <span id="band-bpm-label" class="text-xs font-semibold text-slate-400 w-16 shrink-0 whitespace-nowrap">BPM</span>
-                    <input type="range" id="band-bpm-slider" min="50" max="220" value="120" oninput="app.jam.setBpm(this.value)" class="w-full accent-blue-500">
-                    <span id="band-bpm-display" class="text-xs font-mono font-bold text-slate-200 min-w-[32px] text-right">120</span>
-                </div>
-
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Reverb</span>
-                    <input type="range" id="band-reverb-slider" min="0" max="100" value="25" oninput="app.jam.setBandReverb(this.value)" class="w-full accent-blue-500">
-                    <span id="band-reverb-display" class="text-xs font-mono font-bold text-slate-200 min-w-[32px] text-right">25%</span>
+                    <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Master</span>
+                    <input type="range" id="band-master-slider" min="0" max="100" value="50" title="Volume général de l'orchestre (50 % = niveau d'origine, au-dessus : plus fort)" oninput="app.jam.setBandMaster(this.value)" class="w-full accent-blue-500">
+                    <span id="band-master-display" class="text-xs font-mono font-bold text-slate-200 min-w-[32px] text-right">50%</span>
                 </div>
 
                 <div class="pt-1 space-y-2">
@@ -11677,15 +11842,7 @@
 
             <div class="pt-3 border-t border-[#333333] space-y-2">
                 <div class="flex items-center gap-2">
-                    <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Métronome</span>
-                    <button id="band-metro-btn" onclick="app.jam.toggleMetronome()" title="Activé : clic à chaque temps pendant toute la jam. Désactivé : seule la mesure d'intro est au métronome" class="flex-1 py-1.5 rounded-md transition text-xs font-medium text-slate-400 hover:text-white bg-[#1a1a1a] border border-[#333333]">Désactivé</button>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Croches</span>
-                    <button id="band-metro-sub-btn" onclick="app.jam.toggleMetronomeSubdivision()" aria-pressed="false" title="Activé : un clic léger sur chaque croche, en plus des temps (en mesure composée : deux clics entre les pulsations). Joué avec le clic : pendant l'intro, et pendant la grille si le métronome est activé" class="flex-1 py-1.5 rounded-md transition text-xs font-medium text-slate-400 hover:text-white bg-[#1a1a1a] border border-[#333333]">Désactivé</button>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Volume</span>
+                    <span class="text-xs font-semibold text-slate-400 shrink-0 whitespace-nowrap">Volume du métronome</span>
                     <input type="range" id="band-metro-vol" min="0" max="100" value="50" oninput="app.jam.setMetronomeVolume(this.value)" class="w-full accent-emerald-500">
                 </div>
             </div>
