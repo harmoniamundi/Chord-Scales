@@ -28,6 +28,38 @@
         .chord-volume::-moz-range-track { height: 3px; border-radius: 2px; background: #4a4a4c; }
         .chord-volume::-moz-range-thumb { width: 10px; height: 10px; border-radius: 50%; background: #cbd5e1; border: 0; }
         @media (hover: none) and (pointer: coarse) { .chord-volume { height: 18px; } }
+        /* ===== Curseurs (BPM, Master, Piano, Basse, Batterie, Métronome) : UNE seule mise en forme, ordinateur ET téléphone =====
+           Piste fine arrondie, partie parcourue + poignée ronde à la couleur d'accent (bleu ou émeraude).
+           Seules les variables de taille changent sur téléphone (voir le bloc @media (max-width: 639px)).
+           Le petit curseur discret .chord-volume garde son propre style. */
+        input[type="range"]:not(.chord-volume) {
+            --sl-accent: #3b82f6; --sl-track: #4a4a4c; --sl-p: 0;
+            --sl-track-h: 4px; --sl-thumb: 16px; --sl-hit: 28px;
+            -webkit-appearance: none; appearance: none; background: transparent;
+            height: var(--sl-hit); margin: 0; padding: 0; min-width: 0; cursor: pointer; touch-action: pan-y;
+        }
+        input[type="range"].accent-blue-500 { --sl-accent: #3b82f6; }
+        input[type="range"].accent-emerald-500 { --sl-accent: #10b981; }
+        input[type="range"]:not(.chord-volume):focus { outline: none; }
+        input[type="range"]:not(.chord-volume)::-webkit-slider-runnable-track {
+            height: var(--sl-track-h); border-radius: calc(var(--sl-track-h) / 2);
+            /* la partie parcourue s'arrête au centre de la poignée */
+            background: linear-gradient(to right,
+                var(--sl-accent) calc(var(--sl-thumb) / 2 + (100% - var(--sl-thumb)) * var(--sl-p)),
+                var(--sl-track) calc(var(--sl-thumb) / 2 + (100% - var(--sl-thumb)) * var(--sl-p)));
+        }
+        input[type="range"]:not(.chord-volume)::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none; box-sizing: border-box;
+            width: var(--sl-thumb); height: var(--sl-thumb); margin-top: calc((var(--sl-track-h) - var(--sl-thumb)) / 2);
+            border-radius: 50%; border: 0; background: var(--sl-accent);
+        }
+        input[type="range"]:not(.chord-volume)::-moz-range-track { height: var(--sl-track-h); border-radius: calc(var(--sl-track-h) / 2); background: var(--sl-track); }
+        input[type="range"]:not(.chord-volume)::-moz-range-progress { height: var(--sl-track-h); border-radius: calc(var(--sl-track-h) / 2); background: var(--sl-accent); }
+        input[type="range"]:not(.chord-volume)::-moz-range-thumb {
+            box-sizing: border-box; width: var(--sl-thumb); height: var(--sl-thumb); border-radius: 50%; border: 0; background: var(--sl-accent);
+        }
+        input[type="range"]:not(.chord-volume):focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px rgba(255,255,255,.28); }
+        input[type="range"]:not(.chord-volume):focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px rgba(255,255,255,.28); }
         /* Mesure à deux accords : la case est coupée en deux « demi-dominos » */
         #jam-chord-sequence-display .jam-split { display: flex; align-items: center; width: 100%; }
         #jam-chord-sequence-display .jam-half { flex: 1 1 0; min-width: 0; text-align: center; padding: 3px 0; border-radius: 4px; }
@@ -485,13 +517,9 @@
             #jam-grid-editor select { min-height: 40px; font-size: 14px; }
             #jam-grid-editor .jr-wrap > button { min-height: 40px; }
 
-            /* Curseur BPM : piste et poignée assez grandes pour le doigt */
+            /* Curseurs : même mise en forme que sur ordinateur, seulement plus gros pour le doigt */
             #jam-bpm-label, #jam-bpm-display { font-size: 13px; }
-            #jam-bpm-slider { -webkit-appearance: none; appearance: none; background: transparent; height: 36px; margin: 0; padding: 0; min-width: 0; touch-action: pan-y; }
-            #jam-bpm-slider::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: #4a4a4c; }
-            #jam-bpm-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 28px; height: 28px; margin-top: -11px; border-radius: 50%; background: #3b82f6; border: 3px solid #dbeafe; box-shadow: 0 1px 4px rgba(0,0,0,.5); }
-            #jam-bpm-slider::-moz-range-track { height: 6px; border-radius: 3px; background: #4a4a4c; }
-            #jam-bpm-slider::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: #3b82f6; border: 3px solid #dbeafe; box-shadow: 0 1px 4px rgba(0,0,0,.5); }
+            input[type="range"]:not(.chord-volume) { --sl-track-h: 6px; --sl-thumb: 24px; --sl-hit: 36px; }
 
             /* Marges générales plus étroites */
             #view-jam > main { padding: 12px; }
@@ -12082,6 +12110,32 @@
             </div>
         </div>
     </div>
+
+    <script>
+        /* Curseurs : alimente --sl-p (0 à 1) pour dessiner la partie parcourue de la piste (Chrome, Safari).
+           Couvre la saisie au doigt/souris ET les changements de valeur faits par le code (setBpm, setBandMaster, etc.). */
+        (function () {
+            function sync(el) {
+                if (!el || el.type !== 'range' || el.classList.contains('chord-volume')) return;
+                var min = el.min === '' ? 0 : parseFloat(el.min);
+                var max = el.max === '' ? 100 : parseFloat(el.max);
+                var p = max > min ? (parseFloat(el.value) - min) / (max - min) : 0;
+                el.style.setProperty('--sl-p', String(Math.min(1, Math.max(0, p))));
+            }
+            var d = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+            if (d && d.set) {
+                Object.defineProperty(HTMLInputElement.prototype, 'value', {
+                    configurable: true, enumerable: d.enumerable,
+                    get: d.get,
+                    set: function (v) { d.set.call(this, v); sync(this); }
+                });
+            }
+            document.addEventListener('input', function (e) { sync(e.target); }, true);
+            function syncAll() { document.querySelectorAll('input[type="range"]').forEach(sync); }
+            syncAll();
+            window.addEventListener('pageshow', syncAll);
+        })();
+    </script>
 
     <script>
         /* Téléphone et tablette : empêche la mise en veille de l'écran tant que l'app est active (API Screen Wake Lock). */
