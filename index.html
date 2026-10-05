@@ -83,15 +83,16 @@
         #view-jam #jam-next-chord-display #jam-next-chord-title { font-size: 1.5rem !important; line-height: 1 !important; }
         #view-jam #jam-next-chord-display #jam-next-chord-notes { gap: 6px !important; }
 
-        /* Petit bouton d'affichage de la fonction tonale, inspiré du bouton de référence */
+        /* Bouton d'affichage de la fonction tonale : même gabarit que les boutons croches / métronome / boucle.
+           Désactivé : texte blanc sur fond gris ; activé : texte rouge sur fond blanc (même taille). */
         .jam-tonal-function-toggle {
-            width: 30px;
-            height: 30px;
+            width: 32px;
+            height: 32px;
             padding: 0;
-            border-radius: 7px;
-            border: 1px solid #4a4a4c;
-            background: #ffffff;
-            color: #ef4444;
+            border: 0;
+            border-radius: 8px;
+            background: #3a3a3c;
+            color: #ffffff;
             font-family: "Kalam", cursive;
             font-size: 15px;
             font-weight: 700;
@@ -99,18 +100,17 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 1px 2px rgba(0,0,0,.15);
-            transition: background-color .15s, border-color .15s, color .15s, opacity .15s;
+            cursor: pointer;
+            flex-shrink: 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06);
+            transition: background-color .15s, color .15s;
         }
-        .jam-tonal-function-toggle:hover {
-            background: #f3f4f6;
-            border-color: #777;
-        }
-        .jam-tonal-function-toggle.is-active {
-            background: #ef4444;
-            border-color: #ef4444;
-            color: #ffffff;
-        }
+        .jam-tonal-function-toggle:hover { background: #48484a; }
+        /* Le glyphe est recentré d'après sa vraie hauteur d'encre (mesurée en JS, voir centerTonalToggleGlyph),
+           car la police Kalam a des métriques verticales qui décalent le texte dans la pastille. */
+        .jam-tonal-function-toggle > span { display: block; line-height: 1; transform: translateY(var(--tf-dy, 0px)); }
+        .jam-tonal-function-toggle.is-active { background: #ffffff; color: #ef4444; }
+        .jam-tonal-function-toggle.is-active:hover { background: #f3f4f6; }
 
         /* Bouton métronome : même style que le bouton d'orchestration (gris foncé, texte blanc) */
         .jam-metronome-toggle {
@@ -306,9 +306,11 @@
             #jam-print-area .jam-print-rs svg { align-self: center; margin-left: 3pt; }
             #jam-print-area .jam-print-re svg { align-self: center; margin-right: 3pt; }
             #jam-print-area .jam-print-times { position: absolute; bottom: 3pt; right: 19pt; font: 700 9pt -apple-system, "Helvetica Neue", sans-serif; color: #000000; }
-            #jam-print-area .jam-print-vo { position: absolute; left: 0; right: 0; top: 5pt; border-top: 1.5pt solid #000000; }
-            #jam-print-area .jam-print-vt { position: absolute; left: 0; top: 5pt; height: 10pt; border-left: 1.5pt solid #000000; }
-            #jam-print-area .jam-print-vl { position: absolute; left: 4pt; top: 7pt; font: 700 10pt -apple-system, "Helvetica Neue", sans-serif; color: #000000; line-height: 1; }
+            #jam-print-area .jam-print-vo { position: absolute; left: 0; right: 0; top: 5pt; border-top: 2pt solid #000000; }
+            #jam-print-area .jam-print-vt { position: absolute; left: 0; top: 5pt; height: 10pt; border-left: 2pt solid #000000; }
+            #jam-print-area .jam-print-cell.has-re .jam-print-vo { right: 18pt; }
+            #jam-print-area .jam-print-cell.has-rs .jam-print-vo, #jam-print-area .jam-print-cell.has-rs .jam-print-vt { left: 18pt; }
+            #jam-print-area .jam-print-vl { position: absolute; left: 4pt; top: 7pt; font: 700 11pt "Kalam", cursive; color: #000000; line-height: 1; }
             #jam-print-area .jam-print-cell.has-rs .jam-print-vl { left: 20pt; }
         }
 
@@ -361,7 +363,11 @@
         .jam-eb:disabled { opacity: .35; cursor: default; }
         .jam-eb.is-on { background: #2563eb; border-color: #60a5fa; color: #fff; }
         .jam-eb.jam-eb-danger:hover:not(:disabled) { border-color: #f87171; color: #fca5a5; }
-        .jam-eb-info { color: #94a3b8; font-size: 11px; margin: 0 4px; min-width: 0; }
+        .jam-eb-row1 { position: relative; }
+        /* Retour ponctuel (« Mesure dupliquée »…) : posé à l'extrême droite de la ligne, hors du flux, pour ne jamais décaler les boutons */
+        .jam-eb-info { position: absolute; right: 0; top: 50%; transform: translateY(-50%); max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 10px; background: #252525; color: #94a3b8; font-size: 11px; pointer-events: none; }
+        .jam-eb-info:empty { display: none; }
+        @media (max-width: 639px) { .jam-eb-info { position: static; transform: none; max-width: 100%; margin-left: auto; padding-left: 0; background: transparent; } }
         .jam-eb-sep { width: 1px; align-self: stretch; background: #333; margin: 0 2px; }
         #view-jam.jam-playing #jam-edit-bar, #jam-edit-bar.hidden { display: none !important; }
         .jam-eb-ico { display: inline-flex; align-items: center; justify-content: center; padding: 4px 9px; }
@@ -379,9 +385,16 @@
             linear-gradient(currentColor, currentColor) right 5px top 0 / 1px 100% no-repeat,
             radial-gradient(circle, currentColor 1.7px, transparent 2.3px) right 8px top 34% / 6px 6px no-repeat,
             radial-gradient(circle, currentColor 1.7px, transparent 2.3px) right 8px top 66% / 6px 6px no-repeat; }
-        #jam-chord-sequence-display .jam-cell .rp-vl { position: absolute; left: 0; right: 0; top: 0; height: 3px; background: currentColor; pointer-events: none; z-index: 2; }
-        #jam-chord-sequence-display .jam-cell .rp-vt { position: absolute; left: 0; top: 0; width: 2px; height: 14px; background: currentColor; pointer-events: none; z-index: 2; }
-        #jam-chord-sequence-display .jam-cell .rp-vtxt { margin-right: 3px; font-size: 11px; font-weight: 800; }
+        #jam-chord-sequence-display .jam-cell .rp-vl { position: absolute; left: 3px; right: 3px; top: 6px; height: 3px; background: currentColor; pointer-events: none; z-index: 2; }
+        #jam-chord-sequence-display .jam-cell .rp-vt { position: absolute; left: 3px; top: 6px; width: 3px; height: 17px; background: currentColor; pointer-events: none; z-index: 2; }
+        /* Le bracket s'arrête avant une barre de reprise (|: ou :|) au lieu de la chevaucher : la barre occupe 16 px depuis le bord */
+        #jam-chord-sequence-display .jam-cell.rp-has-r .rp-vl { right: 20px; }
+        #jam-chord-sequence-display .jam-cell.rp-has-l .rp-vl, #jam-chord-sequence-display .jam-cell.rp-has-l .rp-vt { left: 20px; }
+        #jam-chord-sequence-display .jam-cell.rp-has-l .rp-vtxt { margin-left: 7px; }
+        #jam-chord-sequence-display .jam-cell .jam-cell-top .rp-vtxt { color: #000000; opacity: 1; }
+        #jam-chord-sequence-display .jam-cell.bg-blue-600 .jam-cell-top .rp-vtxt { color: #ffffff; }
+        #jam-chord-sequence-display .jam-cell .rp-vtxt { margin-left: 3px; margin-right: 3px; font-family: "Kalam", cursive; font-size: 14px; font-weight: 700; line-height: 1; vertical-align: middle; }
+        #jam-chord-sequence-display .jam-cell.rp-has-v .jam-cell-top { margin-top: 5px; }
         #jam-chord-sequence-display .jam-cell .rp-xn { font-size: 9px; font-weight: 700; }
 
         /* Une case portant une barre de reprise décale son contenu pour ne rien chevaucher */
@@ -398,6 +411,10 @@
         .jam-edit-toggle { display: inline-flex; align-items: center; justify-content: center; padding: 3px 5px; border-radius: 6px; border: 1px solid transparent; background: transparent; color: #94a3b8; cursor: pointer; -webkit-tap-highlight-color: transparent; }
         .jam-edit-toggle:hover { color: #fff; border-color: #3a3a3c; }
         .jam-edit-toggle.is-on { background: #2563eb; border-color: #60a5fa; color: #fff; }
+        .jam-grid-title-input { width: 260px; max-width: 100%; padding: 2px 8px; border-radius: 6px; border: 1px solid #3a3a3c; background: #1a1a1a; color: #e2e8f0; font-size: 0.875rem; font-weight: 700; letter-spacing: .025em; text-transform: uppercase; text-align: center; outline: none; }
+        .jam-grid-title-input::placeholder { color: #64748b; text-transform: none; font-weight: 500; letter-spacing: 0; }
+        .jam-grid-title-input:focus { border-color: #60a5fa; }
+        #jam-grid-title-wrap > .hidden { display: none; }
         #view-jam.jam-playing #jam-edit-toggle { display: none; }
 
         /* ===== Pop-up d'édition de la fonction tonale ===== */
@@ -463,8 +480,10 @@
             /* En-tête de la carte « Grille d'accords » : empilé au lieu de 3 colonnes */
             #jam-chord-card > .grid.grid-cols-3 { grid-template-columns: minmax(0, 1fr); row-gap: 6px; }
             #jam-chord-card > .grid.grid-cols-3 > * { justify-self: stretch; }
-            #jam-chord-card > .grid.grid-cols-3 > #jam-loaded-grid-name { text-align: left; font-size: 0.8rem; }
-            #jam-chord-card > .grid.grid-cols-3 > #jam-loaded-grid-name:empty { display: none; }
+            #jam-chord-card > .grid.grid-cols-3 > #jam-grid-title-wrap { justify-content: flex-start; }
+            #jam-grid-title-wrap #jam-loaded-grid-name { text-align: left; font-size: 0.8rem; }
+            #jam-grid-title-wrap #jam-loaded-grid-name:empty { display: none; }
+            #jam-grid-title-wrap .jam-grid-title-input { width: 100%; text-align: left; }
             #jam-chord-card > .grid.grid-cols-3 > div:last-child #jam-current-scale-title { flex: 1 1 auto; text-align: left; }
 
             /* Grille : cases plus serrées, textes réduits proportionnellement à la largeur de l'écran */
@@ -756,7 +775,13 @@
                                 <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
                             </button>
                         </div>
-                        <span id="jam-loaded-grid-name" class="text-sm font-bold text-slate-300 uppercase tracking-wide text-center justify-self-center"></span>
+                        <div id="jam-grid-title-wrap" class="justify-self-center flex items-center justify-center min-w-0 max-w-full">
+                            <span id="jam-loaded-grid-name" class="text-sm font-bold text-slate-300 uppercase tracking-wide text-center"></span>
+                            <input id="jam-grid-title-input" type="text" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Titre de la grille" aria-label="Titre de la grille" title="Titre de la grille (Entrée pour valider, Échap pour annuler)"
+                                   class="hidden jam-grid-title-input"
+                                   onblur="app.jam.commitGridTitle(this.value)"
+                                   onkeydown="if(event.key==='Enter'){this.blur();}else if(event.key==='Escape'){this.value=app.jam.loadedGridName||'';this.blur();}">
+                        </div>
                         <div class="text-right justify-self-end flex items-center justify-end gap-2 whitespace-nowrap min-w-0">
                             <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider whitespace-nowrap shrink-0">Gamme active : </span>
                             <span id="jam-current-scale-title" class="text-sm font-bold text-emerald-400 whitespace-nowrap truncate min-w-0">---</span>
@@ -772,15 +797,15 @@
                     </div>
 
                     <div id="jam-edit-bar" class="hidden flex flex-col gap-1.5">
-                        <div class="flex items-center gap-1.5 flex-wrap">
+                        <div class="jam-eb-row1 flex items-center gap-1.5 flex-wrap">
                             <button type="button" id="jam-sel-mode-btn" class="jam-eb" onclick="app.jam.toggleSelectMode()" title="Mode sélection (utile au toucher) : touchez une première mesure, puis une seconde pour sélectionner la plage. Au clavier : Maj+clic ou glisser.">☐ Sélection</button>
-                            <span id="jam-sel-info" class="jam-eb-info"></span>
                             <span class="jam-eb-sep"></span>
+                            <button type="button" id="jam-eb-dup" class="jam-eb" onclick="app.jam.gridDuplicate()" title="Dupliquer la sélection juste après elle (⌘D / Ctrl+D)">Dupliquer</button>
                             <button type="button" id="jam-eb-copy" class="jam-eb" onclick="app.jam.gridCopy()" title="Copier (⌘C / Ctrl+C)">Copier</button>
                             <button type="button" id="jam-eb-cut" class="jam-eb" onclick="app.jam.gridCut()" title="Couper (⌘X / Ctrl+X)">Couper</button>
                             <button type="button" id="jam-eb-paste" class="jam-eb" onclick="app.jam.gridPaste()" title="Coller après la sélection (⌘V / Ctrl+V)">Coller</button>
-                            <button type="button" id="jam-eb-dup" class="jam-eb" onclick="app.jam.gridDuplicate()" title="Dupliquer la sélection juste après elle (⌘D / Ctrl+D)">Dupliquer</button>
                             <button type="button" id="jam-eb-del" class="jam-eb jam-eb-danger" onclick="app.jam.gridDelete()" title="Supprimer la sélection (Suppr)">Supprimer</button>
+                            <span id="jam-sel-info" class="jam-eb-info" role="status" aria-live="polite"></span>
                         </div>
                         <div class="flex items-center gap-1.5 flex-wrap">
                             <button type="button" id="jam-eb-rs" class="jam-eb jam-eb-ico" onclick="app.jam.gridRepeatStart()" title="Début de reprise : pose ou retire le signe sur la première mesure de la sélection" aria-label="Début de reprise"><svg width="16" height="14" viewBox="0 0 16 14" fill="currentColor" aria-hidden="true"><rect x="1" y="0" width="2.6" height="14"/><rect x="5.2" y="0" width="1.1" height="14"/><circle cx="10" cy="4.8" r="1.5"/><circle cx="10" cy="9.2" r="1.5"/></svg></button>
@@ -826,13 +851,16 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button id="jam-loop-toggle" onclick="app.jam.toggleLoop()" class="jam-metronome-toggle" title="Boucle : activée = la grille repart au début quand elle est terminée ; désactivée = la jam s'arrête à la fin de la grille" aria-label="Lecture en boucle de la grille" aria-pressed="false">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+                            <button id="jam-tonal-function-toggle" onclick="app.jam.toggleHarmonicFunctions()" class="jam-tonal-function-toggle" title="Afficher/Masquer la fonction tonale" aria-label="Afficher/Masquer la fonction tonale" aria-pressed="false"><span>VII</span></button>
+                            <button id="jam-subdivision-toggle" onclick="app.jam.toggleMetronomeSubdivision()" class="jam-metronome-toggle" title="Croches : activé = un clic léger sur chaque croche, en plus des temps (joué avec le clic du métronome)" aria-label="Activer/Désactiver le clic sur les croches" aria-pressed="false">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.6 17.5V5.5M18.6 15.5V3.5"/><path d="M8.6 5.5l10-2" stroke-width="3"/><ellipse cx="5.8" cy="17.8" rx="3.2" ry="2.4" fill="currentColor" stroke="none" transform="rotate(-18 5.8 17.8)"/><ellipse cx="15.8" cy="15.8" rx="3.2" ry="2.4" fill="currentColor" stroke="none" transform="rotate(-18 15.8 15.8)"/></svg>
                             </button>
                             <button id="jam-metronome-toggle" onclick="app.jam.toggleMetronome()" class="jam-metronome-toggle" title="Métronome : activé = clic pendant toute la jam, désactivé = intro d'une mesure seulement" aria-label="Activer/Désactiver le métronome" aria-pressed="false">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21L10 3h4l2 18z"/><path d="M12 17l4.5-10.5"/><circle cx="15" cy="10" r="1.3" fill="currentColor"/><path d="M6 21h12"/></svg>
                             </button>
-                            <button id="jam-tonal-function-toggle" onclick="app.jam.toggleHarmonicFunctions()" class="jam-tonal-function-toggle" title="Afficher/Masquer la fonction tonale" aria-label="Afficher/Masquer la fonction tonale" aria-pressed="false">VII</button>
+                            <button id="jam-loop-toggle" onclick="app.jam.toggleLoop()" class="jam-metronome-toggle" title="Boucle : activée = la grille repart au début quand elle est terminée ; désactivée = la jam s'arrête à la fin de la grille" aria-label="Lecture en boucle de la grille" aria-pressed="false">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+                            </button>
                             <button id="jam-play-btn" onclick="app.jam.togglePlay()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3 rounded-lg transition flex items-center justify-center gap-2 shadow text-xs">
                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                                 <span>Jam it!</span>
@@ -1971,6 +1999,8 @@
                 this.grid.forEach(step => {
                     step.rootIndex = (step.rootIndex + delta) % 12;
                     if (Number.isInteger(step.bassRootIndex)) step.bassRootIndex = (step.bassRootIndex + delta) % 12;
+                    if (step.modKey) step.modKey = { ...step.modKey, root: (step.modKey.root + delta) % 12 };
+                    if (step.split && step.split.modKey) step.split.modKey = { ...step.split.modKey, root: (step.split.modKey.root + delta) % 12 };
                     if (step.split && Number.isInteger(step.split.rootIndex)) {
                         step.split.rootIndex = (step.split.rootIndex + delta) % 12;
                         if (Number.isInteger(step.split.bassRootIndex)) step.split.bassRootIndex = (step.split.bassRootIndex + delta) % 12;
@@ -2275,6 +2305,7 @@
                         scaleId = chordObj.scales[0].id;
                     }
                     const step = { rootIndex, chordId: item.chordId, measures, scaleId };
+                    const modKeyOf = (v) => (v && typeof v === 'object' && Number.isInteger(v.root) && v.root >= 0 && v.root <= 11) ? { root: v.root, minor: v.minor === true } : null;
                     const bassOf = (v) => { const b = Number(v); return (v !== null && v !== undefined && Number.isInteger(b) && b >= 0 && b <= 11) ? b : null; };
                     if (bassOf(item.bassRootIndex) !== null) step.bassRootIndex = bassOf(item.bassRootIndex);
                     if (measures === 1 && item.split && typeof item.split === 'object') {
@@ -2285,11 +2316,15 @@
                         step.split = { rootIndex: sr, chordId: item.split.chordId, scaleId: ss };
                         if (bassOf(item.split.bassRootIndex) !== null) step.split.bassRootIndex = bassOf(item.split.bassRootIndex);
                         if (typeof item.split.fnLabel === 'string' && item.split.fnLabel) step.split.fnLabel = item.split.fnLabel.slice(0, 24);
+                        const smk = modKeyOf(item.split.modKey);
+                        if (smk) step.split.modKey = smk;
                     }
                     ['section', 'phrase', 'harmonicFunction'].forEach(k => {
                         if (typeof item[k] === 'string') step[k] = item[k].slice(0, 80);
                     });
                     if (typeof item.fnLabel === 'string' && item.fnLabel) step.fnLabel = item.fnLabel.slice(0, 24);
+                    const mk0 = modKeyOf(item.modKey);
+                    if (mk0) step.modKey = mk0;
                     // Signes de reprise : début, fin (nombre de passages) et 1re / 2e fin
                     if (item.repeatStart === true) step.repeatStart = true;
                     const re = Number(item.repeatEnd);
@@ -2477,9 +2512,70 @@
                 if (dropdown) dropdown.classList.add('hidden');
             }
 
+            // En mode édition le titre devient un champ de saisie ; sinon il reste un simple libellé.
+            updateGridTitleInput() {
+                const inp = document.getElementById('jam-grid-title-input');
+                const lbl = document.getElementById('jam-loaded-grid-name');
+                const on = !!this._editBarOpen;
+                if (inp) {
+                    inp.classList.toggle('hidden', !on);
+                    if (document.activeElement !== inp) inp.value = this.loadedGridName || '';
+                }
+                if (lbl) lbl.classList.toggle('hidden', on);
+            }
+
+            // Valide le titre saisi. Si la grille est une sauvegarde, la sauvegarde est renommée avec elle.
+            commitGridTitle(raw) {
+                const name = String(raw || '').trim().slice(0, 60);
+                const old = this.loadedGridName || null;
+                const inp = document.getElementById('jam-grid-title-input');
+                const revert = () => { if (inp) inp.value = old || ''; };
+                if ((name || null) === old) { revert(); return; }
+                const saved = this.getSavedGrids();
+                const isSaved = !!(old && saved[old]);
+                if (!name) { // un titre vide n'est possible que pour une grille non sauvegardée
+                    if (isSaved) { revert(); return; }
+                    this.loadedGridName = null;
+                } else if (isSaved) {
+                    if (saved[name] && !confirm(`Une grille « ${name} » existe déjà dans les sauvegardes : la remplacer ?`)) { revert(); return; }
+                    const out = {};
+                    Object.keys(saved).forEach(k => {
+                        if (k === old) out[name] = saved[old];
+                        else if (k !== name) out[k] = saved[k];
+                    });
+                    try { localStorage.setItem('jamSavedGrids', JSON.stringify(out)); }
+                    catch (e) { alert('Impossible de renommer la sauvegarde.'); revert(); return; }
+                    this.loadedGridName = name;
+                } else {
+                    this.loadedGridName = name;
+                }
+                this.renderSavedGridsMenu();
+                this.updateLoadedGridNameDisplay();
+            }
+
+            // Recentre verticalement « VII » dans la pastille de fonction tonale d'après la hauteur d'encre réelle
+            // du glyphe (la police Kalam a des métriques qui le décalent). Rappelé quand la police est chargée.
+            centerTonalToggleGlyph() {
+                const btn = document.getElementById('jam-tonal-function-toggle');
+                if (!btn) return;
+                try {
+                    const cs = getComputedStyle(btn);
+                    const ctx = document.createElement('canvas').getContext('2d');
+                    ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+                    const m = ctx.measureText('VII');
+                    if (!(m.fontBoundingBoxAscent > 0)) return;
+                    const fa = m.fontBoundingBoxAscent, fd = m.fontBoundingBoxDescent;
+                    const A = m.actualBoundingBoxAscent, D = m.actualBoundingBoxDescent;
+                    // décalage = (descente − montée de la police)/2 + (encre au-dessus − encre en dessous de la ligne de base)/2
+                    const dy = (fd - fa) / 2 + (A - D) / 2;
+                    btn.style.setProperty('--tf-dy', dy.toFixed(2) + 'px');
+                } catch (e) {}
+            }
+
             updateLoadedGridNameDisplay() {
                 const cardLabel = document.getElementById('jam-loaded-grid-name');
                 if (cardLabel) cardLabel.textContent = this.loadedGridName || '';
+                this.updateGridTitleInput();
                 const menuLabel = document.getElementById('jam-saved-grids-label');
                 if (menuLabel) menuLabel.textContent = this.loadedGridName || 'Sauvegardes';
             }
@@ -2761,6 +2857,11 @@
                 if (iconBtn) {
                     iconBtn.classList.toggle('is-active', this.metronomeEnabled);
                     iconBtn.setAttribute('aria-pressed', String(this.metronomeEnabled));
+                }
+                const subIcon = document.getElementById('jam-subdivision-toggle');
+                if (subIcon) {
+                    subIcon.classList.toggle('is-active', this.metronomeSubdivision);
+                    subIcon.setAttribute('aria-pressed', String(this.metronomeSubdivision));
                 }
                 const btn = document.getElementById('band-metro-btn');
                 if (btn) {
@@ -6025,7 +6126,7 @@
                 } else {
                     step[key] = value;
                 }
-                if (key === 'rootIndex' || key === 'chordId') delete step.fnLabel;
+                if (key === 'rootIndex' || key === 'chordId') { delete step.fnLabel; delete step.modKey; }
 
                 if (key === 'chordId') {
                     const chordObj = this.findChordObj(step.chordId);
@@ -6045,7 +6146,7 @@
                 if (!step || !step.split) return;
                 if (key === 'rootIndex') step.split.rootIndex = parseInt(value, 10);
                 else step.split[key] = value;
-                if (key === 'rootIndex' || key === 'chordId') delete step.split.fnLabel;
+                if (key === 'rootIndex' || key === 'chordId') { delete step.split.fnLabel; delete step.split.modKey; }
                 if (key === 'chordId') {
                     const chordObj = this.findChordObj(step.split.chordId);
                     if (chordObj && chordObj.scales.length > 0) step.split.scaleId = chordObj.scales[0].id;
@@ -6098,6 +6199,13 @@
                 if (!template.length || this.generationVariant <= 0) return template.map(item => ({ ...item }));
                 const rand = this.makeVariationRng(this.generationVariant, styleKey);
                 const out = template.map(item => ({ ...item }));
+                // Sections consécutives identiques dans le modèle (ex. A A d'une forme AABA) : la variation est appliquée UNE fois,
+                // puis recopiée sur la seconde section, pour que la répétition reste littérale (et s'écrive avec des signes de reprise).
+                const twinGroups = this._findTwinSections(template);
+                twinGroups.forEach((g, k) => {
+                    for (let i = g.root.a; i < g.root.b; i++) out[i]._twRoot = k;
+                    g.copies.forEach((cp, j) => { for (let i = cp.a; i < cp.b; i++) out[i]._twCopy = `${k}:${j}`; });
+                });
                 const byPhrase = new Map();
                 out.forEach((item, i) => {
                     const key = item.phrase || `p${i}`;
@@ -6231,7 +6339,138 @@
                         else if (first) first.m = Math.max(1, first.m);
                     }
                 }
+                this._applyTwinCopies(out, template, twinGroups);
                 return out;
+            }
+
+            // Groupes de sections consécutives de contenu identique dans un modèle : { root, copies:[…] } (plages [a, b[).
+            _findTwinSections(tpl) {
+                const runs = [];
+                tpl.forEach((it, i) => {
+                    const sec = it.section || '';
+                    const last = runs[runs.length - 1];
+                    if (last && last.sec === sec) last.b = i + 1; else runs.push({ a: i, b: i + 1, sec });
+                });
+                const sig = (r) => tpl.slice(r.a, r.b).map(x => JSON.stringify([x.r, x.c, x.m, x.s, x.split ? [x.split.r, x.split.c, x.split.s] : null, Number.isInteger(x.bassRootIndex) ? x.bassRootIndex : null])).join('|');
+                const groups = [];
+                let i = 0;
+                while (i < runs.length) {
+                    let j = i + 1;
+                    while (j < runs.length && sig(runs[j]) === sig(runs[i])) j++;
+                    if (j > i + 1) groups.push({ root: runs[i], copies: runs.slice(i + 1, j) });
+                    i = j;
+                }
+                return groups;
+            }
+
+            // Après variation : chaque copie de section reprend le contenu varié de sa section d'origine (étiquettes section / phrase propres).
+            _applyTwinCopies(out, tpl, groups) {
+                const rangeOf = (test) => {
+                    let a = -1, b = -1;
+                    out.forEach((x, i) => { if (test(x)) { if (a < 0) a = i; b = i; } });
+                    return a < 0 ? null : { a, b: b + 1 };
+                };
+                const total = (arr) => arr.reduce((t, x) => t + (x.m || 1), 0);
+                groups.forEach((g, k) => {
+                    const rr = rangeOf(x => x._twRoot === k);
+                    if (!rr) return;
+                    const rootItems = tpl.slice(g.root.a, g.root.b);
+                    if (total(out.slice(rr.a, rr.b)) !== total(rootItems)) return; // la variation a changé la durée : on ne touche à rien
+                    g.copies.forEach((cp, j) => {
+                        const tag = `${k}:${j}`;
+                        const cr = rangeOf(x => x._twCopy === tag);
+                        if (!cr) return;
+                        const copyItems = tpl.slice(cp.a, cp.b);
+                        if (total(out.slice(cr.a, cr.b)) !== total(copyItems)) return;
+                        const phr = {};
+                        rootItems.forEach((x, i) => { if (x.phrase !== undefined && copyItems[i]) phr[x.phrase] = copyItems[i].phrase; });
+                        const fresh = out.slice(rr.a, rr.b).map(x => {
+                            const c = JSON.parse(JSON.stringify(x));
+                            delete c._twRoot; delete c._twCopy;
+                            c.section = cp.sec;
+                            if (c.phrase in phr) c.phrase = phr[c.phrase];
+                            return c;
+                        });
+                        const cr2 = rangeOf(x => x._twCopy === tag); // les indices ont pu bouger si la copie précède la racine (jamais en pratique)
+                        out.splice(cr2.a, cr2.b - cr2.a, ...fresh);
+                    });
+                });
+                out.forEach(x => { delete x._twRoot; delete x._twCopy; });
+            }
+
+            // ===== Écriture compacte d'une grille générée =====
+            // Les séquences de mesures qui se répètent sont écrites avec des signes de reprise (|: :|, ×N, 1re / 2e fin) au lieu
+            // d'être réécrites. L'ordre de lecture reste strictement celui de la grille complète.
+            // Règles : unité alignée sur les sections / phrases du style, 4 à 16 mesures, contenant au moins deux accords différents ;
+            // identité stricte (accord, gamme, second accord, basse) ; 2 à 4 énoncés identiques -> |: X :| (×N) ;
+            // deux énoncés à début commun d'au moins 4 mesures et fins différentes de 1 à 4 mesures -> 1re / 2e fin ;
+            // la plus grande unité d'abord, jamais de reprises imbriquées, rien autour de la grille entière.
+            compactGridRepeats(grid) {
+                if (!Array.isArray(grid) || !grid.length) return grid;
+                const ms = [];
+                let curSec = '', curPhr = '';
+                grid.forEach((st, si) => {
+                    if (st.section) curSec = st.section;
+                    if (st.phrase) curPhr = st.phrase;
+                    const sp = st.split;
+                    const bass = (v) => Number.isInteger(v) ? v : null;
+                    const key = JSON.stringify([st.rootIndex, st.chordId, st.scaleId, bass(st.bassRootIndex),
+                        sp ? [sp.rootIndex, sp.chordId, sp.scaleId, bass(sp.bassRootIndex)] : null]);
+                    for (let q = 0; q < st.measures; q++) ms.push({ si, oi: ms.length, key, sec: curSec, phr: curPhr, rs: false, re: 0, volta: 0 });
+                });
+                const n = ms.length;
+                if (n < 8) return grid;
+                const isB = (i) => i <= 0 || i >= n || ms[i].sec !== ms[i - 1].sec || ms[i].phr !== ms[i - 1].phr;
+                const eq = (a, b) => ms[a].key === ms[b].key;
+                const out = [];
+                const put = (i, marks) => out.push({ ...ms[i], ...marks });
+                let p = 0, changed = false;
+                while (p < n) {
+                    let done = false;
+                    if (isB(p)) {
+                        for (let L = Math.min(16, Math.floor((n - p) / 2)); L >= 4 && !done; L--) {
+                            if (!isB(p + L) || !isB(p + 2 * L)) continue;
+                            if (new Set(ms.slice(p, p + L).map(x => x.key)).size < 2) continue; // un seul accord tenu : pas de reprise
+                            let c = 0;
+                            while (c < L && eq(p + c, p + L + c)) c++;
+                            if (c === L) {
+                                let k = 2;
+                                while (k < 4 && p + (k + 1) * L <= n && isB(p + (k + 1) * L)) {
+                                    let same = true;
+                                    for (let t = 0; t < L; t++) if (!eq(p + t, p + k * L + t)) { same = false; break; }
+                                    if (!same) break;
+                                    k++;
+                                }
+                                for (let t = 0; t < L; t++) put(p + t, { rs: t === 0, re: t === L - 1 ? k : 0 });
+                                p += k * L; done = true; changed = true;
+                            } else if (c >= 4 && L - c <= 4) {
+                                for (let t = 0; t < c; t++) put(p + t, { rs: t === 0 });
+                                for (let t = c; t < L; t++) put(p + t, { volta: 1, re: t === L - 1 ? 2 : 0 });
+                                for (let t = c; t < L; t++) put(p + L + t, { volta: 2 });
+                                p += 2 * L; done = true; changed = true;
+                            }
+                        }
+                    }
+                    if (!done) { put(p, {}); p++; }
+                }
+                if (!changed) return grid;
+                const res = [];
+                let cur = null, prev = null;
+                out.forEach(m => {
+                    const fresh = !cur || !prev || cur.si !== m.si || m.oi !== prev.oi + 1 || m.rs || prev.re || prev.volta !== m.volta;
+                    if (fresh) {
+                        if (cur) res.push(cur.step);
+                        const step = { ...grid[m.si], measures: 1 };
+                        delete step.repeatStart; delete step.repeatEnd; delete step.volta;
+                        if (m.rs) step.repeatStart = true;
+                        if (m.volta) step.volta = m.volta;
+                        cur = { si: m.si, step };
+                    } else cur.step.measures++;
+                    if (m.re) cur.step.repeatEnd = m.re;
+                    prev = m;
+                });
+                if (cur) res.push(cur.step);
+                return res;
             }
 
             normalizeGeneratedGrid(template, styleKey) {
@@ -6624,7 +6863,7 @@
                     signature = this.getGridSignature(generated);
                 }
 
-                this.grid = generated;
+                this.grid = this.compactGridRepeats(generated); // signature calculée sur la grille complète : « Générer » varie comme avant
                 this._skipCustom = true;
                 this.loadedGridName = null;
                 this.updateLoadedGridNameDisplay();
@@ -6695,9 +6934,10 @@
                             chordId: step.chordId,
                             scaleId: step.scaleId,
                             bassRootIndex: Number.isInteger(step.bassRootIndex) ? step.bassRootIndex : null,
-                            split: this.isSplit(step) ? { rootIndex: step.split.rootIndex, chordId: step.split.chordId, scaleId: step.split.scaleId, bassRootIndex: Number.isInteger(step.split.bassRootIndex) ? step.split.bassRootIndex : null, fnLabel: step.split.fnLabel || null } : null,
+                            split: this.isSplit(step) ? { rootIndex: step.split.rootIndex, chordId: step.split.chordId, scaleId: step.split.scaleId, bassRootIndex: Number.isInteger(step.split.bassRootIndex) ? step.split.bassRootIndex : null, fnLabel: step.split.fnLabel || null, modKey: step.split.modKey || null } : null,
                             harmonicFunction: step.harmonicFunction || null,
-                            fnLabel: step.fnLabel || null
+                            fnLabel: step.fnLabel || null,
+                            modKey: step.modKey || null
                         });
                         measureNumber++;
                     }
@@ -6713,9 +6953,30 @@
                 return m;
             }
 
-            getHarmonicFunctionLabel(measure, flatMeasures, index) {
+            // Tonalité en vigueur à une mesure (et une moitié de mesure) : celle du dernier marqueur de modulation
+            // (modKey, posé quand l'utilisateur choisit une lecture « I de X », « IV de X », etc.) rencontré en
+            // remontant la grille, sinon la tonalité de la grille. excludeSelf : ignore le marqueur du bloc lui-même
+            // (tonalité qui précède cet accord, base des lectures proposées).
+            getLocalKey(flatMeasures, index, half = 0, excludeSelf = false) {
+                const fallback = { root: this.mainKey, minor: false };
+                if (!Array.isArray(flatMeasures) || !flatMeasures.length || !(index >= 0)) return fallback;
+                const i0 = Math.min(index, flatMeasures.length - 1);
+                const selfStep = flatMeasures[i0].stepIndex;
+                for (let j = i0; j >= 0; j--) {
+                    const m = flatMeasures[j];
+                    const own = excludeSelf && m.stepIndex === selfStep;
+                    // marqueur de la 2e moitié de mesure : en vigueur seulement pour elle-même (2e moitié) ou pour les mesures suivantes
+                    if (m.split && m.split.modKey && (j < i0 || half === 1) && !own) return { root: m.split.modKey.root, minor: !!m.split.modKey.minor };
+                    // marqueur du bloc : sauf le sien propre, sauf pour la 2e moitié de la mesure qu'il marque
+                    if (m.modKey && (!own || (half === 1 && j === i0))) return { root: m.modKey.root, minor: !!m.modKey.minor };
+                }
+                return fallback;
+            }
+
+            getHarmonicFunctionLabel(measure, flatMeasures, index, half = 0, keyOverride = null) {
                 if (measure.fnLabel) return measure.fnLabel; // fonction choisie par l'utilisateur
-                const root = ((measure.rootIndex - this.mainKey) % 12 + 12) % 12;
+                const tonic = Number.isInteger(keyOverride) ? keyOverride : this.getLocalKey(flatMeasures, index, half).root;
+                const root = ((measure.rootIndex - tonic) % 12 + 12) % 12;
                 const majorOffsets = [0, 2, 4, 5, 7, 9, 11];
                 const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
                 const accidental = (() => {
@@ -6732,7 +6993,7 @@
                 })();
 
                 const chordId = measure.chordId || '';
-                const minorChord = ['m7', 'm9', 'm11', 'mmaj7', 'm7b5'].includes(chordId);
+                const minorChord = ['minTriad', 'm7', 'm9', 'm11', 'mmaj7', 'm7b5'].includes(chordId);
                 const diminished = ['m7b5', 'dim7'].includes(chordId);
                 let degreeLabel = accidental.text;
                 if (minorChord) degreeLabel = degreeLabel.toLowerCase();
@@ -6742,7 +7003,7 @@
                 if (fn === 'secondaryDominant') {
                     const next = flatMeasures[index + 1];
                     if (next) {
-                        const targetRoot = ((next.rootIndex - this.mainKey) % 12 + 12) % 12;
+                        const targetRoot = ((next.rootIndex - tonic) % 12 + 12) % 12;
                         const targetOffsets = [0, 2, 4, 5, 7, 9, 11];
                         const targetRoman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
                         const ti = targetOffsets.indexOf(targetRoot);
@@ -6764,20 +7025,40 @@
             // ===== Reprises : calcul de l'ordre de lecture =====
             // Un bloc porte repeatStart (début |:), repeatEnd = nombre de passages (fin :|) et/ou volta = 1 ou 2
             // (1re / 2e fin). La 1re fin est jouée au premier passage seulement ; au passage suivant on la saute.
+            // 1re fin « effective » de chaque bloc : une 1re fin couvre TOUTES les mesures depuis son indication jusqu'à
+            // celle qui porte le signe de reprise :| (la 1re fin se termine toujours sur la barre de reprise). Il suffit donc
+            // de marquer le début de la 1re fin ; les mesures jusqu'au :| en font partie, pour l'affichage comme pour la lecture.
+            // Retourne un tableau (un élément par bloc) : 0, 1 (1re fin) ou 2 (2e fin).
+            _effectiveVolta() {
+                const g = this.grid;
+                const eff = g.map(st => st.volta || 0);
+                let start = 0;
+                for (let i = 0; i < g.length; i++) {
+                    if (g[i].repeatStart) start = i;
+                    if (g[i].repeatEnd) {
+                        let f = -1;
+                        for (let k = start; k <= i; k++) if (g[k].volta === 1) { f = k; break; }
+                        if (f >= 0) for (let k = f; k <= i; k++) if (!g[k].volta) eff[k] = 1;
+                        start = i + 1;
+                    }
+                }
+                return eff;
+            }
+
             _repeatRegions() {
                 const g = this.grid;
+                const eff = this._effectiveVolta();
                 const regions = [];
                 let start = 0;
                 for (let i = 0; i < g.length; i++) {
                     if (g[i].repeatStart) start = i;
                     if (g[i].repeatEnd) {
-                        let voltaStart = null;
-                        if (g[i].volta === 1) {
-                            let k = i;
-                            while (k - 1 > start && g[k - 1].volta === 1) k--;
-                            voltaStart = k;
-                        }
-                        regions.push({ start, end: i, times: g[i].repeatEnd, voltaStart });
+                        // Blocs « 1re fin » de cette reprise : tous ceux marqués 1re fin entre le début de reprise et le signe :|
+                        // (où que le :| tombe dans la 1re fin, ou même juste après), plus la suite de 1re fin qui prolonge le bloc du :|.
+                        const owned = new Set();
+                        for (let k = start; k <= i; k++) if (eff[k] === 1) owned.add(k);
+                        if (eff[i] === 1) { let x = i; while (x + 1 < g.length && eff[x + 1] === 1) { x++; owned.add(x); } }
+                        regions.push({ start, end: i, times: g[i].repeatEnd, owned });
                         start = i + 1;
                     }
                 }
@@ -6832,22 +7113,34 @@
                 const regions = this._repeatRegions();
                 const wrap = () => { if (commit) this._passes = {}; return { idx: 0, wrapped: true }; };
 
+                // Aux passages suivants, toute la 1re fin (suite de blocs marqués « 1re fin ») est sautée : la lecture
+                // continue au premier bloc qui la suit (2e fin). Si ce saut dépasse le signe :|, le compteur est remis à 1.
+                const effV = this._effectiveVolta();
+                const skipFirstEnding = (j) => {
+                    for (const rg of regions) {
+                        if ((passes[rg.end] || 1) <= 1 || !rg.owned.has(j)) continue;
+                        let e = j;
+                        while (e + 1 < len && effV[e + 1] === 1) e++;
+                        if (e >= rg.end) passes[rg.end] = 1;
+                        return e + 1;
+                    }
+                    return j;
+                };
+
                 // Fin de reprise : on retourne au début tant que tous les passages ne sont pas faits
                 const r = regions.find(rg => rg.end === i);
                 if (r) {
                     const p = passes[r.end] || 1;
-                    if (p < r.times) { passes[r.end] = p + 1; return { idx: r.start, wrapped: false }; }
+                    if (p < r.times) {
+                        passes[r.end] = p + 1;
+                        const back = skipFirstEnding(r.start); // cas limite : le début de reprise est lui-même en 1re fin
+                        return back >= len ? wrap() : { idx: back, wrapped: false };
+                    }
                     passes[r.end] = 1;
                 }
                 let j = i + 1;
                 if (j >= len) return wrap();
-                // Aux passages suivants, la 1re fin est sautée
-                for (const rg of regions) {
-                    if (rg.voltaStart !== null && j >= rg.voltaStart && j <= rg.end && (passes[rg.end] || 1) > 1) {
-                        j = rg.end + 1;
-                        passes[rg.end] = 1;
-                    }
-                }
+                j = skipFirstEnding(j);
                 if (j >= len) return wrap();
                 return { idx: j, wrapped: false };
             }
@@ -6999,6 +7292,7 @@
                     this.closeFunctionEditor();
                     this._selMode = false; this._selAnchor = null; this.clearSelection();
                 } else this.updateEditBar();
+                this.updateGridTitleInput();
                 this.renderSequenceUI(); // affiche / masque les crayons ✎ et la case « + »
             }
 
@@ -7021,8 +7315,8 @@
             // Lectures possibles d'un accord dans la tonalité de la grille : degré diatonique, dominantes secondaires,
             // substitutions, emprunts modaux, accords de passage / chromatisme et modulations.
             // next : accord de la mesure suivante (pour les accords d'approche chromatique), ou null.
-            getFunctionAlternatives(chord, next = null) {
-                const key = this.mainKey;
+            getFunctionAlternatives(chord, next = null, keyOverride = null) {
+                const key = Number.isInteger(keyOverride) ? keyOverride : this.mainKey;
                 const r = ((chord.rootIndex - key) % 12 + 12) % 12;
                 const R = (t, lower) => this._romanDeg(t, lower);
                 const K = (t) => rootLabels[(key + ((t % 12) + 12) % 12) % 12];
@@ -7035,7 +7329,8 @@
                     const clean = items.filter(it => it && it.label && !seen.has(it.label) && seen.add(it.label));
                     if (clean.length) groups.push({ title, items: clean });
                 };
-                const it = (label, desc) => ({ label, desc });
+                const it = (label, desc, mod = null) => ({ label, desc, mod }); // mod : { root, minor } = nouvelle tonalité si la lecture est une modulation
+                const mk = (t, minor = false) => ({ root: (key + mod(t)) % 12, minor });
 
                 // --- Fonction T / SD / D ---
                 const tsd = { maj: { 0: 'T', 5: 'SD' }, min: { 2: 'SD', 4: 'T', 9: 'T' }, dom: { 7: 'D' }, aug: { 7: 'D' }, hdim: { 11: 'D' }, dim: { 11: 'D' } }[fam] || {};
@@ -7063,7 +7358,7 @@
                         r === 3 ? it('♭III7', 'Dominante d\'emprunt (♭III7), couleur blues mineur') : null,
                         r === 8 ? it('♭VI7', 'Sixte augmentée (♭VI7) : conduit à V') : null
                     ]);
-                    if (r !== 7) add('Modulation', [it(`V${suf} de ${K(tSec)}`, `Modulation : cet accord devient la dominante de la nouvelle tonalité de ${K(tSec)}`)]);
+                    if (r !== 7) add('Modulation', [it(`V${suf} de ${K(tSec)}`, `Modulation : cet accord devient la dominante de la nouvelle tonalité de ${K(tSec)}`, mk(tSec))]);
                 } else if (fam === 'min') {
                     const degreeInfo = {
                         0: ['i', 'Tonique mineure (mode parallèle)'],
@@ -7086,8 +7381,8 @@
                         [mod(r + 10), 'ii', `ii de ${K(r + 10)}`, 'sous-dominante'],
                         [mod(r + 8), 'iii', `iii de ${K(r + 8)}`, 'tonique relative'],
                         [mod(r + 3), 'vi', `vi de ${K(r + 3)}`, 'relatif mineur']
-                    ].filter(x => x[0] !== 0).map(x => it(x[2], `Modulation (accord pivot) : ${x[1]} de ${K(x[0])}, rôle de ${x[3]} dans la nouvelle tonalité`));
-                    add('Modulation', [...pivots, r !== 0 ? it(`i (${K(r)}m)`, `Modulation en ${K(r)} mineur : cet accord en devient la tonique`) : null]);
+                    ].filter(x => x[0] !== 0).map(x => it(x[2], `Modulation (accord pivot) : ${x[1]} de ${K(x[0])}, rôle de ${x[3]} dans la nouvelle tonalité`, mk(x[0])));
+                    add('Modulation', [...pivots, r !== 0 ? it(`i (${K(r)}m)`, `Modulation en ${K(r)} mineur : cet accord en devient la tonique`, mk(r, true)) : null]);
                 } else if (fam === 'maj') {
                     const degreeInfo = {
                         0: ['I', 'Tonique'],
@@ -7106,9 +7401,9 @@
                     add('Degré', [it(degreeInfo[0], degreeInfo[1])]);
                     const tIv = mod(r + 7), tV = mod(r + 5);
                     add('Modulation', [
-                        r !== 0 ? it(`I de ${K(r)}`, `Modulation : cet accord devient la tonique de ${K(r)} majeur`) : null,
-                        tIv !== 0 ? it(`IV de ${K(tIv)}`, `Modulation (accord pivot) : sous-dominante de ${K(tIv)}`) : null,
-                        (chord.chordId === 'majTriad' && tV !== 0) ? it(`V de ${K(tV)}`, `Modulation : dominante (triade) de ${K(tV)}`) : null
+                        r !== 0 ? it(`I de ${K(r)}`, `Modulation : cet accord devient la tonique de ${K(r)} majeur`, mk(r)) : null,
+                        tIv !== 0 ? it(`IV de ${K(tIv)}`, `Modulation (accord pivot) : sous-dominante de ${K(tIv)}`, mk(tIv)) : null,
+                        (chord.chordId === 'majTriad' && tV !== 0) ? it(`V de ${K(tV)}`, `Modulation : dominante (triade) de ${K(tV)}`, mk(tV)) : null
                     ]);
                 } else if (fam === 'hdim') {
                     const tIi = mod(r - 2);
@@ -7116,7 +7411,7 @@
                         r === 11 ? it('viiø', 'Sensible demi-diminuée : fonction de dominante (V7 sans fondamentale) vers I') : null,
                         it(tIi === 0 ? 'iiø' : `iiø/${R(tIi, true)}`, tIi === 0 ? 'Emprunt au mineur parallèle : iiø – V7(♭9) – i' : `ii–V mineur : iiø – V7(♭9) – ${R(tIi, true)} ; tonicisation de ${R(tIi, true)} (${K(tIi)} mineur)`)
                     ]);
-                    add('Modulation', [it(`iiø de ${K(tIi)}m`, `Modulation en ${K(tIi)} mineur : cet accord en devient le iiø`)]);
+                    add('Modulation', [it(`iiø de ${K(tIi)}m`, `Modulation en ${K(tIi)} mineur : cet accord en devient le iiø`, mk(tIi, true))]);
                 } else if (fam === 'dim') {
                     const tg = [1, 4, 7, 10].map(n => mod(r + n));
                     add('Dominantes secondaires', tg.map(t => it(t === 0 ? 'vii°7' : `vii°7/${R(t)}`, `Remplace V7(♭9) de ${R(t)} (${K(t)}) : résolution par demi-ton ascendant sur ${R(t)}`)));
@@ -7150,12 +7445,14 @@
                 const useHalf = half === 1 && m.split;
                 const chord = useHalf ? m.split : m;
                 const nextM = flat[measureNumber] || null;
-                const groups = this.getFunctionAlternatives(chord, useHalf ? nextM : (m.split ? m.split : nextM));
+                // Tonalité en vigueur avant cet accord (les lectures proposées sont relatives à elle)
+                const ctxKey = this.getLocalKey(flat, measureNumber - 1, useHalf ? 1 : 0, true);
+                const groups = this.getFunctionAlternatives(chord, useHalf ? nextM : (m.split ? m.split : nextM), ctxKey.root);
                 const symbol = `${rootLabels[chord.rootIndex]}${this.getJazzChordNotation(chord.chordId)}`;
-                const auto = this.getHarmonicFunctionLabel({ rootIndex: chord.rootIndex, chordId: chord.chordId, harmonicFunction: useHalf ? null : m.harmonicFunction, fnLabel: null }, flat, measureNumber - 1);
+                const auto = this.getHarmonicFunctionLabel({ rootIndex: chord.rootIndex, chordId: chord.chordId, harmonicFunction: useHalf ? null : m.harmonicFunction, fnLabel: null }, flat, measureNumber - 1, useHalf ? 1 : 0, ctxKey.root);
                 const cur = chord.fnLabel || null;
                 const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
-                const row = (label, desc, on, encoded) => `<button type="button" class="jm-fn-row${on ? ' is-on' : ''}" data-fn="${encoded}"><b>${esc(label)}</b><span>${esc(desc)}</span></button>`;
+                const row = (label, desc, on, encoded, mod = null) => `<button type="button" class="jm-fn-row${on ? ' is-on' : ''}" data-fn="${encoded}"${mod ? ` data-mod="${encodeURIComponent(JSON.stringify(mod))}"` : ''}><b>${esc(label)}</b><span>${esc(desc)}</span></button>`;
 
                 const el = document.createElement('div');
                 el.className = 'jm-pop';
@@ -7164,18 +7461,20 @@
                         <span class="jm-title">Fonction tonale · Mesure ${measureNumber} · ${esc(symbol)}</span>
                         <button type="button" class="jm-btn" data-close="1" title="Fermer (Échap)">✕</button>
                     </div>
-                    <div class="jm-sub">Tonalité de la grille : ${esc(rootLabels[this.mainKey])}. Choisissez une lecture de cet accord.</div>
+                    <div class="jm-sub">${ctxKey.root === this.mainKey && !ctxKey.minor ? `Tonalité de la grille : ${esc(rootLabels[this.mainKey])}.` : `Tonalité en vigueur : ${esc(rootLabels[ctxKey.root])}${ctxKey.minor ? ' mineur' : ''} (modulation ; grille en ${esc(rootLabels[this.mainKey])}).`} Choisissez une lecture de cet accord. Une lecture « Modulation » change l'analyse des accords suivants.</div>
                     <div class="jm-sec">
                         ${row(`Auto : ${auto}`, 'Fonction calculée d\'après la tonalité (par défaut)', !cur, '__auto__')}
                     </div>
-                    ${groups.map(g => `<div class="jm-sec"><div class="jm-sec-t">${esc(g.title)}</div>${g.items.map(i => row(i.label, i.desc, cur === i.label, encodeURIComponent(i.label))).join('')}</div>`).join('')}
+                    ${groups.map(g => `<div class="jm-sec"><div class="jm-sec-t">${esc(g.title)}</div>${g.items.map(i => row(i.label, i.desc, cur === i.label, encodeURIComponent(i.label), i.mod)).join('')}</div>`).join('')}
                 `;
                 el.addEventListener('click', (ev) => {
                     if (ev.target.closest('[data-close]')) { this.closeFunctionEditor(); return; }
                     const b = ev.target.closest('[data-fn]');
                     if (!b) return;
                     const v = b.dataset.fn;
-                    this.applyFunctionLabel(measureNumber, useHalf ? 1 : 0, v === '__auto__' ? null : decodeURIComponent(v));
+                    let mod = null;
+                    if (b.dataset.mod) { try { mod = JSON.parse(decodeURIComponent(b.dataset.mod)); } catch (e) { mod = null; } }
+                    this.applyFunctionLabel(measureNumber, useHalf ? 1 : 0, v === '__auto__' ? null : decodeURIComponent(v), mod);
                 });
                 (document.fullscreenElement || document.body).appendChild(el);
                 this._enablePopupDrag(el);
@@ -7209,13 +7508,16 @@
             }
 
             // Enregistre (ou retire, label = null) la fonction tonale choisie pour une mesure ou une moitié de mesure.
-            applyFunctionLabel(measureNumber, half, label) {
+            applyFunctionLabel(measureNumber, half, label, mod = null) {
                 this.withUndo(() => {
                     const idx = this._isolateMeasure(measureNumber);
                     if (idx < 0) return;
                     const step = this.grid[idx];
                     const target = (half === 1 && this.isSplit(step)) ? step.split : step;
                     if (label) target.fnLabel = String(label).slice(0, 24); else delete target.fnLabel;
+                    // Lecture de type modulation : marqueur de nouvelle tonalité (valable jusqu'au marqueur suivant)
+                    if (label && mod && Number.isInteger(mod.root) && mod.root >= 0 && mod.root <= 11) target.modKey = { root: mod.root, minor: !!mod.minor };
+                    else delete target.modKey;
                     this._mergeAround(idx - 1, idx + 1);
                 });
                 this.closeFunctionEditor();
@@ -7416,17 +7718,20 @@
 
             // Copie profonde des mesures from..to (numéros 1-based) sous forme de mesures isolées.
             _measureItems(from, to) {
+                const effVolta = this._effectiveVolta();
                 return this.getFlatMeasureList().slice(from - 1, to).map(m => {
                     const it = { rootIndex: m.rootIndex, chordId: m.chordId, scaleId: m.scaleId };
                     const stp = this.grid[m.stepIndex];
                     if (stp.repeatStart && m.measureInStep === 1) it.repeatStart = true;
                     if (stp.repeatEnd && m.measureInStep === stp.measures) it.repeatEnd = stp.repeatEnd;
-                    if (stp.volta) it.volta = stp.volta;
+                    if (effVolta[m.stepIndex]) it.volta = effVolta[m.stepIndex];
                     if (stp.fnLabel) it.fnLabel = stp.fnLabel;
+                    if (stp.modKey) it.modKey = { ...stp.modKey };
                     if (Number.isInteger(m.bassRootIndex)) it.bassRootIndex = m.bassRootIndex;
                     if (m.harmonicFunction) it.harmonicFunction = m.harmonicFunction;
                     if (m.split) it.split = { rootIndex: m.split.rootIndex, chordId: m.split.chordId, scaleId: m.split.scaleId };
                     if (m.split && m.split.fnLabel) it.split.fnLabel = m.split.fnLabel;
+                    if (m.split && m.split.modKey) it.split.modKey = { ...m.split.modKey };
                     if (m.split && Number.isInteger(m.split.bassRootIndex)) it.split.bassRootIndex = m.split.bassRootIndex;
                     return it;
                 });
@@ -7592,6 +7897,7 @@
                 const shift = (o) => {
                     if (Number.isInteger(o.rootIndex)) o.rootIndex = (o.rootIndex + delta) % 12;
                     if (Number.isInteger(o.bassRootIndex)) o.bassRootIndex = (o.bassRootIndex + delta) % 12;
+                    if (o.modKey) o.modKey = { ...o.modKey, root: (o.modKey.root + delta) % 12 };
                     delete o.fnLabel;
                 };
                 this.withUndo(() => {
@@ -7838,7 +8144,7 @@
                         const co = this.findChordObj(target.chordId);
                         if (co && co.scales.length) target.scaleId = co.scales[0].id;
                     }
-                    if (chordChanged) delete target.fnLabel;
+                    if (chordChanged) { delete target.fnLabel; delete target.modKey; }
                     if (chordChanged && !useSplit) delete step.harmonicFunction;
                 });
                 this._editorSelect();
@@ -7944,7 +8250,7 @@
                     this.withUndo(() => {
                         const last = JSON.parse(JSON.stringify(this.grid[this.grid.length - 1]));
                         if (last.measures !== 1) delete last.split;
-                        delete last.repeatStart; delete last.repeatEnd; delete last.volta; delete last.fnLabel;
+                        delete last.repeatStart; delete last.repeatEnd; delete last.volta; delete last.fnLabel; delete last.modKey;
                         last.measures = 1;
                         this.grid.push(last);
                     });
@@ -8131,6 +8437,7 @@
                 container.classList.toggle('edit-on', !!this._editBarOpen);
 
                 const flatMeasures = this.getFlatMeasureList();
+                const effV = this._effectiveVolta();
                 if (this._sel && this._sel.from > flatMeasures.length) { this._sel = null; this._selPhase = null; }
                 else if (this._sel && this._sel.to > flatMeasures.length) this._sel.to = flatMeasures.length;
                 if (this._selAnchor && this._selAnchor > flatMeasures.length) this._selAnchor = null;
@@ -8201,8 +8508,8 @@
                         if (this.showHarmonicFunctions) {
                             const flatIdx = flatMeasures.indexOf(m);
                             if (showSplit) {
-                                const fa = this.getHarmonicFunctionLabel({ rootIndex: m.rootIndex, chordId: m.chordId, harmonicFunction: null, fnLabel: m.fnLabel }, flatMeasures, flatIdx);
-                                const fb = this.getHarmonicFunctionLabel({ rootIndex: m.split.rootIndex, chordId: m.split.chordId, harmonicFunction: null, fnLabel: m.split.fnLabel }, flatMeasures, flatIdx);
+                                const fa = this.getHarmonicFunctionLabel({ rootIndex: m.rootIndex, chordId: m.chordId, harmonicFunction: null, fnLabel: m.fnLabel }, flatMeasures, flatIdx, 0);
+                                const fb = this.getHarmonicFunctionLabel({ rootIndex: m.split.rootIndex, chordId: m.split.chordId, harmonicFunction: null, fnLabel: m.split.fnLabel }, flatMeasures, flatIdx, 1);
                                 bottomHtml = `<div class="jam-half-fn jam-fn-label" data-fhalf="0" style="left:30px">${fa}</div><div class="jam-half-fn jam-fn-label" data-fhalf="1" style="right:8px">${fb}</div>`;
                             } else {
                                 bottomHtml = `<div class="jam-cell-bottom jam-fn-label text-[10px] text-right font-normal jam-realbook-chord text-red-500" data-fhalf="0">${this.getHarmonicFunctionLabel(m, flatMeasures, flatIdx)}</div>`;
@@ -8214,9 +8521,10 @@
                         const hasRS = !!stp.repeatStart && m.measureInStep === 1;
                         const hasRE = !!stp.repeatEnd && m.measureInStep === stp.measures;
                         let voltaFirst = false;
-                        if (stp.volta) {
+                        const sv = effV[m.stepIndex]; // 1re / 2e fin effective (la 1re fin va jusqu'au :|)
+                        if (sv) {
                             const prevM = flatMeasures[m.measureNumber - 2];
-                            voltaFirst = !prevM || this.grid[prevM.stepIndex].volta !== stp.volta;
+                            voltaFirst = !prevM || effV[prevM.stepIndex] !== sv;
                         }
 
                         const mBox = document.createElement('div');
@@ -8230,6 +8538,7 @@
                         if (this._sel && m.measureNumber >= this._sel.from && m.measureNumber <= this._sel.to) mBox.classList.add('jam-sel');
                         if (hasRS) mBox.classList.add('rp-has-l');
                         if (hasRE) mBox.classList.add('rp-has-r');
+                        if (sv) mBox.classList.add('rp-has-v');
                         if (showSplit && this.getBeatsPerBar() === 3) mBox.classList.add('jam-ts3');
 
                         mBox.onclick = (ev) => {
@@ -8259,7 +8568,7 @@
 
                         mBox.innerHTML = `
                             <div class="jam-cell-top flex justify-between items-center text-[9px] font-mono ${isActive ? 'text-blue-200 font-bold' : 'text-slate-400'}">
-                                <span>${voltaFirst ? `<b class="rp-vtxt" title="${stp.volta === 1 ? '1re' : '2e'} fin">${stp.volta}.</b>` : ''}|${m.measureNumber}${this._editBarOpen ? '<span class="jam-edit-btn" role="button" aria-label="Éditer la mesure" title="Éditer cette mesure">✎</span>' : ''}</span>
+                                <span>${voltaFirst ? `<b class="rp-vtxt" title="${sv === 1 ? '1re' : '2e'} fin">${sv}.</b>` : ''}|${m.measureNumber}${this._editBarOpen ? '<span class="jam-edit-btn" role="button" aria-label="Éditer la mesure" title="Éditer cette mesure">✎</span>' : ''}</span>
                                 ${(hasRE && stp.repeatEnd > 2) ? `<span class="rp-xn" title="Reprise jouée ${stp.repeatEnd} fois">×${stp.repeatEnd}</span>` : ''}
                                 <span class="text-[8px] text-emerald-400 font-medium truncate max-w-[60px]">${scaleLabel}</span>
                             </div>
@@ -8299,7 +8608,7 @@
                         let marksHtml = '';
                         if (hasRS) marksHtml += '<span class="rp-l" title="Début de reprise"></span>';
                         if (hasRE) marksHtml += '<span class="rp-r" title="Fin de reprise"></span>';
-                        if (stp.volta) {
+                        if (sv) {
                             marksHtml += '<span class="rp-vl"></span>';
                             if (voltaFirst) marksHtml += '<span class="rp-vt"></span>';
                         }
@@ -8411,11 +8720,13 @@
                     html += `<span class="jam-print-re"><i class="b1"></i><i class="b2"></i>${dots}</span>`;
                     if (st.repeatEnd > 2) html += `<span class="jam-print-times">×${st.repeatEnd}</span>`;
                 }
-                if (st.volta) {
+                const effV = this._effectiveVolta();
+                const sv = effV[m.stepIndex];
+                if (sv) {
                     const prev = flat[m.measureNumber - 2];
-                    const first = !prev || this.grid[prev.stepIndex].volta !== st.volta;
+                    const first = !prev || effV[prev.stepIndex] !== sv;
                     html += '<span class="jam-print-vo"></span>';
-                    if (first) html += `<span class="jam-print-vt"></span><span class="jam-print-vl">${st.volta}.</span>`;
+                    if (first) html += `<span class="jam-print-vt"></span><span class="jam-print-vl">${sv}.</span>`;
                 }
                 return { cls, html };
             }
@@ -10279,6 +10590,15 @@
 
         const app = new ChordScaleApp();
         app.switchView('jam'); // la page s'ouvre sur le mode Jam
+        // Recentrage du « VII » de la pastille fonction tonale une fois la police Real Book chargée
+        (function () {
+            const run = () => { try { app.jam.centerTonalToggleGlyph(); } catch (e) {} };
+            run();
+            if (document.fonts && document.fonts.load) {
+                document.fonts.load('700 15px Kalam').then(run, run);
+                document.fonts.ready.then(run, run);
+            }
+        })();
     </script>
     <div id="jam-print-area"></div>
 
