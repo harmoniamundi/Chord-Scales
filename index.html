@@ -356,6 +356,7 @@
         .jm-hint { margin-top: 8px; font-size: 10px; color: #64748b; }
 
         /* ===== Sélection de mesures + copier/coller (grille du mode Jam) ===== */
+        #jam-chord-sequence-display .jam-cell { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
         #jam-chord-sequence-display .jam-cell.jam-sel { box-shadow: inset 0 0 0 3px #f59e0b; }
         #jam-chord-sequence-display .jam-cell.jam-sel:not(.bg-blue-600) { background: #fff4d6; }
         .jam-eb { padding: 3px 8px; border-radius: 6px; border: 1px solid #3a3a3c; background: #1f1f21; color: #cbd5e1; font: 600 11px/1.2 inherit; font-family: inherit; cursor: pointer; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
@@ -8889,6 +8890,86 @@
                 };
                 document.addEventListener('pointerup', endDrag);
                 document.addEventListener('pointercancel', endDrag);
+
+                // Appui long puis glisser au doigt = sélection d'une plage de mesures (hors mode édition aussi).
+                // Un simple glissement avant la fin de l'appui long reste un défilement normal de la page.
+                const LONG_MS = 380, SLOP = 10, EDGE = 70;
+                const CELL_SEL = '#jam-chord-sequence-display .jam-cell[data-measure-number]';
+                const cellAt = (x, y) => {
+                    const el = document.elementFromPoint(x, y);
+                    return el && el.closest ? el.closest(CELL_SEL) : null;
+                };
+                const stopTouchSel = () => {
+                    const s = this._touchSel;
+                    if (!s) return null;
+                    clearTimeout(s.timer);
+                    clearInterval(s.scroller);
+                    this._touchSel = null;
+                    return s;
+                };
+                const extendTouchSel = (s) => {
+                    const cell = cellAt(s.cx, s.cy);
+                    if (!cell) return;
+                    const n = parseInt(cell.dataset.measureNumber, 10);
+                    if (n === s.last) return;
+                    s.last = n;
+                    this._selAnchor = s.start;
+                    this.setSelection(s.start, n);
+                    if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} }
+                };
+                document.addEventListener('touchstart', (ev) => {
+                    stopTouchSel();
+                    if (ev.touches.length !== 1 || this.isPlaying || this._editor) return;
+                    const t = ev.target;
+                    if (!t.closest || t.closest('.jam-arp-btn, .jam-edit-btn, .jam-add-cell, .jam-fn-label')) return;
+                    const cell = t.closest(CELL_SEL);
+                    if (!cell) return;
+                    const tc = ev.touches[0];
+                    const s = { x: tc.clientX, y: tc.clientY, cx: tc.clientX, cy: tc.clientY,
+                                start: parseInt(cell.dataset.measureNumber, 10), last: null, active: false };
+                    s.timer = setTimeout(() => {
+                        s.active = true;
+                        s.last = s.start;
+                        this._selAnchor = s.start;
+                        this._selPhase = null;
+                        this.setSelection(s.start, s.start);
+                        if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) {} }
+                        // Défilement automatique près des bords de l'écran pendant le glisser
+                        s.scroller = setInterval(() => {
+                            const h = window.innerHeight;
+                            const dy = s.cy < EDGE ? -12 : (s.cy > h - EDGE ? 12 : 0);
+                            if (dy) { window.scrollBy(0, dy); extendTouchSel(s); }
+                        }, 16);
+                    }, LONG_MS);
+                    this._touchSel = s;
+                }, { passive: true });
+                document.addEventListener('touchmove', (ev) => {
+                    const s = this._touchSel;
+                    if (!s) return;
+                    const tc = ev.touches[0];
+                    s.cx = tc.clientX; s.cy = tc.clientY;
+                    if (!s.active) {
+                        // le doigt bouge avant la fin de l'appui long : c'est un défilement, on abandonne
+                        if (Math.hypot(s.cx - s.x, s.cy - s.y) > SLOP) stopTouchSel();
+                        return;
+                    }
+                    if (ev.cancelable) ev.preventDefault(); // pas de défilement pendant la sélection
+                    extendTouchSel(s);
+                }, { passive: false });
+                const endTouchSel = (ev) => {
+                    const s = stopTouchSel();
+                    if (s && s.active) {
+                        if (ev.cancelable) ev.preventDefault(); // évite le « clic » fantôme qui effacerait la sélection
+                        this._justDragged = true;
+                        setTimeout(() => { this._justDragged = false; }, 400);
+                    }
+                };
+                document.addEventListener('touchend', endTouchSel, { passive: false });
+                document.addEventListener('touchcancel', endTouchSel, { passive: false });
+                // Pas de menu contextuel / loupe du navigateur pendant l'appui long sur une mesure
+                document.addEventListener('contextmenu', (ev) => {
+                    if (this._touchSel || (ev.target.closest && ev.target.closest(CELL_SEL) && this._justDragged)) ev.preventDefault();
+                });
 
                 document.addEventListener('keydown', (e) => {
                     const view = document.getElementById('view-jam');
