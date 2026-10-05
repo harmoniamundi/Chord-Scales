@@ -543,6 +543,36 @@
             #view-jam #jam-next-chord-display { margin-left: 0 !important; padding-left: 0; border-left: 0; flex: 1 1 100%; flex-wrap: wrap; gap: 8px 12px !important; }
         }
     </style>
+
+    <style>
+        /* ===== Parties (A, B, C…) façon Realbook =====
+           Gouttière à gauche de chaque ligne, présente seulement si la grille porte au moins un repère
+           (sinon la grille garde exactement son aspect d'origine). */
+        #jam-chord-sequence-display .jam-part-gutter { display: none; }
+        #jam-chord-sequence-display .jam-wrapper.jam-has-parts .jam-row { grid-template-columns: 34px repeat(4, minmax(0, 1fr)); }
+        #jam-chord-sequence-display .jam-wrapper.jam-has-parts .jam-part-gutter { display: flex; align-items: center; justify-content: center; min-width: 0; }
+        #jam-chord-sequence-display .jam-part-mark {
+            box-sizing: border-box; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+            border: 2px solid #e5e7eb; border-radius: 2px; color: #e5e7eb;
+            font-family: "Kalam", cursive; font-weight: 700; font-size: 17px; line-height: 1; user-select: none;
+        }
+        /* Zone vide au milieu de la grille (fin d'une partie qui ne remplit pas la ligne) */
+        #jam-chord-sequence-display .jam-cell.jam-gap { background: #161616; border: 1px dashed #2a2a2c; border-radius: 4px; opacity: .3; pointer-events: none; cursor: default; }
+        .jam-part-btn-ico { display: inline-block; box-sizing: border-box; min-width: 15px; margin-right: 5px; padding: 0 3px; border: 1.5px solid currentColor; border-radius: 2px; font: 700 11px/12px "Kalam", cursive; text-align: center; }
+        @media (max-width: 639px) {
+            /* Téléphone : gouttière réduite pour garder la largeur des cases */
+            #jam-chord-sequence-display .jam-wrapper.jam-has-parts .jam-row { grid-template-columns: 20px repeat(4, minmax(0, 1fr)); }
+            #jam-chord-sequence-display .jam-part-mark { width: 17px; height: 17px; border-width: 1.5px; font-size: 12px; }
+        }
+        @media print {
+            #jam-print-area .jam-print-grid.has-parts .jam-print-row { grid-template-columns: 12mm repeat(4, 1fr); }
+            #jam-print-area .jam-print-gutter { display: flex; align-items: center; justify-content: center; }
+            #jam-print-area .jam-print-part {
+                box-sizing: border-box; width: 8mm; height: 8mm; display: flex; align-items: center; justify-content: center;
+                border: 1.75pt solid #000000; color: #000000; font: 700 15pt "Kalam", cursive; line-height: 1;
+            }
+        }
+    </style>
 </head>
 <body class="bg-[#121212] text-slate-100 selection:bg-blue-500 selection:text-white">
 
@@ -845,6 +875,8 @@
                             <button type="button" id="jam-eb-v1" class="jam-eb" onclick="app.jam.gridVolta(1)" title="Marque la sélection comme 1re fin (jouée au premier passage seulement)">1re fin</button>
                             <button type="button" id="jam-eb-v2" class="jam-eb" onclick="app.jam.gridVolta(2)" title="Marque la sélection comme 2e fin (jouée au second passage)">2e fin</button>
                             <button type="button" id="jam-eb-rclr" class="jam-eb" onclick="app.jam.gridClearRepeats()" title="Retire reprises et fins de la sélection">Retirer reprises</button>
+                            <span class="jam-eb-sep"></span>
+                            <button type="button" id="jam-eb-part" class="jam-eb" onclick="app.jam.gridPartStart()" title="Repère de partie (A, B, C…) sur la première mesure de la sélection : chaque clic passe à la lettre suivante, après Z le repère est retiré"><span class="jam-part-btn-ico">A</span>Partie</button>
                             <span class="jam-eb-sep"></span>
                             <button type="button" id="jam-eb-tr-dir" class="jam-eb jam-eb-ico" onclick="app.jam.toggleTransposeDir()" title="Sens de la transposition : vers l'aigu (↑) ou vers le grave (↓)" aria-label="Sens de la transposition">↑</button>
                             <select id="jam-eb-tr-int" class="jam-eb" title="Intervalle de transposition" aria-label="Intervalle de transposition">
@@ -2444,6 +2476,7 @@
                     if (mk0) step.modKey = mk0;
                     // Signes de reprise : début, fin (nombre de passages) et 1re / 2e fin
                     if (item.repeatStart === true) step.repeatStart = true;
+                    if (typeof item.partStart === 'string' && /^[A-Z]$/.test(item.partStart)) step.partStart = item.partStart; // repère de partie (A–Z)
                     const re = Number(item.repeatEnd);
                     if (Number.isInteger(re) && re >= 2 && re <= 4) step.repeatEnd = re;
                     const vo = Number(item.volta);
@@ -7874,6 +7907,7 @@
                 this.grid = this.compactGridRepeats(generated); // signature calculée sur la grille complète : « Générer » varie comme avant
                 this._annotateModulations(styleKey); // sections écrites dans une autre tonalité : marqueur « I de X » (comme l'éditeur de fonction tonale)
                 this.grid.forEach(st => { delete st.kc; }); // champ de travail du générateur, jamais conservé dans la grille
+                this._assignAutoParts(); // repères de partie (A, B, C…) déduits des sections du style
                 this._skipCustom = true;
                 this.loadedGridName = null;
                 this.updateLoadedGridNameDisplay();
@@ -7962,7 +7996,7 @@
                     if (g[found].measures > 1) {
                         const head = JSON.parse(JSON.stringify(g[found])); head.measures = 1;
                         const rest = JSON.parse(JSON.stringify(g[found])); rest.measures = g[found].measures - 1;
-                        delete head.repeatEnd; delete rest.repeatStart; // début de reprise sur la 1re partie, fin sur la dernière
+                        delete head.repeatEnd; delete rest.repeatStart; delete rest.partStart; // début de reprise sur la 1re partie, fin sur la dernière
                         g.splice(found, 1, head, rest);
                         kcs.splice(found, 1, kcs[found], kcs[found]);
                     }
@@ -8901,7 +8935,7 @@
                 dis('jam-eb-dup', !range);
                 dis('jam-eb-del', !range);
                 dis('jam-eb-paste', clip.length === 0);
-                ['jam-eb-rs', 'jam-eb-re', 'jam-eb-v1', 'jam-eb-v2', 'jam-eb-rclr', 'jam-eb-tr'].forEach(id => dis(id, !range));
+                ['jam-eb-rs', 'jam-eb-re', 'jam-eb-v1', 'jam-eb-v2', 'jam-eb-rclr', 'jam-eb-part', 'jam-eb-tr'].forEach(id => dis(id, !range));
                 const paste = document.getElementById('jam-eb-paste');
                 if (paste) paste.textContent = clip.length ? `Coller (${clip.length})` : 'Coller';
                 const modeBtn = document.getElementById('jam-sel-mode-btn');
@@ -8918,6 +8952,7 @@
                     const it = { rootIndex: m.rootIndex, chordId: m.chordId, scaleId: m.scaleId };
                     const stp = this.grid[m.stepIndex];
                     if (stp.repeatStart && m.measureInStep === 1) it.repeatStart = true;
+                    if (stp.partStart && m.measureInStep === 1) it.partStart = stp.partStart;
                     if (stp.repeatEnd && m.measureInStep === stp.measures) it.repeatEnd = stp.repeatEnd;
                     if (effVolta[m.stepIndex]) it.volta = effVolta[m.stepIndex];
                     if (stp.fnLabel) it.fnLabel = stp.fnLabel;
@@ -8941,12 +8976,14 @@
 
             // Fusionne les blocs voisins identiques autour d'une zone modifiée (évite l'éparpillement en blocs d'1 mesure).
             _mergeAround(i0, i1) {
-                const strip = (o) => { const c = { ...o }; delete c.measures; return JSON.stringify(c); };
+                // Le repère de partie ne compte pas dans la comparaison, mais un bloc qui ouvre une partie
+                // n'est jamais absorbé par le précédent (sinon son repère serait perdu).
+                const strip = (o) => { const c = { ...o }; delete c.measures; delete c.partStart; return JSON.stringify(c); };
                 let i = Math.max(0, i0 - 1);
                 let end = Math.min(this.grid.length - 1, i1 + 1);
                 while (i < end && i < this.grid.length - 1) {
                     const a = this.grid[i], b = this.grid[i + 1];
-                    if (!a.split && !b.split && strip(a) === strip(b)) {
+                    if (!a.split && !b.split && !b.partStart && strip(a) === strip(b)) {
                         a.measures += b.measures;
                         this.grid.splice(i + 1, 1);
                         end--;
@@ -8998,8 +9035,15 @@
 
             _deleteRange(r) {
                 this.withUndo(() => {
+                    // Repère de partie supprimé avec la plage : il passe à la mesure suivante si celle-ci n'en porte pas
+                    const flat0 = this.getFlatMeasureList();
+                    let lost = '';
+                    for (let n = r.from; n <= r.to; n++) { const lab = this._partLabelOfMeasure(flat0[n - 1]); if (lab) lost = lab; }
+                    const nextM = flat0[r.to];
+                    const carry = (lost && nextM && !this._partLabelOfMeasure(nextM)) ? lost : '';
                     const { i0, i1 } = this._isolateRange(r.from, r.to);
                     this.grid.splice(i0, i1 - i0 + 1);
+                    if (carry && this.grid[i0]) this.grid[i0].partStart = carry;
                     this._mergeAround(i0 - 1, i0);
                 });
                 const total = this._totalMeasures();
@@ -9074,6 +9118,8 @@
                 parts.forEach(pt => { delete pt.repeatStart; delete pt.repeatEnd; });
                 if (st.repeatStart) parts[0].repeatStart = true;
                 if (st.repeatEnd) parts[1].repeatEnd = st.repeatEnd;
+                parts.forEach(pt => { delete pt.partStart; });
+                if (st.partStart) parts[0].partStart = st.partStart;
                 this.grid.splice(m.stepIndex, 1, ...parts);
             }
 
@@ -9172,6 +9218,9 @@
                 // Début de reprise : seulement sur la première partie ; fin de reprise : seulement sur la dernière.
                 parts.forEach(pt => { delete pt.repeatStart; delete pt.repeatEnd; });
                 if (s.repeatStart) parts[0].repeatStart = true;
+                // Repère de partie : seulement sur la première partie du bloc éclaté
+                parts.forEach(pt => { delete pt.partStart; });
+                if (s.partStart) parts[0].partStart = s.partStart;
                 if (s.repeatEnd) parts[parts.length - 1].repeatEnd = s.repeatEnd;
                 this.grid.splice(m.stepIndex, 1, ...parts);
                 return m.stepIndex + editedPos;
@@ -9410,8 +9459,15 @@
                 if (this.getFlatMeasureList().length <= 1) return; // la grille garde au moins une mesure
                 ed.touched = true;
                 this.withUndo(() => {
+                    const flat0 = this.getFlatMeasureList();
+                    const lost = this._partLabelOfMeasure(flat0[ed.measureNumber - 1]);
+                    const nextM = flat0[ed.measureNumber];
+                    const carry = (lost && nextM && !this._partLabelOfMeasure(nextM)) ? lost : '';
                     const idx = this._isolateMeasure(ed.measureNumber);
-                    if (idx >= 0) this.grid.splice(idx, 1);
+                    if (idx >= 0) {
+                        this.grid.splice(idx, 1);
+                        if (carry && this.grid[idx]) this.grid[idx].partStart = carry;
+                    }
                 });
                 const total = this.getFlatMeasureList().length;
                 if (ed.measureNumber > total) ed.measureNumber = total;
@@ -9426,7 +9482,7 @@
                 this.withUndo(() => {
                     const idx = this._isolateMeasure(ed.measureNumber);
                     if (idx < 0) return;
-                    { const cp = JSON.parse(JSON.stringify(this.grid[idx])); delete cp.repeatStart; delete cp.repeatEnd; delete cp.volta; this.grid.splice(idx + 1, 0, cp); }
+                    { const cp = JSON.parse(JSON.stringify(this.grid[idx])); delete cp.repeatStart; delete cp.repeatEnd; delete cp.volta; delete cp.partStart; this.grid.splice(idx + 1, 0, cp); }
                 });
                 ed.measureNumber += 1;
                 ed.half = 0;
@@ -9445,7 +9501,7 @@
                     this.withUndo(() => {
                         const last = JSON.parse(JSON.stringify(this.grid[this.grid.length - 1]));
                         if (last.measures !== 1) delete last.split;
-                        delete last.repeatStart; delete last.repeatEnd; delete last.volta; delete last.fnLabel; delete last.modKey;
+                        delete last.repeatStart; delete last.repeatEnd; delete last.volta; delete last.fnLabel; delete last.modKey; delete last.partStart;
                         last.measures = 1;
                         this.grid.push(last);
                     });
@@ -9624,6 +9680,62 @@
                 el.style.top = `${top}px`;
             }
 
+            // ===== Parties (A, B, C…) : repères façon Realbook =====
+            // partStart = lettre 'A'..'Z' portée par le bloc dont la 1re mesure ouvre la partie.
+            _partLabelOfMeasure(m) {
+                if (!m) return '';
+                const st = this.grid[m.stepIndex];
+                if (!st || m.measureInStep !== 1) return '';
+                return (typeof st.partStart === 'string' && /^[A-Z]$/.test(st.partStart)) ? st.partStart : '';
+            }
+
+            // Découpe la liste des mesures en lignes : 4 mesures au plus, avec un saut de ligne avant toute mesure qui ouvre une partie.
+            _layoutRows(flat) {
+                const rows = [];
+                let cur = [];
+                flat.forEach((m) => {
+                    if (cur.length && (cur.length === 4 || this._partLabelOfMeasure(m))) { rows.push(cur); cur = []; }
+                    cur.push(m);
+                });
+                if (cur.length) rows.push(cur);
+                return rows;
+            }
+
+            // Grilles générées : un repère de partie à chaque changement de section du style (A, A2, A3 → « A »).
+            // Posé après compactGridRepeats / _annotateModulations pour ne figurer que sur le premier bloc de chaque partie.
+            // Aucun repère si la grille n'a qu'une seule section (une lettre unique n'apporterait rien).
+            _assignAutoParts() {
+                const g = this.grid;
+                g.forEach(st => { delete st.partStart; });
+                const marks = [];
+                let cur = '';
+                g.forEach((st, i) => {
+                    if (!st.section) return; // un bloc sans section reste dans la partie en cours
+                    if (st.section !== cur) {
+                        const m = /^([A-Z])\d*$/.exec(String(st.section));
+                        if (m) marks.push({ i, letter: m[1] });
+                    }
+                    cur = st.section;
+                });
+                if (marks.length < 2) return;
+                marks.forEach(({ i, letter }) => { g[i].partStart = letter; });
+            }
+
+            // Bouton « Partie » : sur la 1re mesure de la sélection, A → B → … → Z → aucun repère.
+            gridPartStart() {
+                if (this.isPlaying) return;
+                const r = this._actionRange();
+                if (!r) { this._flash('Sélectionnez une mesure'); return; }
+                let next = '';
+                this._markRange(r, (i0) => {
+                    const a = this.grid[i0];
+                    const cur = (typeof a.partStart === 'string' && /^[A-Z]$/.test(a.partStart)) ? a.partStart : '';
+                    next = !cur ? 'A' : (cur === 'Z' ? '' : String.fromCharCode(cur.charCodeAt(0) + 1));
+                    if (next) a.partStart = next; else delete a.partStart;
+                });
+                this._flash(next ? `Partie ${next}` : 'Repère de partie retiré');
+            }
+
             renderSequenceUI() {
                 const container = document.getElementById('jam-chord-sequence-display');
                 if (!container) return;
@@ -9661,13 +9773,11 @@
                     currentMeasureNum = count + currentMeasureInStep + 1;
                 }
 
-                const systems = [];
-                for (let i = 0; i < flatMeasures.length; i += 4) {
-                    systems.push(flatMeasures.slice(i, i + 4));
-                }
+                const systems = this._layoutRows(flatMeasures);
 
                 const gridWrapper = document.createElement('div');
                 gridWrapper.className = "jam-wrapper space-y-1.5 w-full px-1";
+                if (flatMeasures.some(m => !!this._partLabelOfMeasure(m))) gridWrapper.classList.add('jam-has-parts');
 
                 const makeAddCell = () => {
                     const c = document.createElement('div');
@@ -9682,11 +9792,24 @@
                     const systemRow = document.createElement('div');
                     systemRow.className = "jam-row grid grid-cols-4 gap-1.5 bg-[#1a1a1a] p-1.5 rounded-lg border border-[#333333]";
 
+                    // Gouttière de gauche : repère de partie (lettre encadrée) si la ligne ouvre une partie
+                    const gutter = document.createElement('div');
+                    gutter.className = 'jam-part-gutter';
+                    const rowPart = this._partLabelOfMeasure(systemMeasures[0]);
+                    if (rowPart) {
+                        const mk = document.createElement('span');
+                        mk.className = 'jam-part-mark';
+                        mk.textContent = rowPart;
+                        mk.title = `Partie ${rowPart}`;
+                        gutter.appendChild(mk);
+                    }
+                    systemRow.appendChild(gutter);
+
                     systemMeasures.forEach((m) => {
                         const symA = this.getChordSymbolHtml(m);
                         const previousMeasure = flatMeasures[m.measureNumber - 2];
                         // « % » : la mesure répète exactement la précédente (les deux accords s'il y en a deux)
-                        const repeat = !!previousMeasure && this.getMeasureKey(previousMeasure) === this.getMeasureKey(m);
+                        const repeat = !!previousMeasure && !this._partLabelOfMeasure(m) && this.getMeasureKey(previousMeasure) === this.getMeasureKey(m);
                         const showSplit = !!m.split && !repeat;
                         const displayChordSymbol = repeat ? '%' : symA;
                         const isActive = (m.measureNumber === currentMeasureNum);
@@ -9812,6 +9935,14 @@
                     });
 
                     for (let k = systemMeasures.length; k < 4; k++) {
+                        if (sysIdx < systems.length - 1) {
+                            // Fin de partie : zone vide discrète, la partie suivante commence à la ligne
+                            const gap = document.createElement('div');
+                            gap.className = 'jam-cell jam-gap';
+                            gap.setAttribute('aria-hidden', 'true');
+                            systemRow.appendChild(gap);
+                            continue;
+                        }
                         if (k === systemMeasures.length && sysIdx === systems.length - 1 && this._editBarOpen && !this.isPlaying) {
                             systemRow.appendChild(makeAddCell());
                             continue;
@@ -9826,9 +9957,10 @@
                 });
 
                 // Dernière ligne pleine : une nouvelle ligne propose « + » pour ajouter une mesure
-                if (this._editBarOpen && !this.isPlaying && flatMeasures.length % 4 === 0) {
+                if (this._editBarOpen && !this.isPlaying && systems[systems.length - 1].length === 4) {
                     const addRow = document.createElement('div');
                     addRow.className = "jam-row grid grid-cols-4 gap-1.5 bg-[#1a1a1a] p-1.5 rounded-lg border border-[#333333]";
+                    { const g = document.createElement('div'); g.className = 'jam-part-gutter'; addRow.appendChild(g); }
                     addRow.appendChild(makeAddCell());
                     for (let k = 1; k < 4; k++) {
                         const emptyCell = document.createElement('div');
@@ -9936,17 +10068,15 @@
                     return;
                 }
 
-                const systems = [];
-                for (let i = 0; i < flatMeasures.length; i += 4) {
-                    systems.push(flatMeasures.slice(i, i + 4));
-                }
+                const systems = this._layoutRows(flatMeasures);
+                const hasParts = flatMeasures.some(m => !!this._partLabelOfMeasure(m));
 
                 let rowsHtml = '';
                 systems.forEach((systemMeasures) => {
                     let cellsHtml = '';
                     systemMeasures.forEach((m) => {
                         const previousMeasure = flatMeasures[m.measureNumber - 2];
-                        const repeat = !!previousMeasure && this.getMeasureKey(previousMeasure) === this.getMeasureKey(m);
+                        const repeat = !!previousMeasure && !this._partLabelOfMeasure(m) && this.getMeasureKey(previousMeasure) === this.getMeasureKey(m);
                         const pm = this._printMarks(m, flatMeasures);
                         if (m.split && !repeat) {
                             cellsHtml += `<div class="jam-print-cell${pm.cls}"><div class="jam-print-split${this.getBeatsPerBar() === 3 ? ' jam-print-split-3' : ''}"><span class="jam-print-chord" data-symbol="${encodeURIComponent(this.getChordSymbol(m))}"></span><span class="jam-print-chord" data-symbol="${encodeURIComponent(this.getChordSymbol(m.split))}"></span></div>${pm.html}</div>`;
@@ -9958,12 +10088,14 @@
                     for (let k = systemMeasures.length; k < 4; k++) {
                         cellsHtml += `<div class="jam-print-cell jam-print-cell-empty"></div>`;
                     }
-                    rowsHtml += `<div class="jam-print-row">${cellsHtml}</div>`;
+                    const rowPart = this._partLabelOfMeasure(systemMeasures[0]);
+                    const gutterHtml = hasParts ? `<div class="jam-print-gutter">${rowPart ? `<span class="jam-print-part">${rowPart}</span>` : ''}</div>` : '';
+                    rowsHtml += `<div class="jam-print-row">${gutterHtml}${cellsHtml}</div>`;
                 });
 
                 printArea.innerHTML = `
                     <div class="jam-print-title"></div>
-                    <div class="jam-print-grid">${rowsHtml}</div>
+                    <div class="jam-print-grid${hasParts ? ' has-parts' : ''}">${rowsHtml}</div>
                 `;
 
                 printArea.querySelector('.jam-print-title').textContent = this.loadedGridName || "Grille d'accords";
