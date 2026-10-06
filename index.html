@@ -585,6 +585,32 @@
             #jam-chord-sequence-display .jam-cell.jam-ts3.rp-has-r:not(.rp-has-l) .jam-arp-btn.jam-arp-btn-b { left: calc(66.667% - 9px); }
             #jam-chord-sequence-display .jam-cell.jam-ts3.rp-has-l.rp-has-r .jam-arp-btn.jam-arp-btn-b { left: calc(66.667% - 6px); }
 
+            /* ===== Analyse fonctionnelle sur une mesure à deux accords (téléphone) =====
+               Les étiquettes longues (« I de G », « V7 de Gm », « iiø de Fm »…) étaient posées sur la même ligne que les
+               chevrons « >> » dans une demi-case d'environ 38 px : elles se chevauchaient entre elles et avec les chevrons.
+               Désormais : une ligne dédiée juste au-dessus des chevrons, une étiquette par demi-case, centrée dans sa
+               demi-case, avec retour à la ligne autorisé ; la ligne de cases est un peu plus haute pour la contenir. */
+            #jam-chord-sequence-display .jam-row:has(.jam-half-fn) .jam-cell { height: 90px; min-height: 90px; }
+            #jam-chord-sequence-display .jam-cell:has(.jam-half-fn) { padding-bottom: 42px; }
+            /* cases étroites (3/4, barres de reprise) : l'étiquette peut passer sur 3 lignes -> encore un peu plus de hauteur */
+            #jam-chord-sequence-display .jam-row:has(.jam-cell.jam-ts3 .jam-half-fn, .jam-cell.rp-has-l .jam-half-fn, .jam-cell.rp-has-r .jam-half-fn) .jam-cell { height: 102px; min-height: 102px; }
+            #jam-chord-sequence-display .jam-row:has(.jam-cell.jam-ts3 .jam-half-fn, .jam-cell.rp-has-l .jam-half-fn, .jam-cell.rp-has-r .jam-half-fn) .jam-cell:has(.jam-half-fn) { padding-bottom: 54px; }
+            #jam-chord-sequence-display .jam-cell .jam-half-fn {
+                bottom: 22px; width: calc(50% - 6px); max-width: calc(50% - 6px);
+                text-align: center; white-space: normal; overflow-wrap: anywhere;
+                font-size: 0.66rem; line-height: 1.05;
+            }
+            #jam-chord-sequence-display .jam-cell .jam-half-fn[style*="left"]  { left: 3px !important; right: auto !important; }
+            #jam-chord-sequence-display .jam-cell .jam-half-fn[style*="right"] { left: calc(50% + 3px) !important; right: auto !important; }
+            /* reprises : on décale / rétrécit du côté de la barre de reprise */
+            #jam-chord-sequence-display .jam-cell.rp-has-l .jam-half-fn[style*="left"]  { left: 15px !important; width: calc(50% - 18px); max-width: calc(50% - 18px); }
+            #jam-chord-sequence-display .jam-cell.rp-has-r .jam-half-fn[style*="right"] { left: calc(50% + 3px) !important; right: auto !important; width: calc(50% - 18px); max-width: calc(50% - 18px); }
+            /* 3/4 : la coupure est aux 2/3 de la case */
+            #jam-chord-sequence-display .jam-cell.jam-ts3 .jam-half-fn[style*="left"]  { width: calc(66.667% - 6px); max-width: calc(66.667% - 6px); }
+            #jam-chord-sequence-display .jam-cell.jam-ts3 .jam-half-fn[style*="right"] { left: calc(66.667% + 3px) !important; width: calc(33.333% - 6px); max-width: calc(33.333% - 6px); }
+            #jam-chord-sequence-display .jam-cell.jam-ts3.rp-has-l .jam-half-fn[style*="left"]  { width: calc(66.667% - 18px); max-width: calc(66.667% - 18px); }
+            #jam-chord-sequence-display .jam-cell.jam-ts3.rp-has-r .jam-half-fn[style*="right"] { width: calc(33.333% - 18px); max-width: calc(33.333% - 18px); }
+
             /* Pied de carte : l'accord courant sur sa ligne, les boutons de lecture sur la suivante */
             #jam-chord-sequence-display + div { flex-wrap: wrap; row-gap: 10px; }
             #jam-chord-sequence-display + div > div:first-child { flex: 1 1 100%; flex-wrap: wrap; gap: 8px 14px; }
@@ -777,7 +803,8 @@
                                 <option value="gospel">Gospel / doo-wop (12/8)</option>
                             </optgroup>
                             <optgroup label="Classique &amp; traditionnel">
-                                <option value="trad">Chanson simple</option>
+                                <option value="trad">Chanson</option>
+                                <option value="chansonsimple">Chanson simple</option>
                                 <option value="baroque">Baroque</option>
                                 <option value="mozart">Mozart / Classique</option>
                                 <option value="menuet">Menuet (3/4)</option>
@@ -965,6 +992,9 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
+                            <button id="jam-arpeggio-toggle" onclick="app.jam.toggleArpeggioPlay()" class="jam-metronome-toggle" title="Arpèges : lit la grille en arpèges au piano (piano seul, sans basse ni batterie)" aria-label="Lire la grille en arpèges au piano" aria-pressed="false">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4c6-2 12 1 14 8"/><path d="M19 12L11 21H5"/><path d="M8.4 3.6V21M11.8 4.2V17.5M15.2 6V13.8" stroke-width="1.5"/></svg>
+                            </button>
                             <button id="jam-tonal-function-toggle" onclick="app.jam.toggleHarmonicFunctions()" class="jam-tonal-function-toggle" title="Afficher/Masquer la fonction tonale" aria-label="Afficher/Masquer la fonction tonale" aria-pressed="false"><span>VII</span></button>
                             <button id="jam-subdivision-toggle" onclick="app.jam.toggleMetronomeSubdivision()" class="jam-metronome-toggle" title="Croches : activé = un clic léger sur chaque croche, en plus des temps (joué avec le clic du métronome)" aria-label="Activer/Désactiver le clic sur les croches" aria-pressed="false">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.6 17.5V5.5M18.6 15.5V3.5"/><path d="M8.6 5.5l10-2" stroke-width="3"/><ellipse cx="5.8" cy="17.8" rx="3.2" ry="2.4" fill="currentColor" stroke="none" transform="rotate(-18 5.8 17.8)"/><ellipse cx="15.8" cy="15.8" rx="3.2" ry="2.4" fill="currentColor" stroke="none" transform="rotate(-18 15.8 15.8)"/></svg>
@@ -2408,8 +2438,8 @@
                     bpm: this.bpm,
                     timeSignature: this.getMeterKey(),
                     orchestration: {
-                        mode: this.bandStyle === 'classic' ? 'arpeges' : 'orchestra', // compatibilité avec les anciens fichiers
-                        style: this.bandStyle,
+                        mode: (this._arpPrevStyle || this.bandStyle) === 'classic' ? 'arpeges' : 'orchestra', // compatibilité avec les anciens fichiers
+                        style: this._arpPrevStyle || this.bandStyle, // le mode arpèges transitoire n'est jamais enregistré
                         volumes: {
                             piano: this.bandVolumes.piano,
                             bass: this.bandVolumes.bass,
@@ -3133,6 +3163,8 @@
             }
 
             setBandStyle(style) {
+                this._arpPrevStyle = null; // un choix explicite de style met fin au mode « arpèges » transitoire
+                this._setArpeggioUI(false);
                 this.bandStyle = ['swing', 'pop', 'latin', 'classic'].includes(style) ? style : 'swing';
                 this.updateBandButtonLabel();
                 this.updateBandInstrumentLabel();
@@ -3991,6 +4023,8 @@
                 const halves = this.isSplitEffective(step) ? this.getStepHalves(step) : null;
                 // 2/4 et 3/4 : générateur dédié (les motifs ci-dessous sont écrits pour 4 temps)
                 const bpbNow = this.getBeatsPerBar();
+                // Bouton « Arpèges » : arpège simple (basse puis notes de l'accord en montant), quelle que soit la signature
+                if (this._arpPrevStyle) return this.buildArpPlan(bpbNow, step, nextStep, isLastMeasureOfStep, halves);
                 if (this.isTernary()) return this.buildTernaryPlan(bpbNow, style, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 if (bpbNow !== 4) return this.buildMeterPlan(bpbNow, style, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 if (style === 'pop') return this.buildPopPlan(step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
@@ -6306,6 +6340,59 @@
                 return { piano: ev, bass: [], drums: [] };
             }
 
+            // Mode « Arpèges » (bouton harpe) : à chaque accord, un arpège simple qui commence toujours par la basse
+            // de l'accord puis monte dans les notes de l'accord. La vitesse s'adapte à la durée de l'accord et au nombre de notes.
+            buildArpPlan(bpb, step, nextStep, isLastMeasureOfStep, halves) {
+                const off = this._jamTransOffset();
+                const ternary = this.isTernary();
+                const splitAt = this.getSplitBeat();
+                const segs = halves
+                    ? [{ s: 0, e: splitAt, cs: halves[0] }, { s: splitAt, e: bpb, cs: halves[1] }]
+                    : [{ s: 0, e: bpb, cs: step }];
+                const sameChord = (a, b) => !!a && !!b && a.rootIndex === b.rootIndex && a.chordId === b.chordId
+                    && (Number.isInteger(a.bassRootIndex) ? a.bassRootIndex : -1) === (Number.isInteger(b.bassRootIndex) ? b.bassRootIndex : -1);
+                const lastSeg = segs[segs.length - 1];
+                const holdOn = !(isLastMeasureOfStep && nextStep && !sameChord(lastSeg.cs, nextStep)) && !!nextStep;
+                const ev = [];
+                segs.forEach((sg, si) => {
+                    const len = sg.e - sg.s;
+                    const V = this._clsVoicing(sg.cs, off);
+                    const n = V.length;
+                    if (!n) return;
+                    const low = this._clsLowNote(sg.cs, off);
+                    const endPos = sg.e + ((si === segs.length - 1 && holdOn) ? 1.2 : 0.05);
+                    // Vitesse : la plus lente qui laisse entendre toutes les notes (basse + accord), sinon la plus rapide
+                    const rates = ternary ? [1, 3] : [1, 2];
+                    let rate = rates[rates.length - 1];
+                    for (const r of rates) { if (len * r >= n + 1) { rate = r; break; } }
+                    const S = Math.round(len * rate);
+                    // Notes de l'arpège : basse, puis l'accord en montant ; au-delà, on continue à l'octave
+                    // supérieure (deux octaves au plus), puis une nouvelle vague repart de la basse.
+                    let seq = [low].concat(V);
+                    if (S < seq.length) { // trop de notes pour la durée : on retire la quinte (avant-dernière note)
+                        while (seq.length > S && seq.length > 2) seq.splice(seq.length - 2, 1);
+                    }
+                    const cyc = S >= seq.length ? Math.min(1 + 2 * n, 8) : seq.length;
+                    const noteAt = (k) => {
+                        const j = k % cyc;
+                        if (j < seq.length) return seq[j];
+                        return V[(j - 1) % n] + 12 * Math.floor((j - 1) / n);
+                    };
+                    for (let k = 0; k < S; k++) {
+                        const pos = sg.s + k / rate;
+                        const wave = (k % cyc) === 0;
+                        const vel = (wave ? 0.74 : (Number.isInteger(k / rate) ? 0.6 : 0.52));
+                        ev.push({
+                            pos, dur: Math.max(0.3, Math.min(endPos - pos, wave ? 3 : 2.5)), vel,
+                            rootIndex: 0, intervals: [noteAt(k)], noteVels: [1], roll: 0,
+                            lay: Math.random() * 0.006, wide: true, gainMul: 1.7
+                        });
+                    }
+                });
+                ev.sort((a, b) => a.pos - b.pos);
+                return { piano: ev, bass: [], drums: [] };
+            }
+
             playBandBeat(step, beatInMeasure) {
                 if (!this.app.audioCtx) return;
                 this.ensureBandAudio();
@@ -6456,6 +6543,7 @@
                     samba: { turn: false, alt: true, w: { iiV: 2, secDom: 1, tritone: 1.5, colour: 3, sus: 1, subdom: 1 } },
                     ballad: light, bossa: light, latin: light,
                     baroque: classical, mozart: classical, trad: classical,
+                    chansonsimple: { turn: false, w: {} }, // triades seules : aucune réharmonisation
                     dixieland: { turn: false, w: { secDom: 3, subdom: 2, dim: 1, colour: 1, iiV: 1.5 } },
                     blues: { turn: false, w: { colour: 4, tritone: 2, sus: 2 } },
                     pop: { turn: false, w: { colour: 4 } }, funk: { turn: false, w: { colour: 4 } }, modal: { turn: false, w: { colour: 4 } },
@@ -6488,7 +6576,7 @@
                 const resolvesToTonic = (sl) => { const ch = sl.split || sl; return fam(ch.c) === 'dom' && [5, 11, 2].includes(mod(T.r - ch.r)); };
                 const prev = S[n - 2];
                 const arrived = (prev.split || prev).r === T.r && n >= 3 && resolvesToTonic(S[n - 3]);
-                if (!resolvesToTonic(prev) && !arrived) {
+                if (!resolvesToTonic(prev) && !arrived && !this._triadsOnly) { // « Chanson simple » : jamais de septième ajoutée
                     const minor = fam(T.c) === 'min';
                     prev.split = { r: mod(T.r + 7), c: minor ? '7alt' : '7', s: minor ? 'altered' : 'mixolydian' };
                     prev._dom = true; prev._mod = true;
@@ -6793,6 +6881,7 @@
 
                 if (prof.turn) turnWindows();
                 const names = Object.keys(prof.w).filter(nm => ops[nm]);
+                if (!names.length) return; // style sans réharmonisation (ex. « Chanson simple »)
                 const total = names.reduce((t, nm) => t + prof.w[nm], 0);
                 const pickOp = () => { let r = rand() * total; for (const nm of names) { r -= prof.w[nm]; if (r <= 0) return nm; } return names[names.length - 1]; };
                 const goal = Math.max(2, Math.round(n * (0.10 + rand() * 0.20 + boost)));
@@ -6846,7 +6935,7 @@
             }
 
             createStyleVariation(template, styleKey, keyRoot) {
-                if (styleKey === 'i-got-rythm') return template.map(x => ({ ...x }));
+                if (styleKey === 'i-got-rythm' || this._triadsOnly) return template.map(x => ({ ...x }));
                 if (!template.length || this.generationVariant <= 0) return template.map(item => ({ ...item }));
                 const rand = this.makeVariationRng(this.generationVariant, styleKey);
                 const out = template.map(item => ({ ...item }));
@@ -7129,7 +7218,7 @@
                     'ii-v-i': 4, 'anatole': 8, 'i-got-rythm': 32, 'blues': 12, 'bebop': 32, 'swing': 32,
                     'modal': 16, 'bossa': 32, 'pop': 16, 'ballad': 32, 'funk': 16,
                     'hardbop': 16, 'dixieland': 16, 'latin': 16, 'fusion': 16,
-                    'baroque': 16, 'mozart': 16, 'trad': 16,
+                    'baroque': 16, 'mozart': 16, 'trad': 16, 'chansonsimple': 16,
                     'valsejazz': 32, 'valsemusette': 32, 'valseviennoise': 32, 'menuet': 32, 'valsecountry': 16,
                     'jig': 32, 'afro68': 16, 'barcarolle': 16, 'tarentelle': 16, 'slipjig': 16,
                     'blues128': 12, 'gospel': 16, 'ballad128': 32,
@@ -7205,6 +7294,7 @@
             }
 
             loadStyle(styleKey) {
+                this._triadsOnly = (styleKey === 'chansonsimple'); // style limité aux triades (majeures / mineures)
                 const keyRoot = Number.isInteger(this.mainKey) ? this.mainKey : 0;
                 let template = [];
 
@@ -7833,6 +7923,36 @@
                         break;
                     }
 
+                    case 'chansonsimple': {
+                        // « Chanson simple » : 16 mesures A A' B B', uniquement des triades (majeures et mineures), en majeur ou (en renouvellement) en mineur.
+                        // A finit sur V (demi-cadence), A' revient à I, B reste sur un accord de repos, B' conclut par la cadence V - I.
+                        const minor = !!(R && R() < 0.3);
+                        const M = (o, f, sc) => [o, 'majTriad', sc, f], m = (o, f, sc) => [o, 'minTriad', sc, f];
+                        const P = minor ? {
+                            i: m(0,'tonic','aeolian'), iv: m(5,'predominant','dorian'), V: M(7,'dominant','mixolydian'),
+                            III: M(3,'predominant','ionian'), VI: M(8,'predominant','lydian'), VII: M(10,'predominant','mixolydian')
+                        } : {
+                            I: M(0,'tonic','ionian'), IV: M(5,'predominant','lydian'), V: M(7,'dominant','mixolydian'),
+                            ii: m(2,'predominant','dorian'), iii: m(4,'predominant','phrygian'), vi: m(9,'predominant','aeolian')
+                        };
+                        const row = (spec, sec, phr) => spec.map(([nm, mm = 1]) => { const [o,c,sc,f] = P[nm]; return abs(o,c,mm,sc,sec,phr,f); });
+                        const L = minor ? {
+                            a1: [[['i',2],['iv',1],['V',1]], [['i',1],['VII',1],['VI',1],['V',1]], [['i',2],['VI',1],['V',1]], [['i',1],['iv',1],['i',1],['V',1]]],
+                            a2: [[['i',2],['iv',1],['i',1]], [['i',1],['III',1],['VII',1],['i',1]], [['i',1],['iv',1],['V',1],['i',1]], [['i',1],['VI',1],['iv',1],['i',1]]],
+                            b1: [[['III',2],['VII',2]], [['VI',2],['iv',2]], [['III',1],['VII',1],['VI',1],['iv',1]], [['VI',1],['VII',1],['III',2]]],
+                            b2: [[['iv',1],['V',1],['i',2]], [['VI',1],['V',1],['i',2]], [['VII',1],['III',1],['V',1],['i',1]], [['iv',2],['V',1],['i',1]]]
+                        } : {
+                            a1: [[['I',2],['IV',1],['V',1]], [['I',1],['vi',1],['IV',1],['V',1]], [['I',2],['vi',1],['V',1]], [['I',1],['IV',1],['I',1],['V',1]], [['I',1],['iii',1],['IV',1],['V',1]]],
+                            a2: [[['I',2],['IV',1],['I',1]], [['I',1],['vi',1],['IV',1],['I',1]], [['I',1],['IV',1],['V',1],['I',1]], [['I',1],['vi',1],['V',1],['I',1]], [['I',2],['V',1],['I',1]]],
+                            b1: [[['vi',2],['IV',2]], [['vi',1],['IV',1],['I',1],['IV',1]], [['IV',2],['I',2]], [['vi',1],['iii',1],['IV',2]], [['IV',1],['I',1],['vi',2]]],
+                            b2: [[['IV',1],['V',1],['I',2]], [['ii',1],['V',1],['I',2]], [['vi',1],['IV',1],['V',1],['I',1]], [['IV',2],['V',1],['I',1]]]
+                        };
+                        const b1 = pick(L.b1);
+                        const b2ok = L.b2.filter(c => c[0][0] !== b1[b1.length - 1][0]); // B' ne reprend pas l'accord où B s'arrête
+                        template = join(row(pick(L.a1),'A','A1'), row(pick(L.a2),'A','A2'), row(b1,'B','B1'), row(pick(b2ok.length ? b2ok : L.b2),'B','B2'));
+                        break;
+                    }
+
                     case 'samba': {
                         // Samba (2/4), 32 mesures : A A' en mineur (vamp i7 - IV7 ou ii° - V7alt), B dans le relatif majeur, A'' conclusif.
                         // Chaque cellule fait 4 mesures ; une cellule qui finit sur V7alt est suivie d'une cellule qui commence sur i.
@@ -8095,7 +8215,7 @@
                     ballad: 'swing', modal: 'swing', blues: 'swing', dixieland: 'swing',
                     bossa: 'latin', latin: 'latin',
                     pop: 'pop', funk: 'pop', fusion: 'pop',
-                    baroque: 'classic', mozart: 'classic', trad: 'classic',
+                    baroque: 'classic', mozart: 'classic', trad: 'classic', chansonsimple: 'pop',
                     valsejazz: 'swing', valsemusette: 'pop', valseviennoise: 'classic', menuet: 'classic', valsecountry: 'pop',
                     jig: 'pop', afro68: 'latin', barcarolle: 'classic', tarentelle: 'classic', slipjig: 'pop',
                     blues128: 'swing', gospel: 'pop', ballad128: 'swing',
@@ -8130,6 +8250,7 @@
                     baroque:       { bpm: 84,  meter: '4/4' },
                     mozart:        { bpm: 108, meter: '4/4' },
                     trad:          { bpm: 100, meter: '4/4' },
+                    chansonsimple: { bpm: 100, meter: '4/4' },
                     valsejazz:     { bpm: 168, meter: '3/4' },
                     valsemusette:  { bpm: 150, meter: '3/4' },
                     valseviennoise:{ bpm: 174, meter: '3/4' },
@@ -10598,7 +10719,36 @@
                 this.renderGridUI();
             }
 
+            // Bouton « Arpèges » (harpe) : lit la grille en arpèges au piano, comme le style « Classique »,
+            // sans modifier le style d'orchestre choisi (restauré à l'arrêt, jamais enregistré).
+            async toggleArpeggioPlay() {
+                if (this._arpPrevStyle && this.isPlaying) { this.stop(); return; }
+                if (this.isPlaying) this.stop();
+                if (this.grid.length === 0) return;
+                this._arpPrevStyle = this.bandStyle;
+                this.bandStyle = 'classic';
+                this._setArpeggioUI(true);
+                try { await this.start(); } catch (e) { console.error(e); }
+                if (!this.isPlaying) this._endArpeggioMode();
+            }
+
+            _setArpeggioUI(on) {
+                const btn = document.getElementById('jam-arpeggio-toggle');
+                if (!btn) return;
+                btn.classList.toggle('is-active', !!on);
+                btn.setAttribute('aria-pressed', String(!!on));
+            }
+
+            _endArpeggioMode() {
+                if (this._arpPrevStyle) {
+                    this.bandStyle = this._arpPrevStyle;
+                    this._arpPrevStyle = null;
+                }
+                this._setArpeggioUI(false);
+            }
+
             togglePlay() {
+                if (this._arpPrevStyle && this.isPlaying) { this.stop(); return; }
                 if (this.isPlaying) {
                     this.stop();
                 } else {
@@ -10712,6 +10862,7 @@
                     this._updatePlayLabel();
                 }
 
+                this._endArpeggioMode();
                 document.getElementById('jam-bar-counter').textContent = "Mesure : -/-";
                 this.renderGridUI();
                 this.updateActiveJamScaleHighlight();
