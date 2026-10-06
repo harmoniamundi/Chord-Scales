@@ -617,6 +617,8 @@
             #jam-chord-sequence-display + div > div:last-child { margin-left: auto; }
             #jam-current-chord-notes, #jam-next-chord-notes { flex-wrap: wrap; }
             #view-jam #jam-next-chord-display { margin-left: 0 !important; padding-left: 0; border-left: 0; flex: 1 1 100%; flex-wrap: wrap; gap: 8px 12px !important; }
+            /* Accord en cours aligné au-dessus de l'accord suivant : décalage = flèche (40px) + espace (12px) */
+            #jam-chord-sequence-display + div > div:first-child:has(#jam-next-chord-display:not(.hidden)) > #jam-current-chord-group { margin-left: 52px; max-width: calc(100% - 52px); }
         }
     </style>
 
@@ -981,7 +983,7 @@
 
                     <div class="flex items-center justify-between -mt-1 pt-1">
                         <div class="flex items-center gap-5 min-w-0">
-                            <div class="flex items-center gap-3 min-w-0">
+                            <div id="jam-current-chord-group" class="flex items-center gap-3 min-w-0">
                                 <span class="font-bold text-white text-2xl cursor-pointer select-none hover:text-blue-400 transition whitespace-nowrap" id="jam-current-chord-title" onclick="app.jam.playDisplayedChordArpeggio()" title="Écouter l'arpège">---</span>
                                 <div id="jam-current-chord-notes" class="flex gap-1.5"></div>
                             </div>
