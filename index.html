@@ -386,6 +386,14 @@
         .jm-btn.jm-danger:hover { border-color: #f87171; }
         .jm-btn.jm-primary { background: #2563eb; border-color: #3b82f6; color: #fff; margin-left: auto; }
         .jm-hint { margin-top: 8px; font-size: 10px; color: #64748b; }
+        /* éditeur de mesure : l'en-tête (mesure + accord en cours) reste visible quand on fait défiler le menu */
+        .jm-pop > .jm-head { position: sticky; top: -10px; z-index: 5; margin: -10px -12px 0; padding: 10px 12px 7px; background: #1f1f21; border-radius: 12px 12px 0 0; box-shadow: 0 1px 0 #333; }
+        .jm-pop.jm-sheet > .jm-head { border-radius: 14px 14px 0 0; }
+        /* nom d'accord trop long pour la case : le début, suivi de « … » ; le nom complet s'affiche sous la grille quand la mesure est sélectionnée */
+        #jam-chord-sequence-display .jam-cell > .jam-realbook-chord:not(.jam-cell-bottom),
+        #jam-chord-sequence-display .jam-half > .jam-realbook-chord { display: block; max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-block: .12em; }
+        /* pied de grille : un nom d'accord très long reste sur une ligne, ses notes (et l'accord suivant) passent à la ligne */
+        #jam-chord-sequence-display + div > div:first-child, #jam-current-chord-group, #jam-next-chord-display > div:last-child { flex-wrap: wrap; row-gap: 6px; }
         /* éditeur de mesure — mode « Construire » */
         .jm-mode { display: flex; gap: 4px; margin-top: 8px; padding: 2px; border-radius: 9px; background: #151517; border: 1px solid #333; }
         .jm-mode .jm-chip { flex: 1 1 0; border-color: transparent; background: transparent; color: #94a3b8; }
