@@ -1327,6 +1327,13 @@
             }
         }
 
+        // Intervalles d'un accord rangés en montant : chaque note est placée au-dessus de la précédente
+        // (9, 11 et 13 deviennent 14, 17 et 21 au lieu de 2, 5 et 9), pour que l'arpège ne redescende jamais.
+        function stackIntervalsUp(intervals) {
+            let prev = -Infinity;
+            return intervals.map(iv => { let v = iv; while (v <= prev) v += 12; prev = v; return v; });
+        }
+
         // Notes cibles d'un accord : tierce (ou quarte dans un accord suspendu), septième
         // (ou sixte / double bémol 7 quand l'accord n'a pas de septième : 6, dim7) et quinte
         // (juste, sinon diminuée, sinon augmentée). Retourne des intervalles en demi-tons.
@@ -3637,7 +3644,7 @@
                 this.ensureBandAudio(); // lance le chargement de la guitare / de la basse selon le style
             }
 
-            // Le premier curseur de volume règle le piano, ou la guitare classique en style Latin.
+            // Le premier curseur de volume règle le piano, ou la guitare classique en style Brasil.
             updateBandInstrumentLabel() {
                 const brass = this.bandStyle === 'brass';
                 const balkan = this.bandStyle === 'balkan';
@@ -3655,11 +3662,11 @@
                 });
             }
 
-            // Le bouton affiche « Orchestre » suivi du style actif (Swing / Pop / Latin / Cuba / Classique).
+            // Le bouton affiche « Orchestre » suivi du style actif (Swing / Pop / Brasil / Cuba / Classique).
             updateBandButtonLabel() {
                 const label = document.getElementById('band-btn-label');
                 if (!label) return;
-                const names = { swing: 'Swing', pop: 'Pop', latin: 'Latin', cuba: 'Cuba', classic: 'Classique', brass: 'Brass', balkan: 'Balkans', piazzolla: (this._bandGroove === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
+                const names = { swing: 'Swing', pop: 'Pop', latin: 'Brasil', cuba: 'Cuba', classic: 'Classique', brass: 'Brass', balkan: 'Balkans', piazzolla: (this._bandGroove === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
                 label.textContent = 'Orchestre ' + (names[this.bandStyle] || 'Swing');
             }
 
@@ -5333,6 +5340,37 @@
                 return out.sort((a, b) => a[0] - b[0]);
             }
 
+            // Notes détachées : remplace une partie des accords pleins (TC, tC, C, U) par des notes isolées de la guitare
+            // (pouce seul, note d'arpège), et ajoute quelques notes seules sur les croches libres.
+            // o = { free: positions libres, u: durée d'une croche dans l'unité de la cellule, keep: positions à ne pas toucher }
+            _latDetach(cell, rng, I, g, o) {
+                const marcato = g === 'tango' || g === 'piazzolla';
+                const pConv = marcato ? 0.32 : 0.6;
+                const u = o.u;
+                const keep = o.keep || [];
+                const isKept = (p) => keep.some(k => Math.abs(k - p) < 0.01);
+                const out = cell.map(h => h.slice());
+                const aN = () => 'a' + (1 + Math.floor(rng() * 3)); // voix 1 à 3 (médium / aigu)
+                out.forEach(h => {
+                    if (isKept(h[0]) || rng() >= pConv) return;
+                    switch (h[2]) {
+                        case 'TC': h[2] = 'T'; h[1] = Math.min(h[1], 4 * u); break;
+                        case 'tC': h[2] = 't'; h[1] = Math.min(h[1], 4 * u); break;
+                        case 'C': h[2] = aN(); h[1] = Math.max(h[1], 2 * u); h[3] = Math.min(h[3], 0.62); break;
+                        case 'U': h[2] = 'a3'; h[1] = Math.max(h[1], 2 * u); break;
+                        default: break;
+                    }
+                });
+                const taken = new Set(out.map(h => h[0]));
+                const free = (o.free || []).filter(p => !taken.has(p) && !isKept(p));
+                const nAdd = Math.round((marcato ? 0.5 : 1.6) * (0.6 + 0.8 * I) * (0.5 + rng()));
+                for (let k = 0; k < nAdd && free.length; k++) {
+                    const p = free.splice(Math.floor(rng() * free.length), 1)[0];
+                    out.push([p, 2 * u, aN(), 0.4 + rng() * 0.12]);
+                }
+                return out.sort((a, b) => a[0] - b[0]);
+            }
+
             latinPhraseExtras(rng, prev, index) {
                 const pl = (prev && prev.style === 'latin') ? prev : null;
                 const prevI = (pl && typeof pl.intensity === 'number') ? pl.intensity : 0.5;
@@ -5454,6 +5492,7 @@
                 else if (g === 'piazzolla') cell = LAT_PIAZZOLLA[ph.piazzollaIdx].A;
                 else cell = LAT_AFRO[ph.afroIdx].A;
                 let ev = this._latVary(cell, rng, I, i);
+                ev = this._latDetach(ev, rng, I, g, { free: [0.5, 1, 1.5, 2, 2.5, 3, 3.5], u: 0.5, keep: halves ? [0, 2] : [0] });
                 if (halves) { // mesure à deux accords : chaque accord commence par un pouce + accord
                     [0, 2].forEach(st => { if (!ev.some(h => Math.abs(h[0] - st) < 0.01)) ev.push([st, 1.4, 'TC', 0.7]); });
                     ev.sort((a, b) => a[0] - b[0]);
@@ -6016,6 +6055,8 @@
                             if (free.length) cell.push([pick(free), 0.2, 'X', 0.32]);
                         }
                     }
+                    const cellD = (() => { const fr = []; for (let p = 0.5; p < bpb; p += 0.5) fr.push(p); return this._latDetach(cell, rng, I, g, { free: fr, u: 0.5, keep: segs.map(sg => sg.s) }); })();
+                    cell.length = 0; cellD.forEach(h => cell.push(h));
                     segs.forEach(sg => { if (!cell.some(h => Math.abs(h[0] - sg.s) < 0.01)) cell.push([sg.s, 1.4, 'TC', 0.7]); });
                     cell.sort((a, b) => a[0] - b[0]);
                     const mkG = (p, d, kind, v) => {
@@ -6578,6 +6619,9 @@
                             if (free.length) gh.push([pick(free), 1, 'X', 0.32]);
                         }
                     }
+                    { const fr = []; for (let e = 1; e < E; e++) fr.push(e);
+                      const gd2 = this._latDetach(gh, rng, I, g, { free: fr, u: 1, keep: segs.map(sg => sg.s * 3) });
+                      gh.length = 0; gd2.forEach(h => gh.push(h)); }
                     ensureSegStarts(gh, sg => [sg.s * 3, 3, 'TC', 0.7]);
                     gh.sort((a, b) => a[0] - b[0]);
                     const mkG = (pos, d, kind, v) => {
@@ -6780,7 +6824,7 @@
                 let base = cs.rootIndex;
                 while (base + off > 6) base -= 12;
                 while (base + off < -5) base += 12;
-                return notes.map(iv => base + iv);
+                return stackIntervalsUp(notes).map(iv => base + iv);
             }
 
             // Note grave sous l'arpège : la basse de l'accord (basse choisie ou fondamentale), à l'octave inférieure.
@@ -14233,7 +14277,7 @@
                 const now = app.audioCtx.currentTime;
                 const spacing = 0.25;
 
-                chordObj.notes.forEach((interval, idx) => {
+                stackIntervalsUp(chordObj.notes).forEach((interval, idx) => {
                     const noteStr = this.getJamAudioNoteName(chord.rootIndex, interval, PLAY_BASE_OCTAVE);
                     try {
                         const node = app.pianoInstrument.play(noteStr, now + (idx * spacing), { duration: 1.5, destination: this.gainNode });
@@ -14476,7 +14520,7 @@
                 const chordObj = this.jam.findChordObj(chordId);
                 const now = this.audioCtx ? this.audioCtx.currentTime : 0;
 
-                chordObj.notes.forEach((interval, idx) => {
+                stackIntervalsUp(chordObj.notes).forEach((interval, idx) => {
                     const noteStr = this.jam.getJamAudioNoteName(rootIndex, interval, PLAY_BASE_OCTAVE);
                     try {
                         const node = this.pianoInstrument.play(noteStr, now + (idx * 0.04), { duration: 2.2, destination: this.jam.gainNode });
@@ -14678,7 +14722,7 @@
                 const chordObj = this.getCurrentChordObj();
                 const now = this.audioCtx ? this.audioCtx.currentTime : 0;
 
-                chordObj.notes.forEach(interval => {
+                stackIntervalsUp(chordObj.notes).forEach(interval => {
                     const noteStr = this.getAudioNoteName(this.selectedRootIndex, interval, PLAY_BASE_OCTAVE);
                     try {
                         const node = this.pianoInstrument.play(noteStr, now, { duration: 2.5, gain: this.getChordNoteGain(), destination: this.reverbInput || this.audioCtx.destination });
@@ -14709,9 +14753,10 @@
                 const chordObj = this.getCurrentChordObj();
                 const spacing = 0.3; // mode Entraînement : arpège un peu plus lent (0,25 s auparavant)
                 const seq = this.buildArpeggioSequence(chordObj, pingPong);
+                const stacked = stackIntervalsUp(chordObj.notes);
                 const nodes = [];
                 seq.forEach((noteIdx, step) => {
-                    const noteStr = this.getAudioNoteName(this.selectedRootIndex, chordObj.notes[noteIdx], PLAY_BASE_OCTAVE);
+                    const noteStr = this.getAudioNoteName(this.selectedRootIndex, stacked[noteIdx], PLAY_BASE_OCTAVE);
                     try {
                         const node = this.pianoInstrument.play(noteStr, start + step * spacing, { duration: 1.5, gain: this.getChordNoteGain(), destination: this.reverbInput || this.audioCtx.destination });
                         this.activeAudioNodes.push(node);
@@ -15348,7 +15393,7 @@
     </script>
     <div id="jam-print-area"></div>
 
-    <!-- Pop-up « Orchestre » : style (Swing / Pop / Latin / Classique), volume général de l'orchestre (Master), volumes des instruments, volume du métronome -->
+    <!-- Pop-up « Orchestre » : style (Swing / Pop / Brasil / Classique), volume général de l'orchestre (Master), volumes des instruments, volume du métronome -->
     <div id="band-modal" class="hidden" role="dialog" aria-label="Orchestre">
         <div class="bg-[#222222] border border-[#3a3a3c] rounded-xl w-full p-4 space-y-4">
             <div id="band-modal-head" class="flex items-center justify-between jm-head" title="Glisser pour déplacer">
@@ -15364,7 +15409,7 @@
                     <select id="band-style-select" onchange="app.jam.chooseBandStyle(this.value)" class="w-full bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-1.5 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
                         <option value="swing">Swing</option>
                         <option value="pop">Pop</option>
-                        <option value="latin">Latin</option>
+                        <option value="latin">Brasil</option>
                         <option value="cuba">Cuba</option>
                         <option value="classic">Classique</option>
                         <option value="brass">Brass band</option>
