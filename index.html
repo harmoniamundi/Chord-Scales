@@ -386,6 +386,24 @@
         .jm-btn.jm-danger:hover { border-color: #f87171; }
         .jm-btn.jm-primary { background: #2563eb; border-color: #3b82f6; color: #fff; margin-left: auto; }
         .jm-hint { margin-top: 8px; font-size: 10px; color: #64748b; }
+        /* éditeur de mesure — mode « Construire » */
+        .jm-mode { display: flex; gap: 4px; margin-top: 8px; padding: 2px; border-radius: 9px; background: #151517; border: 1px solid #333; }
+        .jm-mode .jm-chip { flex: 1 1 0; border-color: transparent; background: transparent; color: #94a3b8; }
+        .jm-mode .jm-chip.is-on { background: #2563eb; color: #fff; }
+        .jm-kb { display: grid; grid-template-columns: repeat(14, 1fr); gap: 3px; }
+        .jm-kb .jm-chip { min-width: 0; padding: 6px 0; }
+        .jm-kb .jm-blk { padding: 4px 0; font-size: 10px; font-weight: 500; }
+        .jm-kb .jm-blk:not(.is-on) { background: #19191b; }
+        .jm-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; }
+        .jm-seg .jm-chip { min-width: 0; padding: 6px 0; }
+        .jm-sub-t { font-size: 10px; color: #94a3b8; margin: 7px 0 3px; }
+        .jm-chip.jm-off { opacity: .28; pointer-events: none; }
+        .jm-notes { margin-top: 7px; font-size: 11px; color: #94a3b8; }
+        .jm-notes b { color: #e2e8f0; font-weight: 600; letter-spacing: .02em; }
+        .jm-fold-t { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0; margin: 0 0 4px; background: none; border: 0; cursor: pointer; font-family: inherit; text-align: left; }
+        .jm-fold-t:hover { color: #e2e8f0; }
+        .jm-fold-t em { font-style: normal; text-transform: none; letter-spacing: 0; color: #93c5fd; margin-left: 6px; }
+        .jm-fold-t .jm-caret { margin-left: auto; }
 
         /* ===== Sélection de mesures + copier/coller (grille du mode Jam) ===== */
         #jam-chord-sequence-display .jam-cell { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
@@ -1163,18 +1181,20 @@
         // Fondamentale d'un accord : les accords diminués construits sur une touche noire s'écrivent toujours avec
         // la fondamentale dièsée (Do#°, Ré#°, Fa#°, Sol#°, La#°) pour éviter les doubles bémols (Réb°7 = Réb Fab Labb Dobb).
         function chordRootName(rootIndex, chordId) {
-            if ((chordId === 'dim7' || chordId === 'dimTriad') && BLACK_PCS.includes(rootIndex)) return ROOT_NAMES_SHARP[rootIndex];
+            const info = chordInfo(chordId);
+            if (info && info.fam === 'dim' && BLACK_PCS.includes(rootIndex)) return ROOT_NAMES_SHARP[rootIndex];
             return rootLabels[rootIndex];
         }
         // Nom de la note de basse d'un accord sur basse (C/E, A/C#, Cm/Eb…) : écrite comme la note de l'accord qu'elle est
         // (tierce → lettre +2, quinte → +4, …) plutôt qu'avec l'orthographe générale de la touche.
-        const MINORISH_CHORDS = ['minTriad', 'm7', 'm9', 'm11', 'mmaj7', 'm7b5', 'dimTriad', 'dim7'];
         function bassNoteName(rootIndex, chordId, bassPc) {
             const rootName = chordRootName(rootIndex, chordId);
             const rl = LETTER_ORDER.indexOf(rootName[0]);
             const iv = (((bassPc - rootIndex) % 12) + 12) % 12;
-            const aug = ['augTriad', 'maj7sharp5', '7sharp5'].includes(chordId);
-            const steps = [0, 1, 1, 2, 2, 3, MINORISH_CHORDS.includes(chordId) ? 4 : 3, 4, aug ? 4 : 5, chordId === 'dim7' ? 6 : 5, 6, 6];
+            const info = chordInfo(chordId);
+            const aug = !!info && info.st.fifth === 's5';
+            const flat5 = !!info && (info.minorish || info.st.fifth === 'b5');
+            const steps = [0, 1, 1, 2, 2, 3, flat5 ? 4 : 3, 4, aug ? 4 : 5, (info && info.st.sev === 'bb7') ? 6 : 5, 6, 6];
             return spellOnLetter(LETTER_ORDER[(rl + steps[iv]) % 7], bassPc) || rootLabels[bassPc];
         }
         // Rang de lettre (0 = lettre de la fondamentale … 6 = septième) d'un intervalle dans une gamme donnée.
@@ -1249,16 +1269,17 @@
             const rootSemi = Math.max(0, rootNameToIndex(rootName));
             const rootLetter = /^[A-G]/.test(rootName) ? rootName[0] : 'C';
             const rl = LETTER_ORDER.indexOf(rootLetter);
-            const hasDim = intervals.includes(3) && intervals.includes(6);
+            const hasDim = intervals.includes(3) && intervals.includes(6) && !intervals.includes(7);
             return intervals.map(interval => {
                 let deg = 0;
                 if (interval === 0) deg = 0;
                 else if (interval === 1 || interval === 2) deg = 1;
-                else if (interval === 3 || interval === 4) deg = 2;
+                else if (interval === 3) deg = intervals.includes(4) ? 1 : 2;   // #9 au-dessus d'une tierce majeure : Ré# (et non Mi♭)
+                else if (interval === 4) deg = 2;
                 else if (interval === 5) deg = 3;
                 else if (interval === 6) deg = intervals.includes(7) ? 3 : 4;
                 else if (interval === 7) deg = 4;
-                else if (interval === 8) deg = 4;
+                else if (interval === 8) deg = intervals.includes(7) ? 5 : 4;   // ♭13 (La♭) avec une quinte juste ; sinon #5
                 else if (interval === 9) deg = hasDim ? 6 : 5;   // 7e diminuée = bb7 (Si♭♭ dans Do°7) ; sinon 6te / 13e
                 else if (interval === 10 || interval === 11) deg = 6;
                 const semi = (rootSemi + interval) % 12;
@@ -1307,7 +1328,7 @@
             const has = (i) => n.includes(i);
             const targets = [];
             const thirds = [3, 4].filter(has);
-            if (thirds.length) targets.push(...thirds); else if (has(5)) targets.push(5);
+            if (thirds.length) targets.push(...thirds); else if (n[1] === 5 || n[1] === 2) targets.push(n[1]); else if (has(5)) targets.push(5);   // sus4 / sus2 : la note suspendue
             const sevenths = [10, 11].filter(has);
             if (sevenths.length) targets.push(...sevenths); else if (has(9)) targets.push(9);
             if (has(7)) targets.push(7); else if (has(6)) targets.push(6); else if (has(8)) targets.push(8);
@@ -1370,17 +1391,19 @@
         // La b13 (b6) n'est à éviter que sur les accords mineurs (éolien, phrygien).
         function getAvoidNotes(scaleId, chordId) {
             const avoids = [];
-            const isDom = ['7', '9', '7alt', '7b9', '7sharp5'].includes(chordId);
+            const info = chordInfo(chordId);
+            const sus4 = !!info && info.sus4;
+            const isDom = !!info && info.fam === 'dom' && !sus4;
 
             // Quarte juste au-dessus de la tierce majeure
             if (['ionian', 'majorBebop', 'harmonicMajor'].includes(scaleId)) avoids.push(5);
-            if (['mixolydian', 'mixolydianFlat13', 'phrygianDominant', 'mixolydianFlat9', 'dominantBebop'].includes(scaleId) && chordId !== '7sus4') avoids.push(5);
+            if (['mixolydian', 'mixolydianFlat13', 'phrygianDominant', 'mixolydianFlat9', 'dominantBebop'].includes(scaleId) && !sus4) avoids.push(5);
             // Sur un accord suspendu, c'est la tierce majeure qui frotte avec la quarte
-            if (scaleId === 'mixolydian' && chordId === '7sus4') avoids.push(4);
+            if (scaleId === 'mixolydian' && sus4) avoids.push(4);
             // Accords mineurs : b13 au-dessus de la quinte juste (éolien) ; phrygien : b9 et b13
             if (scaleId === 'aeolian') avoids.push(8);
             // Sur 7sus4, le phrygien donne un 7sus4(b9, b13) : ces altérations sont voulues
-            if (scaleId === 'phrygian' && chordId !== '7sus4') { avoids.push(1); avoids.push(8); }
+            if (scaleId === 'phrygian' && !sus4) { avoids.push(1); avoids.push(8); }
             if (scaleId === 'locrian') avoids.push(1);
             // Blues sur dominante : la b3 frotte contre la tierce majeure
             if (scaleId === 'bluesScale' && isDom) avoids.push(3);
@@ -1450,6 +1473,222 @@
                 { id: "7sus4", name: "7sus4", fullName: "Dominante Suspendue", notes: [0, 5, 7, 10], scales: [{ id: "mixolydian", role: "Principal" }, { id: "dorian", role: "Aérien" }, { id: "phrygian", role: "Modal / Sus4 b9" }] }
             ]
         };
+
+        // ===== Accords composés (mode « Construire » de l'éditeur de mesure) =====
+        // Un accord composé se décrit par { third, fifth, sev, ext } :
+        //   third : 'M' (tierce majeure) | 'm' (mineure) | 'sus4' | 'sus2'
+        //   fifth : 'P' (juste) | 'b5' | 's5'
+        //   sev   : '' (aucune) | '6' | 'b7' | 'M7' | 'bb7' (septième diminuée, réservée à m + ♭5)
+        //   ext   : tensions parmi b9, 9, s9 (#9), 11, s11 (#11), b13, 13
+        // Les combinaisons qui existent au catalogue réutilisent l'identifiant du catalogue (donc ses gammes et son vocabulaire) ;
+        // toutes les autres reçoivent un identifiant canonique « x:tierce:quinte:septième:tensions » (ex. x:M:P:b7:b9,s11),
+        // enregistré à la demande par lookupChord() (grilles sauvegardées et importées comprises).
+        const CB_THIRD = { M: 4, m: 3, sus4: 5, sus2: 2 };
+        const CB_FIFTH = { P: 7, b5: 6, s5: 8 };
+        const CB_SEV = { '': null, '6': 9, b7: 10, M7: 11, bb7: 9 };
+        const CB_EXT = { b9: 1, '9': 2, s9: 3, '11': 5, s11: 6, b13: 8, '13': 9 };
+        const CB_EXT_ORDER = ['b9', '9', 's9', '11', 's11', 'b13', '13'];
+        const CB_EXT_LABEL = { b9: '♭9', '9': '9', s9: '#9', '11': '11', s11: '#11', b13: '♭13', '13': '13' };
+        // tensions qui se heurtent d'un demi-ton : on n'en garde qu'une (b9 et #9 peuvent coexister, comme dans l'altéré)
+        const CB_EXT_CLASH = { b9: ['9'], '9': ['b9', 's9'], s9: ['9'], '11': ['s11'], s11: ['11'], b13: ['13'], '13': ['b13'] };
+        const CB_CATALOG_KEYS = {
+            majTriad: 'M|P||', maj7: 'M|P|M7|', maj9: 'M|P|M7|9', '6': 'M|P|6|', maj7sharp11: 'M|P|M7|s11', maj7sharp5: 'M|s5|M7|',
+            minTriad: 'm|P||', m7: 'm|P|b7|', m9: 'm|P|b7|9', m11: 'm|P|b7|9,11', mmaj7: 'm|P|M7|',
+            '7': 'M|P|b7|', '9': 'M|P|b7|9', '7alt': 'M|b5|b7|', '7b9': 'M|P|b7|b9', '7sharp5': 'M|s5|b7|',
+            dimTriad: 'm|b5||', augTriad: 'M|s5||', m7b5: 'm|b5|b7|', dim7: 'm|b5|bb7|', '7sus4': 'sus4|P|b7|'
+        };
+        const CB_KEY_TO_CATALOG = {};
+        Object.keys(CB_CATALOG_KEYS).forEach(id => { CB_KEY_TO_CATALOG[CB_CATALOG_KEYS[id]] = id; });
+        const cbHas = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+
+        // Ramène un état à sa forme canonique (valeurs inconnues → défaut, doublons et chocs de tensions écartés)
+        function cbNormalize(st) {
+            st = st || {};
+            const third = cbHas(CB_THIRD, st.third) ? st.third : 'M';
+            const fifth = cbHas(CB_FIFTH, st.fifth) ? st.fifth : 'P';
+            let sev = cbHas(CB_SEV, st.sev) ? st.sev : '';
+            if (sev === '6' && third === 'm' && fifth === 'b5') sev = 'bb7';          // m6♭5 = °7 (mêmes notes)
+            if (sev === 'bb7' && !(third === 'm' && fifth === 'b5')) sev = 'b7';
+            const want = Array.isArray(st.ext) ? st.ext : [];
+            const used = cbStructIntervals({ third, fifth, sev });
+            const ext = [];
+            CB_EXT_ORDER.forEach(k => {
+                if (!want.includes(k) || used.includes(CB_EXT[k])) return;           // déjà dans l'accord (ex. 13 sur une sixte)
+                if (ext.some(o => CB_EXT_CLASH[k].includes(o))) return;
+                ext.push(k);
+            });
+            return { third, fifth, sev, ext };
+        }
+        function cbStructIntervals(st) {
+            const n = [0, CB_THIRD[st.third], CB_FIFTH[st.fifth]];
+            if (st.sev) n.push(CB_SEV[st.sev]);
+            return n;
+        }
+        // Notes de l'accord (demi-tons) : [fondamentale, tierce, quinte, septième?, ...tensions croissantes]
+        function cbNotes(st) { return cbStructIntervals(st).concat(st.ext.map(k => CB_EXT[k])); }
+        function cbKey(st) { return `${st.third}|${st.fifth}|${st.sev}|${st.ext.join(',')}`; }
+        function cbParseKey(key) {
+            const p = key.split('|');
+            return cbNormalize({ third: p[0], fifth: p[1], sev: p[2], ext: p[3] ? p[3].split(',') : [] });
+        }
+        // Identifiant d'un état : celui du catalogue s'il existe, sinon l'identifiant canonique x:…
+        function cbId(st) {
+            st = cbNormalize(st);
+            return CB_KEY_TO_CATALOG[cbKey(st)] || `x:${st.third}:${st.fifth}:${st.sev || '-'}:${st.ext.join(',') || '-'}`;
+        }
+        // État décrit par un identifiant (catalogue ou x:…) ; null si l'identifiant est inconnu
+        function cbStateOfId(id) {
+            if (typeof id !== 'string') return null;
+            if (cbHas(CB_CATALOG_KEYS, id)) return cbParseKey(CB_CATALOG_KEYS[id]);
+            if (!id.startsWith('x:')) return null;
+            const p = id.split(':');
+            if (p.length !== 5) return null;
+            return cbNormalize({ third: p[1], fifth: p[2], sev: p[3] === '-' ? '' : p[3], ext: p[4] === '-' ? [] : p[4].split(',') });
+        }
+        // Famille de l'accord : maj, min, dom, hdim (demi-diminué), dim, aug
+        function cbFamily(st) {
+            if (st.third === 'm' && st.fifth === 'b5') return st.sev === 'b7' ? 'hdim' : 'dim';
+            if (st.third === 'm') return 'min';
+            if (st.sev === 'b7') return 'dom';
+            if (st.third === 'M' && st.fifth === 's5' && st.sev === '') return 'aug';
+            return 'maj';
+        }
+        const CB_INFO_CACHE = new Map();
+        // Description structurelle d'un accord quel que soit son identifiant : { st, fam, minorish, sus4 } ; null si inconnu
+        function chordInfo(id) {
+            if (CB_INFO_CACHE.has(id)) return CB_INFO_CACHE.get(id);
+            const st = cbStateOfId(id);
+            if (!st) return null;
+            const info = { st, fam: cbFamily(st), minorish: st.third === 'm', sus4: st.third === 'sus4' };
+            CB_INFO_CACHE.set(id, info);
+            return info;
+        }
+
+        // Symbole sans la fondamentale, en notation jazz de l'application (Δ, −7, ø, °, # en ASCII, ♭ en glyphe)
+        function cbSuffix(st) {
+            const { third, fifth, sev } = st;
+            let rest = st.ext.slice();
+            const labels = (arr) => arr.map(k => CB_EXT_LABEL[k]);
+            const paren = (arr) => arr.length ? `(${arr.join(',')})` : '';
+            if (third === 'm' && fifth === 'b5') {   // la quinte ♭5 est contenue dans le symbole
+                const base = { '': 'dim', b7: 'ø', bb7: '°', M7: '−Δ7(♭5)' }[sev] || 'dim';
+                return base + paren(labels(rest));
+            }
+            const alts = [];
+            if (fifth === 'b5') alts.push('♭5');
+            let aug = false;
+            if (fifth === 's5') { if (third === 'M' && sev === '') aug = true; else alts.push('#5'); }
+            const minor = third === 'm';
+            const sus = third === 'sus4' ? 'sus4' : (third === 'sus2' ? 'sus2' : '');
+            let num = '';
+            let add = '';
+            if (sev === 'b7' || sev === 'M7') {
+                // 9, 11, 13 empilées : le plus haut chiffre remplace le 7 (C9, C11, C13, CΔ9)
+                let top = '7';
+                if (rest.includes('9')) {
+                    top = rest.includes('13') ? '13' : (rest.includes('11') ? '11' : '9');
+                    rest = rest.filter(k => k !== '9' && k !== top);
+                }
+                num = sev === 'M7' ? (top === '7' ? (minor ? 'Δ7' : 'Δ') : 'Δ' + top) : top;
+            } else if (sev === '6') {
+                num = '6';
+                if (rest.includes('9')) { num = '6/9'; rest = rest.filter(k => k !== '9'); }
+            } else if (rest.length && !sus && !aug) {
+                const l = labels(rest);
+                add = 'add' + (l.length === 1 ? l[0] : `(${l.join(',')})`);
+                rest = [];
+            }
+            const quality = aug ? 'aug' : (minor ? (num === '' ? 'm' : '−') : '') + num;
+            return `${quality}${sus}${add}${paren([...alts, ...labels(rest)])}`;
+        }
+        function cbFullName(st) {
+            const T = { M: 'tierce majeure', m: 'tierce mineure', sus4: 'quarte (sus4)', sus2: 'seconde (sus2)' };
+            const F = { P: 'quinte juste', b5: 'quinte diminuée', s5: 'quinte augmentée' };
+            const S = { '6': 'sixte', b7: 'septième mineure', M7: 'septième majeure', bb7: 'septième diminuée' };
+            return [T[st.third], F[st.fifth], st.sev ? S[st.sev] : '', st.ext.length ? st.ext.map(k => CB_EXT_LABEL[k]).join(', ') : ''].filter(Boolean).join(' · ');
+        }
+
+        // Gammes proposées pour un accord composé : celles qui contiennent toutes ses notes (à défaut, le moins de notes manquantes),
+        // classées par notes à éviter (demi-ton au-dessus d'une note essentielle) puis par ordre de préférence de la famille.
+        const CB_SCALE_PREF = {
+            maj: ['ionian', 'lydian', 'majorPentatonic', 'harmonicMajor', 'majorBebop', 'majorBlues', 'lydianAug'],
+            min: ['dorian', 'aeolian', 'melodicMinor', 'minorPentatonic', 'minorBebop', 'harmonicMinor', 'phrygian', 'bluesScale'],
+            dom: ['mixolydian', 'lydianDominant', 'dominantBebop', 'mixolydianFlat13', 'bluesScale', 'mixolydianFlat9', 'phrygianDominant', 'halfWholeDim', 'altered', 'wholeTone'],
+            hdim: ['locrianSharp2', 'locrian', 'minorPentatonicFlat5'],
+            dim: ['wholeHalfDim', 'halfWholeDim'],
+            aug: ['wholeTone', 'lydianAug', 'altered']
+        };
+        function cbSuggestScales(st) {
+            const fam = cbFamily(st);
+            const notes = cbNotes(st);
+            const pcs = new Set(notes.map(n => n % 12));
+            const has = (k) => st.ext.includes(k);
+            const sus = st.third === 'sus4' || st.third === 'sus2';
+            let pref;
+            if (sus) pref = fam === 'dom' ? ['mixolydian', 'dorian', 'phrygian', 'dominantBebop', 'mixolydianFlat9'] : ['mixolydian', 'dorian', 'ionian', 'majorPentatonic', 'aeolian', 'lydian'];
+            else pref = CB_SCALE_PREF[fam].slice();
+            const boost = [];
+            if (sus) {
+                if (has('b9')) boost.push('phrygian', 'mixolydianFlat9');
+            } else if (fam === 'dom') {
+                if (has('b9')) boost.push('halfWholeDim', 'phrygianDominant', 'mixolydianFlat9');
+                if (has('s9') || st.fifth === 'b5') boost.push('altered', 'halfWholeDim');
+                if (has('s11')) boost.push('lydianDominant');
+                if (has('b13')) boost.push('mixolydianFlat13', 'altered');
+                if (st.fifth === 's5') boost.push('wholeTone', 'altered');
+            } else if (fam === 'maj') {
+                if (has('s11')) boost.push('lydian', 'lydianAug');
+                if (st.fifth === 's5') boost.push('lydianAug');
+            } else if (fam === 'min') {
+                if (st.sev === 'M7') boost.push('melodicMinor', 'harmonicMinor');
+                if (has('b13')) boost.push('aeolian');
+            }
+            const order = [...new Set([...boost, ...pref])];
+            const guides = new Set([0, notes[1] % 12]);
+            if (st.sev === 'b7' || st.sev === 'M7') guides.add(CB_SEV[st.sev]);
+            if (st.fifth === 'P') guides.add(7);
+            const exempt = new Set();
+            if (fam === 'dom') { exempt.add(1); exempt.add(8); }       // ♭9 et ♭13 : altérations voulues d'une dominante
+            if (st.sev === 'M7') exempt.add(8);                         // ♭6 / #5 au-dessus d'une septième majeure : couleur de quinte augmentée
+            const rows = Object.keys(scalesDb).map(id => {
+                const iv = scalesDb[id].intervals.map(n => n % 12);
+                const set = new Set(iv);
+                let missing = 0;
+                pcs.forEach(p => { if (!set.has(p)) missing++; });
+                let pen = 0;
+                iv.forEach(n => { if (!pcs.has(n) && guides.has((n + 11) % 12) && !exempt.has(n)) pen++; });
+                if (st.third === 'sus4' && set.has(4)) pen++;           // la tierce majeure frotte contre la quarte
+                const idx = order.indexOf(id);
+                return { id, missing, pen, rank: missing * 10 + pen * 3 + (idx < 0 ? 30 : idx) };
+            });
+            const minMissing = Math.min(...rows.map(r => r.missing));
+            return rows.filter(r => r.missing === minMissing).sort((a, b) => a.rank - b.rank).slice(0, 6).map((r, i) => ({
+                id: r.id,
+                role: i === 0 ? 'Suggérée' : (r.missing ? 'Ne couvre pas toutes les notes' : (r.pen ? 'Contient une note à éviter' : 'Alternative'))
+            }));
+        }
+
+        const builtChords = new Map();
+        function cbMakeChord(id, st) {
+            const suffix = cbSuffix(st);
+            return { id, name: suffix || 'maj', fullName: cbFullName(st), notes: cbNotes(st), scales: cbSuggestScales(st), built: true, jazz: suffix };
+        }
+        // Accord du catalogue, ou accord composé (enregistré à la première demande) ; null si l'identifiant est inconnu
+        function lookupChord(id) {
+            for (const cat in chordTypes) {
+                const found = chordTypes[cat].find(c => c.id === id);
+                if (found) return found;
+            }
+            if (typeof id !== 'string') return null;
+            const hit = builtChords.get(id);
+            if (hit) return hit;
+            if (!id.startsWith('x:')) return null;
+            const st = cbStateOfId(id);
+            if (!st || cbId(st) !== id) return null;      // forme non canonique, ou accord déjà présent au catalogue
+            const obj = cbMakeChord(id, st);
+            builtChords.set(id, obj);
+            return obj;
+        }
 
         const NOTE_STEP_SECONDS = 0.35;
         const PLAY_BASE_OCTAVE = 3;
@@ -2719,7 +2958,7 @@
 
             sanitizeImportedGrid(raw) {
                 if (!Array.isArray(raw) || raw.length === 0 || raw.length > 64) return null;
-                const knownChord = (id) => Object.values(chordTypes).some(list => list.some(c => c.id === id));
+                const knownChord = (id) => !!lookupChord(id);
                 const clean = [];
                 for (const item of raw) {
                     if (!item || typeof item !== 'object') return null;
@@ -8860,11 +9099,7 @@
             }
 
             findChordObj(chordId) {
-                for (const cat in chordTypes) {
-                    const found = chordTypes[cat].find(c => c.id === chordId);
-                    if (found) return found;
-                }
-                return chordTypes.maj[0];
+                return lookupChord(chordId) || chordTypes.maj[0];
             }
 
             // Pendant la jam, un accord doit toujours être joué avec 4 notes,
@@ -9035,7 +9270,7 @@
                 const problems = [];
                 const n = S.length;
                 const mod = (x) => ((x % 12) + 12) % 12;
-                const exists = (id) => Object.values(chordTypes).some(list => list.some(c => c.id === id));
+                const exists = (id) => !!lookupChord(id);
                 const ok = (c, s) => exists(c) && !!scalesDb[s];
                 S.forEach((sl, i) => {
                     if (!Number.isInteger(sl.r) || !ok(sl.c, sl.s)) problems.push('chord' + i);
@@ -9671,6 +9906,8 @@
             getJazzChordNotation(chordId) {
                 // En mode Jam, une triade majeure s'écrit avec la fondamentale seule (D, C, F#...)
                 if (chordId === 'majTriad') return '';
+                const built = lookupChord(chordId);
+                if (built && built.built) return built.jazz;   // accord composé : symbole généré
                 const notation = {
                     maj7: 'Δ',
                     maj9: 'Δ9',
@@ -11019,11 +11256,12 @@
                 // Degré chromatique exact (♭II, ♭III, ♭VI, ♭VII… et non « #I », « #II », « #V », « #VI ») ;
                 // majuscule pour les accords majeurs / dominants, minuscule pour les mineurs et diminués ;
                 // ø = demi-diminué (m7♭5), ° = diminué (triade ou septième diminuée).
-                const lowerCase = ['minTriad', 'm7', 'm9', 'm11', 'mmaj7', 'm7b5', 'dimTriad', 'dim7'].includes(chordId);
+                const cinfo = chordInfo(chordId);
+                const lowerCase = !!cinfo && cinfo.minorish;
                 let degreeLabel = this._romanDeg(root, lowerCase);
-                if (chordId === 'm7b5') degreeLabel += 'ø';
-                else if (chordId === 'dim7' || chordId === 'dimTriad') degreeLabel += '°';
-                const diminished = ['m7b5', 'dim7', 'dimTriad'].includes(chordId);
+                if (cinfo && cinfo.fam === 'hdim') degreeLabel += 'ø';
+                else if (cinfo && cinfo.fam === 'dim') degreeLabel += '°';
+                const diminished = !!cinfo && (cinfo.fam === 'hdim' || cinfo.fam === 'dim');
 
                 const fn = measure.harmonicFunction;
                 if (fn === 'secondaryDominant') {
@@ -11037,7 +11275,8 @@
                     if (next) {
                         const d = (((next.rootIndex - measure.rootIndex) % 12) + 12) % 12;
                         const targetRoot = ((next.rootIndex - tonic) % 12 + 12) % 12;
-                        const targetMinor = ['minTriad', 'm7', 'm9', 'm11', 'mmaj7', 'm7b5'].includes(next.chordId);
+                        const tinfo = chordInfo(next.chordId);
+                        const targetMinor = !!tinfo && tinfo.minorish && tinfo.fam !== 'dim';
                         if (d === 5) return targetRoot === 0 ? 'V' : `V/${this._romanDeg(targetRoot, targetMinor)}`; // dominante qui résout une quarte plus haut
                         if (d === 11) return targetRoot === 0 ? 'subV' : `subV/${this._romanDeg(targetRoot, targetMinor)}`; // substitut de triton : résolution par demi-ton descendant
                     }
@@ -11336,12 +11575,8 @@
             }
 
             _chordFamily(id) {
-                if (['minTriad', 'm7', 'm9', 'm11', 'mmaj7'].includes(id)) return 'min';
-                if (['7', '9', '7alt', '7b9', '7sharp5', '7sus4'].includes(id)) return 'dom';
-                if (id === 'm7b5') return 'hdim';
-                if (['dim7', 'dimTriad'].includes(id)) return 'dim';
-                if (id === 'augTriad') return 'aug';
-                return 'maj';
+                const info = chordInfo(id);
+                return info ? info.fam : 'maj';
             }
 
             // Lectures possibles d'un accord dans la tonalité de la grille : degré diatonique, dominantes secondaires,
@@ -11372,7 +11607,8 @@
                 }
 
                 if (fam === 'dom' || fam === 'aug') {
-                    const suf = chord.chordId === '7sus4' ? '7sus' : (fam === 'aug' ? '+' : '7');
+                    const isSus4 = !!(chordInfo(chord.chordId) || {}).sus4;
+                    const suf = isSus4 ? '7sus' : (fam === 'aug' ? '+' : '7');
                     const tSec = mod(r + 5);
                     add('Dominantes', [
                         r === 7 ? it('V' + suf, 'Dominante principale : tend vers la tonique I') : null,
@@ -11382,7 +11618,7 @@
                     const tBd = mod(r + 2);
                     add('Substitutions', [
                         it(`subV${suf}/${R(tTri)}`, `Substitut de triton : remplace V7/${R(tTri)} ; sa fondamentale descend d'un demi-ton sur ${R(tTri)} (${K(tTri)})`),
-                        (fam === 'dom' && chord.chordId !== '7sus4') ? it(tBd === 0 ? '♭VII7' : `♭VII7/${R(tBd)}`, `Dominante « backdoor » (♭VII7) : résout par la sous-dominante mineure sur ${R(tBd)} (${K(tBd)})`) : null
+                        (fam === 'dom' && !isSus4) ? it(tBd === 0 ? '♭VII7' : `♭VII7/${R(tBd)}`, `Dominante « backdoor » (♭VII7) : résout par la sous-dominante mineure sur ${R(tBd)} (${K(tBd)})`) : null
                     ]);
                     add('Emprunts modaux', [
                         r === 0 ? it('I7', 'Tonique dominante : couleur blues / mixolydienne') : null,
@@ -12257,6 +12493,15 @@
                         break;
                     }
                     case 'chord': this._editorApply({ chordId: v }); break;
+                    case 'third': case 'fifth': case 'sev': case 'ext': this._editorBuild(act, v); break;
+                    case 'mode': this._edModeSet(v); this._renderEditor(); this._positionEditor(); break;
+                    case 'fold': {
+                        ed.fold = ed.fold || {};
+                        ed.fold[v] = !this._editorFolded(v);
+                        this._renderEditor();
+                        this._positionEditor();
+                        break;
+                    }
                     case 'scale': this._editorApply({ scaleId: v }); break;
                     case 'bass': this._editorSetBass(v); break;
                     case 'dur': this._editorDuration(v); break;
@@ -12302,6 +12547,68 @@
                     const c = (ed.half === 1 && m.split) ? m.split : m;
                     try { this.app.playJamChord(c.rootIndex, c.chordId); } catch (e) {}
                 }
+            }
+
+            // Mode de l'éditeur : « build » (Construire : fondamentale → qualité → extensions) ou « cat » (catalogue), mémorisé.
+            _edModeGet() {
+                if (!this._edModeVal) {
+                    let v = null;
+                    try { v = localStorage.getItem('jamEditorMode'); } catch (e) {}
+                    this._edModeVal = v === 'cat' ? 'cat' : 'build';
+                }
+                return this._edModeVal;
+            }
+            _edModeSet(v) {
+                this._edModeVal = v === 'cat' ? 'cat' : 'build';
+                try { localStorage.setItem('jamEditorMode', this._edModeVal); } catch (e) {}
+            }
+
+            // Sections repliables du mode Construire : fermées par défaut, sauf si l'accord édité utilise déjà la fonction
+            // (basse choisie, marque de reprise sur la mesure).
+            _editorFolded(key) {
+                const ed = this._editor;
+                if (ed && ed.fold && key in ed.fold) return ed.fold[key];
+                const t = this._editorTarget();
+                if (!t) return true;
+                if (key === 'bass') return !Number.isInteger(t.cur.bassRootIndex);
+                if (key === 'rp') return !(t.step.repeatStart || t.step.repeatEnd || t.step.volta);
+                return true;
+            }
+
+            // Mesure éditée : bloc, accord courant (1er ou 2e accord de la mesure) et position dans le bloc.
+            _editorTarget() {
+                const ed = this._editor;
+                if (!ed) return null;
+                const m = this.getFlatMeasureList().find(x => x.measureNumber === ed.measureNumber);
+                if (!m) return null;
+                const step = this.grid[m.stepIndex];
+                const cur = (ed.half === 1 && this.isSplit(step)) ? step.split : step;
+                return { m, step, cur };
+            }
+
+            // Mode Construire : modifie un des axes (tierce, quinte, septième, tension) de l'accord édité.
+            _editorBuild(kind, v) {
+                const t = this._editorTarget();
+                if (!t) return;
+                const cur = t.cur;
+                const s0 = cbStateOfId(cur.chordId) || cbNormalize({});
+                const st = { third: s0.third, fifth: s0.fifth, sev: s0.sev, ext: s0.ext.slice() };
+                if (kind === 'third') st.third = v;
+                else if (kind === 'fifth') st.fifth = v;
+                else if (kind === 'sev') {
+                    st.sev = v;
+                    if (st.sev === 'bb7') { st.third = 'm'; st.fifth = 'b5'; }   // °7 = tierce mineure + quinte diminuée + 7e diminuée
+                } else if (kind === 'ext') {
+                    if (!cbHas(CB_EXT, v)) return;
+                    if (st.ext.includes(v)) st.ext = st.ext.filter(k => k !== v);
+                    else st.ext = st.ext.filter(k => !CB_EXT_CLASH[v].includes(k)).concat(v);
+                }
+                const id = cbId(st);
+                const co = lookupChord(id);
+                const patch = { chordId: id };
+                // On garde la gamme choisie tant qu'elle convient encore à l'accord obtenu
+                if (co && co.scales.some(sc => sc.id === cur.scaleId)) patch.scaleId = cur.scaleId;
+                this._editorApply(patch);
             }
 
             // Choisit la note de basse de l'accord édité (sur le premier ou le second accord d'une mesure divisée).
@@ -12482,20 +12789,88 @@
                         ${chip(ed.half === 1, 'data-act="half" data-v="1"', `${this.halfLabelText(1)} <small>${symbol(step.split)}</small>`)}
                     </div>` : ''}`;
 
+                // ----- Mode « Construire » : fondamentale → qualité (tierce, quinte, septième) → tensions -----
+                const mode = this._edModeGet();
+                const glyph = (s) => String(s).replace(/#/g, '♯').replace(/b/g, '♭');
+                const bst = (chordInfo(cur.chordId) || { st: cbNormalize({}) }).st;
+                const seg = (act, defs, on) => `<div class="jm-seg">${defs.map(([k, label, tip]) =>
+                    chip(on(k), `data-act="${act}" data-v="${k}" title="${tip}"`, label)).join('')}</div>`;
+                const thirdSeg = seg('third', [
+                    ['M', 'maj', 'Tierce majeure'], ['m', 'min', 'Tierce mineure'],
+                    ['sus4', 'sus4', 'Suspendu : la quarte remplace la tierce'], ['sus2', 'sus2', 'Suspendu : la seconde remplace la tierce']], k => bst.third === k);
+                const fifthSeg = seg('fifth', [
+                    ['P', '5', 'Quinte juste'], ['b5', '♭5', 'Quinte diminuée'],
+                    ['s5', '♯5', 'Quinte augmentée']], k => bst.fifth === k);
+                const sevSeg = seg('sev', [
+                    ['', '—', 'Aucune septième : triade'], ['6', '6', 'Sixte ajoutée'],
+                    ['b7', '7', 'Septième mineure (♭7) : dominante, m7, ø…'], ['M7', 'Δ7', 'Septième majeure'],
+                    ['bb7', '°7', 'Septième diminuée : accord diminué (tierce mineure + quinte ♭5)']], k => bst.sev === k);
+                const usedPcs = cbStructIntervals(bst);
+                const extTips = { b9: 'Neuvième mineure', '9': 'Neuvième', s9: 'Neuvième augmentée (♯9)', '11': 'Onzième', s11: 'Onzième augmentée (♯11)', b13: 'Treizième mineure (♭13)', '13': 'Treizième' };
+                const extSeg = `<div class="jm-seg">${CB_EXT_ORDER.map(k =>
+                    chip(bst.ext.includes(k), `data-act="ext" data-v="${k}" title="${extTips[k]}${usedPcs.includes(CB_EXT[k]) ? ' (déjà dans l\'accord)' : ''}"`,
+                        glyph(CB_EXT_LABEL[k]), usedPcs.includes(CB_EXT[k]) ? ' jm-off' : '')).join('')}</div>`;
+                const shortcutIds = ['majTriad', 'minTriad', 'maj7', 'm7', '7', 'm7b5', 'dim7', '7sus4', '7alt', '6', '9', 'm9'];
+                const shortcuts = shortcutIds.map(id => {
+                    const co = this.findChordObj(id);
+                    return chip(id === cur.chordId, `data-act="chord" data-v="${id}" title="${co.fullName || ''}"`, this.getJazzChordNotation(id) || co.name);
+                }).join('');
+                const spelledNotes = getSpelledChordNotes(chordRootName(cur.rootIndex, cur.chordId), chordObj).map(glyph).join(' ');
+                const notesNote = cur.chordId === '7alt' ? ' <small>(7alt = 7♭5 ; ajoutez ♭9, ♯9, ♭13 pour le détail)</small>' : '';
+                const buildChord = `<div class="jm-sec"><div class="jm-sec-t">Accord</div>
+                        <div class="jm-row">${shortcuts}</div>
+                        <div class="jm-sub-t">Tierce</div>${thirdSeg}
+                        <div class="jm-sub-t">Quinte</div>${fifthSeg}
+                        <div class="jm-sub-t">Septième</div>${sevSeg}
+                        <div class="jm-sub-t">Tensions</div>${extSeg}
+                        <div class="jm-notes">Notes : <b>${spelledNotes}</b>${notesNote}</div></div>`;
+                // Fondamentale « clavier » : touches noires (♯ et ♭) au-dessus des touches blanches
+                const kbBlack = [['C#', '1s', 2], ['Db', '1f', 3], ['D#', '3s', 4], ['Eb', '3f', 5], ['F#', '6s', 8], ['Gb', '6f', 9],
+                    ['G#', '8s', 10], ['Ab', '8f', 11], ['A#', '10s', 12], ['Bb', '10f', 13]];
+                const kbWhite = [['C', '0'], ['D', '2'], ['E', '4'], ['F', '5'], ['G', '7'], ['A', '9'], ['B', '11']];
+                const rootOn = (nm, v) => rootLabels[parseInt(v, 10)] === nm && parseInt(v, 10) === cur.rootIndex;
+                const keyboard = `<div class="jm-kb">
+                        ${kbBlack.map(([nm, v, col]) => chip(rootOn(nm, v), `data-act="root" data-v="${v}" style="grid-row:1;grid-column:${col}" title="${glyph(nm)}"`, glyph(nm), ' jm-blk')).join('')}
+                        ${kbWhite.map(([nm, v], i) => chip(rootOn(nm, v), `data-act="root" data-v="${v}" style="grid-row:2;grid-column:${i * 2 + 1} / span 2"`, nm)).join('')}
+                    </div>`;
+                const foldSec = (key, title, summary, body) => {
+                    const open = !this._editorFolded(key);
+                    return `<div class="jm-sec"><button type="button" class="jm-sec-t jm-fold-t" data-act="fold" data-v="${key}" aria-expanded="${open}"><span>${title}${summary ? `<em>${summary}</em>` : ''}</span><span class="jm-caret">${open ? '▾' : '▸'}</span></button>${open ? body : ''}</div>`;
+                };
+                const bassSummary = (Number.isInteger(cur.bassRootIndex) && cur.bassRootIndex !== rootPc) ? `/${bassNoteName(cur.rootIndex, cur.chordId, cur.bassRootIndex)}` : '';
+                const rpSummary = [step.repeatStart && m.measureInStep === 1 ? '|:' : '', rpEnd ? `:|×${rpEnd}` : '', step.volta ? `${step.volta}${step.volta === 1 ? 're' : 'e'} fin` : ''].filter(Boolean).join(' ');
+                const modeBar = `<div class="jm-mode">
+                        ${chip(mode === 'build', 'data-act="mode" data-v="build" title="Choisir la fondamentale, la qualité, puis les tensions"', 'Construire')}
+                        ${chip(mode === 'cat', 'data-act="mode" data-v="cat" title="Liste d\'accords prédéfinis"', 'Catalogue')}
+                    </div>`;
+                const secDur = `<div class="jm-sec"><div class="jm-sec-t">Durée</div>${durSeg}</div>`;
+                const secDeg = `<div class="jm-sec"><div class="jm-sec-t">Degrés de la tonalité</div><div class="jm-row">${degrees}</div></div>`;
+                const secScale = `<div class="jm-sec"><div class="jm-sec-t">Gamme</div><div class="jm-row">${scales}</div></div>`;
+                const body = mode === 'build' ? `
+                    ${secDur}
+                    ${secDeg}
+                    <div class="jm-sec"><div class="jm-sec-t">Fondamentale</div>${keyboard}</div>
+                    ${buildChord}
+                    ${secScale}
+                    ${foldSec('bass', 'Basse', bassSummary, `<div class="jm-row">${basses}</div>`)}
+                    ${foldSec('rp', 'Reprises', rpSummary, `<div class="jm-row">${marks}</div>`)}` : `
+                    ${secDur}
+                    ${secDeg}
+                    <div class="jm-sec"><div class="jm-sec-t">Fondamentale</div><div class="jm-row">${roots}</div></div>
+                    <div class="jm-sec"><div class="jm-sec-t">Accord</div><div class="jm-row">${chords}</div>
+                        <select class="jm-select" data-act="chordsel"><option value="">Autres accords…</option>${options}</select></div>
+                    <div class="jm-sec"><div class="jm-sec-t">Basse</div><div class="jm-row">${basses}</div></div>
+                    ${secScale}
+                    <div class="jm-sec"><div class="jm-sec-t">Reprises</div><div class="jm-row">${marks}</div></div>`;
+
                 const prevScroll = ed.el.scrollTop;
                 ed.el.innerHTML = `
                     <div class="jm-head" title="Glisser pour déplacer">
                         <span class="jm-title">Mesure ${m.measureNumber} · ${symbol(cur)}</span>
                         <button type="button" class="jm-btn" data-act="cancel" title="Fermer (Échap)">✕</button>
                     </div>
-                    <div class="jm-sec"><div class="jm-sec-t">Durée</div>${durSeg}</div>
-                    <div class="jm-sec"><div class="jm-sec-t">Degrés de la tonalité</div><div class="jm-row">${degrees}</div></div>
-                    <div class="jm-sec"><div class="jm-sec-t">Fondamentale</div><div class="jm-row">${roots}</div></div>
-                    <div class="jm-sec"><div class="jm-sec-t">Accord</div><div class="jm-row">${chords}</div>
-                        <select class="jm-select" data-act="chordsel"><option value="">Autres accords…</option>${options}</select></div>
-                    <div class="jm-sec"><div class="jm-sec-t">Basse</div><div class="jm-row">${basses}</div></div>
-                    <div class="jm-sec"><div class="jm-sec-t">Gamme</div><div class="jm-row">${scales}</div></div>
-                    <div class="jm-sec"><div class="jm-sec-t">Reprises</div><div class="jm-row">${marks}</div></div>
+                    ${modeBar}
+                    ${body}
                     <div class="jm-foot">
                         <button type="button" class="jm-btn" data-act="prev" title="Mesure précédente (←)">‹</button>
                         <button type="button" class="jm-btn" data-act="next" title="Mesure suivante (→) — ajoute une mesure après la dernière">›</button>
