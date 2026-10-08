@@ -358,6 +358,12 @@
         .jm-pop { position: fixed; z-index: 2000; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); color: #e2e8f0; padding: 10px 12px 12px; font-size: 12px; }
         .jm-pop.jm-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; max-height: 62vh; }
         /* Pop-up « Orchestre » : fenêtre flottante à gauche de l'écran, sans voile, déplaçable par sa barre de titre */
+        #saved-grids-modal { position: fixed; z-index: 1900; width: 300px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+        #saved-grids-modal.hidden { display: none; }
+        #saved-grids-modal.sg-dragging { opacity: .96; box-shadow: 0 16px 48px rgba(0,0,0,.7); }
+        #saved-grids-modal.sg-dragging .jm-head { cursor: grabbing; }
+        #saved-grids-modal.sg-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; }
+        #saved-grids-modal.sg-sheet .jm-head { cursor: default; }
         #band-modal { position: fixed; z-index: 1900; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow-y: auto; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
         #band-modal.hidden { display: none; }
         #band-modal.band-dragging { opacity: .96; box-shadow: 0 16px 48px rgba(0,0,0,.7); }
@@ -933,7 +939,6 @@
                             <span id="jam-saved-grids-label" class="truncate">Sauvegardes</span>
                             <span class="text-slate-500">▾</span>
                         </button>
-                        <div id="jam-saved-grids-dropdown" class="hidden absolute left-0 right-0 z-20 mt-1 bg-[#1a1a1a] border border-[#333333] rounded shadow-lg max-h-48 overflow-y-auto"></div>
                     </div>
                     <button onclick="app.jam.exportGrid()" title="Exporter la grille en cours dans un fichier .json" class="jr-half text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2.5 py-1 rounded transition whitespace-nowrap">Exporter</button>
                     <button onclick="document.getElementById('jam-import-file').click()" title="Importer une grille depuis un fichier .json" class="jr-half text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2.5 py-1 rounded transition whitespace-nowrap">Importer</button>
@@ -3123,29 +3128,92 @@
                 reader.readAsText(file);
             }
 
+            // « Sauvegardes » s'ouvre dans une fenêtre flottante qu'on déplace en glissant sa barre de titre.
             toggleSavedGridsMenu() {
-                const dropdown = document.getElementById('jam-saved-grids-dropdown');
-                if (!dropdown) return;
-                const isHidden = dropdown.classList.contains('hidden');
-                if (isHidden) {
-                    this.renderSavedGridsMenu();
-                    dropdown.classList.remove('hidden');
-                    if (!this._savedGridsOutsideClickBound) {
-                        this._savedGridsOutsideClickBound = true;
-                        document.addEventListener('click', (e) => {
-                            const wrapper = document.getElementById('jam-saved-grids-wrapper');
-                            const dd = document.getElementById('jam-saved-grids-dropdown');
-                            if (wrapper && dd && !wrapper.contains(e.target)) dd.classList.add('hidden');
-                        });
-                    }
-                } else {
-                    dropdown.classList.add('hidden');
-                }
+                const el = document.getElementById('saved-grids-modal');
+                if (!el) return;
+                if (el.classList.contains('hidden')) this.openSavedGridsMenu();
+                else this.closeSavedGridsMenu();
             }
 
+            openSavedGridsMenu() {
+                const el = document.getElementById('saved-grids-modal');
+                if (!el) return;
+                this._bindSavedGridsPopup();
+                this.renderSavedGridsMenu();
+                el.classList.remove('hidden');
+                this._placeSavedGridsPopup();
+            }
+
+            closeSavedGridsMenu() {
+                const el = document.getElementById('saved-grids-modal');
+                if (el) el.classList.add('hidden');
+            }
+
+            // S'ouvre près du bouton ; une fois déplacée, la fenêtre se rouvre où on l'a laissée (dans l'écran).
+            _placeSavedGridsPopup() {
+                const el = document.getElementById('saved-grids-modal');
+                if (!el) return;
+                const narrow = window.innerWidth <= 640;
+                el.classList.toggle('sg-sheet', narrow);
+                if (narrow) { el.style.left = ''; el.style.top = ''; return; }
+                let pos = this._savedGridsPos;
+                if (!pos) {
+                    const btn = document.getElementById('jam-saved-grids-wrapper');
+                    const r = btn ? btn.getBoundingClientRect() : { left: 16, bottom: 72 };
+                    pos = { left: r.left, top: r.bottom + 4 };
+                }
+                const left = Math.min(Math.max(0, pos.left), Math.max(0, window.innerWidth - el.offsetWidth));
+                const top = Math.min(Math.max(0, pos.top), Math.max(0, window.innerHeight - el.offsetHeight));
+                el.style.left = `${left}px`;
+                el.style.top = `${top}px`;
+            }
+
+            _bindSavedGridsPopup() {
+                if (this._savedGridsBound) return;
+                const el = document.getElementById('saved-grids-modal');
+                const head = document.getElementById('saved-grids-modal-head');
+                if (!el || !head) return;
+                this._savedGridsBound = true;
+                head.addEventListener('pointerdown', (ev) => {
+                    if (ev.button > 0 || (ev.target.closest && ev.target.closest('button'))) return;
+                    if (el.classList.contains('sg-sheet')) return; // feuille du bas (téléphone) : non déplaçable
+                    const r = el.getBoundingClientRect();
+                    const dx = ev.clientX - r.left, dy = ev.clientY - r.top;
+                    try { head.setPointerCapture(ev.pointerId); } catch (e) {}
+                    el.classList.add('sg-dragging');
+                    const move = (e) => {
+                        const left = Math.min(Math.max(0, e.clientX - dx), Math.max(0, window.innerWidth - el.offsetWidth));
+                        const top = Math.min(Math.max(0, e.clientY - dy), Math.max(0, window.innerHeight - el.offsetHeight));
+                        el.style.left = `${left}px`;
+                        el.style.top = `${top}px`;
+                        this._savedGridsPos = { left, top };
+                    };
+                    const up = () => {
+                        el.classList.remove('sg-dragging');
+                        head.removeEventListener('pointermove', move);
+                        head.removeEventListener('pointerup', up);
+                        head.removeEventListener('pointercancel', up);
+                        try { head.releasePointerCapture(ev.pointerId); } catch (e) {}
+                    };
+                    head.addEventListener('pointermove', move);
+                    head.addEventListener('pointerup', up);
+                    head.addEventListener('pointercancel', up);
+                    ev.preventDefault();
+                });
+                window.addEventListener('resize', () => { if (!el.classList.contains('hidden')) this._placeSavedGridsPopup(); });
+                document.addEventListener('keydown', (ev) => {
+                    if (ev.key !== 'Escape' || el.classList.contains('hidden')) return;
+                    // laisse les champs de saisie / autres fenêtres gérer leur propre Échap
+                    const t = ev.target;
+                    if (t && t.closest && t.closest('input, textarea, #band-modal, .jm-pop')) return;
+                    ev.stopPropagation();
+                    this.closeSavedGridsMenu();
+                }, true);
+            }
+
+            // La fenêtre reste ouverte pendant les actions (elle est déplaçable, donc ne gêne pas) ; la liste se met à jour d'elle-même.
             runSavedGridsAction(action) {
-                const dropdown = document.getElementById('jam-saved-grids-dropdown');
-                if (dropdown) dropdown.classList.add('hidden');
                 if (action === 'save') this.saveGrid();
                 else if (action === 'update') this.updateSavedGrid();
                 else if (action === 'export') this.exportGrid();
@@ -3196,8 +3264,8 @@
                 this.loadedGridName = name;
                 this.renderGridUI();
                 this.updateLoadedGridNameDisplay();
-                const dropdown = document.getElementById('jam-saved-grids-dropdown');
-                if (dropdown) dropdown.classList.add('hidden');
+                this.renderSavedGridsMenu();
+                if (window.innerWidth <= 640) this.closeSavedGridsMenu(); // téléphone : la feuille du bas masquerait la grille
             }
 
             // En mode édition le titre devient un champ de saisie ; sinon il reste un simple libellé.
@@ -15394,6 +15462,17 @@
     <div id="jam-print-area"></div>
 
     <!-- Pop-up « Orchestre » : style (Swing / Pop / Brasil / Classique), volume général de l'orchestre (Master), volumes des instruments, volume du métronome -->
+    <div id="saved-grids-modal" class="hidden" role="dialog" aria-label="Sauvegardes">
+        <div class="bg-[#222222] border border-[#3a3a3c] rounded-xl w-full p-3 space-y-2">
+            <div id="saved-grids-modal-head" class="flex items-center justify-between jm-head" title="Glisser pour déplacer">
+                <span class="text-sm font-bold text-white uppercase tracking-wider">Sauvegardes</span>
+                <button type="button" onclick="app.jam.closeSavedGridsMenu()" title="Fermer (Échap)" aria-label="Fermer" class="text-slate-400 hover:text-white p-1 rounded transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div id="jam-saved-grids-dropdown" class="bg-[#1a1a1a] border border-[#333333] rounded overflow-y-auto" style="max-height:min(60vh,360px)"></div>
+        </div>
+    </div>
     <div id="band-modal" class="hidden" role="dialog" aria-label="Orchestre">
         <div class="bg-[#222222] border border-[#3a3a3c] rounded-xl w-full p-4 space-y-4">
             <div id="band-modal-head" class="flex items-center justify-between jm-head" title="Glisser pour déplacer">
