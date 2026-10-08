@@ -14468,11 +14468,12 @@
                 notesContainer.innerHTML = '';
                 if (nextChordObj) {
                     const nextChordSpelled = getSpelledChordNotes(nextRootName, nextChordObj);
+                    const nextStacked = stackIntervalsUp(nextChordObj.notes);
                     nextChordSpelled.forEach((n, noteIdx) => {
                         const badge = document.createElement('span');
                         badge.className = "px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white text-sm font-mono font-bold rounded cursor-pointer select-none transition";
                         badge.textContent = n;
-                        badge.onclick = () => this.playJamChordNote(nextChord.rootIndex, nextChordObj.notes[noteIdx]);
+                        badge.onclick = () => this.playJamChordNote(nextChord.rootIndex, nextStacked[noteIdx]);
                         notesContainer.appendChild(badge);
                     });
                 }
@@ -14499,11 +14500,12 @@
                 const notesContainer = document.getElementById('jam-current-chord-notes');
                 notesContainer.innerHTML = '';
                 const chordSpelled = getSpelledChordNotes(rootName, chordObj);
+                const stackedNotes = stackIntervalsUp(chordObj.notes);
                 chordSpelled.forEach((n, noteIdx) => {
                     const badge = document.createElement('span');
                     badge.className = "px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white text-sm font-mono font-bold rounded cursor-pointer select-none transition";
                     badge.textContent = n;
-                    badge.onclick = () => this.playDisplayedChordNote(chordObj.notes[noteIdx]);
+                    badge.onclick = () => this.playDisplayedChordNote(stackedNotes[noteIdx]);
                     notesContainer.appendChild(badge);
                 });
             }
@@ -15138,8 +15140,9 @@
                 chordNotesContainer.innerHTML = '';
                 
                 const chordSpelled = getSpelledChordNotes(rootName, chordObj);
+                const stackedNotes = stackIntervalsUp(chordObj.notes);
                 chordSpelled.forEach((n, idx) => {
-                    const interval = chordObj.notes[idx];
+                    const interval = stackedNotes[idx];
                     const badge = document.createElement('span');
                     badge.className = "px-2 py-0.5 bg-[#3b82f6] text-white rounded font-mono font-bold cursor-pointer hover:bg-blue-500 transition shadow-sm";
                     badge.textContent = n;
