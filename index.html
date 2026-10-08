@@ -1075,6 +1075,9 @@
                             <button onclick="app.jam.toggleShowTargetNotes()" id="jam-btn-toggle-target" class="px-2 py-0.5 rounded text-[11px] font-semibold transition bg-[#1a1a1a] text-slate-500 border border-[#333333]">Notes cibles</button>
                             <button onclick="app.jam.toggleShowAvoid()" id="jam-btn-toggle-avoid" class="px-2 py-0.5 rounded text-[11px] font-semibold transition bg-[#1a1a1a] text-slate-500 border border-[#333333]">Notes à éviter</button>
                             <button onclick="app.jam.toggleShowCharacteristic()" id="jam-btn-toggle-characteristic" class="px-2 py-0.5 rounded text-[11px] font-semibold transition bg-[#1a1a1a] text-slate-500 border border-[#333333]">Note caractéristique</button>
+                            <button onclick="app.jam.toggleShowScaleInfo()" id="jam-btn-toggle-scale-info" class="inline-flex items-center justify-center px-1.5 py-0.5 rounded transition bg-[#3a3a3c] text-slate-400 hover:text-white border border-[#333333]" title="Afficher / masquer la famille de la gamme et le texte explicatif" aria-label="Afficher ou masquer la famille de la gamme et le texte explicatif" aria-pressed="false">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h6a4 4 0 014 4v13a3 3 0 00-3-3H2z"/><path d="M22 4h-6a4 4 0 00-4 4v13a3 3 0 013-3h7z"/></svg>
+                            </button>
                         </div>
                         <div class="flex items-center gap-2 flex-wrap">
                             <div class="flex bg-[#1a1a1a] p-1 rounded-lg text-xs font-medium border border-[#333333]">
@@ -2533,6 +2536,7 @@
                 this.showTargetNotes = false;
                 this.showAvoidNotes = false;
                 this.showCharacteristic = false;
+                this.showScaleInfo = false; // bouton « livre ouvert » : famille de gamme + texte explicatif (masqués par défaut)
                 this.showHarmonicFunctions = false;
                 this.visMode = 'staff';
 
@@ -3386,6 +3390,19 @@
                     btn.className = `px-2 py-0.5 rounded text-[11px] font-semibold transition ${this.showCharacteristic ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-[#1a1a1a] text-slate-500 border border-[#333333]'}`;
                 }
                 this.renderJamScales();
+            }
+
+            // Bouton « livre ouvert » : affiche / masque la famille de la gamme (ex. « Mineur Mélodique »)
+            // et le petit texte qui explique le choix de gamme, au-dessus de chaque gamme.
+            toggleShowScaleInfo() {
+                this.showScaleInfo = !this.showScaleInfo;
+                const btn = document.getElementById('jam-btn-toggle-scale-info');
+                if (btn) {
+                    btn.className = `inline-flex items-center justify-center px-1.5 py-0.5 rounded transition border ${this.showScaleInfo ? 'bg-slate-500 text-white border-slate-400' : 'bg-[#3a3a3c] text-slate-400 hover:text-white border-[#333333]'}`;
+                    btn.setAttribute('aria-pressed', String(this.showScaleInfo));
+                }
+                this.renderJamScales();
+                this.lockScalesHeight();
             }
 
             initDefaultGrid() {
@@ -13721,12 +13738,14 @@
                                     <span class="text-xs font-mono px-2 py-0.5 rounded bg-[#2a2a2c] text-slate-300 font-bold border border-[#444]">m.${this.getStepStartMeasure(item.idx)}</span>
                                     ${halfLabel}
                                     <h3 class="font-bold text-sm text-white">${rootName} ${scaleDef.name}</h3>
+                                    ${this.showScaleInfo ? `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#2a2a2c] text-slate-300 border border-[#333333]">${scaleDef.category}</span>` : ''}
                                 </div>
                                 <div class="flex items-center gap-2">
                                     ${this.buildChordNameHtml(data.rootIndex, data.chordId, rootName, chordObj)}
                                     ${isCurrent ? '<span class="jam-active-badge px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-500 text-slate-950 uppercase tracking-wider animate-pulse">Active</span>' : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-300 uppercase tracking-wider">Suivante</span>'}
                                 </div>
                             </div>
+                            ${this.showScaleInfo ? `<p class="text-xs text-slate-400 mb-3 select-none">${scaleDef.desc}</p>` : ''}
                             <div class="pt-2 border-t border-[#333333] w-full">
                                 ${this.buildScaleVizHtml(scaleDef, rootName, data.rootIndex, chordObj, avoidNotes, characteristicInterval, canvasId, true)}
                             </div>
@@ -13784,11 +13803,11 @@
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <span class="text-xs font-mono px-2 py-0.5 rounded bg-[#2a2a2c] text-slate-300 font-bold border border-[#444]">m.${this.getStepStartMeasure(idx)}</span>
                                     <h3 class="font-bold text-sm text-white">${rootName} ${scaleDef.name}</h3>
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#2a2a2c] text-slate-300 border border-[#333333]">${scaleDef.category}</span>
+                                    ${this.showScaleInfo ? `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#2a2a2c] text-slate-300 border border-[#333333]">${scaleDef.category}</span>` : ''}
                                 </div>
                                 ${this.buildChordNameHtml(step.rootIndex, step.chordId, rootName, chordObj)}
                             </div>
-                            <p class="text-xs text-slate-400 mb-3 select-none">${scaleDef.desc}</p>
+                            ${this.showScaleInfo ? `<p class="text-xs text-slate-400 mb-3 select-none">${scaleDef.desc}</p>` : ''}
                             <div class="pt-2 border-t border-[#333333] w-full">
                                 ${this.buildScaleVizHtml(scaleDef, rootName, step.rootIndex, chordObj, avoidNotes, characteristicInterval, canvasId)}
                             </div>`;
@@ -13846,10 +13865,10 @@
                             <div class="flex items-center gap-2 flex-wrap mb-1 select-none">
                                 <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#2a2a2c] text-slate-300 font-bold border border-[#444]">${this.halfLabelText(k)}</span>
                                 <h3 class="font-bold text-sm text-white">${rootName} ${scaleDef.name}</h3>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#2a2a2c] text-slate-300 border border-[#333333]">${scaleDef.category}</span>
+                                ${this.showScaleInfo ? `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#2a2a2c] text-slate-300 border border-[#333333]">${scaleDef.category}</span>` : ''}
                                 ${this.buildChordNameHtml(h.rootIndex, h.chordId, rootName, chordObj)}
                             </div>
-                            <p class="text-xs text-slate-400 mb-2 select-none">${scaleDef.desc}</p>
+                            ${this.showScaleInfo ? `<p class="text-xs text-slate-400 mb-2 select-none">${scaleDef.desc}</p>` : ''}
                             ${this.buildScaleVizHtml(scaleDef, rootName, h.rootIndex, chordObj, this.showAvoidNotes ? getAvoidNotes(h.scaleId, h.chordId) : [], this.showCharacteristic ? scaleDef.characteristicInterval : null, `jam-vexflow-canvas-${idx}${k === 0 ? '' : '-b'}`)}
                         </div>`;
                 }).join('');
