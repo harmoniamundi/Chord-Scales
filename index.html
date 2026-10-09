@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chord Scales Machine</title>
     <link rel="stylesheet" href="tailwind-built.css">
-    <script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow-petaluma.js"></script>
+    <!-- Les deux bibliothèques sont téléchargées tout de suite (preload) mais exécutées juste avant le script principal : la page peut s'afficher sans attendre leur exécution. -->
+    <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js">
+    <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow-petaluma.js">
     <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&display=swap" rel="stylesheet">
@@ -1098,6 +1099,8 @@
 
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow-petaluma.js"></script>
     <script>
         // Noms des fondamentales. Les touches noires s'écrivent avec un dièse ou un bémol (Do#/Réb, Ré#/Mib, Fa#/Solb,
         // Sol#/Lab, La#/Sib) : `rootLabels` suit l'orthographe choisie (voir setRootSpelling) ; les listes ci-dessous sont fixes.
@@ -2511,6 +2514,15 @@
                 this.bandGains = { piano: null, bass: null, drums: null, bandoneon: null, violin: null, guitar: null };
                 this.bandReverbInput = null;
                 this.bandReverbWet = null;
+                this._bandConvolver = null;      // réverbération de l'orchestre (déconnectée aux niveaux de performance allégés)
+                this.masterShaper = null;        // limiteur final
+                // Performance adaptative : 0 = complet, 1 = allégé, 2 = minimal. En mode « auto », le niveau descend
+                // tout seul si la machine n'arrive pas à suivre (voir _perfObserve).
+                this.perfMode = 'auto';
+                try { const m = localStorage.getItem('jamPerfMode'); if (['auto', 'full', 'light', 'minimal'].indexOf(m) >= 0) this.perfMode = m; } catch (e) {}
+                this.perfTier = this._initialPerfTier();
+                this._perfPrev = null; this._perfLog = []; this._perfCooldown = 0;
+                this._applyPerfTier();
                 this.bassInstrument = null;
                 this.bandPianoInstrument = null; // piano de l'orchestre : instrument dédié, branché sur le bus bandGains.piano (donc sous le Master)
                 this.bandAudioNodes = [];
@@ -2909,7 +2921,7 @@
                             guitar: this.bandVolumes.guitar
                         },
                         reverb: this.bandReverb,
-                        groove: this._bandGroove || undefined // rythme imposé (samba, tango, piazzolla, afro) ; absent = choix automatique
+                        groove: this.getEffectiveGroove(this._arpPrevStyle || this.bandStyle) || undefined // rythme imposé (samba, tango, piazzolla, afro…) valable pour l'orchestre actuel ; absent = choix automatique
                     }
                 };
             }
@@ -3054,6 +3066,8 @@
                     // anciens fichiers : le mode « Arpèges » est devenu le style « Classique »
                     if (o.mode === 'arpeges') orch.style = 'classic';
                     if (['samba', 'tango', 'piazzolla', 'lyrique', 'afro', 'b-chorale'].includes(o.groove)) orch.groove = o.groove; // rythme imposé par le style
+                    // anciens fichiers : Brasil + rythme « afro » désignait en fait le son Cuba
+                    if (orch.style === 'latin' && orch.groove === 'afro') orch.style = 'cuba';
                     if (o.volumes && typeof o.volumes === 'object') {
                         orch.volumes = {};
                         ['piano', 'bass', 'drums', 'bandoneon', 'violin', 'guitar'].forEach(k => {
@@ -3580,7 +3594,7 @@
 
                 const styleSelect = document.getElementById('band-style-select');
                 if (styleSelect) styleSelect.value =
-                    (this.bandStyle === 'piazzolla' && this._bandGroove === 'lyrique') ? 'milongalyrique' : this.bandStyle;
+                    (this.bandStyle === 'piazzolla' && this.getEffectiveGroove() === 'lyrique') ? 'milongalyrique' : this.bandStyle;
 
                 document.getElementById('band-vol-piano').value = Math.round(this.bandVolumes.piano * 100);
                 document.getElementById('band-vol-bass').value = Math.round(this.bandVolumes.bass * 100);
@@ -3590,6 +3604,7 @@
                     if (sl) sl.value = Math.round(this.bandVolumes[k] * 100);
                 });
                 this.setBandMaster(Math.round(this.bandMaster * 100));
+                this._updatePerfUI();
             }
 
             // --- Métronome : mesure d'intro (4 clics) puis clic à chaque temps, synchrone avec le tick de la jam ---
@@ -3708,6 +3723,14 @@
                 src.onended = () => { const k = this._metroNodes.indexOf(src); if (k >= 0) this._metroNodes.splice(k, 1); };
             }
 
+            // Rythme imposé réellement applicable à l'orchestre actuel. Le rythme mémorisé (_bandGroove) vient du style de grille
+            // (samba, tango, Piazzolla, afro, brass chorale…) : il ne vaut que pour l'orchestre auquel il appartient, sinon il
+            // « fuit » (ex. : rythme afro d'un style Afro-cubain qui ferait sonner Cuba sous l'orchestre Brasil).
+            getEffectiveGroove(style) {
+                const ok = { latin: ['samba', 'tango', 'piazzolla'], cuba: ['afro'], brass: ['b-chorale'], piazzolla: ['lyrique'] }[style || this.bandStyle];
+                return (this._bandGroove && ok && ok.includes(this._bandGroove)) ? this._bandGroove : null;
+            }
+
             // Choix dans le menu Orchestre : « Milonga lyrique » = quinteto piazzolla + écriture lyrique
             chooseBandStyle(v) {
                 if (v === 'milongalyrique') {
@@ -3722,7 +3745,18 @@
             setBandStyle(style) {
                 this._arpPrevStyle = null; // un choix explicite de style met fin au mode « arpèges » transitoire
                 this._setArpeggioUI(false);
+                const prevBand = this.bandStyle;
                 this.bandStyle = ['swing', 'pop', 'latin', 'cuba', 'classic', 'brass', 'balkan', 'piazzolla'].includes(style) ? style : 'swing';
+                if (prevBand !== this.bandStyle) {
+                    // Chaque orchestre repart d'un état propre : phrase, plan et conduite des voix de l'orchestre précédent ne doivent pas
+                    // se retrouver dans le suivant.
+                    this._bandPhrase = null; this._bandPlan = null;
+                    this._latVoice = null; this._latTie = false; this._latRunAt = -9;
+                    this._meterVoice = null; this._popVoice = null; this._popRunAt = -9;
+                    this._brassVoice = null; this._brassPrevKey = null; this._brassLines = null;
+                    this._balkanVoice = null; this._balkanMel = null;
+                    this._pzState = null;
+                }
                 this.updateBandButtonLabel();
                 this.updateBandInstrumentLabel();
                 this.updateBandModalUI();
@@ -3735,7 +3769,7 @@
                 const balkan = this.bandStyle === 'balkan';
                 const pz = this.bandStyle === 'piazzolla';
                 const el = document.getElementById('band-vol-piano-label');
-                if (el) el.textContent = brass ? 'Cuivres' : (balkan ? 'Accordéon' : ((this.bandStyle === 'latin' && this._bandGroove !== 'afro') ? 'Guitare' : 'Piano'));
+                if (el) el.textContent = brass ? 'Cuivres' : (balkan ? 'Accordéon' : (this.bandStyle === 'latin' ? 'Guitare' : 'Piano'));
                 const eb = document.getElementById('band-vol-bass-label');
                 if (eb) eb.textContent = brass ? 'Tubas' : (pz ? 'Contreb.' : 'Basse');
                 const ed = document.getElementById('band-vol-drums-label');
@@ -3751,7 +3785,7 @@
             updateBandButtonLabel() {
                 const label = document.getElementById('band-btn-label');
                 if (!label) return;
-                const names = { swing: 'Swing', pop: 'Pop', latin: 'Brasil', cuba: 'Cuba', classic: 'Classique', brass: 'Brass', balkan: 'Balkans', piazzolla: (this._bandGroove === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
+                const names = { swing: 'Swing', pop: 'Pop', latin: 'Brasil', cuba: 'Cuba', classic: 'Classique', brass: 'Brass', balkan: 'Balkans', piazzolla: (this.getEffectiveGroove() === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
                 label.textContent = 'Orchestre ' + (names[this.bandStyle] || 'Swing');
             }
 
@@ -3759,6 +3793,81 @@
                 const v = parseInt(val, 10) / 100;
                 this.bandVolumes[instrument] = v;
                 if (this.bandGains[instrument]) this.bandGains[instrument].gain.value = v;
+            }
+
+            // --- Performance adaptative ---
+            _initialPerfTier() {
+                if (this.perfMode === 'full') return 0;
+                if (this.perfMode === 'light') return 1;
+                if (this.perfMode === 'minimal') return 2;
+                const cores = navigator.hardwareConcurrency || 4;
+                const mem = navigator.deviceMemory;   // Chrome seulement
+                return (cores <= 2 || (mem && mem <= 2)) ? 1 : 0;
+            }
+
+            setPerfMode(val) {
+                if (['auto', 'full', 'light', 'minimal'].indexOf(val) < 0) val = 'auto';
+                this.perfMode = val;
+                try { localStorage.setItem('jamPerfMode', val); } catch (e) {}
+                this.perfTier = this._initialPerfTier();
+                this._perfLog = []; this._perfCooldown = 0; this._perfPrev = null;
+                this._applyPerfTier();
+            }
+
+            // Applique le niveau courant aux parties permanentes du graphe audio ; les synthés de batterie et le
+            // piano lisent this.perfTier à chaque frappe.
+            _applyPerfTier() {
+                const t = this.perfTier;
+                this._LEAD = t >= 2 ? 0.45 : t >= 1 ? 0.25 : 0.12;   // plus de marge pour les machines dont les timers / l'affichage saccadent
+                this._FIRST_LEAD = t >= 2 ? 0.7 : t >= 1 ? 0.5 : 0.35;
+                if (this.masterShaper) this.masterShaper.oversample = t >= 1 ? 'none' : '2x';
+                this._syncBandConvolver();
+                this._updatePerfUI();
+            }
+
+            // La convolution (coûteuse) ne tourne que si on l'entend : qualité complète ET réverbération de l'orchestre > 0.
+            _syncBandConvolver() {
+                if (!this.bandReverbInput || !this._bandConvolver) return;
+                const want = this.perfTier === 0 && this.bandReverb > 0;
+                if (want === this._bandConvolverOn) return;
+                try { this.bandReverbInput.disconnect(this._bandConvolver); } catch (e) {}
+                if (want) { try { this.bandReverbInput.connect(this._bandConvolver); } catch (e) {} }
+                this._bandConvolverOn = want;
+            }
+
+            _updatePerfUI() {
+                const sel = document.getElementById('band-perf-select');
+                if (sel) sel.value = this.perfMode;
+                const note = document.getElementById('band-perf-note');
+                if (note) note.textContent = this.perfMode === 'auto'
+                    ? (this.perfTier === 0 ? 'Son complet. S\'allège tout seul si l\'ordinateur peine.'
+                        : this.perfTier === 1 ? 'Allégé automatiquement (réverbération coupée, batterie simplifiée).'
+                        : 'Minimal automatiquement (batterie et piano simplifiés).')
+                    : '';
+            }
+
+            // Appelée à chaque temps de l'orchestre : repère les signes de surcharge (tick tardif, horloge audio qui
+            // décroche, programmation trop longue) et descend d'un niveau si ça se répète.
+            _perfObserve(ctx, t, costMs) {
+                if (this.perfMode !== 'auto' || this.perfTier >= 2) return;
+                const w = performance.now(), a = ctx.currentTime;
+                const prev = this._perfPrev;
+                this._perfPrev = { w, a };
+                if (this._perfCooldown > 0) { this._perfCooldown--; return; }
+                if (!prev || ctx.state !== 'running') return;
+                const dW = (w - prev.w) / 1000, dA = a - prev.a;
+                if (dW <= 0 || dW > 2) return;                 // pause, onglet figé : sans signification
+                const late = (t - a) < this._LEAD * 0.3;       // le tick est parti trop tard
+                const stall = (dW - dA) > 0.06;                // l'horloge audio prend du retard sur l'horloge réelle : le processeur audio décroche
+                const heavy = costMs > 25;                     // la programmation d'un seul temps a mobilisé le processeur trop longtemps
+                this._perfLog.push((late || stall || heavy) ? 1 : 0);
+                if (this._perfLog.length > 10) this._perfLog.shift();
+                if (this._perfLog.reduce((x, y) => x + y, 0) >= 3) {
+                    this.perfTier++;
+                    this._perfLog = [];
+                    this._perfCooldown = 8;
+                    this._applyPerfTier();
+                }
             }
 
             // Volume général de l'orchestre (piano, basse, batterie, réverbération) : gain, puis limiteur doux, puis sortie.
@@ -3779,10 +3888,11 @@
                     curve[i] = x < 0 ? -y : y;
                 }
                 shaper.curve = curve;
-                shaper.oversample = 'none';                   // pas de suréchantillonnage : il ajouterait de la latence
+                shaper.oversample = '2x';                     // suréchantillonnage x2 : évite le repliement (grésillements) quand le limiteur écrête
                 g.connect(pre);
                 pre.connect(shaper);
                 shaper.connect(ctx.destination);
+                this.masterShaper = shaper;
                 this.masterBus = g;
                 return g;
             }
@@ -3799,6 +3909,7 @@
             setBandReverb(val) {
                 this.bandReverb = Math.max(0, Math.min(1, parseInt(val, 10) / 100));
                 if (this.bandReverbWet) this.bandReverbWet.gain.value = this.bandReverb * 2;
+                this._syncBandConvolver();
                 const display = document.getElementById('band-reverb-display');
                 if (display) display.textContent = `${Math.round(this.bandReverb * 100)}%`;
             }
@@ -3812,12 +3923,12 @@
                 if (!this.bandReverbInput) {
                     const convolver = ctx.createConvolver();
                     const rate = ctx.sampleRate;
-                    const length = Math.floor(rate * 2.2);
+                    const length = Math.floor(rate * 1.5);   // 1,5 s au lieu de 2,2 s : convolution ~30 % moins coûteuse
                     const impulse = ctx.createBuffer(2, length, rate);
                     for (let ch = 0; ch < 2; ch++) {
                         const data = impulse.getChannelData(ch);
                         for (let i = 0; i < length; i++) {
-                            const decay = Math.exp(-i / (rate * 0.6));
+                            const decay = Math.exp(-i / (rate * 0.45));
                             data[i] = (Math.random() * 2 - 1) * decay;
                         }
                     }
@@ -3836,6 +3947,9 @@
                     convolver.connect(wet);
                     wet.connect(output);
                     output.connect(this._getMasterBus(ctx));
+                    this._bandConvolver = convolver;
+                    this._bandConvolverOn = true;   // connectée ci-dessus ; _applyPerfTier la débranche si inutile
+                    this._applyPerfTier();
                 }
 
                 const dest = this.bandReverbInput;
@@ -3860,32 +3974,49 @@
                 if (this.bandStyle === 'piazzolla') this.loadPiazzolla();
                 if (this.bandStyle !== 'classic' && !this.bassInstrument) this.loadBass();
                 if (this.bandStyle === 'pop') this.loadBassPop();
-                if (this.bandStyle === 'latin' && this._bandGroove !== 'afro') this.loadGuitarLatin();
+                if (this.bandStyle === 'latin') this.loadGuitarLatin();
             }
 
             // Piano de l'orchestre. soundfont-player n'honore l'option « destination » qu'à la création de l'instrument (pas
             // note par note) : le piano partagé de l'application sort donc directement vers la sortie audio et contourne le
             // bus de l'orchestre (réverbération, Master). On charge donc une seconde instance, branchée dès sa création sur
             // bandGains.piano, exactement comme la basse.
+            // Charge un instrument soundfont. Si `donor` (promesse d'un instrument déjà chargé, même nom) est fourni, ses
+            // échantillons déjà décodés sont réutilisés : on ne décode pas une seconde fois la même banque (dizaines de Mo de
+            // mémoire pour un piano). Le nouvel instrument garde sa propre sortie audio. En cas de doute : chargement complet.
+            _loadInstrumentShared(ctx, name, opts, donor) {
+                const full = () => Soundfont.instrument(ctx, name, opts);
+                if (!donor) return full();
+                return donor.then((src) => {
+                    if (!src || !src.buffers || typeof src.buffers !== 'object' || !Object.keys(src.buffers).length) return full();
+                    // On ne décode qu'une note (le temps de créer l'instrument), puis on lui donne les échantillons du premier.
+                    return Soundfont.instrument(ctx, name, Object.assign({}, opts, { only: ['C4'] })).then((inst) => {
+                        if (inst && typeof inst === 'object' && 'buffers' in inst) { inst.buffers = src.buffers; return inst; }
+                        return full();
+                    }, full);
+                }, full);
+            }
+
             loadBandPiano() {
                 if (this.bandPianoInstrument || this._bandPianoLoading || !this.app.audioCtx || !this.bandGains.piano) return;
                 this._bandPianoLoading = true;
-                Soundfont.instrument(this.app.audioCtx, 'acoustic_grand_piano', {
+                this._loadInstrumentShared(this.app.audioCtx, 'acoustic_grand_piano', {
                     soundfont: 'FluidR3_GM',
                     destination: this.bandGains.piano
-                })
+                }, this.app.pianoInstrument ? Promise.resolve(this.app.pianoInstrument) : (this.app._pianoPromise || null))
                     .then(instr => { this.bandPianoInstrument = instr; })
-                    .catch(() => { this._bandPianoLoading = false; });
+                    .catch(() => { setTimeout(() => { this._bandPianoLoading = false; }, 5000); });
             }
 
             loadBass() {
-                if (this.bassInstrument || !this.app.audioCtx) return;
+                if (this.bassInstrument || this._bassLoading || !this.app.audioCtx) return;
+                this._bassLoading = true;
                 Soundfont.instrument(this.app.audioCtx, 'acoustic_bass', {
                     soundfont: 'FluidR3_GM',
                     destination: this.bandGains.bass || this.app.audioCtx.destination
                 })
                     .then(instr => { this.bassInstrument = instr; })
-                    .catch(() => {});
+                    .catch(() => { setTimeout(() => { this._bassLoading = false; }, 5000); });
             }
 
             // Basse électrique (doigts) pour le style Pop ; tant qu'elle n'est pas chargée, la contrebasse prend le relais.
@@ -3897,7 +4028,7 @@
                     destination: this.bandGains.bass || this.app.audioCtx.destination
                 })
                     .then(instr => { this.bassInstrumentPop = instr; })
-                    .catch(() => {});
+                    .catch(() => { setTimeout(() => { this._bassPopLoading = false; }, 5000); });
             }
 
             // Guitare classique (nylon) du style Latin ; elle passe par le bus « piano » (curseur de volume du premier
@@ -3944,7 +4075,7 @@
                     .then(done)
                     .catch(() => Soundfont.instrument(ctx, 'acoustic_guitar_nylon', { soundfont: 'FluidR3_GM', destination })
                         .then(done)
-                        .catch(() => { this._guitarLoading = false; }));
+                        .catch(() => { setTimeout(() => { this._guitarLoading = false; }, 5000); }));
             }
 
             getNoiseBuffer() {
@@ -3989,6 +4120,13 @@
                 gain.gain.setValueAtTime(0.001, time);
                 gain.gain.exponentialRampToValueAtTime(vel, time + 0.005);
                 gain.gain.exponentialRampToValueAtTime(0.001, time + 0.32);
+                if (this.perfTier >= 2) {
+                    // Niveau minimal : sinus + passe-bas seulement (ni saturation ni clic d'attaque)
+                    osc.connect(lp); lp.connect(gain); gain.connect(destination);
+                    osc.start(time); osc.stop(time + 0.34);
+                    this.bandAudioNodes.push(osc);
+                    return;
+                }
                 osc.connect(shaper); shaper.connect(lp); lp.connect(gain); gain.connect(destination);
                 osc.start(time); osc.stop(time + 0.34);
                 this.bandAudioNodes.push(osc);
@@ -4024,6 +4162,7 @@
                 wire.start(time); wire.stop(time + dur + 0.02);
                 this.bandAudioNodes.push(wire);
 
+                if (this.perfTier < 2) {
                 // Bruit "crack" (attaque nette, au-delà de 6 kHz)
                 const crack = ctx.createBufferSource();
                 crack.buffer = this.getNoiseBuffer();
@@ -4035,6 +4174,7 @@
                 crack.connect(crackHP); crackHP.connect(crackGain); crackGain.connect(destination);
                 crack.start(time); crack.stop(time + dur * 0.35 + 0.02);
                 this.bandAudioNodes.push(crack);
+                }
 
                 // Corps : un seul sinus fondamental (pas de triangle, pour éviter le côté "buzz"
                 // de synthé), avec une infime variation de hauteur à chaque coup pour ne pas
@@ -4051,6 +4191,7 @@
                 osc.start(time); osc.stop(time + dur * 0.8 + 0.02);
                 this.bandAudioNodes.push(osc);
 
+                if (this.perfTier < 2) {
                 // Deuxième résonance de la peau : un grain de bruit filtré (et non plus un
                 // oscillateur accordé) — un vrai fût ne sonne jamais comme un "bip" pur.
                 const shell = ctx.createBufferSource();
@@ -4063,6 +4204,7 @@
                 shell.connect(shellBP); shellBP.connect(shellGain); shellGain.connect(destination);
                 shell.start(time); shell.stop(time + dur * 0.45 + 0.02);
                 this.bandAudioNodes.push(shell);
+                }
             }
 
             // Banc d'oscillateurs carrés à fréquences non harmoniques (comme les circuits analogiques
@@ -4087,7 +4229,7 @@
                 if (!ctx || !destination) return;
                 const dur = open ? 0.5 : 0.075;
 
-                const bank = this.metalOscBank(time, dur, [287, 343, 415, 479, 573, 637]);
+                const bank = this.metalOscBank(time, dur, this.perfTier >= 2 ? [] : this.perfTier === 1 ? [287, 415, 573] : [287, 343, 415, 479, 573, 637]);
                 const hp = ctx.createBiquadFilter();
                 hp.type = 'highpass'; hp.frequency.value = 7500;
                 const bp = ctx.createBiquadFilter();
@@ -4107,7 +4249,7 @@
                 const airHP = ctx.createBiquadFilter();
                 airHP.type = 'highpass'; airHP.frequency.value = 9000;
                 const airGain = ctx.createGain();
-                airGain.gain.setValueAtTime(0.1 * vel, time);
+                airGain.gain.setValueAtTime((this.perfTier >= 2 ? 0.4 : 0.1) * vel, time);
                 airGain.gain.exponentialRampToValueAtTime(0.0001, time + dur * 0.6);
                 air.connect(airHP); airHP.connect(airGain); airGain.connect(destination);
                 air.start(time); air.stop(time + dur * 0.6 + 0.02);
@@ -4124,7 +4266,7 @@
                 const ctx = this.app.audioCtx;
                 const convolver = ctx.createConvolver();
                 const rate = ctx.sampleRate;
-                const length = Math.floor(rate * 2.2);
+                const length = Math.floor(rate * 1.6);   // 1,6 s au lieu de 2,2 s
                 const impulse = ctx.createBuffer(2, length, rate);
                 for (let ch = 0; ch < 2; ch++) {
                     const data = impulse.getChannelData(ch);
@@ -4145,7 +4287,7 @@
             synthCymbal(time, destination, dur = 1, vel = 1, hpFreq = 5500) {
                 const ctx = this.app.audioCtx;
                 if (!ctx || !destination) return;
-                const reverb = this.getCymbalReverb();
+                const reverb = this.perfTier >= 1 ? null : this.getCymbalReverb();   // allégé : pas de seconde réverbération
 
                 // Une seule source de bruit large bande, partagée par le corps du son et par
                 // les résonances : plus de banc d'oscillateurs carrés (le côté "buzz" synthétique
@@ -4169,16 +4311,18 @@
                 amp.gain.exponentialRampToValueAtTime(0.025 * vel, time + Math.max(0.25, dur * 0.6));
                 amp.gain.exponentialRampToValueAtTime(0.0004, time + dur);
                 noise.connect(hp); hp.connect(lp); lp.connect(amp); amp.connect(destination);
-                const send = ctx.createGain();
-                send.gain.value = 0.6;
-                amp.connect(send); send.connect(reverb);
+                if (reverb) {
+                    const send = ctx.createGain();
+                    send.gain.value = 0.6;
+                    amp.connect(send); send.connect(reverb);
+                }
 
                 // Quelques résonances métalliques étroites, tirées du même bruit filtré en bandes
                 // (et non plus d'ondes carrées) : ça donne le "corps" et le chatoiement propres à
                 // une cymbale sans le grain de synthétiseur. Les résonances aiguës s'éteignent
                 // plus vite que les graves, comme sur un vrai métal.
                 const resonances = [[300, 4, 0.16], [560, 5, 0.12], [900, 6, 0.085], [1500, 7, 0.055]];
-                resonances.forEach(([freq, q, level], idx) => {
+                resonances.slice(0, this.perfTier >= 2 ? 0 : this.perfTier === 1 ? 2 : 4).forEach(([freq, q, level], idx) => {
                     const bp = ctx.createBiquadFilter();
                     bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = q;
                     const rGain = ctx.createGain();
@@ -4187,9 +4331,11 @@
                     rGain.gain.exponentialRampToValueAtTime(level * vel, time + 0.015 + idx * 0.004);
                     rGain.gain.exponentialRampToValueAtTime(0.0003, time + decay);
                     noise.connect(bp); bp.connect(rGain); rGain.connect(destination);
-                    const rSend = ctx.createGain();
-                    rSend.gain.value = 0.5;
-                    rGain.connect(rSend); rSend.connect(reverb);
+                    if (reverb) {
+                        const rSend = ctx.createGain();
+                        rSend.gain.value = 0.5;
+                        rGain.connect(rSend); rSend.connect(reverb);
+                    }
                 });
 
                 noise.start(time); noise.stop(time + dur + 0.05);
@@ -4392,12 +4538,132 @@
             playBandDrum(e, time) {
                 let dest = this.bandGains.drums;
                 if (!dest) return;
+                // Niveau minimal : on laisse tomber les notes fantômes et percussions d'ornement
+                if (this.perfTier >= 2 && (e.drum === 'ghost' || e.drum === 'pedal' || e.drum === 'chich' || e.drum === 'latigo')) return;
                 let v = e.vel * (0.92 + Math.random() * 0.16);
                 // Brass band : percussions en retrait (bus plus doux et plus sombre ; cymbales encore plus discrètes)
                 if (this.bandStyle === 'brass') {
                     dest = this._getBrassPercBus();
                     if (e.drum === 'crash' || e.drum === 'clash') v *= 0.6;
                 }
+                // Percussion pré-calculée : le même son de synthèse, rendu une fois pour toutes puis rejoué (1 source + 1 gain
+                // par coup au lieu de 5 à 25 nœuds). Tant que l'échantillon n'est pas prêt, on joue la synthèse en direct.
+                try { if (this._playDrumSample(e, time, dest, v)) return; } catch (err) {}
+                this._synthDrumLive(e, time, dest, v);
+            }
+
+            // ---- Percussions pré-calculées (OfflineAudioContext) ----
+            // Retourne { drum, mul, freq, short, name, variants, maxDur } décrivant l'échantillon d'un coup, ou null.
+            _drumSpec(e) {
+                let drum = e.drum, mul = 1;
+                if (drum === 'pedal') { drum = 'hat'; mul = 0.8; }
+                const MAXDUR = { kick: 0.5, snare: 0.35, ghost: 0.25, hat: 0.15, ohat: 0.65, ride: 1.3, crash: 2.9, clash: 1.1, rim: 0.12,
+                    tom1: 0.45, tom2: 0.45, tom3: 0.45, bell: 0.3, clave: 0.15, conga1: 0.2, conga2: 0.4, slap: 0.15, shaker: 0.12,
+                    bdrum: 0.75, golpe: 0.25, chich: 0.3, latigo: 0.3, dum: 0.7, tek: 0.7, ka: 0.7, tapan: 0.7, stick: 0.7, daire: 0.7 };
+                let maxDur = MAXDUR[drum], name = drum, freq, short;
+                if (drum === 'timp') {
+                    freq = e.freq || 98; short = !!e.short;
+                    maxDur = short ? 0.75 : 2.1;
+                    name = 'timp' + freq + (short ? 's' : 'l');
+                }
+                if (!maxDur) return null;
+                const variants = (drum === 'snare' || drum === 'ghost' || drum === 'tom1' || drum === 'tom2' || drum === 'tom3') ? 2 : 1; // hauteur légèrement aléatoire à chaque coup
+                return { drum, mul, freq, short, name, variants, maxDur, long: maxDur >= 0.8 };
+            }
+
+            _playDrumSample(e, time, dest, v) {
+                const ctx = this.app.audioCtx;
+                if (!ctx || this._drumSamplesOff || !(window.OfflineAudioContext || window.webkitOfflineAudioContext)) return false;
+                if (this._drumSampleCtx !== ctx) { this._drumSamples = new Map(); this._drumPending = new Set(); this._drumQueue = null; this._drumSampleCtx = ctx; }
+                const spec = this._drumSpec(e);
+                if (!spec) return false;
+                // Deux niveaux de force pour les sons courts (la courbe d'enveloppe dépend un peu de la force) ; un seul pour les cymbales
+                const ref = (!spec.long && v < 0.72) ? 0.5 : 1;
+                // On choisit au hasard parmi les variantes prêtes ; on lance le calcul de celles qui manquent
+                const ready = [];
+                for (let k = 0; k < spec.variants; k++) {
+                    const key = `${this.perfTier}|${spec.name}|${ref}|${k}`;
+                    const smp = this._drumSamples.get(key);
+                    if (smp) ready.push(smp);
+                    else if (smp === undefined) this._requestDrumSample(key, spec, ref, ctx, this.perfTier);
+                }
+                if (!ready.length) return false;
+                const smp = ready.length === 1 ? ready[0] : ready[Math.floor(Math.random() * ready.length)];
+                const gain = (v * spec.mul) / ref;
+
+                const src = ctx.createBufferSource();
+                src.buffer = smp.dry;
+                const g = ctx.createGain();
+                g.gain.value = gain;
+                src.connect(g); g.connect(dest);
+                src.start(time);
+                this.bandAudioNodes.push(src);
+                if (smp.wet && this.perfTier < 1) {
+                    // Part envoyée à la réverbération des cymbales (déjà dosée dans l'échantillon)
+                    const rv = this.getCymbalReverb();
+                    const src2 = ctx.createBufferSource();
+                    src2.buffer = smp.wet;
+                    const g2 = ctx.createGain();
+                    g2.gain.value = gain;
+                    src2.connect(g2); g2.connect(rv);
+                    src2.start(time);
+                    this.bandAudioNodes.push(src2);
+                }
+                return true;
+            }
+
+            _requestDrumSample(key, spec, ref, ctx, tier) {
+                if (!this._drumPending) this._drumPending = new Set();
+                if (this._drumPending.has(key)) return;
+                this._drumPending.add(key);
+                // Un seul calcul à la fois, en arrière-plan : on ne gêne pas la lecture en cours
+                this._drumQueue = (this._drumQueue || Promise.resolve())
+                    .then(() => this._renderDrumSample(key, spec, ref, ctx, tier))
+                    .catch(() => { if (this._drumSampleCtx === ctx) this._drumSamples.set(key, false); });
+            }
+
+            _renderDrumSample(key, spec, ref, liveCtx, tier) {
+                if (this._drumSampleCtx !== liveCtx) return Promise.resolve();
+                const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+                const sr = liveCtx.sampleRate;
+                const off = new OAC(2, Math.ceil(sr * spec.maxDur), sr);
+                const merger = off.createChannelMerger(2);
+                merger.connect(off.destination);
+                const dry = off.createGain(); dry.connect(merger, 0, 0);
+                const wet = off.createGain(); wet.connect(merger, 0, 1);
+                this.getNoiseBuffer(); // créé avec le vrai contexte (le même bruit que la synthèse en direct)
+                this.getSaturationCurve();
+                const saved = { ctx: this.app.audioCtx, nodes: this.bandAudioNodes, rev: this._cymbalReverbNode, tier: this.perfTier };
+                try {
+                    // La synthèse en direct est rejouée telle quelle, branchée sur le contexte hors-ligne
+                    this.app.audioCtx = off;
+                    this.perfTier = tier;           // niveau de qualité en vigueur quand l'échantillon a été demandé
+                    this.bandAudioNodes = [];
+                    this._cymbalReverbNode = wet;   // l'envoi vers la réverbération est capturé sur le canal 2
+                    this._synthDrumLive({ drum: spec.drum, freq: spec.freq, short: spec.short }, 0, dry, ref);
+                } finally {
+                    this.app.audioCtx = saved.ctx;
+                    this.bandAudioNodes = saved.nodes;
+                    this._cymbalReverbNode = saved.rev;
+                    this.perfTier = saved.tier;
+                }
+                return off.startRendering().then((rendered) => {
+                    if (this._drumSampleCtx !== liveCtx) return;
+                    const ch0 = rendered.getChannelData(0), ch1 = rendered.getChannelData(1);
+                    let last = 0, wetLast = 0;
+                    for (let i = ch0.length - 1; i >= 0; i--) if (Math.abs(ch0[i]) > 1e-4) { last = i; break; }
+                    for (let i = ch1.length - 1; i >= 0; i--) if (Math.abs(ch1[i]) > 1e-4) { wetLast = i; break; }
+                    const mk = (data, n) => {
+                        const b = liveCtx.createBuffer(1, Math.max(1, n), sr);
+                        b.copyToChannel(data.subarray(0, Math.max(1, n)), 0);
+                        return b;
+                    };
+                    const sample = { dry: mk(ch0, Math.min(ch0.length, last + 64)), wet: wetLast > 0 ? mk(ch1, Math.min(ch1.length, wetLast + 64)) : null };
+                    this._drumSamples.set(key, sample);
+                });
+            }
+
+            _synthDrumLive(e, time, dest, v) {
                 switch (e.drum) {
                     case 'kick': this.synthKick(time, dest, v); break;
                     case 'snare': this.synthSnare(time, dest, false, v); break;
@@ -4608,13 +4874,17 @@
                 // e.roll : délai (s) entre les notes d'un accord « roulé » du grave vers l'aigu.
                 const baseGain = e.wide ? Math.min(1.05, 0.28 + 0.8 * vel) : Math.min(1.05, 0.5 + 0.6 * vel);
                 const gain = baseGain * (viaBus ? 1 : this.bandVolumes.piano * masterGainFor(this.bandMaster)) * (e.gainMul || 1);
-                const dur = Math.max(0.12, e.dur * beatSec);
+                const dur = Math.max(0.12, this.perfTier >= 2 ? Math.min(1.6, e.dur * beatSec) : e.dur * beatSec);
                 const roll = e.roll !== undefined ? e.roll : 0.006;
-                e.intervals.forEach((interval, idx) => {
+                // Niveau minimal : au plus 3 voix par accord (la plus grave et les 2 plus aiguës), notes plus courtes
+                let order = e.intervals.map((_, i) => i);
+                if (this.perfTier >= 2 && order.length > 3) order = [order[0]].concat(order.slice(-2));
+                order.forEach((idx, n) => {
+                    const interval = e.intervals[idx];
                     const noteStr = this.getJamAudioNoteName(e.rootIndex, interval, PLAY_BASE_OCTAVE);
                     try {
-                        const when = Math.max(this.app.audioCtx.currentTime, time + idx * roll); // léger "roulé"
-                        const g = e.noteVels ? Math.min(viaBus ? 2.5 : 1.05, gain * e.noteVels[idx]) : gain;
+                        const when = Math.max(this.app.audioCtx.currentTime, time + n * roll); // léger "roulé"
+                        const g = e.noteVels ? Math.min(viaBus ? 1.0 : 1.05, gain * e.noteVels[idx]) : gain;
                         const node = inst.play(noteStr, when, viaBus ? { duration: dur, gain: g, destination: this.bandGains.piano } : { duration: dur, gain: g });
                         this.bandAudioNodes.push(node);
                     } catch (err) {}
@@ -4742,7 +5012,7 @@
                 // Tango nuevo : bandonéon, violon, piano, guitare électrique, contrebasse, quelle que soit la signature
                 if (style === 'piazzolla') return this.buildPiazzollaPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 // Rythme afro-cubain : orchestre dédié (piano montuno, tumbao, cloche, congas), quelle que soit la signature
-                if (style === 'latin' && ph.groove === 'afro') return this.buildCubanPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
+                if (cuba && style === 'latin') return this.buildCubanPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 if (this.isTernary()) return this.buildTernaryPlan(bpbNow, style, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 if (bpbNow !== 4) return this.buildMeterPlan(bpbNow, style, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 if (style === 'pop') return this.buildPopPlan(step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
@@ -5457,7 +5727,9 @@
             }
 
             latinPhraseExtras(rng, prev, index) {
-                const pl = (prev && prev.style === 'latin') ? prev : null;
+                const isCuba = this.bandStyle === 'cuba';
+                // la phrase précédente ne sert de repère que si elle vient du même orchestre (Cuba et Brasil partagent le style « latin »)
+                const pl = (prev && prev.style === 'latin' && !!prev.cuba === isCuba) ? prev : null;
                 const prevI = (pl && typeof pl.intensity === 'number') ? pl.intensity : 0.5;
                 let I = index === 0 ? 0.36 + rng() * 0.22 : prevI + (0.58 - prevI) * 0.25 + (rng() - 0.5) * 0.5;
                 I = Math.max(0.25, Math.min(1, I));
@@ -5468,10 +5740,11 @@
                     return opts[opts.length - 1][0];
                 };
                 const bpm = this.bpm;
-                const wg = bpm < 125 ? [0.72, 0.08, 0.2] : (bpm < 175 ? [0.42, 0.33, 0.25] : [0.12, 0.6, 0.28]);
-                // Samba, tango et Piazzolla imposent leur rythme ; sinon le moteur choisit bossa / samba / afro selon le tempo.
-                const hint = this.bandStyle === 'cuba' ? 'afro' : ((this._bandGroove && LAT_BASS[this._bandGroove]) ? this._bandGroove : null);
-                const groove = hint || ((pl && pl.groove && rng() < 0.75) ? pl.groove : pickW([['bossa', wg[0]], ['samba', wg[1]], ['afro', wg[2]]]));
+                const wg = bpm < 125 ? [0.72, 0.08] : (bpm < 175 ? [0.42, 0.33] : [0.12, 0.6]);
+                // Orchestre Cuba : toujours le rythme afro-cubain. Orchestre Brasil : samba, tango et Piazzolla imposent leur rythme ;
+                // sinon le moteur choisit bossa / samba selon le tempo (jamais « afro » : c'est le rôle de l'orchestre Cuba).
+                const hint = isCuba ? 'afro' : this.getEffectiveGroove();
+                const groove = hint || ((pl && pl.groove && pl.groove !== 'afro' && rng() < 0.75) ? pl.groove : pickW([['bossa', wg[0]], ['samba', wg[1]]]));
                 const byDensity = (list) => pickW(list.map((c, k) => [k, 0.25 + 1.6 * Math.max(0, 1 - Math.abs(c.d - I) * 2)]));
                 const keep = !!(pl && pl.groove === groove && rng() < 0.35);
                 return {
@@ -6266,7 +6539,7 @@
                             rootIndex: 0, intervals: sorted,
                             noteVels: sorted.map((_, k) => c === 1 ? 1 : (k === c - 1 ? 1 : (k === 0 ? 0.9 : 0.84))),
                             roll: c > 1 ? (roll !== undefined ? roll : 0.012 + rng() * 0.012) : 0,
-                            lay: rng() * 0.008, wide: true, gainMul: 1.7 // piano seul : pas de basse ni de batterie, on compense le niveau
+                            lay: rng() * 0.008, wide: true, gainMul: 1.2 // piano seul : pas de basse ni de batterie, on compense le niveau
                         });
                     };
                     const eightVel = (k, v) => (k === 0 ? 0.76 : (k % 2 === 0 ? 0.58 : 0.47)) + (v === n - 1 ? 0.05 : 0);
@@ -6889,7 +7162,7 @@
                         rootIndex: 0, intervals: sorted,
                         noteVels: sorted.map((_, kk) => c === 1 ? 1 : (kk === c - 1 ? 1 : (kk === 0 ? 0.9 : 0.84))),
                         roll: c > 1 ? 0.012 + rng() * 0.012 : 0,
-                        lay: rng() * 0.008, wide: true, gainMul: 1.7
+                        lay: rng() * 0.008, wide: true, gainMul: 1.2
                     });
                 });
                 return { piano: ev, bass: [], drums: [] };
@@ -7006,7 +7279,7 @@
                             rootIndex: 0, intervals: sorted,
                             noteVels: sorted.map((_, k) => c === 1 ? 1 : (k === c - 1 ? 1 : (k === 0 ? 0.9 : 0.84))),
                             roll: c > 1 ? (roll !== undefined ? roll : 0.012 + rng() * 0.012) : 0,
-                            lay: rng() * 0.008, wide: true, gainMul: 1.7 // piano seul : pas de basse ni de batterie, on compense le niveau
+                            lay: rng() * 0.008, wide: true, gainMul: 1.2 // piano seul : pas de basse ni de batterie, on compense le niveau
                         });
                     };
                     const eightVel = (k, v) => (k === 0 ? 0.76 : (k % 4 === 0 ? 0.62 : (k % 2 === 0 ? 0.55 : 0.47))) + (v === n - 1 ? 0.05 : 0);
@@ -7140,7 +7413,7 @@
                         ev.push({
                             pos, dur: Math.max(0.3, Math.min(endPos - pos, wave ? 3 : 2.5)), vel,
                             rootIndex: 0, intervals: [noteAt(k)], noteVels: [1], roll: 0,
-                            lay: Math.random() * 0.006, wide: true, gainMul: 1.7
+                            lay: Math.random() * 0.006, wide: true, gainMul: 1.2
                         });
                     }
                 });
@@ -7430,11 +7703,15 @@
                     this._brassLoading[key] = true;
                     const destination = buses[key];
                     const done = (instr) => { this.brassInst[key] = instr; };
-                    Soundfont.instrument(ctx, name, { soundfont: 'MusyngKite', destination })
+                    // Les pupitres « 2 » (deuxième cornet, cor, trombone) réutilisent les échantillons du premier
+                    const isDup = key !== name;
+                    const donor = !isDup ? null : (this.brassInst[name] ? Promise.resolve(this.brassInst[name]) : ((this._brassBase && this._brassBase[name]) || null));
+                    const p = this._loadInstrumentShared(ctx, name, { soundfont: 'MusyngKite', destination }, donor)
                         .then(done)
-                        .catch(() => Soundfont.instrument(ctx, name, { soundfont: 'FluidR3_GM', destination })
+                        .catch(() => this._loadInstrumentShared(ctx, name, { soundfont: 'FluidR3_GM', destination }, donor)
                             .then(done)
-                            .catch(() => { this._brassLoading[key] = false; }));
+                            .catch(() => { setTimeout(() => { this._brassLoading[key] = false; }, 5000); }));
+                    if (!isDup) { if (!this._brassBase) this._brassBase = {}; this._brassBase[name] = p.then(() => this.brassInst[key] || null); }
                 });
             }
 
@@ -7624,7 +7901,7 @@
                 else if (I < 0.7) texture = pickW([['march', 4], ['chorale', 1.5], ['fanfare', 1.5]]);
                 else texture = pickW([['march', 3], ['fanfare', 3], ['chorale', 0.5]]);
                 // Couleur imposée par un style de grille Brass band (hymne, cantique) : la texture suit le style, avec des écarts
-                const feel = this._bandGroove;
+                const feel = this.getEffectiveGroove();
                 if (feel === 'b-chorale') { I = Math.min(I, 0.6); if (rng() < 0.85) texture = pickW([['chorale', 6], ['march', 1], ['fanfare', 0.4]]); }
                 return {
                     intensity: I, texture,
@@ -8076,6 +8353,15 @@
                 const clampV = (v) => Math.max(0.1, Math.min(1, v));
                 const piano = [], bass = [], drums = [];
 
+                // ---- allègement de l'accordéon quand le tempo monte (lisibilité à l'oreille) ----
+                // Vitesse = croches par seconde (le BPM compte la noire en binaire, la noire pointée en ternaire / 9/8). Au tempo habituel
+                // (kolo 2/4 ≈ 128 : 4,3 croches/s ; 9/8 ≈ 100 : 5 croches/s) rien ne change ; au-delà de 5 croches/s l'accordéon se dépouille
+                // progressivement (thin 0 → 1 entre 5 et 8 croches/s) : plus de doubles croches dans la ligne, phrase de fin plus courte puis
+                // supprimée, plus d'appoggiatures ni de doublage à l'octave, contretemps réduits, ligne détachée moins présente.
+                const eighthsPerSec = (this.bpm || 120) * spe / 60;
+                const thin = Math.max(0, Math.min(1, (eighthsPerSec - 5) / 3));
+                const melMode = (thin > 0.85 && ph.mel === 2) ? 1 : ph.mel;
+
                 // ---- conduite des voix de l'accordéon ----
                 const cache = {};
                 let lastV = this._balkanVoice ? this._balkanVoice.v : null;
@@ -8094,9 +8380,9 @@
 
                 // ---- phrase rapide de fin de cellule (dans la gamme du dernier accord, vers l'accord suivant) ----
                 const runFrom = bpb - 1;
-                const nRun = ternary ? 6 : 4;
+                const nRun = thin > 0.35 ? spe : (ternary ? 6 : 4);          // très rapide : croches au lieu de doubles croches
                 let runNotes = [];
-                if (isTurn && L > 1 && changeNext && ph.run && nextV) {
+                if (isTurn && L > 1 && changeNext && ph.run && thin < 0.8 && nextV) {
                     const lv = Vs[Vs.length - 1];
                     runNotes = this._popRun(lastSeg.cs, lv[lv.length - 1], nextV[nextV.length - 1], nRun);
                 }
@@ -8111,7 +8397,7 @@
                 // réponse) ; la hauteur suit le contour de la phrase par degrés de la gamme (hijaz sur la dominante), toujours sur une note
                 // d'accord au début d'un groupe, avec parfois une appoggiature et un doublage à l'octave.
                 const csAt = (pos) => segs[segAt(pos)].cs;
-                const melBar = ph.mel === 2 || (ph.mel === 1 && (i % 2 === 1 || rng() < 0.3));
+                const melBar = melMode === 2 || (melMode === 1 && (i % 2 === 1 || rng() < 0.3));
                 const melAt = new Set();
                 if (melBar) {
                     let sd = (Math.floor(ph.melSeed * 1e9) + (i % 2) * 7919) >>> 0;
@@ -8122,7 +8408,8 @@
                         for (const o of opts) { r -= o[1]; if (r <= 0) return o[0]; }
                         return opts[opts.length - 1][0];
                     };
-                    const full = ph.mel === 2 ? 1 : 0.45, sparse = ph.mel === 2 ? 0.7 : 2.2, fast = I > 0.6 ? 1.4 : 0.8;
+                    const full = (melMode === 2 ? 1 : 0.45) * (1 - 0.4 * thin), sparse = (melMode === 2 ? 0.7 : 2.2) * (1 + 1.5 * thin);
+                    const fast = (I > 0.6 ? 1.4 : 0.8) * Math.max(0, 1 - 1.25 * thin);    // poids des cellules à contretemps de croche (0,5 / 1,5)
                     const OPT2 = [[[0, 1], 3 * full], [[0, 0.5, 1], 1.5 * fast * full], [[0, 1, 1.5], 1.3 * fast * full], [[0], 1.5 * sparse], [[1], 0.8 * sparse]];
                     const OPT3 = [[[0, 1, 2], 3 * full], [[0, 0.5, 1, 2], 1.4 * fast * full], [[0, 1, 1.5, 2], 1.4 * fast * full], [[0, 2], 1.6 * sparse],
                         [[0, 1], 1 * sparse], [[0, 0.5, 1, 1.5, 2], 0.8 * fast * full]];
@@ -8160,9 +8447,9 @@
                     notes.forEach((n, k) => {
                         const nextPos = k + 1 < notes.length ? notes[k + 1].pos : bpb;
                         const dur = Math.max(0.12 / spe, Math.min(0.5 / spe, (nextPos - n.pos) * 0.62));   // détaché
-                        piano.push({ pos: n.pos, dur, vel: clampV(((n.strong ? 0.78 : 0.64) + 0.1 * I) * dyn), rootIndex: 0, intervals: [n.x], art: 'mel', oct: ph.oct });
+                        piano.push({ pos: n.pos, dur, vel: clampV(((n.strong ? 0.78 : 0.64) + 0.1 * I) * dyn), rootIndex: 0, intervals: [n.x], art: 'mel', oct: ph.oct && thin < 0.6 });
                         melAt.add(Math.round(n.pos * 1000));
-                        if (ph.orn && n.strong && n.pos > 0.2 && mr() < 0.5 && n.S[n.idx + 1] !== undefined) {
+                        if (ph.orn && thin < 0.3 && n.strong && n.pos > 0.2 && mr() < 0.5 && n.S[n.idx + 1] !== undefined) {
                             piano.push({ pos: n.pos - 0.16 / spe, dur: 0.12 / spe, vel: clampV(0.5 * dyn), rootIndex: 0, intervals: [n.S[n.idx + 1]], art: 'mel', oct: false });
                         }
                     });
@@ -8179,7 +8466,7 @@
                     } else {
                         for (let k = 1; k < g; k++) {
                             const last = k === g - 1;
-                            if (melBar && !last) continue;                                    // sous la ligne détachée : seulement le contretemps de fin de groupe
+                            if ((melBar || thin > 0.5) && !last) continue;                    // sous la ligne détachée (ou si c'est rapide) : seulement le contretemps de fin de groupe
                             chord(P(gs[gi] + k), 0.6 / spe, ((last ? 0.72 : 0.6) + 0.08 * I) * (melBar ? 0.85 : 1));
                         }
                     }
@@ -8293,7 +8580,7 @@
                     .then(done)
                     .catch(() => Soundfont.instrument(ctx, 'accordion', { soundfont: 'FluidR3_GM', destination })
                         .then(done)
-                        .catch(() => { this._accordionLoading = false; }));
+                        .catch(() => { setTimeout(() => { this._accordionLoading = false; }, 5000); }));
             }
 
             // Une frappe de l'accordéon : e.intervals = hauteurs écrites ; e.art = 'pah' (accord court), 'run' (note de phrase rapide).
@@ -8430,7 +8717,7 @@
                     chich: rng() < 0.6,
                     latigo: rng() < 0.5
                 };
-                return this._bandGroove === 'lyrique' ? this.lyricPhraseExtras(rng, pl, index, out) : out;
+                return this.getEffectiveGroove() === 'lyrique' ? this.lyricPhraseExtras(rng, pl, index, out) : out;
             }
 
             // Milonga lyrique (style de grille « Milonga lyrique », d'après l'esprit d'« Oblivion ») : musique de chambre lente et
@@ -13229,7 +13516,6 @@
                 const container = document.getElementById('jam-chord-sequence-display');
                 if (!container) return;
                 const previousScrollTop = container.scrollTop;
-                container.innerHTML = '';
                 container.classList.toggle('edit-on', !!this._editBarOpen);
 
                 const flatMeasures = this.getFlatMeasureList();
@@ -13238,6 +13524,7 @@
                 else if (this._sel && this._sel.to > flatMeasures.length) this._sel.to = flatMeasures.length;
                 if (this._selAnchor && this._selAnchor > flatMeasures.length) this._selAnchor = null;
                 if (flatMeasures.length === 0) {
+                    this._seqFp = null;
                     container.innerHTML = '<span class="text-slate-500 text-xs px-2">Aucun accord sélectionné</span>';
                     this.updateEditBar();
                     if (this._editBarOpen && !this.isPlaying) {
@@ -13261,6 +13548,20 @@
                     const currentMeasureInStep = Math.floor(this.currentBeat / this.getBeatsPerBar());
                     currentMeasureNum = count + currentMeasureInStep + 1;
                 }
+
+                // Pendant la lecture, si la grille n'a pas changé depuis le dernier affichage, on ne reconstruit pas
+                // les cases : on déplace seulement la surbrillance de la mesure en cours (même résultat à l'écran).
+                let fp = null;
+                if (this.isPlaying) {
+                    try { fp = this._sequenceFingerprint(flatMeasures); } catch (e) { fp = null; }
+                    if (fp !== null && fp === this._seqFp && container.firstElementChild && container.firstElementChild.classList.contains('jam-wrapper')
+                        && this._sequenceMoveActive(container, flatMeasures, currentMeasureNum)) {
+                        this._sequenceAfterRender(container, flatMeasures, currentMeasureNum);
+                        return;
+                    }
+                }
+                this._seqFp = fp;
+                container.innerHTML = '';
 
                 const systems = this._layoutRows(flatMeasures);
 
@@ -13461,6 +13762,61 @@
                 }
 
                 container.appendChild(gridWrapper);
+                this._sequenceAfterRender(container, flatMeasures, currentMeasureNum);
+            }
+
+            // Empreinte de tout ce qui détermine l'aspect des cases de la grille, hors mesure en cours.
+            _sequenceFingerprint(flatMeasures) {
+                const sym = flatMeasures.map(m => this.getChordSymbol(m) + (m.split ? '/' + this.getChordSymbol(m.split) : '')).join(';');
+                let fn = '';
+                if (this.showHarmonicFunctions) {
+                    fn = flatMeasures.map((m, i) => this.getHarmonicFunctionLabel(m, flatMeasures, i) + (m.split ? '/' + this.getHarmonicFunctionLabel(m.split, flatMeasures, i, 1) : '')).join(';');
+                }
+                return [JSON.stringify(this.grid), sym, fn, this.mainKey, this.getBeatsPerBar(), this.showHarmonicFunctions ? 1 : 0,
+                    this._editBarOpen ? 1 : 0, this._sel ? this._sel.from + '-' + this._sel.to : ''].join('\u0001');
+            }
+
+            // Met à jour uniquement la case active (et sa moitié active) sans reconstruire le DOM. Retourne false si impossible.
+            _sequenceMoveActive(container, flatMeasures, currentMeasureNum) {
+                const ACT = ['bg-blue-600', 'border-blue-400', 'text-white', 'shadow-lg', 'ring-2', 'ring-blue-400/50', 'scale-[1.02]', 'z-10'];
+                const IDLE = ['bg-white', 'border-slate-300', 'hover:border-slate-500', 'text-slate-900'];
+                const cells = container.querySelectorAll('.jam-cell[data-measure-number]');
+                if (cells.length !== flatMeasures.length) return false;
+                const changed = [];
+                cells.forEach((cell) => {
+                    const num = parseInt(cell.dataset.measureNumber, 10);
+                    const shouldBe = (num === currentMeasureNum);
+                    const isNow = cell.classList.contains('bg-blue-600');
+                    const split = cell.querySelector('.jam-split');
+                    let halfNow = -1, halfWant = -1;
+                    if (split) {
+                        const hs = cell.querySelectorAll('.jam-half');
+                        halfNow = hs.length && hs[1] && hs[1].classList.contains('jam-half-active') ? 1 : (hs[0] && hs[0].classList.contains('jam-half-active') ? 0 : -1);
+                        halfWant = shouldBe ? ((this.currentBeat % this.getBeatsPerBar()) >= this.getSplitBeat() ? 1 : 0) : -1;
+                    }
+                    if (shouldBe === isNow && halfNow === halfWant) return;
+                    changed.push(cell);
+                    cell.style.transition = 'none'; // la version reconstruite s'affichait sans fondu : on garde le même rendu
+                    if (shouldBe !== isNow) {
+                        cell.classList.remove(...(shouldBe ? IDLE : ACT));
+                        cell.classList.add(...(shouldBe ? ACT : IDLE));
+                        const top = cell.querySelector('.jam-cell-top');
+                        if (top) {
+                            top.classList.remove(...(shouldBe ? ['text-slate-400'] : ['text-blue-200', 'font-bold']));
+                            top.classList.add(...(shouldBe ? ['text-blue-200', 'font-bold'] : ['text-slate-400']));
+                        }
+                    }
+                    if (split) {
+                        cell.querySelectorAll('.jam-half').forEach((h) => {
+                            h.classList.toggle('jam-half-active', parseInt(h.dataset.half, 10) === halfWant);
+                        });
+                    }
+                });
+                if (changed.length) requestAnimationFrame(() => changed.forEach(c => { c.style.transition = ''; }));
+                return true;
+            }
+
+            _sequenceAfterRender(container, flatMeasures, currentMeasureNum) {
                 this.updateEditBar();
 
                 const activeMeasure = flatMeasures.find(m => m.measureNumber === currentMeasureNum) || flatMeasures[0];
@@ -13654,6 +14010,10 @@
             renderJamScales() {
                 const container = document.getElementById('jam-scale-visualizer');
                 if (!container) return;
+                if (!this.isPlaying) this._scalesSig = null;
+                const keepOld = this.isPlaying && this._scalesSig && container.firstChild;
+                // On garde les cartes actuelles pour les réutiliser si rien n'a changé (voir plus bas)
+                const oldNodes = keepOld ? Array.from(container.childNodes) : null;
                 container.innerHTML = '';
 
                 if (this.grid.length === 0) {
@@ -13686,6 +14046,29 @@
                         // Fin d'une mesure (ou mesure simple) : premier accord du step suivant.
                         const nextIdx = this._peekNextDisplayIndex(currentIdx);
                         nextItem = nextIdx >= 0 ? { idx: nextIdx, half: this.isSplit(this.grid[nextIdx]) ? 0 : null } : null;
+                    }
+
+                    // Si les deux cartes affichées sont identiques à celles de la mesure précédente
+                    // (même accord qui se prolonge), on les remet telles quelles au lieu de les reconstruire.
+                    {
+                        const sigOf = (it, cur) => {
+                            if (!it) return '-';
+                            const st = this.grid[it.idx];
+                            if (!st) return 'x';
+                            const d = it.half !== null ? this.getStepHalves(st)[it.half] : st;
+                            return d ? [it.idx, it.half, d.rootIndex, d.chordId, d.scaleId, cur].join(',') : 'y';
+                        };
+                        const sig = [sigOf(currentItem, 1), sigOf(nextItem, 0), this.showAvoidNotes, this.showCharacteristic,
+                            this.showScaleInfo, this.showTargetNotes, this.visMode, this.showHarmonicFunctions,
+                            this.getStepStartMeasure(currentItem.idx), nextItem ? this.getStepStartMeasure(nextItem.idx) : '',
+                            this.app.angloToFrench('C#'), this.app.angloToFrench('Bb')].join('|');
+                        if (oldNodes && oldNodes.length && sig === this._scalesSig && oldNodes[0].id && oldNodes[0].id.indexOf('jam-scale-card-play-') === 0) {
+                            oldNodes.forEach(n => container.appendChild(n));
+                            const badge0 = document.getElementById('jam-scales-count-badge');
+                            if (badge0) badge0.textContent = nextItem ? '2 gammes actives' : '1 gamme active';
+                            return;
+                        }
+                        this._scalesSig = sig;
                     }
 
                     const renderItem = (item, isCurrent) => {
@@ -13819,7 +14202,7 @@
                 }
 
                 pendingStaves.forEach(task => {
-                    if (this.visMode !== 'staff') return;
+                    if (this.visMode !== 'staff' || this._measuringScalesHeight) return;
                     this.app.renderVexFlowStaff(task.canvasId, task.intervals, task.rootName, task.isDesc, task.avoidNotes, task.characteristicInterval, task.chordObj, false, task.showTargetNotes, true);
                 });
 
@@ -13939,12 +14322,21 @@
 
                 const savedIdx = this.currentStepIndex;
                 let maxHeight = 0;
-                for (let i = 0; i < this.grid.length; i++) {
-                    this.currentStepIndex = i;
-                    this.renderJamScales();
-                    maxHeight = Math.max(maxHeight, container.offsetHeight);
+                // Mesure seulement : la portée VexFlow est dans un cadre de hauteur fixe (h-[130px]), inutile de la dessiner
+                // pour chaque étape de la grille ; la vraie portée est dessinée par le rendu final ci-dessous.
+                this._measuringScalesHeight = true;
+                try {
+                    for (let i = 0; i < this.grid.length; i++) {
+                        this.currentStepIndex = i;
+                        this._scalesSig = null;
+                        this.renderJamScales();
+                        maxHeight = Math.max(maxHeight, container.offsetHeight);
+                    }
+                } finally {
+                    this._measuringScalesHeight = false;
+                    this.currentStepIndex = savedIdx;
+                    this._scalesSig = null;
                 }
-                this.currentStepIndex = savedIdx;
                 container.style.minHeight = `${maxHeight}px`;
                 this.renderJamScales();
             }
@@ -14088,6 +14480,7 @@
                 this._beatAudioTime = null;
                 this._passes = {};
                 this._playRange = null;
+                this._perfPrev = null; this._perfLog = []; this._scalesSig = null;
                 this.currentStepIndex = -1;
                 this.currentBeat = 0;
                 (this._metroNodes || []).forEach(nd => { try { nd.stop(); } catch (e) {} });
@@ -14196,7 +14589,7 @@
             // aucun effet audible, et le métronome comme la musique restent parfaitement réguliers.
             _scheduleNextTick(runId) {
                 const ctx = this.app.audioCtx;
-                const target = this._beatAudio - this._LEAD;
+                const target = this._beatAudio - Math.min(this._LEAD, 0.9 * (60 / this.bpm));   // l'avance ne dépasse jamais un temps
                 const delayMs = Math.max(0, (target - ctx.currentTime) * 1000);
                 this.timer = this._clockSet(delayMs, () => this.tick(runId));
             }
@@ -14258,6 +14651,7 @@
                 // Son (arpèges / orchestre) programmé à l'instant exact du temps ; une erreur ne doit
                 // jamais interrompre la chaîne de temps.
                 this._beatAudioTime = t;
+                const perfT0 = performance.now();
                 try {
                     // Mesure à deux accords : les temps 1-2 et 3-4 ont chacun leur accord
                     this.playBandBeat(step, beat % bpb);
@@ -14265,6 +14659,7 @@
                     console.error('Jam audio', e);
                 } finally {
                     this._beatAudioTime = null;
+                    try { this._perfObserve(ctx, t, performance.now() - perfT0); } catch (e) {}
                 }
 
                 // Affichage : exécuté à l'instant du temps, avec l'état de CE temps.
@@ -15002,8 +15397,12 @@
                 wetGain.connect(masterGain);
 
                 const mediaStreamDest = audioCtx.createMediaStreamDestination();
-                masterGain.connect(mediaStreamDest);
+                // Le relais <audio> ne sert qu'à contourner le mode silencieux d'iOS ; ailleurs il doublait la sortie
+                // (même signal joué deux fois, légèrement décalé → phasing / artefacts).
+                const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
                 masterGain.connect(audioCtx.destination);
+                if (!isIOS) return inputNode;
+                masterGain.connect(mediaStreamDest);
 
                 const relayElement = document.createElement('audio');
                 relayElement.srcObject = mediaStreamDest.stream;
@@ -15027,18 +15426,19 @@
             }
 
             loadPiano() {
-                if (this.pianoInstrument) return;
+                if (this.pianoInstrument || this._pianoPromise) return;   // déjà chargé, ou chargement en cours (évite un second décodage)
                 
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 if (!this.audioCtx) {
-                    this.audioCtx = new AudioContext();
+                    this.audioCtx = new AudioContext({ latencyHint: 'playback' });
                 }
 
                 this.reverbInput = this.setupReverb(this.audioCtx);
 
-                Soundfont.instrument(this.audioCtx, 'acoustic_grand_piano', { soundfont: 'FluidR3_GM' }).then(instr => {
+                this._pianoPromise = Soundfont.instrument(this.audioCtx, 'acoustic_grand_piano', { soundfont: 'FluidR3_GM' }).then(instr => {
                     this.pianoInstrument = instr;
-                }).catch(err => {});
+                    return instr;
+                }).catch(err => { this._pianoPromise = null; return null; });
             }
 
             initUI() {
@@ -15271,11 +15671,36 @@
                 if (!container) return;
                 container.innerHTML = '';
 
+                // Cache de portées : une même gamme (mêmes notes, mêmes couleurs) n'est calculée par VexFlow qu'une seule fois ;
+                // les rendus suivants clonent le SVG déjà dessiné et rebranchent simplement le clic sur chaque note.
+                let vexCacheKey = null;
+                try {
+                    vexCacheKey = [rootName, intervals.join(','), isDesc ? 1 : 0, avoidNotes.join(','), characteristicInterval,
+                        chordObj ? getTargetIntervals(chordObj).join(',') : '-', twoOctaves ? 1 : 0, showTargetNotes ? 1 : 0, isJam ? 1 : 0].join('|');
+                    const hit = this._vexCache && this._vexCache.get(vexCacheKey);
+                    if (hit) {
+                        const svgClone = hit.svg.cloneNode(true);
+                        // Retrouve chaque note du clone par son chemin dans le SVG (calculé lors du vrai rendu)
+                        const noteEls = hit.notePaths.map((path) => {
+                            if (!path) return null;
+                            let el = svgClone;
+                            for (let k = 0; el && k < path.length; k++) el = el.children[path[k]];
+                            return el || undefined;
+                        });
+                        if (noteEls.length === hit.scaleIntervals.length && noteEls.every(el => el !== undefined)) {
+                            container.appendChild(svgClone);
+                            this._vexCache.delete(vexCacheKey); this._vexCache.set(vexCacheKey, hit); // le plus récemment utilisé passe en fin de liste
+                            this._attachVexNoteClicks(noteEls, hit.scaleIntervals, hit.rootIdx, isJam);
+                            return;
+                        }
+                    }
+                } catch (e) { vexCacheKey = null; container.innerHTML = ''; }
+
                 try {
                     let scaleIntervals = twoOctaves
                         ? [...intervals, ...intervals.map(i => i + 12), 24]
                         : [...intervals, 12];
-                        
+
                     const baseSpelled = getStrictSpelledNotes(rootName, intervals, isDesc);
                     const baseRootNote = getStrictSpelledNotes(rootName, [12])[0];
                     
@@ -15388,29 +15813,56 @@
                     // Chaque note de la portée est directement cliquable et joue la note
                     // correspondante, sans déclencher la lecture de toute la gamme.
                     const rootIdx = rootNameToIndex(rootName);
-                    staveNotes.forEach((staveNote, i) => {
-                        const svgNote = typeof staveNote.getSVGElement === 'function' ? staveNote.getSVGElement() : null;
-                        if (!svgNote) return;
-                        svgNote.style.cursor = 'pointer';
-                        svgNote.addEventListener('click', (event) => {
-                            event.stopPropagation();
-                            const interval = scaleIntervals[i];
-                            const noteStr = isJam
-                                ? this.jam.getJamAudioNoteName(rootIdx, interval, PLAY_BASE_OCTAVE)
-                                : this.getAudioNoteName(rootIdx, interval, PLAY_BASE_OCTAVE);
-                            if (!this.pianoInstrument) this.loadPiano();
-                            if (this.audioCtx && this.audioCtx.state === 'suspended') this.audioCtx.resume();
-                            try {
-                                const node = this.pianoInstrument.play(
-                                    noteStr,
-                                    this.audioCtx.currentTime,
-                                    { duration: 1.0, destination: this.reverbInput || this.audioCtx.destination }
-                                );
-                                this.activeScaleNodes.push(node);
-                            } catch (e) {}
+                    const svgNotes = staveNotes.map(sn => (typeof sn.getSVGElement === 'function' ? sn.getSVGElement() : null));
+                    this._attachVexNoteClicks(svgNotes, scaleIntervals, rootIdx, isJam);
+
+                    // Mémorise la portée (SVG vierge, sans écouteurs) ; chaque note est repérée par son chemin dans le SVG.
+                    if (vexCacheKey && svgEl) {
+                        let ok = true;
+                        const notePaths = svgNotes.map((el) => {
+                            if (!el) return null;
+                            const path = [];
+                            for (let n = el; n !== svgEl; n = n.parentNode) {
+                                if (!n || !n.parentNode) { ok = false; return null; }
+                                path.unshift(Array.prototype.indexOf.call(n.parentNode.children, n));
+                            }
+                            return path;
                         });
-                    });
+                        if (ok) {
+                            if (!this._vexCache) this._vexCache = new Map();
+                            const pristine = svgEl.cloneNode(true);
+                            svgNotes.forEach((el, i) => { if (el) { let n = pristine; notePaths[i].forEach(k => { n = n.children[k]; }); if (n && n.style) n.style.cursor = ''; } });
+                            this._vexCache.set(vexCacheKey, { svg: pristine, scaleIntervals: scaleIntervals.slice(), rootIdx, notePaths });
+                            if (this._vexCache.size > 48) this._vexCache.delete(this._vexCache.keys().next().value);
+                        }
+                    }
                 } catch (e) {}
+            }
+
+            // Chaque note de la portée est cliquable : joue la note correspondante au piano.
+            _attachVexNoteClicks(svgNotes, scaleIntervals, rootIdx, isJam) {
+                for (let i = 0; i < svgNotes.length; i++) {
+                    const svgNote = svgNotes[i];
+                    if (!svgNote) continue;
+                    svgNote.style.cursor = 'pointer';
+                    svgNote.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        const interval = scaleIntervals[i];
+                        const noteStr = isJam
+                            ? this.jam.getJamAudioNoteName(rootIdx, interval, PLAY_BASE_OCTAVE)
+                            : this.getAudioNoteName(rootIdx, interval, PLAY_BASE_OCTAVE);
+                        if (!this.pianoInstrument) this.loadPiano();
+                        if (this.audioCtx && this.audioCtx.state === 'suspended') this.audioCtx.resume();
+                        try {
+                            const node = this.pianoInstrument.play(
+                                noteStr,
+                                this.audioCtx.currentTime,
+                                { duration: 1.0, destination: this.reverbInput || this.audioCtx.destination }
+                            );
+                            this.activeScaleNodes.push(node);
+                        } catch (e) {}
+                    });
+                }
             }
 
             toggleScalePlayback(scaleKey, intervals, scaleName, cardElement, customRootIndex = null, isJam = false) {
@@ -15525,6 +15977,17 @@
                     <input type="range" id="band-master-slider" min="0" max="100" value="50" title="Volume général de l'orchestre (50 % = niveau d'origine, au-dessus : plus fort)" oninput="app.jam.setBandMaster(this.value)" class="w-full accent-blue-500">
                     <span id="band-master-display" class="text-xs font-mono font-bold text-slate-200 min-w-[32px] text-right">50%</span>
                 </div>
+
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold text-slate-400 w-16 shrink-0" title="Allège le son sur les ordinateurs lents">Qualité</span>
+                    <select id="band-perf-select" onchange="app.jam.setPerfMode(this.value)" class="w-full bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-1.5 px-2 rounded-lg transition text-xs shadow cursor-pointer">
+                        <option value="auto">Auto (recommandé)</option>
+                        <option value="full">Complet</option>
+                        <option value="light">Allégé</option>
+                        <option value="minimal">Minimal</option>
+                    </select>
+                </div>
+                <div id="band-perf-note" class="text-[11px] leading-snug text-slate-500 -mt-1 pl-[72px]"></div>
 
                 <div class="pt-1 space-y-2">
                     <div class="flex items-center gap-2">
