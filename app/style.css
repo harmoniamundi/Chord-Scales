@@ -1,0 +1,684 @@
+/* style.css — styles propres à l'application (complètent tailwind-built.css).
+   Extrait tel quel des trois blocs <style> d'index.html, dans le même ordre. */
+
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Helvetica Neue", sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.4); }
+        .vf-stavenote { transition: opacity 0.1s; }
+        .vf-stavenote:hover { opacity: 0.7; }
+        #scales-container { grid-auto-rows: max-content; }
+        /* Petit curseur de volume discret sous les boutons de lecture (mode Entraînement) */
+        /* width:0 + min-width:100% : le curseur n'impose pas sa largeur par défaut, il épouse celle des boutons */
+        .chord-volume { -webkit-appearance: none; appearance: none; display: block; box-sizing: border-box; width: 0; min-width: 100%; height: 12px; margin: 0; padding: 0; background: transparent; cursor: pointer; opacity: .5; transition: opacity .15s; }
+        .chord-volume:hover, .chord-volume:focus-visible, .chord-volume:active { opacity: 1; outline: none; }
+        .chord-volume::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: #4a4a4c; }
+        .chord-volume::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; margin-top: -3.5px; border-radius: 50%; background: #cbd5e1; border: 0; }
+        .chord-volume::-moz-range-track { height: 3px; border-radius: 2px; background: #4a4a4c; }
+        .chord-volume::-moz-range-thumb { width: 10px; height: 10px; border-radius: 50%; background: #cbd5e1; border: 0; }
+        @media (hover: none) and (pointer: coarse) { .chord-volume { height: 18px; } }
+        /* ===== Curseurs (BPM, Master, Piano, Basse, Batterie, Métronome) : UNE seule mise en forme, ordinateur ET téléphone =====
+           Piste fine arrondie, partie parcourue + poignée ronde à la couleur d'accent (bleu ou émeraude).
+           Seules les variables de taille changent sur téléphone (voir le bloc @media (max-width: 639px)).
+           Le petit curseur discret .chord-volume garde son propre style. */
+        input[type="range"]:not(.chord-volume) {
+            --sl-accent: #3b82f6; --sl-track: #4a4a4c; --sl-p: 0;
+            --sl-track-h: 4px; --sl-thumb: 16px; --sl-hit: 28px;
+            -webkit-appearance: none; appearance: none; background: transparent;
+            height: var(--sl-hit); margin: 0; padding: 0; min-width: 0; cursor: pointer; touch-action: pan-y;
+        }
+        input[type="range"].accent-blue-500 { --sl-accent: #3b82f6; }
+        input[type="range"].accent-emerald-500 { --sl-accent: #10b981; }
+        input[type="range"]:not(.chord-volume):focus { outline: none; }
+        input[type="range"]:not(.chord-volume)::-webkit-slider-runnable-track {
+            height: var(--sl-track-h); border-radius: calc(var(--sl-track-h) / 2);
+            /* la partie parcourue s'arrête au centre de la poignée */
+            background: linear-gradient(to right,
+                var(--sl-accent) calc(var(--sl-thumb) / 2 + (100% - var(--sl-thumb)) * var(--sl-p)),
+                var(--sl-track) calc(var(--sl-thumb) / 2 + (100% - var(--sl-thumb)) * var(--sl-p)));
+        }
+        input[type="range"]:not(.chord-volume)::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none; box-sizing: border-box;
+            width: var(--sl-thumb); height: var(--sl-thumb); margin-top: calc((var(--sl-track-h) - var(--sl-thumb)) / 2);
+            border-radius: 50%; border: 0; background: var(--sl-accent);
+        }
+        input[type="range"]:not(.chord-volume)::-moz-range-track { height: var(--sl-track-h); border-radius: calc(var(--sl-track-h) / 2); background: var(--sl-track); }
+        input[type="range"]:not(.chord-volume)::-moz-range-progress { height: var(--sl-track-h); border-radius: calc(var(--sl-track-h) / 2); background: var(--sl-accent); }
+        input[type="range"]:not(.chord-volume)::-moz-range-thumb {
+            box-sizing: border-box; width: var(--sl-thumb); height: var(--sl-thumb); border-radius: 50%; border: 0; background: var(--sl-accent);
+        }
+        input[type="range"]:not(.chord-volume):focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px rgba(255,255,255,.28); }
+        input[type="range"]:not(.chord-volume):focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px rgba(255,255,255,.28); }
+        /* Mesure à deux accords : la case est coupée en deux « demi-dominos » */
+        #jam-chord-sequence-display .jam-split { display: flex; align-items: center; width: 100%; }
+        #jam-chord-sequence-display .jam-half { flex: 1 1 0; min-width: 0; text-align: center; padding: 3px 0; border-radius: 4px; }
+        #jam-chord-sequence-display .jam-half + .jam-half { border-left: 1.5px solid rgba(100,116,139,.6); }
+        #view-jam #jam-chord-sequence-display .jam-split .jam-realbook-chord { font-size: 0.95rem !important; }
+        #jam-chord-sequence-display .jam-half-active { background: rgba(255,255,255,.24); }
+        /* 3/4 : la mesure à deux accords se coupe après le temps 2 (2 temps + 1 temps) */
+        #jam-chord-sequence-display .jam-cell.jam-ts3 .jam-half[data-half="0"] { flex-grow: 2; }
+        #jam-chord-sequence-display .jam-cell.jam-ts3 .jam-arp-btn.jam-arp-btn-b { left: calc(66.667% + 4px); }
+        #jam-chord-sequence-display .jam-cell.jam-ts3.rp-has-l:not(.rp-has-r) .jam-arp-btn.jam-arp-btn-b { left: calc(66.667% + 5px); }
+        #jam-chord-sequence-display .jam-cell.jam-ts3.rp-has-r:not(.rp-has-l) .jam-arp-btn.jam-arp-btn-b { left: calc(66.667% - 7px); }
+        #jam-chord-sequence-display .jam-cell.jam-ts3.rp-has-l.rp-has-r .jam-arp-btn.jam-arp-btn-b { left: calc(66.667% - 4px); }
+        #jam-chord-sequence-display .jam-half-fn { position: absolute; bottom: 4px; font-family: "Kalam", cursive; font-size: 1rem; line-height: 1; color: #ef4444; }
+        /* « >> » en bas à gauche d'une case : un clic joue l'arpège de l'accord de la case */
+        #jam-chord-sequence-display .jam-arp-btn {
+            position: absolute; left: 3px; bottom: 2px; z-index: 2;
+            padding: 3px 5px 2px; border-radius: 4px;
+            font: 700 14px/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: -1.5px;
+            color: #94a3b8; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;
+        }
+        /* Mesure à deux accords : le second chevron se place au début du second demi-domino */
+        #jam-chord-sequence-display .jam-arp-btn.jam-arp-btn-b { left: calc(50% + 3px); }
+        #jam-chord-sequence-display .jam-arp-btn:hover { color: #2563eb; background: rgba(37,99,235,.14); }
+        #jam-chord-sequence-display .jam-cell.bg-blue-600 .jam-arp-btn { color: #bfdbfe; }
+        #jam-chord-sequence-display .jam-cell.bg-blue-600 .jam-arp-btn:hover { color: #fff; background: rgba(255,255,255,.2); }
+
+        /* Style des symboles d'accords façon Real Book — uniquement dans la grille d'accords du mode Jam */
+        #jam-chord-sequence-display .jam-cell-bottom {
+            color: #ef4444 !important;
+        }
+
+        #jam-chord-sequence-display .jam-realbook-chord {
+    font-family: "Kalam", cursive;
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 1;
+}
+
+        /* Fonction tonale : même style Real Book, sans gras et légèrement plus petite */
+        #jam-chord-sequence-display .jam-cell-bottom {
+            font-size: 1.25rem !important;
+            font-weight: 400 !important;
+            position: absolute;
+            right: 8px;
+            bottom: 4px;
+            line-height: 1;
+        }
+
+        /* Affichage de l’accord suivant : même rendu que la Jam soit lancée ou arrêtée. */
+        #view-jam #jam-next-chord-display { margin-left: 18px !important; padding-left: 16px; border-left: 1px solid rgba(148,163,184,.28); gap: 16px !important; align-items: center; }
+        #view-jam #jam-next-chord-display .jam-next-chord-label { font-size: 9px !important; line-height: 1 !important; transform: translateX(5px); letter-spacing: .08em; opacity: .8; }
+        #view-jam #jam-next-chord-display #jam-next-chord-title { font-size: 1.5rem !important; line-height: 1 !important; }
+        #view-jam #jam-next-chord-display #jam-next-chord-notes { gap: 6px !important; }
+
+        /* Bouton d'affichage de la fonction tonale : même gabarit que les boutons croches / métronome / boucle.
+           Désactivé : texte blanc sur fond gris ; activé : texte rouge sur fond blanc (même taille). */
+        .jam-tonal-function-toggle {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            border: 0;
+            border-radius: 8px;
+            background: #3a3a3c;
+            color: #ffffff;
+            font-family: "Kalam", cursive;
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06);
+            transition: background-color .15s, color .15s;
+        }
+        .jam-tonal-function-toggle:hover { background: #48484a; }
+        /* Le glyphe est recentré d'après sa vraie hauteur d'encre (mesurée en JS, voir centerTonalToggleGlyph),
+           car la police Kalam a des métriques verticales qui décalent le texte dans la pastille. */
+        .jam-tonal-function-toggle > span { display: block; line-height: 1; transform: translateY(var(--tf-dy, 0px)); }
+        .jam-tonal-function-toggle.is-active { background: #ffffff; color: #ef4444; }
+        .jam-tonal-function-toggle.is-active:hover { background: #f3f4f6; }
+
+        /* Bouton métronome : même style que le bouton d'orchestration (gris foncé, texte blanc) */
+        .jam-metronome-toggle {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            border: 0;
+            border-radius: 8px;
+            background: #3a3a3c;
+            color: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06);
+            transition: background-color .15s, color .15s;
+        }
+        .jam-metronome-toggle:hover { background: #48484a; }
+        .jam-metronome-toggle.is-active { background: #059669; }
+        .jam-metronome-toggle.is-active:hover { background: #10b981; }
+
+        /* Mode Jam en lecture (écran large) : les deux gammes (active + suivante) gardent leur taille
+           naturelle et restent toujours visibles ; c'est la grille d'accords qui se comprime
+           (cases plus basses, symboles plus petits) pour tenir dans la place restante,
+           sans jamais dépasser leur taille d'origine. */
+        @media (min-width: 1024px) {
+            /* Avant le lancement : la grille d'accords se compresse et défile
+               afin de toujours laisser visible la première ligne des gammes. */
+            #view-jam:not(.jam-playing) #jam-chord-card {
+                flex: 0 1 auto;
+                min-height: 0;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            }
+            #view-jam:not(.jam-playing) #jam-chord-sequence-display {
+                flex: 0 1 auto;
+                min-height: 0;
+                overflow-x: auto;
+                overflow-y: auto;
+            }
+            #view-jam:not(.jam-playing) #jam-scales-card {
+                flex: 1 1 0%;
+                min-height: 300px;
+            }
+
+            #view-jam.jam-playing #jam-scales-card { flex: 0 0 auto; }
+            #view-jam.jam-playing #jam-scale-visualizer { flex: 0 0 auto; overflow: visible; }
+
+            #view-jam.jam-playing #jam-chord-card { flex: 0 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+            #view-jam.jam-playing #jam-chord-sequence-display { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; overflow-x: hidden; overflow-y: auto; }
+            #view-jam.jam-playing #jam-chord-sequence-display .jam-wrapper { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; }
+            /* Pendant la lecture, les lignes et dominos gardent exactement leur taille normale.
+               Seul le défilement vertical de la grille accompagne la lecture. */
+            #view-jam.jam-playing #jam-chord-sequence-display .jam-row {
+                flex: 0 0 auto;
+                min-height: 76px;
+                container-type: normal;
+            }
+            #view-jam.jam-playing #jam-chord-sequence-display .jam-cell {
+                height: 64px;
+                min-height: 64px;
+                overflow: hidden;
+                padding: 8px;
+            }
+            /* Jam lancée : la marge de 8px ci-dessus ne doit pas annuler le décalage des cases à barre de reprise */
+            #view-jam.jam-playing #jam-chord-sequence-display .jam-cell.rp-has-l { padding-left: 20px; }
+            #view-jam.jam-playing #jam-chord-sequence-display .jam-cell.rp-has-r { padding-right: 20px; }
+            #view-jam.jam-playing #jam-chord-sequence-display .jam-realbook-chord {
+                font-size: 1.35rem;
+            }
+
+            /* Plein écran de la grille (bouton dédié), jam lancée : la grille se comprime comme en
+               mode normal pour laisser la place à la carte des gammes, déplacée dans la carte plein écran. */
+            #view-jam.jam-playing #jam-chord-card:fullscreen #jam-chord-sequence-display {
+                flex: 0 1 auto;
+                min-height: 0;
+                overflow-y: auto;
+            }
+        }
+        @container jamrow (max-height: 56px) {
+            #view-jam.jam-playing .jam-cell-bottom { display: none; }
+        }
+        @container jamrow (max-height: 32px) {
+            #view-jam.jam-playing .jam-cell-top { display: none; }
+        }
+
+        /* Mode plein écran de la grille d'accords : hors lecture, seul le panneau de grille est affiché ;
+           jam lancée, la carte des gammes actives/suivantes y est déplacée et reste visible. */
+        #jam-chord-card:fullscreen {
+            width: 100vw;
+            height: 100vh;
+            box-sizing: border-box;
+            margin: 0;
+            border-radius: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #jam-chord-card:fullscreen #jam-chord-sequence-display {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+        }
+
+        #jam-chord-card:fullscreen .grid.grid-cols-3 {
+            flex-shrink: 0;
+        }
+
+        /* Hors lecture, le plein écran de la grille reste centré sur la grille seule (comportement d'origine) ;
+           la carte des gammes (déplacée ici en plein écran) ne doit s'afficher que si la jam est lancée. */
+        #view-jam:not(.jam-playing) #jam-chord-card:fullscreen #jam-scales-card {
+            display: none;
+        }
+
+                /* Impression de la grille d'accords (mode Jam) — grille façon lead sheet traditionnelle */
+        #jam-print-area { display: none; }
+        @media print {
+            @page { size: auto; margin: 1.5cm; }
+            html, body { background: #ffffff !important; height: auto !important; }
+            #app-shell { display: none !important; }
+            #jam-print-area {
+                display: block !important;
+                position: static;
+                width: auto;
+                background: #ffffff;
+                color: #000000;
+                padding: 0;
+                margin: 0;
+            }
+            #jam-print-area .jam-print-title {
+                font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+                font-size: 20pt;
+                font-weight: 800;
+                text-align: center;
+                color: #000000;
+                margin: 0 0 22pt 0;
+                padding-bottom: 10pt;
+                border-bottom: 2px solid #000000;
+                text-transform: uppercase;
+                letter-spacing: 0.02em;
+            }
+            #jam-print-area .jam-print-grid {
+                display: flex;
+                flex-direction: column;
+                gap: 3mm;
+            }
+            #jam-print-area .jam-print-row {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 3mm;
+                page-break-inside: avoid;
+            }
+            #jam-print-area .jam-print-cell {
+                border: 1.75pt solid #000000;
+                min-height: 2.6cm;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 4pt;
+                background: #ffffff;
+            }
+            #jam-print-area .jam-print-cell-empty {
+                visibility: hidden;
+                border: none;
+            }
+            #jam-print-area .jam-print-chord {
+                font-family: "Kalam", cursive;
+                font-size: 24pt;
+                font-weight: 700;
+                color: #000000;
+                line-height: 1;
+            }
+            #jam-print-area .jam-print-split { display: flex; width: 100%; align-items: center; }
+            #jam-print-area .jam-print-split .jam-print-chord { flex: 1 1 0; text-align: center; font-size: 17pt; }
+            #jam-print-area .jam-print-split .jam-print-chord + .jam-print-chord { border-left: 1.5pt solid #000000; }
+            #jam-print-area .jam-print-split.jam-print-split-3 .jam-print-chord:first-child { flex: 2 1 0; }
+
+            /* Reprises et 1re / 2e fin */
+            #jam-print-area .jam-print-cell { position: relative; }
+            #jam-print-area .jam-print-cell.has-rs { padding-left: 17pt; }
+            #jam-print-area .jam-print-cell.has-re { padding-right: 17pt; }
+            #jam-print-area .jam-print-rs, #jam-print-area .jam-print-re { position: absolute; top: 0; bottom: 0; display: flex; align-items: stretch; }
+            #jam-print-area .jam-print-rs { left: 0; }
+            #jam-print-area .jam-print-re { right: 0; flex-direction: row-reverse; }
+            #jam-print-area .jam-print-rs i, #jam-print-area .jam-print-re i { display: block; width: 0; }
+            #jam-print-area .jam-print-rs i.b1 { border-left: 4pt solid #000000; }
+            #jam-print-area .jam-print-re i.b1 { border-right: 4pt solid #000000; }
+            #jam-print-area .jam-print-rs i.b2 { border-left: 1pt solid #000000; margin-left: 2pt; }
+            #jam-print-area .jam-print-re i.b2 { border-right: 1pt solid #000000; margin-right: 2pt; }
+            #jam-print-area .jam-print-rs svg { align-self: center; margin-left: 3pt; }
+            #jam-print-area .jam-print-re svg { align-self: center; margin-right: 3pt; }
+            #jam-print-area .jam-print-times { position: absolute; bottom: 3pt; right: 19pt; font: 700 9pt -apple-system, "Helvetica Neue", sans-serif; color: #000000; }
+            #jam-print-area .jam-print-vo { position: absolute; left: 0; right: 0; top: 5pt; border-top: 2pt solid #000000; }
+            #jam-print-area .jam-print-vt { position: absolute; left: 0; top: 5pt; height: 10pt; border-left: 2pt solid #000000; }
+            #jam-print-area .jam-print-cell.has-re .jam-print-vo { right: 18pt; }
+            #jam-print-area .jam-print-cell.has-rs .jam-print-vo, #jam-print-area .jam-print-cell.has-rs .jam-print-vt { left: 18pt; }
+            #jam-print-area .jam-print-vl { position: absolute; left: 4pt; top: 7pt; font: 700 11pt "Kalam", cursive; color: #000000; line-height: 1; }
+            #jam-print-area .jam-print-cell.has-rs .jam-print-vl { left: 20pt; }
+        }
+
+        /* ===== Édition d'une mesure depuis la grille (pop-up) ===== */
+        #jam-chord-sequence-display .jam-edit-btn { display: inline-block; margin-left: 4px; padding: 1px 4px; border-radius: 4px; cursor: pointer; font-size: 16px; line-height: 1; vertical-align: middle; opacity: .6; -webkit-tap-highlight-color: transparent; }
+        #jam-chord-sequence-display .jam-cell:hover .jam-edit-btn { opacity: 1; }
+        #jam-chord-sequence-display .jam-edit-btn:hover { background: rgba(37,99,235,.18); }
+        #view-jam.jam-playing .jam-edit-btn { display: none; }
+        #jam-chord-sequence-display .jam-cell-top > span:first-child { white-space: nowrap; flex: none; }
+        #jam-chord-sequence-display .jam-cell-top > span:last-child { min-width: 0; }
+        #jam-chord-sequence-display .jam-add-cell { align-self: stretch; min-height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 1.5px dashed #2f6f57; background: rgba(16,185,129,.06); color: #34d399; font-size: 24px; line-height: 1; cursor: pointer; user-select: none; transition: background .12s, border-color .12s; }
+        #jam-chord-sequence-display .jam-add-cell:hover { background: rgba(16,185,129,.16); border-color: #34d399; }
+        .jm-pop { position: fixed; z-index: 2000; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); color: #e2e8f0; padding: 10px 12px 12px; font-size: 12px; }
+        .jm-pop.jm-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; max-height: 62vh; }
+        /* Pop-up « Orchestre » : fenêtre flottante à gauche de l'écran, sans voile, déplaçable par sa barre de titre */
+        #saved-grids-modal { position: fixed; z-index: 1900; width: 300px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+        #saved-grids-modal.hidden { display: none; }
+        #saved-grids-modal.sg-dragging { opacity: .96; box-shadow: 0 16px 48px rgba(0,0,0,.7); }
+        #saved-grids-modal.sg-dragging .jm-head { cursor: grabbing; }
+        #saved-grids-modal.sg-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; }
+        #saved-grids-modal.sg-sheet .jm-head { cursor: default; }
+        #band-modal { position: fixed; z-index: 1900; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow-y: auto; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+        #band-modal.hidden { display: none; }
+        #band-modal.band-dragging { opacity: .96; box-shadow: 0 16px 48px rgba(0,0,0,.7); }
+        #band-modal.band-dragging .jm-head { cursor: grabbing; }
+        .jm-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+        .jm-pop.jm-dragging { opacity: .96; box-shadow: 0 16px 48px rgba(0,0,0,.7); }
+        .jm-pop.jm-dragging .jm-head { cursor: grabbing; }
+        .jm-pop.jm-sheet .jm-head { cursor: default; }
+        .jm-title { font-size: 13px; font-weight: 700; }
+        .jm-sec { margin-top: 9px; }
+        .jm-sec-t { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #94a3b8; margin-bottom: 4px; }
+        .jm-row { display: flex; flex-wrap: wrap; gap: 4px; }
+        .jm-chip { min-width: 34px; padding: 5px 7px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #e2e8f0; font: 600 12px/1.15 inherit; font-family: inherit; cursor: pointer; text-align: center; -webkit-tap-highlight-color: transparent; }
+        .jm-chip small { display: block; font-size: 9px; font-weight: 500; color: #94a3b8; margin-top: 1px; }
+        .jm-chip:hover { border-color: #60a5fa; }
+        .jm-chip.is-on { background: #2563eb; border-color: #93c5fd; color: #fff; }
+        .jm-chip.jm-ct { border-color: #64748b; }
+        .jm-chip.is-on small { color: #dbeafe; }
+        .jm-deg { flex: 1 1 0; min-width: 0; padding: 5px 2px; }
+        .jm-scale { font-size: 11px; font-weight: 500; padding: 4px 7px; }
+        .jm-select { width: 100%; margin-top: 5px; padding: 5px 6px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #e2e8f0; font-size: 12px; }
+        .jm-foot { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; padding-top: 9px; border-top: 1px solid #333; }
+        .jm-btn { padding: 6px 10px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #e2e8f0; font: 600 12px/1 inherit; font-family: inherit; cursor: pointer; }
+        .jm-btn:hover { border-color: #60a5fa; }
+        .jm-btn.jm-danger { color: #fca5a5; }
+        .jm-btn.jm-danger:hover { border-color: #f87171; }
+        .jm-btn.jm-primary { background: #2563eb; border-color: #3b82f6; color: #fff; margin-left: auto; }
+        .jm-hint { margin-top: 8px; font-size: 10px; color: #64748b; }
+        /* éditeur de mesure : l'en-tête (mesure + accord en cours) reste visible quand on fait défiler le menu */
+        .jm-pop > .jm-head { position: sticky; top: -10px; z-index: 5; margin: -10px -12px 0; padding: 10px 12px 7px; background: #1f1f21; border-radius: 12px 12px 0 0; box-shadow: 0 1px 0 #333; }
+        .jm-pop.jm-sheet > .jm-head { border-radius: 14px 14px 0 0; }
+        /* nom d'accord trop long pour la case : le début, suivi de « … » ; le nom complet s'affiche sous la grille quand la mesure est sélectionnée */
+        #jam-chord-sequence-display .jam-cell > .jam-realbook-chord:not(.jam-cell-bottom),
+        #jam-chord-sequence-display .jam-half > .jam-realbook-chord { display: block; max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-block: .12em; }
+        /* pied de grille : un nom d'accord très long reste sur une ligne, ses notes (et l'accord suivant) passent à la ligne */
+        #jam-chord-sequence-display + div > div:first-child, #jam-current-chord-group, #jam-next-chord-display > div:last-child { flex-wrap: wrap; row-gap: 6px; }
+        /* éditeur de mesure — mode « Construire » */
+        .jm-mode { display: flex; gap: 4px; margin-top: 8px; padding: 2px; border-radius: 9px; background: #151517; border: 1px solid #333; }
+        .jm-mode .jm-chip { flex: 1 1 0; border-color: transparent; background: transparent; color: #94a3b8; }
+        .jm-mode .jm-chip.is-on { background: #2563eb; color: #fff; }
+        .jm-kb { display: grid; grid-template-columns: repeat(14, 1fr); gap: 3px; }
+        .jm-kb .jm-chip { min-width: 0; padding: 6px 0; }
+        .jm-kb .jm-blk { padding: 4px 0; font-size: 10px; font-weight: 500; }
+        .jm-kb .jm-blk:not(.is-on) { background: #19191b; }
+        .jm-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; }
+        .jm-seg .jm-chip { min-width: 0; padding: 6px 0; }
+        .jm-sub-t { font-size: 10px; color: #94a3b8; margin: 7px 0 3px; }
+        .jm-chip.jm-off { opacity: .28; pointer-events: none; }
+        .jm-notes { margin-top: 7px; font-size: 11px; color: #94a3b8; }
+        .jm-notes b { color: #e2e8f0; font-weight: 600; letter-spacing: .02em; }
+        .jm-fold-t { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0; margin: 0 0 4px; background: none; border: 0; cursor: pointer; font-family: inherit; text-align: left; }
+        .jm-fold-t:hover { color: #e2e8f0; }
+        .jm-fold-t em { font-style: normal; text-transform: none; letter-spacing: 0; color: #93c5fd; margin-left: 6px; }
+        .jm-fold-t .jm-caret { margin-left: auto; }
+
+        /* ===== Sélection de mesures + copier/coller (grille du mode Jam) ===== */
+        #jam-chord-sequence-display .jam-cell { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+        #jam-chord-sequence-display .jam-cell.jam-sel { box-shadow: inset 0 0 0 3px #f59e0b; }
+        #jam-chord-sequence-display .jam-cell.jam-sel:not(.bg-blue-600) { background: #fff4d6; }
+        .jam-eb { padding: 3px 8px; border-radius: 6px; border: 1px solid #3a3a3c; background: #1f1f21; color: #cbd5e1; font: 600 11px/1.2 inherit; font-family: inherit; cursor: pointer; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
+        .jam-eb:hover:not(:disabled) { border-color: #60a5fa; color: #fff; }
+        .jam-eb:disabled { opacity: .35; cursor: default; }
+        .jam-eb.is-on { background: #2563eb; border-color: #60a5fa; color: #fff; }
+        .jam-eb.jam-eb-danger:hover:not(:disabled) { border-color: #f87171; color: #fca5a5; }
+        .jam-eb-row1 { position: relative; }
+        /* Retour ponctuel (« Mesure dupliquée »…) : posé à l'extrême droite de la ligne, hors du flux, pour ne jamais décaler les boutons */
+        .jam-eb-info { position: absolute; right: 0; top: 50%; transform: translateY(-50%); max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 10px; background: #252525; color: #94a3b8; font-size: 11px; pointer-events: none; }
+        .jam-eb-info:empty { display: none; }
+        @media (max-width: 639px) { .jam-eb-info { position: static; transform: none; max-width: 100%; margin-left: auto; padding-left: 0; background: transparent; } }
+        .jam-eb-sep { width: 1px; align-self: stretch; background: #333; margin: 0 2px; }
+        #view-jam.jam-playing #jam-edit-bar, #jam-edit-bar.hidden { display: none !important; }
+        .jam-eb-ico { display: inline-flex; align-items: center; justify-content: center; padding: 4px 9px; }
+        .jam-eb-ico svg { display: block; }
+
+        /* ===== Signes de reprise (|: :| et 1re / 2e fin) ===== */
+        #jam-chord-sequence-display .jam-cell .rp-l, #jam-chord-sequence-display .jam-cell .rp-r { position: absolute; top: 4px; bottom: 4px; width: 14px; pointer-events: none; z-index: 2; }
+        #jam-chord-sequence-display .jam-cell .rp-l { left: 2px; background:
+            linear-gradient(currentColor, currentColor) left 0 top 0 / 3px 100% no-repeat,
+            linear-gradient(currentColor, currentColor) left 5px top 0 / 1px 100% no-repeat,
+            radial-gradient(circle, currentColor 1.7px, transparent 2.3px) left 8px top 34% / 6px 6px no-repeat,
+            radial-gradient(circle, currentColor 1.7px, transparent 2.3px) left 8px top 66% / 6px 6px no-repeat; }
+        #jam-chord-sequence-display .jam-cell .rp-r { right: 2px; background:
+            linear-gradient(currentColor, currentColor) right 0 top 0 / 3px 100% no-repeat,
+            linear-gradient(currentColor, currentColor) right 5px top 0 / 1px 100% no-repeat,
+            radial-gradient(circle, currentColor 1.7px, transparent 2.3px) right 8px top 34% / 6px 6px no-repeat,
+            radial-gradient(circle, currentColor 1.7px, transparent 2.3px) right 8px top 66% / 6px 6px no-repeat; }
+        #jam-chord-sequence-display .jam-cell .rp-vl { position: absolute; left: 3px; right: 3px; top: 6px; height: 3px; background: currentColor; pointer-events: none; z-index: 2; }
+        #jam-chord-sequence-display .jam-cell .rp-vt { position: absolute; left: 3px; top: 6px; width: 3px; height: 17px; background: currentColor; pointer-events: none; z-index: 2; }
+        /* Le bracket s'arrête avant une barre de reprise (|: ou :|) au lieu de la chevaucher : la barre occupe 16 px depuis le bord */
+        #jam-chord-sequence-display .jam-cell.rp-has-r .rp-vl { right: 20px; }
+        #jam-chord-sequence-display .jam-cell.rp-has-l .rp-vl, #jam-chord-sequence-display .jam-cell.rp-has-l .rp-vt { left: 20px; }
+        #jam-chord-sequence-display .jam-cell.rp-has-l .rp-vtxt { margin-left: 7px; }
+        #jam-chord-sequence-display .jam-cell .jam-cell-top .rp-vtxt { color: #000000; opacity: 1; }
+        #jam-chord-sequence-display .jam-cell.bg-blue-600 .jam-cell-top .rp-vtxt { color: #ffffff; }
+        #jam-chord-sequence-display .jam-cell .rp-vtxt { margin-left: 3px; margin-right: 3px; font-family: "Kalam", cursive; font-size: 14px; font-weight: 700; line-height: 1; vertical-align: middle; }
+        #jam-chord-sequence-display .jam-cell.rp-has-v .jam-cell-top { margin-top: 5px; }
+        #jam-chord-sequence-display .jam-cell .rp-xn { font-size: 9px; font-weight: 700; }
+
+        /* Une case portant une barre de reprise décale son contenu pour ne rien chevaucher */
+        #jam-chord-sequence-display .jam-cell.rp-has-l { padding-left: 20px; }
+        #jam-chord-sequence-display .jam-cell.rp-has-r { padding-right: 20px; }
+        #jam-chord-sequence-display .jam-cell.rp-has-l .jam-arp-btn:not(.jam-arp-btn-b) { left: 18px; }
+        #jam-chord-sequence-display .jam-cell.rp-has-l:not(.rp-has-r) .jam-arp-btn.jam-arp-btn-b { left: calc(50% + 9px); }
+        #jam-chord-sequence-display .jam-cell.rp-has-r:not(.rp-has-l) .jam-arp-btn.jam-arp-btn-b { left: calc(50% - 3px); }
+        #jam-chord-sequence-display .jam-cell.rp-has-l .jam-half-fn[style*="left"] { left: 46px !important; }
+        #jam-chord-sequence-display .jam-cell.rp-has-r .jam-half-fn[style*="right"] { right: 24px !important; }
+        #jam-chord-sequence-display .jam-cell.rp-has-r .jam-cell-bottom { right: 24px; }
+
+        /* ===== Bouton « édition » (crayon) et panneau d'édition de grille repliable ===== */
+        .jam-edit-toggle { display: inline-flex; align-items: center; justify-content: center; padding: 3px 5px; border-radius: 6px; border: 1px solid transparent; background: transparent; color: #94a3b8; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+        .jam-edit-toggle:hover { color: #fff; border-color: #3a3a3c; }
+        .jam-edit-toggle.is-on { background: #2563eb; border-color: #60a5fa; color: #fff; }
+        .jam-grid-title-input { width: 260px; max-width: 100%; padding: 2px 8px; border-radius: 6px; border: 1px solid #3a3a3c; background: #1a1a1a; color: #e2e8f0; font-size: 0.875rem; font-weight: 700; letter-spacing: .025em; text-transform: uppercase; text-align: center; outline: none; }
+        .jam-grid-title-input::placeholder { color: #64748b; text-transform: none; font-weight: 500; letter-spacing: 0; }
+        .jam-grid-title-input:focus { border-color: #60a5fa; }
+        #jam-grid-title-wrap > .hidden { display: none; }
+        #view-jam.jam-playing #jam-edit-toggle { display: none; }
+
+        /* ===== Pop-up d'édition de la fonction tonale ===== */
+        #jam-chord-sequence-display.edit-on .jam-fn-label { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+        .jm-fn-row { display: flex; align-items: baseline; gap: 8px; width: 100%; text-align: left; margin-top: 4px; padding: 6px 8px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #e2e8f0; cursor: pointer; font-family: inherit; }
+        .jm-fn-row b { flex: 0 0 auto; min-width: 66px; font-size: 13px; color: #fca5a5; }
+        .jm-fn-row span { font-size: 11px; line-height: 1.25; color: #94a3b8; }
+        .jm-fn-row:hover { border-color: #60a5fa; }
+        .jm-fn-row.is-on { background: #2563eb; border-color: #93c5fd; }
+        .jm-fn-row.is-on b { color: #fff; }
+        .jm-fn-row.is-on span { color: #dbeafe; }
+        .jm-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+        /* ===== Agencement du mode Jam : colonne de réglages étroite + gammes sur toute la largeur ===== */
+        .jr-actions { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap; }
+        @media (min-width: 1024px) {
+            #view-jam:not(.hidden) {
+                display: grid;
+                grid-template-columns: 280px minmax(0, 1fr);
+                grid-template-rows: minmax(0, auto) minmax(300px, 1fr);
+                background: #1e1e1e;
+            }
+            #view-jam > #jam-grid-editor { grid-column: 1; grid-row: 1; width: auto; min-height: 0; }
+            #view-jam > main { display: contents; }
+            #view-jam #jam-chord-card { grid-column: 2; grid-row: 1; margin: 24px 24px 0 24px; min-height: 0; min-width: 0; display: flex !important; flex-direction: column; overflow: hidden; }
+            #view-jam #jam-scales-card { grid-column: 1 / -1; grid-row: 2; margin: 16px 24px 24px 24px; min-height: 0; min-width: 0; }
+            #view-jam.jam-playing #jam-scales-card { align-self: start; }
+
+            #jam-grid-editor .jr-wrap { flex-wrap: wrap; }
+            #jam-grid-editor .jr-full { flex: 1 1 100% !important; width: 100%; }
+            #jam-grid-editor .jr-half { flex: 1 1 0; min-width: 0; text-align: center; }
+            #jam-grid-editor .jr-center { justify-content: center; }
+
+            #view-jam #jam-chord-sequence-display { flex: 1 1 auto !important; min-height: 0 !important; display: flex !important; flex-direction: column; overflow-x: hidden; overflow-y: auto; }
+            #view-jam #jam-chord-sequence-display .jam-wrapper { flex: 1 1 auto !important; min-height: 0; display: flex !important; flex-direction: column; }
+            #view-jam #jam-chord-sequence-display .jam-row { flex: 1 1 0 !important; min-height: 76px !important; max-height: 112px; }
+            #view-jam #jam-chord-sequence-display .jam-cell { height: auto !important; min-height: 64px !important; }
+
+            /* Gammes : on affiche autant de cartes par ligne que la largeur le permet (3 à 1440 px, 4 à 1920 px) ;
+               pendant la lecture, les deux cartes (active + suivante) se partagent la largeur. */
+            #view-jam:not(.jam-playing) #jam-scale-visualizer { grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); }
+            #view-jam.jam-playing #jam-scale-visualizer { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
+/* ===== Adaptation téléphone (aucun effet sur ordinateur) ===== */
+
+/* Δ et ♭ : absents de la police Kalam -> police système qui les contient.
+   Limité aux écrans tactiles : le rendu sur ordinateur reste strictement identique. */
+@media (hover: none) and (pointer: coarse) {
+    .jam-glyph { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-weight: 700; font-style: normal; }
+    #jam-chord-sequence-display .jam-cell-bottom .jam-glyph,
+    #jam-chord-sequence-display .jam-half-fn .jam-glyph { font-weight: 400; }
+}
+
+@media (max-width: 639px) {
+    /* ===== Jukebox (téléphone) : les lignes de réglages passent à la ligne au lieu de déborder =====
+       (ces règles n'existaient que pour l'écran ≥ 1024 px, d'où le débordement sur téléphone) */
+    #jam-grid-editor .jr-wrap { flex-wrap: wrap; column-gap: 8px; row-gap: 10px; }
+    #jam-grid-editor .jr-full { flex: 1 1 100% !important; width: 100%; min-width: 0; }
+    #jam-grid-editor .jr-half { flex: 1 1 0; min-width: 0; text-align: center; }
+    #jam-grid-editor .jr-center { justify-content: center; }
+    /* « Mesure » et le bouton Orchestre se partagent la même ligne */
+    #jam-grid-editor button.jr-full { flex: 1 1 0 !important; width: auto; min-width: 0; }
+    #band-btn-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Zones de toucher confortables */
+    #jam-grid-editor select { min-height: 40px; font-size: 14px; }
+    #jam-grid-editor .jr-wrap > button { min-height: 40px; }
+
+    /* Curseurs : même mise en forme que sur ordinateur, seulement plus gros pour le doigt */
+    #jam-bpm-label, #jam-bpm-display { font-size: 13px; }
+    input[type="range"]:not(.chord-volume) { --sl-track-h: 6px; --sl-thumb: 24px; --sl-hit: 36px; }
+
+    /* Marges générales plus étroites */
+    #view-jam > main { padding: 12px; }
+    #view-training #scales-container { padding: 12px; }
+    #jam-chord-card { padding: 10px; }
+    #jam-scales-card { padding: 12px; }
+
+    /* En-tête de la carte « Grille d'accords » : empilé au lieu de 3 colonnes */
+    #jam-chord-card > .grid.grid-cols-3 { grid-template-columns: minmax(0, 1fr); row-gap: 6px; }
+    #jam-chord-card > .grid.grid-cols-3 > * { justify-self: stretch; }
+    #jam-chord-card > .grid.grid-cols-3 > #jam-grid-title-wrap { justify-content: flex-start; }
+    #jam-grid-title-wrap #jam-loaded-grid-name { text-align: left; font-size: 0.8rem; }
+    #jam-grid-title-wrap #jam-loaded-grid-name:empty { display: none; }
+    #jam-grid-title-wrap .jam-grid-title-input { width: 100%; text-align: left; }
+    #jam-chord-card > .grid.grid-cols-3 > div:last-child #jam-current-scale-title { flex: 1 1 auto; text-align: left; }
+
+    /* Grille : cases plus serrées, textes réduits proportionnellement à la largeur de l'écran */
+    #jam-chord-sequence-display .jam-wrapper { padding-left: 0; padding-right: 0; }
+    #jam-chord-sequence-display .jam-row { padding: 4px; gap: 4px; }
+    #jam-chord-sequence-display .jam-cell { padding: 4px; height: 68px; min-height: 68px; }
+    #jam-chord-sequence-display .jam-cell-top { font-size: 8px; gap: 2px; }
+    #jam-chord-sequence-display .jam-edit-btn { font-size: 14px; padding: 1px 3px; margin-left: 2px; }
+    #jam-chord-sequence-display .jam-cell-top > span:last-child { max-width: 46px; font-size: 7px; }
+
+    #view-jam #jam-chord-sequence-display .jam-cell > .jam-realbook-chord:not(.jam-cell-bottom) {
+        font-size: clamp(0.78rem, 4.2vw, 1.1rem);
+    }
+    #view-jam #jam-chord-sequence-display .jam-split .jam-realbook-chord {
+        font-size: clamp(0.6rem, 3.1vw, 0.8rem) !important;
+    }
+    #view-jam #jam-chord-sequence-display .jam-cell-bottom {
+        font-size: 0.8rem !important; right: 4px; bottom: 2px;
+    }
+    #jam-chord-sequence-display .jam-half-fn { font-size: 0.7rem; }
+    #jam-chord-sequence-display .jam-arp-btn { left: 0; bottom: 0; padding: 6px 6px 3px; font-size: 13px; }
+    #jam-chord-sequence-display .jam-arp-btn.jam-arp-btn-b { left: 50%; }
+    #jam-chord-sequence-display .jam-half-fn[style*="left"] { left: 30px !important; }
+    #jam-chord-sequence-display .jam-half-fn[style*="right"] { right: 3px !important; }
+
+    /* Reprises (téléphone) */
+    #jam-chord-sequence-display .jam-cell .rp-l, #jam-chord-sequence-display .jam-cell .rp-r { width: 11px; top: 3px; bottom: 3px; }
+    #jam-chord-sequence-display .jam-cell .rp-l { left: 1px; background:
+        linear-gradient(currentColor, currentColor) left 0 top 0 / 2px 100% no-repeat,
+        linear-gradient(currentColor, currentColor) left 3.5px top 0 / 1px 100% no-repeat,
+        radial-gradient(circle, currentColor 1.2px, transparent 1.8px) left 6px top 34% / 5px 5px no-repeat,
+        radial-gradient(circle, currentColor 1.2px, transparent 1.8px) left 6px top 66% / 5px 5px no-repeat; }
+    #jam-chord-sequence-display .jam-cell .rp-r { right: 1px; background:
+        linear-gradient(currentColor, currentColor) right 0 top 0 / 2px 100% no-repeat,
+        linear-gradient(currentColor, currentColor) right 3.5px top 0 / 1px 100% no-repeat,
+        radial-gradient(circle, currentColor 1.2px, transparent 1.8px) right 6px top 34% / 5px 5px no-repeat,
+        radial-gradient(circle, currentColor 1.2px, transparent 1.8px) right 6px top 66% / 5px 5px no-repeat; }
+    #jam-chord-sequence-display .jam-cell.rp-has-l { padding-left: 15px; }
+    #jam-chord-sequence-display .jam-cell.rp-has-r { padding-right: 15px; }
+    #jam-chord-sequence-display .jam-cell.rp-has-l .jam-arp-btn:not(.jam-arp-btn-b) { left: 12px; }
+    #jam-chord-sequence-display .jam-cell.rp-has-l:not(.rp-has-r) .jam-arp-btn.jam-arp-btn-b { left: calc(50% + 5.5px); }
+    #jam-chord-sequence-display .jam-cell.rp-has-r:not(.rp-has-l) .jam-arp-btn.jam-arp-btn-b { left: calc(50% - 5.5px); }
+    #jam-chord-sequence-display .jam-cell.rp-has-l .jam-half-fn[style*="left"] { left: 42px !important; }
+    #jam-chord-sequence-display .jam-cell.rp-has-r .jam-half-fn[style*="right"] { right: 15px !important; }
+    #view-jam #jam-chord-sequence-display .jam-cell.rp-has-r .jam-cell-bottom { right: 16px; }
+    /* 3/4 (téléphone) : second « >> » au début du tiers droit */
+    #jam-chord-sequence-display .jam-cell.jam-ts3 .jam-arp-btn.jam-arp-btn-b { left: calc(66.667% + 1px); }
+    #jam-chord-sequence-display .jam-cell.jam-ts3.rp-has-l:not(.rp-has-r) .jam-arp-btn.jam-arp-btn-b { left: calc(66.667% + 2px); }
+    #jam-chord-sequence-display .jam-cell.jam-ts3.rp-has-r:not(.rp-has-l) .jam-arp-btn.jam-arp-btn-b { left: calc(66.667% - 9px); }
+    #jam-chord-sequence-display .jam-cell.jam-ts3.rp-has-l.rp-has-r .jam-arp-btn.jam-arp-btn-b { left: calc(66.667% - 6px); }
+
+    /* ===== Analyse fonctionnelle sur une mesure à deux accords (téléphone) =====
+       Les étiquettes longues (« I de G », « V7 de Gm », « iiø de Fm »…) étaient posées sur la même ligne que les
+       chevrons « >> » dans une demi-case d'environ 38 px : elles se chevauchaient entre elles et avec les chevrons.
+       Désormais : une ligne dédiée juste au-dessus des chevrons, une étiquette par demi-case, centrée dans sa
+       demi-case, avec retour à la ligne autorisé ; la ligne de cases est un peu plus haute pour la contenir. */
+    #jam-chord-sequence-display .jam-row:has(.jam-half-fn) .jam-cell { height: 90px; min-height: 90px; }
+    #jam-chord-sequence-display .jam-cell:has(.jam-half-fn) { padding-bottom: 42px; }
+    /* cases étroites (3/4, barres de reprise) : l'étiquette peut passer sur 3 lignes -> encore un peu plus de hauteur */
+    #jam-chord-sequence-display .jam-row:has(.jam-cell.jam-ts3 .jam-half-fn, .jam-cell.rp-has-l .jam-half-fn, .jam-cell.rp-has-r .jam-half-fn) .jam-cell { height: 102px; min-height: 102px; }
+    #jam-chord-sequence-display .jam-row:has(.jam-cell.jam-ts3 .jam-half-fn, .jam-cell.rp-has-l .jam-half-fn, .jam-cell.rp-has-r .jam-half-fn) .jam-cell:has(.jam-half-fn) { padding-bottom: 54px; }
+    #jam-chord-sequence-display .jam-cell .jam-half-fn {
+        bottom: 22px; width: calc(50% - 6px); max-width: calc(50% - 6px);
+        text-align: center; white-space: normal; overflow-wrap: anywhere;
+        font-size: 0.66rem; line-height: 1.05;
+    }
+    #jam-chord-sequence-display .jam-cell .jam-half-fn[style*="left"]  { left: 3px !important; right: auto !important; }
+    #jam-chord-sequence-display .jam-cell .jam-half-fn[style*="right"] { left: calc(50% + 3px) !important; right: auto !important; }
+    /* reprises : on décale / rétrécit du côté de la barre de reprise */
+    #jam-chord-sequence-display .jam-cell.rp-has-l .jam-half-fn[style*="left"]  { left: 15px !important; width: calc(50% - 18px); max-width: calc(50% - 18px); }
+    #jam-chord-sequence-display .jam-cell.rp-has-r .jam-half-fn[style*="right"] { left: calc(50% + 3px) !important; right: auto !important; width: calc(50% - 18px); max-width: calc(50% - 18px); }
+    /* 3/4 : la coupure est aux 2/3 de la case */
+    #jam-chord-sequence-display .jam-cell.jam-ts3 .jam-half-fn[style*="left"]  { width: calc(66.667% - 6px); max-width: calc(66.667% - 6px); }
+    #jam-chord-sequence-display .jam-cell.jam-ts3 .jam-half-fn[style*="right"] { left: calc(66.667% + 3px) !important; width: calc(33.333% - 6px); max-width: calc(33.333% - 6px); }
+    #jam-chord-sequence-display .jam-cell.jam-ts3.rp-has-l .jam-half-fn[style*="left"]  { width: calc(66.667% - 18px); max-width: calc(66.667% - 18px); }
+    #jam-chord-sequence-display .jam-cell.jam-ts3.rp-has-r .jam-half-fn[style*="right"] { width: calc(33.333% - 18px); max-width: calc(33.333% - 18px); }
+
+    /* Pied de carte : l'accord courant sur sa ligne, les boutons de lecture sur la suivante */
+    #jam-chord-sequence-display + div { flex-wrap: wrap; row-gap: 10px; }
+    #jam-chord-sequence-display + div > div:first-child { flex: 1 1 100%; flex-wrap: wrap; gap: 8px 14px; }
+    #jam-chord-sequence-display + div > div:last-child { margin-left: auto; }
+    #jam-current-chord-notes, #jam-next-chord-notes { flex-wrap: wrap; }
+    #view-jam #jam-next-chord-display { margin-left: 0 !important; padding-left: 0; border-left: 0; flex: 1 1 100%; flex-wrap: wrap; gap: 8px 12px !important; }
+    /* Accord en cours aligné au-dessus de l'accord suivant : décalage = flèche (40px) + espace (12px) */
+    #jam-chord-sequence-display + div > div:first-child:has(#jam-next-chord-display:not(.hidden)) > #jam-current-chord-group { margin-left: 52px; max-width: calc(100% - 52px); }
+}
+
+/* ===== Parties (A, B, C…) façon Realbook =====
+   Gouttière à gauche de chaque ligne, présente seulement si la grille porte au moins un repère
+   (sinon la grille garde exactement son aspect d'origine). */
+#jam-chord-sequence-display .jam-part-gutter { display: none; }
+#jam-chord-sequence-display .jam-wrapper.jam-has-parts .jam-row { grid-template-columns: 34px repeat(4, minmax(0, 1fr)); }
+#jam-chord-sequence-display .jam-wrapper.jam-has-parts .jam-part-gutter { display: flex; align-items: center; justify-content: center; min-width: 0; }
+#jam-chord-sequence-display .jam-part-mark {
+    box-sizing: border-box; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+    border: 2px solid #e5e7eb; border-radius: 2px; color: #e5e7eb;
+    font-family: "Kalam", cursive; font-weight: 700; font-size: 17px; line-height: 1; user-select: none;
+}
+/* Repères longs (A', « in », « out »…) : même cadre, police réduite pour tenir dedans */
+#jam-chord-sequence-display .jam-part-mark.jam-part-long { font-size: 14px; }
+#jam-chord-sequence-display .jam-part-mark.jam-part-l3 { font-size: 11px; }
+/* Menu « Partie » */
+.jm-part-pop { width: 232px; }
+.jm-part-pop .jm-part-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 4px; }
+.jm-part-pop .jm-part-wide { display: grid; grid-template-columns: 1fr; gap: 4px; margin-top: 4px; }
+.jm-part-pop .jm-chip { min-width: 0; padding: 6px 0; font-family: "Kalam", cursive; font-size: 15px; font-weight: 700; }
+/* Zone vide au milieu de la grille (fin d'une partie qui ne remplit pas la ligne) */
+#jam-chord-sequence-display .jam-cell.jam-gap { background: #161616; border: 1px dashed #2a2a2c; border-radius: 4px; opacity: .3; pointer-events: none; cursor: default; }
+.jam-part-btn-ico { display: inline-block; box-sizing: border-box; min-width: 15px; margin-right: 5px; padding: 0 3px; border: 1.5px solid currentColor; border-radius: 2px; font: 700 11px/12px "Kalam", cursive; text-align: center; }
+@media (max-width: 639px) {
+    /* Téléphone : gouttière réduite pour garder la largeur des cases */
+    #jam-chord-sequence-display .jam-wrapper.jam-has-parts .jam-row { grid-template-columns: 20px repeat(4, minmax(0, 1fr)); }
+    #jam-chord-sequence-display .jam-part-mark { width: 17px; height: 17px; border-width: 1.5px; font-size: 12px; }
+    #jam-chord-sequence-display .jam-part-mark.jam-part-long { font-size: 10px; }
+    #jam-chord-sequence-display .jam-part-mark.jam-part-l3 { font-size: 8px; }
+    .jm-part-pop.jm-sheet { width: auto; }
+}
+@media print {
+    #jam-print-area .jam-print-grid.has-parts .jam-print-row { grid-template-columns: 12mm repeat(4, 1fr); }
+    #jam-print-area .jam-print-gutter { display: flex; align-items: center; justify-content: center; }
+    #jam-print-area .jam-print-part {
+        box-sizing: border-box; width: 8mm; height: 8mm; display: flex; align-items: center; justify-content: center;
+        border: 1.75pt solid #000000; color: #000000; font: 700 15pt "Kalam", cursive; line-height: 1;
+    }
+    #jam-print-area .jam-print-part.jam-part-long { font-size: 12pt; }
+    #jam-print-area .jam-print-part.jam-part-l3 { font-size: 9.5pt; }
+}
