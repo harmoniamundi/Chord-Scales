@@ -4068,7 +4068,7 @@
                 el.style.width = '';
                 const pw = el.offsetWidth, ph = el.offsetHeight;
                 const aside = document.getElementById('jam-grid-editor');
-                if (vw >= 1024 && !document.fullscreenElement && aside && aside.offsetParent !== null) {
+                if (vw >= 1024 && !document.fullscreenElement && !document.getElementById('jam-chord-card')?.classList.contains('jam-pseudo-fs') && aside && aside.offsetParent !== null) {
                     const r = aside.getBoundingClientRect();
                     // la colonne de réglages est étroite : le pop-up s'y adapte pour ne pas déborder sur la grille
                     const w = Math.max(264, Math.min(340, r.width - 16));
@@ -4467,18 +4467,55 @@
                 }
             }
 
+            // Plein écran de la grille : natif quand le navigateur le permet (ordinateur, iPad, Android),
+            // sinon (iPhone : Safari n'offre pas l'API Fullscreen pour un élément) on simule le plein écran
+            // en recouvrant toute la fenêtre avec la carte de la grille (classe .jam-pseudo-fs).
+            isGridFullscreen() {
+                const card = document.getElementById('jam-chord-card');
+                return !!card && (document.fullscreenElement === card || card.classList.contains('jam-pseudo-fs'));
+            }
+
             toggleGridFullscreen() {
                 const card = document.getElementById('jam-chord-card');
                 if (!card) return;
 
+                if (card.classList.contains('jam-pseudo-fs')) {
+                    this._setPseudoGridFullscreen(false);
+                    return;
+                }
                 if (document.fullscreenElement === card) {
                     document.exitFullscreen();
                     return;
                 }
 
-                if (card.requestFullscreen) {
-                    card.requestFullscreen();
+                if (card.requestFullscreen && document.fullscreenEnabled !== false) {
+                    try {
+                        const p = card.requestFullscreen();
+                        // Refus du navigateur (politique, contexte…) : on bascule sur le plein écran simulé
+                        if (p && typeof p.catch === 'function') p.catch(() => this._setPseudoGridFullscreen(true));
+                    } catch (e) {
+                        this._setPseudoGridFullscreen(true);
+                    }
+                } else {
+                    this._setPseudoGridFullscreen(true);
                 }
+            }
+
+            _setPseudoGridFullscreen(on) {
+                const card = document.getElementById('jam-chord-card');
+                if (!card) return;
+                card.classList.toggle('jam-pseudo-fs', !!on);
+                document.documentElement.classList.toggle('jam-pseudo-fs-lock', !!on);
+                // Les pop-up déjà ouverts restent dans <body> : ils passent au-dessus grâce à leur z-index.
+                if (on) {
+                    this._pseudoFsKey = (ev) => { if (ev.key === 'Escape') this._setPseudoGridFullscreen(false); };
+                    document.addEventListener('keydown', this._pseudoFsKey);
+                    window.scrollTo(0, 0);
+                } else if (this._pseudoFsKey) {
+                    document.removeEventListener('keydown', this._pseudoFsKey);
+                    this._pseudoFsKey = null;
+                }
+                syncGridFullscreenUI();
             }
 
             // Imprime uniquement la grille d'accords en cours (mode Jam), sur une page,
@@ -5319,19 +5356,20 @@
             }
         }
 
-        document.addEventListener('fullscreenchange', () => {
+        // Met à jour le bouton plein écran et place la carte des gammes selon l'état (natif ou simulé)
+        function syncGridFullscreenUI() {
             const btn = document.getElementById('jam-grid-fullscreen-btn');
             if (!btn) return;
 
             const chordCard = document.getElementById('jam-chord-card');
-            const isFullscreen = document.fullscreenElement === chordCard;
+            const isFullscreen = !!chordCard && (document.fullscreenElement === chordCard || chordCard.classList.contains('jam-pseudo-fs'));
             btn.title = isFullscreen ? 'Quitter le plein écran' : 'Plein écran';
             btn.setAttribute('aria-label', btn.title);
             btn.innerHTML = isFullscreen
                 ? `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H3v6M15 3h6v6M9 21H3v-6M21 15v6h-6"/></svg>`
                 : `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 3H3v5M16 3h5v5M8 21H3v-5M21 16v5h-5"/></svg>`;
 
-            // Le plein écran natif masque tout ce qui est hors de l'élément mis en plein écran :
+            // Le plein écran masque tout ce qui est hors de la carte de la grille :
             // on déplace la carte des gammes dans la carte de la grille pour qu'elle reste visible
             // pendant la jam, et on la remet à sa place d'origine à la sortie du plein écran.
             const scalesCard = document.getElementById('jam-scales-card');
@@ -5342,7 +5380,8 @@
                     chordCard.parentElement.insertBefore(scalesCard, chordCard.nextSibling);
                 }
             }
-        });
+        }
+        document.addEventListener('fullscreenchange', syncGridFullscreenUI);
 
         class ChordScaleApp {
             constructor() {
