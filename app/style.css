@@ -278,22 +278,10 @@
         }
         #view-jam #jam-chord-card.jam-pseudo-fs > * { flex-shrink: 0; }
         #view-jam #jam-chord-card.jam-pseudo-fs > #jam-chord-sequence-display { flex: 1 1 auto; min-height: 0; }
-        /* Jam lancée en plein écran simulé : affichage épuré = grille compacte + gammes active et suivante.
-           La grille ne garde que la place utile (elle défile sous la mesure jouée), les gammes prennent le reste. */
-        #view-jam.jam-playing #jam-chord-card.jam-pseudo-fs > #jam-chord-sequence-display { flex: 0 1 auto; overflow-y: auto; overflow-x: hidden; }
-        #view-jam.jam-playing #jam-chord-card.jam-pseudo-fs > #jam-scales-card {
-            flex: 1 1 auto; min-height: 0; margin: 8px 0 0 0; padding: 8px;
-            justify-content: flex-start; align-self: stretch;
-        }
-        /* titre + boutons d'options des gammes masqués (réglables avant d'entrer en plein écran) ; reste le choix d'affichage */
-        #view-jam.jam-playing #jam-chord-card.jam-pseudo-fs #jam-scales-card > div:first-child { margin-bottom: 6px; }
-        #view-jam.jam-playing #jam-chord-card.jam-pseudo-fs #jam-scales-card > div:first-child > div:first-child,
-        #view-jam.jam-playing #jam-chord-card.jam-pseudo-fs #jam-scales-count-badge { display: none; }
-        #view-jam.jam-playing #jam-chord-card.jam-pseudo-fs #jam-scale-visualizer { flex: 1 1 auto; min-height: 0; overflow-y: auto; gap: 8px; }
-        /* Téléphone en paysage : les deux gammes côte à côte */
-        @media (orientation: landscape) {
-            #view-jam.jam-playing #jam-chord-card.jam-pseudo-fs #jam-scale-visualizer { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        }
+        /* Plein écran simulé (téléphone) : affichage épuré = grille + pied de grille uniquement,
+           les gammes sont toujours masquées (jam arrêtée ou lancée) et la grille occupe toute la place restante. */
+        #view-jam #jam-chord-card.jam-pseudo-fs #jam-scales-card { display: none !important; }
+        #view-jam.jam-playing #jam-chord-card.jam-pseudo-fs > #jam-chord-sequence-display { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; }
         /* Pendant le plein écran simulé, la page derrière ne défile plus */
         html.jam-pseudo-fs-lock, html.jam-pseudo-fs-lock body { overflow: hidden !important; overscroll-behavior: none; }
 
