@@ -25,19 +25,19 @@ const STYLE_SCALE_PROFILE = {
 const STYLE_BAND = {
     'ii-v-i': 'swing', anatole: 'swing', 'i-got-rythm': 'swing', bebop: 'swing', swing: 'swing', hardbop: 'swing',
     ballad: 'swing', modal: 'swing', blues: 'swing', dixieland: 'swing',
-    bossa: 'latin', latin: 'latin',
+    bossa: 'latin', latin: 'pop',
     pop: 'pop', funk: 'pop', fusion: 'pop',
     baroque: 'classic', mozart: 'classic', trad: 'classic', chansonsimple: 'pop',
     valsejazz: 'swing', valsemusette: 'pop', valseviennoise: 'classic', menuet: 'classic', valsecountry: 'pop',
     jig: 'pop', afro68: 'cuba', barcarolle: 'classic', tarentelle: 'classic', slipjig: 'pop',
     blues128: 'swing', gospel: 'pop', ballad128: 'swing',
-    samba: 'latin', tango: 'latin', piazzolla: 'piazzolla', milongalyrique: 'piazzolla',
+    samba: 'latin', tango: 'piazzolla', piazzolla: 'piazzolla', milongalyrique: 'piazzolla',
     brasshymn: 'brass', brasscantique: 'brass',
     balkan: 'balkan', balkan98: 'balkan'
 };
 
 // Rythme imposé à l'orchestre Latin par certains styles (sinon le moteur choisit bossa / samba / afro selon le tempo).
-const STYLE_GROOVE = { samba: 'samba', tango: 'tango', piazzolla: 'piazzolla', milongalyrique: 'lyrique', afro68: 'afro', brasshymn: 'b-chorale', brasscantique: 'b-chorale' };
+const STYLE_GROOVE = { samba: 'samba', tango: 'lyrique', piazzolla: 'piazzolla', milongalyrique: 'lyrique', afro68: 'afro', brasshymn: 'b-chorale', brasscantique: 'b-chorale' };
 
 // Tempo (noires par minute ; pulsations ♩. en mesure composée) et signature proposés pour chaque style.
 // Valeurs modifiables ensuite avec le curseur de tempo et le sélecteur « Mesure ».
