@@ -2804,6 +2804,11 @@
                     && Math.min(window.screen.width, window.screen.height) < 600;
             }
 
+            // Vrai sur tout écran tactile (téléphone ET tablette) : sert à garder le même comportement sur les deux.
+            isTouchScreen() {
+                return window.matchMedia('(pointer: coarse)').matches;
+            }
+
             // Version HTML du symbole pour la grille : les caractères absents de la police Kalam (Δ, ♭)
             // sont isolés dans un <span> afin que le téléphone puisse leur imposer une police qui les contient.
             getChordSymbolHtml(chord) { return chordSymbolHtml(chord, rootLabels); }
@@ -4524,8 +4529,8 @@
                     this.app.renderVexFlowStaff(task.canvasId, task.intervals, task.rootName, task.isDesc, task.avoidNotes, task.characteristicInterval, task.chordObj, false, task.showTargetNotes, true);
                 });
 
-                // Sur téléphone, jamais de défilement automatique vers la carte de gamme : la grille doit rester en vue.
-                if (!this.isPlaying && !this.isPhone() && this.currentStepIndex >= 0) {
+                // Sur écran tactile (téléphone et tablette), jamais de défilement automatique vers la carte de gamme : la grille doit rester en vue.
+                if (!this.isPlaying && !this.isTouchScreen() && this.currentStepIndex >= 0) {
                     const activeCard = document.getElementById(`jam-scale-card-${this.currentStepIndex}`);
                     if (activeCard) activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }
