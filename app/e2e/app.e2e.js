@@ -226,6 +226,88 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         noErrors();
     });
 
+    test('Jam : bouton « À l\'aveugle » (désactivé par défaut) masque surbrillance, noms d\'accords et gammes pendant la lecture', async () => {
+        const state = () => page.evaluate(() => {
+            const shown = (id) => { const e = document.getElementById(id); const cs = getComputedStyle(e); return cs.display !== 'none' && cs.visibility !== 'hidden'; };
+            return {
+                pressed: document.getElementById('jam-blind-toggle').getAttribute('aria-pressed'),
+                lit: document.querySelectorAll('#jam-chord-sequence-display .bg-blue-600, #jam-chord-sequence-display .jam-half-active').length,
+                chords: shown('jam-current-chord-group'), scales: shown('jam-scale-visualizer'), scaleTitle: shown('jam-current-scale-title'),
+            };
+        });
+        await page.evaluate(() => { app.jam.bpm = 240; app.jam.loopEnabled = true; });
+        assert.equal((await state()).pressed, 'false', 'désactivé par défaut');
+        await page.click('#jam-blind-toggle');                       // activé avant le lancement
+        await page.click('#jam-play-btn');
+        await waitFor(() => /^Mesure/.test(document.getElementById('jam-bar-counter').textContent) || app.jam._countInBeats === 0);
+        await waitFor(() => app.jam.isPlaying && app.jam._countInBeats === 0 && app.jam.currentStepIndex >= 0);
+        await page.waitForTimeout(600);
+        let s = await state();
+        assert.deepEqual(s, { pressed: 'true', lit: 0, chords: false, scales: false, scaleTitle: false }, 'rien n\'est révélé en lecture');
+        await page.click('#jam-blind-toggle');                       // retiré en cours de jam : tout réapparaît
+        await page.waitForTimeout(300);
+        s = await state();
+        assert.deepEqual(s, { pressed: 'false', lit: 1, chords: true, scales: true, scaleTitle: true });
+        await page.click('#jam-blind-toggle');
+        await page.click('#jam-play-btn');                           // arrêt : la grille et les noms reviennent même masque activé
+        assert.equal(await page.evaluate(() => app.jam.isPlaying), false);
+        s = await state();
+        assert.equal(s.chords && s.scales && s.scaleTitle, true);
+        await page.click('#jam-blind-toggle');                       // retour à l'état par défaut
+        await page.evaluate(() => { app.jam.loopEnabled = false; });
+        noErrors();
+    });
+
+    test('Jam : bouton Harmonisation — clic sur un accord = plaqué + notes ; clic sur son nom = arpège ; suit la tonalité', async () => {
+        const state = () => page.evaluate(() => ({
+            open: !document.getElementById('harmony-modal').classList.contains('hidden'),
+            key: document.getElementById('harmony-key-title').textContent,
+            chips: [...document.querySelectorAll('#harmony-chords .harmony-chip')].map(c => c.textContent.replace(/\s+/g, ' ').trim()),
+            on: [...document.querySelectorAll('#harmony-chords .harmony-chip.is-on')].length,
+            name: document.getElementById('harmony-notes-title').textContent,
+            rowShown: !document.getElementById('harmony-notes-row').classList.contains('hidden'),
+            sameLine: (() => { const t = document.getElementById('harmony-notes-title').getBoundingClientRect(), n = document.querySelector('#harmony-notes span'); if (!n) return null; const r = n.getBoundingClientRect(); return Math.abs((t.top + t.bottom) / 2 - (r.top + r.bottom) / 2) < 12; })(),
+            notes: [...document.querySelectorAll('#harmony-notes span')].map(s => s.textContent),
+            modeButtons: document.querySelectorAll('#harmony-modal #harmony-mode-chord, #harmony-modal #harmony-mode-arp').length,
+        }));
+        await page.selectOption('#jam-key-select', '0');
+        await page.selectOption('#jam-quality-select', 'ionian');
+        assert.equal((await state()).open, false, 'fermé par défaut');
+        await page.click('#jam-harmony-btn');
+        let s = await state();
+        assert.equal(s.open, true);
+        assert.equal(s.key, 'C Majeur');
+        assert.equal(s.chips.length, 7);
+        assert.equal(s.modeButtons, 0, 'plus de boutons Accord / Arpège');
+        assert.deepEqual(s.notes, [], 'aucune note avant le premier clic');
+        assert.equal(s.rowShown, false);
+        await page.evaluate(() => { window.__harmonyCalls = []; const j = app.jam, a = app, c = a.playJamChord.bind(a), r = j.playChordArpeggioFor.bind(j);
+            a.playJamChord = (...x) => { window.__harmonyCalls.push(['chord', ...x]); return c(...x); };
+            j.playChordArpeggioFor = (...x) => { window.__harmonyCalls.push(['arp', x[0].rootIndex, x[0].chordId]); return r(...x); }; });
+        await page.locator('#harmony-chords .harmony-chip').nth(4).click();          // V = G7 : joué plaqué
+        s = await state();
+        assert.deepEqual(s.notes, ['G', 'B', 'D', 'F']);
+        assert.equal(s.on, 1);
+        assert.equal(s.name, 'G7', 'nom de l\'accord sans le degré');
+        assert.equal(s.rowShown && s.sameLine, true, 'le nom est sur la même ligne que les notes');
+        assert.deepEqual(await page.evaluate(() => window.__harmonyCalls), [['chord', 7, '7']]);
+        await page.click('#harmony-notes-title');                                    // clic sur le nom : arpège
+        assert.deepEqual(await page.evaluate(() => window.__harmonyCalls), [['chord', 7, '7'], ['arp', 7, '7']]);
+        await page.locator('#harmony-chords .harmony-chip').nth(1).click();          // ii = Dm7
+        s = await state();
+        assert.deepEqual(s.notes, ['D', 'F', 'A', 'C']);
+        await page.selectOption('#jam-key-select', '2');                              // le pop-up suit la tonalité (D)
+        await page.selectOption('#jam-quality-select', 'aeolian');
+        s = await state();
+        assert.equal(s.key, 'D Mineur');
+        assert.equal(s.chips[0].startsWith('D'), true);
+        await page.keyboard.press('Escape');
+        assert.equal((await state()).open, false, 'Échap ferme le pop-up');
+        await page.selectOption('#jam-key-select', '0');
+        await page.selectOption('#jam-quality-select', 'ionian');
+        noErrors();
+    });
+
     test('Jam : mode édition, sélection d\'une plage et lecture de cette plage', async () => {
         await page.selectOption('#jam-style-select', 'blues');
         await page.evaluate(() => {

@@ -682,3 +682,38 @@
     #jam-print-area .jam-print-part.jam-part-long { font-size: 12pt; }
     #jam-print-area .jam-print-part.jam-part-l3 { font-size: 9.5pt; }
 }
+
+/* Mode « À l'aveugle » (bouton masque, à côté du bouton Arpèges) : actif seulement pendant la jam.
+   La surbrillance de la case jouée est retirée côté JS (toggleBlindMode / renderSequenceUI) ;
+   ici on masque les noms de l'accord actuel et suivant, la gamme active et les cartes de gammes.
+   Les zones masquées gardent leur place (visibility) pour que la mise en page ne bouge pas. */
+.jam-blind-note { display: none; font-size: 0.8rem; font-style: italic; color: #94a3b8; user-select: none; }
+#view-jam.jam-playing.jam-blind #jam-blind-chord-note { display: inline-block; }
+#view-jam.jam-playing.jam-blind #jam-current-chord-group,
+#view-jam.jam-playing.jam-blind #jam-next-chord-display { display: none !important; }
+#view-jam.jam-playing.jam-blind #jam-current-scale-label,
+#view-jam.jam-playing.jam-blind #jam-current-scale-title,
+#view-jam.jam-playing.jam-blind #jam-bar-counter { visibility: hidden; }
+#view-jam.jam-playing.jam-blind #jam-chord-sequence-display .jam-cell-top > span:last-child { visibility: hidden; } /* gamme choisie, en haut à droite de la case */
+#view-jam #jam-scales-card { position: relative; }
+#view-jam.jam-playing.jam-blind #jam-scale-visualizer { visibility: hidden; }
+#view-jam.jam-playing.jam-blind #jam-blind-scales-note {
+    display: block; position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center; pointer-events: none;
+}
+
+/* ===== Pop-up « Harmonisation » (bouton harmonica, à droite des menus tonalité / qualité du Jukebox) ===== */
+#harmony-modal { position: fixed; z-index: 1900; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow-y: auto; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+#harmony-modal.hidden { display: none; }
+#harmony-modal.harmony-dragging { opacity: .96; box-shadow: 0 16px 48px rgba(0,0,0,.7); }
+#harmony-modal.harmony-dragging .jm-head { cursor: grabbing; }
+#harmony-modal .harmony-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+#harmony-modal .harmony-chip { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 52px; padding: 6px 2px; }
+#harmony-modal .harmony-chip-name { font-size: 15px; font-weight: 700; white-space: nowrap; }
+#harmony-modal .harmony-chip small { font-size: 11px; font-weight: 500; margin-top: 2px; }
+#harmony-modal .harmony-notes-box { margin-top: 12px; padding-top: 10px; border-top: 1px solid #333; min-height: 52px; }
+#harmony-modal #harmony-notes-row.hidden { display: none; }
+#harmony-modal .jm-hint.hidden { display: none; }
+#jam-grid-editor .jr-icon-btn { width: 36px; height: 36px; flex: 0 0 36px; padding: 0; }
+@media (max-width: 639px) {
+    #jam-grid-editor .jr-icon-btn { width: 40px; height: 40px; flex-basis: 40px; }
+}

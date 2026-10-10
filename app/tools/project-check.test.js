@@ -57,7 +57,7 @@ describe('index.html : scripts', () => {
         const modules = [];
         for (const d of dirs) {
             for (const f of fs.readdirSync(path.join(ROOT, d))) {
-                if (f.endsWith('.js') && !f.endsWith('.test.js') && !f.endsWith('.e2e.js')) modules.push(path.posix.join(d, f));
+                if (f.endsWith('.js') && !f.endsWith('.test.js') && !f.endsWith('.e2e.js') && f !== 'tailwind.config.js') modules.push(path.posix.join(d, f));
             }
         }
         const orphans = modules.filter(f => !localSrc.includes(f));
