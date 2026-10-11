@@ -133,7 +133,7 @@ Si un test échoue après votre modification, regardez la ligne `not ok` et le m
 - Forcer tous les appareils à repartir de zéro (rare) → changer `SHELL_CACHE` / `SOUNDS_CACHE` (`-v1` → `-v2`) dans `sw.js`.
 
 **À savoir.**
-- Le service worker ne marche pas quand on ouvre `index.html` par double-clic (`file://`) : l'appli fonctionne alors comme avant, avec ses fichiers locaux, sans mise en cache. Pour l'essayer en local : `npx serve` ou `python3 -m http.server` depuis la racine, puis `http://localhost:8000`.
+- Le service worker ne marche pas quand on ouvre `index.html` par double-clic (`file://`) : l'appli fonctionne alors avec ses fichiers locaux, sans mise en cache. Dans ce cas les navigateurs interdisent à Soundfont-player de lire les fichiers de sons par `XMLHttpRequest` ; `audio/local-soundfonts.js` les charge donc comme des `<script>` (testé par `npm run test:offline`). Pour essayer aussi le mode hors ligne en local : `npx serve` ou `python3 -m http.server` depuis la racine, puis `http://localhost:8000`.
 - Tous les chemins sont relatifs : l'appli marche à la racine d'un site comme dans un sous-dossier (`https://…github.io/Chord-Scales/`).
 - Pour mettre à jour VexFlow ou Soundfont-player : remplacer le fichier dans `vendor/` (et son numéro de version dans ce README). Ne pas recharger depuis un CDN.
 - Les iPhone et iPad peuvent vider la mémoire d'un site non ouvert depuis plusieurs semaines : rouvrir l'appli une fois avec du réseau suffit à tout retélécharger.

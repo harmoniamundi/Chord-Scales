@@ -1,6 +1,7 @@
 // Test réel du mode hors ligne : vrai Chromium, vraies bibliothèques, vrais sons, appli servie sous /Chord-Scales/ comme sur
 // GitHub Pages. Visite en ligne (le service worker télécharge tout), puis coupe le réseau et vérifie que la page se recharge,
-// que les 13 instruments se décodent, que la portée se dessine et que la police est là. Lancer : npm run test:offline
+// que les 13 instruments se décodent, que la portée se dessine et que la police est là ; puis ouvre index.html par double-clic
+// (file://) et vérifie que les sons s'y chargent aussi. Lancer : npm run test:offline
 // (nécessite Playwright : npm install && npx playwright install chromium). Durée : environ 20 secondes.
 const http = require('http'), fs = require('fs'), path = require('path');
 let chromium;
@@ -90,6 +91,31 @@ const srv = http.createServer((req, res) => {
     check(font[0] && font[1] >= 2, `HORS LIGNE : police Kalam chargée (${font[1]} variantes)`);
     check(foreign.length === 0, 'aucune requête vers un autre serveur, jamais');
     check(errors.length === 0, 'aucune erreur JavaScript hors ligne' + (errors.length ? ' : ' + errors.slice(0, 5).join(' | ') : ''));
+    // ---- 5. Double-clic sur index.html (file://), sans serveur ni service worker ----
+    // Les navigateurs interdisent XMLHttpRequest sur un fichier local : les sons doivent passer par <script>.
+    const local = await browser.newPage();
+    const localErrors = [];
+    local.on('pageerror', e => localErrors.push('pageerror: ' + e.message));
+    await local.goto('file://' + path.join(ROOT, 'index.html'), { waitUntil: 'load' });
+    await local.waitForFunction(() => typeof app !== 'undefined' && app.jam, null, { timeout: 15000 });
+    const piano = await local.evaluate(async () => {
+        app.loadPiano();                       // ce que fait un clic sur un accord
+        const inst = await app._pianoPromise;
+        if (!inst) return 'piano non chargé';
+        const node = inst.play('C4', app.audioCtx.currentTime, { duration: 0.1 });
+        return Object.keys(inst.buffers).length + (node ? ' notes, lecture OK' : ' notes, lecture sans nœud');
+    });
+    check(/^88 notes/.test(piano), `DOUBLE-CLIC (file://) : le piano de l'appli se charge et joue (${piano})`);
+    const localRes = await local.evaluate(async () => {
+        const ctx = new AudioContext(), out = [];
+        for (const [n, sf] of [['acoustic_bass', 'FluidR3_GM'], ['electric_bass_finger', 'FluidR3_GM'], ['acoustic_guitar_nylon', 'MusyngKite'], ['accordion', 'MusyngKite'], ['tango_accordion', 'MusyngKite'], ['violin', 'MusyngKite'], ['electric_guitar_clean', 'MusyngKite'], ['contrabass', 'MusyngKite'], ['trumpet', 'MusyngKite'], ['french_horn', 'MusyngKite'], ['trombone', 'MusyngKite'], ['tuba', 'MusyngKite']]) {
+            try { const i = await Soundfont.instrument(ctx, n, { soundfont: sf }); out.push([n, Object.keys(i.buffers).length]); } catch (e) { out.push([n, 'ERREUR ' + e]); }
+        }
+        return out;
+    });
+    check(localRes.every(([, c]) => c === 88), `DOUBLE-CLIC (file://) : les 12 autres instruments se chargent (${localRes.filter(([, c]) => c !== 88).map(([n, c]) => n + ' ' + c).join(', ') || 'tous OK'})`);
+    check(localErrors.length === 0, 'DOUBLE-CLIC (file://) : aucune erreur JavaScript' + (localErrors.length ? ' : ' + localErrors.join(' | ') : ''));
+
     await browser.close(); srv.close();
     log(fail ? `\n${fail} ÉCHEC(S)` : '\nTOUT EST OK');
     process.exit(fail ? 1 : 0);

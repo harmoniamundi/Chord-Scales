@@ -58,6 +58,77 @@ describe('useLocalSoundfonts', () => {
     });
 });
 
+describe('chargement par <script> (page ouverte par double-clic, file://)', () => {
+    // Faux navigateur minimal : un <script> « chargé » dépose ses échantillons dans MIDI.Soundfont[nom], puis déclenche onload.
+    function fakeBrowser({ fail = false, empty = false } = {}) {
+        const appended = [];
+        global.window = { MIDI: { Soundfont: {} } };
+        global.document = {
+            createElement: () => ({ remove() { this.removed = true; } }),
+            head: {
+                appendChild(el) {
+                    appended.push(el);
+                    setImmediate(() => {
+                        if (fail) return el.onerror();
+                        if (!empty) { const name = /\/([a-z_0-9]+)-mp3\.js$/.exec(el.src)[1]; window.MIDI.Soundfont[name] = { A0: 'data:audio/mp3;base64,AAA' }; }
+                        el.onload();
+                    });
+                }
+            }
+        };
+        return appended;
+    }
+    const cleanup = () => { delete global.window; delete global.document; };
+
+    test('isFileProtocol : vrai seulement pour file://', () => {
+        assert.equal(L.isFileProtocol(), false); // Node : pas de location
+        global.location = { protocol: 'file:' };
+        assert.equal(L.isFileProtocol(), true);
+        global.location = { protocol: 'https:' };
+        assert.equal(L.isFileProtocol(), false);
+        delete global.location;
+    });
+    test('renvoie les échantillons déposés par le fichier, puis nettoie la page', async () => {
+        const appended = fakeBrowser();
+        try {
+            const bank = await L.localSoundfontViaScript('trumpet', 'MusyngKite', 'mp3');
+            assert.deepEqual(bank, { A0: 'data:audio/mp3;base64,AAA' });
+            assert.equal(appended.length, 1);
+            assert.equal(appended[0].src, 'app/sounds/MusyngKite/trumpet-mp3.js');
+            assert.equal(appended[0].removed, true, 'balise <script> retirée');
+            assert.equal(window.MIDI.Soundfont.trumpet, undefined, 'échantillons non gardés en double dans MIDI.Soundfont');
+        } finally { cleanup(); }
+    });
+    test('deux demandes simultanées du même fichier = un seul chargement (le piano est demandé deux fois)', async () => {
+        const appended = fakeBrowser();
+        try {
+            const [a, b] = await Promise.all([
+                L.localSoundfontViaScript('acoustic_grand_piano', 'FluidR3_GM'),
+                L.localSoundfontViaScript('acoustic_grand_piano', 'FluidR3_GM')
+            ]);
+            assert.equal(appended.length, 1);
+            assert.equal(a, b);
+            // une fois terminé, une nouvelle demande recharge (la mémoire n'est pas retenue)
+            await L.localSoundfontViaScript('acoustic_grand_piano', 'FluidR3_GM');
+            assert.equal(appended.length, 2);
+        } finally { cleanup(); }
+    });
+    test('fichier introuvable ou vide : promesse rejetée (l\'appli retombe sur son plan B)', async () => {
+        fakeBrowser({ fail: true });
+        try { await assert.rejects(L.localSoundfontViaScript('tuba', 'MusyngKite'), /introuvable/); } finally { cleanup(); }
+        fakeBrowser({ empty: true });
+        try { await assert.rejects(L.localSoundfontViaScript('violin', 'MusyngKite'), /vide/); } finally { cleanup(); }
+    });
+    test('useLocalSoundfonts choisit le chargement par <script> si demandé, sinon l\'adresse', () => {
+        const seen = [];
+        const mk = () => ({ instrument(ctx, name, opts) { seen.push(opts.nameToUrl); } });
+        const a = L.useLocalSoundfonts(mk(), true); a.instrument('c', 'tuba');
+        const b = L.useLocalSoundfonts(mk(), false); b.instrument('c', 'tuba');
+        assert.equal(seen[0], L.localSoundfontViaScript);
+        assert.equal(seen[1], L.localSoundfontUrl);
+    });
+});
+
 describe('fichiers de sons', () => {
     test('chaque instrument de la liste existe dans app/sounds/ et est un fichier de soundfont', () => {
         L.LOCAL_SOUNDFONT_FILES.forEach(f => {
