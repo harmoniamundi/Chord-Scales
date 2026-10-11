@@ -2,7 +2,7 @@
 
 Application web d'entraînement et de jam autour des accords et des gammes : un mode **Entraînement** (accord → gammes à jouer, intervalles, notes, portée, écoute) et un mode **Jam** (grille d'accords, orchestre qui accompagne, styles, reprises, impression).
 
-Pas de serveur ni de compilation : ouvrir `index.html` (à la racine) dans le navigateur suffit. Une connexion Internet est nécessaire pour deux bibliothèques chargées depuis des CDN : **Soundfont** (sons de piano, etc.) et **VexFlow** (dessin de la portée).
+Pas de serveur ni de compilation : ouvrir `index.html` (à la racine) dans le navigateur suffit. **Plus aucune connexion Internet n'est nécessaire** : les deux bibliothèques (**Soundfont-player** pour le son, **VexFlow** pour la portée), la police Kalam et les échantillons d'instruments sont dans le dossier `app/`. Publiée sur un site (GitHub Pages), l'appli s'installe et marche **hors ligne** (voir la section « Mode hors ligne »).
 
 ---
 
@@ -10,8 +10,10 @@ Pas de serveur ni de compilation : ouvrir `index.html` (à la racine) dans le na
 
 ```
 racine/
-├── index.html      ← la seule page, à la racine
-└── app/            ← tout le reste (modules, styles, tests, README, package.json)
+├── index.html            ← la seule page, à la racine
+├── sw.js                 ← service worker (mode hors ligne) : doit rester à la racine
+├── manifest.webmanifest  ← nom, icônes et couleurs de l'appli installée
+└── app/                  ← tout le reste (modules, styles, sons, tests, README, package.json)
 ```
 
 Les commandes `npm` se lancent **depuis le dossier `app/`** (`cd app`). Dans `index.html`, les chemins commencent par `app/` (exemple : `<script src="app/grid/transport.js">`). Dans la suite de ce document, les chemins de modules (`grid/transport.js`…) sont donnés **relativement à `app/`**.
@@ -26,11 +28,15 @@ Les commandes `npm` se lancent **depuis le dossier `app/`** (`cd app`). Dans `in
 | `audio-config.js` | Constantes audio (octave de lecture, niveau master…) |
 | `band/` | Orchestre de la Jam : un fichier par famille de styles (`swing-plan`, `pop-plan`, `latin-plan`, `cuban-plan`, `brass-plan`, `balkan-plan`, `piazzolla-plan`, `classic-plan`, mesures 2/3 temps et ternaires), lignes de basse, choix par phrase (`phrase-plan`), états de départ (`band-state`), utilitaires (`band-helpers`) |
 | `grid/` | La grille d'accords : ordre de lecture et reprises (`play-order`), mécanique de lecture (`transport`), édition (`edit-ops`), génération (`generation`), lecture harmonique (`harmony`), sauvegarde/import (`grid-format`) |
-| `audio/` | Calcul des notes jouées (`note-events`, `practice-notes`) et synthèse des percussions (`drum-synths`) |
+| `audio/` | Calcul des notes jouées (`note-events`, `practice-notes`), synthèse des percussions (`drum-synths`) et adresses locales des sons (`local-soundfonts`) |
 | `styles/` | Les styles musicaux : métadonnées (`style-meta`), outils (`toolkit`), un générateur de grille par style (`style-builders`) |
 | `ui/` | Ce qu'il faut afficher, sans DOM : grille (`grid-view`), cartes de gammes (`scale-cards`), éditeur de mesure (`measure-editor`), pastilles (`pastilles`), portée (`staff-model`), accords affichés (`chord-display`), écran Entraînement (`training-view`) |
-| `tools/` | Contrôles de cohérence du projet (`project-check.test.js`) |
-| `e2e/` | Test de l'appli complète dans un navigateur (`app.e2e.js`) |
+| `tools/` | Contrôles de cohérence du projet (`project-check.test.js`) et du mode hors ligne (`sw-check.test.js`) |
+| `e2e/` | Tests dans un vrai navigateur : appli complète (`app.e2e.js`) et mode hors ligne (`offline.e2e.js`) |
+| `vendor/` | Bibliothèques tierces, copiées telles quelles : `soundfont-player.min.js` 0.12.0, `vexflow-petaluma.js` 4.2.2 |
+| `sounds/` | Échantillons d'instruments (~33 Mo, banques FluidR3_GM et MusyngKite), lus par `audio/local-soundfonts.js` |
+| `fonts/`, `icons/`, `licenses/` | Police Kalam (sous-ensemble latin), icônes de l'appli installée, licences des éléments tiers |
+| `offline.js` | Enregistre le service worker et affiche la petite pastille « Sons hors ligne : x/13 » |
 | `style.css`, `tailwind-built.css` | Styles de la page |
 | `TESTS.md` | Commandes de test et liste de contrôle manuelle |
 
@@ -105,6 +111,7 @@ Exemples :
 |---|---|
 | `npm test` | Tous les tests unitaires (plus de 900) + cohérence du projet. Quelques secondes. |
 | `npm run test:e2e` | L'appli entière dans un navigateur : chargement, Entraînement, portée, tous les styles de la Jam, lecture/arrêt, changement d'orchestre, plage sélectionnée. |
+| `npm run test:offline` | Le mode hors ligne pour de vrai : visite en ligne, puis réseau coupé ; la page se recharge, les 13 instruments se décodent, la portée et la police s'affichent, aucune requête ne part vers un autre site. |
 
 Installation du test navigateur (une fois) : `npm install` puis `npx playwright install chromium`. Sans cela, ses scénarios sont simplement ignorés.
 
@@ -114,7 +121,26 @@ Si un test échoue après votre modification, regardez la ligne `not ok` et le m
 
 ---
 
-## 6. Où en est le code
+## 6. Mode hors ligne (service worker)
+
+**Principe.** À la première visite en ligne, `sw.js` garde dans le navigateur la page, le code, la police, les bibliothèques et les icônes (« cache appli », téléchargé d'un coup). Quatre secondes après le chargement, il télécharge aussi en arrière-plan les 13 instruments (« cache sons », ~33 Mo) ; une pastille en bas à gauche indique `Sons hors ligne : x/13`, puis `✓ Prêt hors ligne`. Ensuite l'appli s'ouvre et joue sans réseau. Les grilles sauvegardées restent dans l'appareil (`localStorage`).
+
+**Mises à jour.** En ligne, `sw.js` va toujours chercher la dernière version des fichiers de l'appli (réseau d'abord, 3 secondes maximum) et met la copie à jour ; hors ligne ou réseau trop lent, il sert la copie gardée. Il n'y a **pas de numéro de version à changer** : un `git push` suffit, la nouvelle version apparaît à l'ouverture suivante avec du réseau. Les sons, eux, ne changent jamais : ils restent en cache.
+
+**Quand modifier `sw.js`.**
+- Ajout ou suppression d'un fichier chargé par `index.html` (module `.js`, feuille de style, police, icône) → ajouter ou retirer la ligne dans `SHELL_FILES`. Le test `tools/sw-check.test.js` échoue tant que la liste n'est pas à jour.
+- Ajout d'un instrument → ajouter `[banque, nom]` dans `LOCAL_SOUNDFONT_INSTRUMENTS` (`audio/local-soundfonts.js`) et copier son fichier `<nom>-mp3.js` dans `sounds/<banque>/`. Les fichiers viennent de https://github.com/gleitz/midi-js-soundfonts (branche `gh-pages`). Le test `audio/local-soundfonts.test.js` vérifie que tout instrument demandé par `index.html` est dans la liste et que son fichier existe.
+- Forcer tous les appareils à repartir de zéro (rare) → changer `SHELL_CACHE` / `SOUNDS_CACHE` (`-v1` → `-v2`) dans `sw.js`.
+
+**À savoir.**
+- Le service worker ne marche pas quand on ouvre `index.html` par double-clic (`file://`) : l'appli fonctionne alors comme avant, avec ses fichiers locaux, sans mise en cache. Pour l'essayer en local : `npx serve` ou `python3 -m http.server` depuis la racine, puis `http://localhost:8000`.
+- Tous les chemins sont relatifs : l'appli marche à la racine d'un site comme dans un sous-dossier (`https://…github.io/Chord-Scales/`).
+- Pour mettre à jour VexFlow ou Soundfont-player : remplacer le fichier dans `vendor/` (et son numéro de version dans ce README). Ne pas recharger depuis un CDN.
+- Les iPhone et iPad peuvent vider la mémoire d'un site non ouvert depuis plusieurs semaines : rouvrir l'appli une fois avec du réseau suffit à tout retélécharger.
+
+---
+
+## 7. Où en est le code
 
 - `index.html` est passé d'environ 16 000 à environ 6 100 lignes ; la logique pure est dans 36 modules testés.
 - Il reste dans `index.html` des méthodes surtout liées à l'écran et au son : câblage des événements, Web Audio (réverbération, bus des cuivres et du tango), création des éléments.
@@ -124,7 +150,7 @@ Si un test échoue après votre modification, regardez la ligne `not ok` et le m
 
 ---
 
-## 7. Travailler avec Claude sur ce projet
+## 8. Travailler avec Claude sur ce projet
 
 Pour une modification, donnez-lui :
 - ce que vous voulez changer, **et** le comportement à conserver (« ne rien changer d'autre ») ;

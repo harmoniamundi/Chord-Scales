@@ -5,12 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chord Scales Machine</title>
     <link rel="stylesheet" href="app/tailwind-built.css">
-    <!-- Les deux bibliothèques sont téléchargées tout de suite (preload) mais exécutées juste avant le script principal : la page peut s'afficher sans attendre leur exécution. -->
-    <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js">
-    <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow-petaluma.js">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#121212">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Chord Scales">
+    <link rel="icon" type="image/png" sizes="192x192" href="app/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="app/icons/apple-touch-icon.png">
+    <!-- Bibliothèques, police et sons sont dans le dossier app/ (vendor, fonts, sounds) : rien n'est chargé depuis Internet,
+         l'appli peut donc fonctionner hors ligne (voir sw.js et app/offline.js). -->
     <link rel="stylesheet" href="app/style.css">
 
 </head>
@@ -423,8 +426,9 @@
 
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow-petaluma.js"></script>
+    <script src="app/vendor/soundfont-player.min.js"></script>
+    <script src="app/vendor/vexflow-petaluma.js"></script>
+    <script src="app/audio/local-soundfonts.js"></script>
     <script src="app/theory.js"></script>
     <script src="app/band-patterns.js"></script>
     <script src="app/audio-config.js"></script>
@@ -6375,5 +6379,7 @@
             acquire();
         })();
     </script>
+
+    <script src="app/offline.js"></script>
 </body>
 </html> 

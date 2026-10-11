@@ -5,7 +5,8 @@
   "description": "Chord Scales Machine : application web d'une seule page (index.html) et modules testables",
   "scripts": {
     "test": "node --test",
-    "test:e2e": "node --test e2e/app.e2e.js"
+    "test:e2e": "node --test e2e/app.e2e.js",
+    "test:offline": "node e2e/offline.e2e.js"
   },
   "devDependencies": {
     "playwright": "^1.45.0",

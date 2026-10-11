@@ -18,7 +18,8 @@ function pageScripts() {
     let m;
     while ((m = re.exec(html))) {
         const src = /\bsrc="([^"]+)"/.exec(m[1]);
-        out.push(src ? { src: src[1], external: /^https?:/.test(src[1]) } : { inline: m[2] });
+        // Bibliothèques tierces (app/vendor/) : ni nos conventions de nommage, ni test à elles — traitées comme les anciens scripts de CDN.
+        out.push(src ? { src: src[1], external: /^https?:/.test(src[1]) || src[1].startsWith('app/vendor/') } : { inline: m[2] });
     }
     return out;
 }

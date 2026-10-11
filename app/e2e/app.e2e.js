@@ -76,6 +76,8 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
             if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) errors.push(`console: ${m.text()}`);
         });
         await page.route(/^https?:\/\/(?!localhost|127\.0\.0\.1)/, (r) => r.abort());
+        // Les vraies bibliothèques sont maintenant dans app/vendor/ : on les bloque pour garder les faux ci-dessous (test rapide, sans audio réel).
+        await page.route('**/app/vendor/**', (r) => r.abort());
         await page.addInitScript(FAKE_SOUNDFONT);
         await page.addInitScript(FAKE_VEXFLOW);
         await page.goto(`${base}/index.html`, { waitUntil: 'load' });
