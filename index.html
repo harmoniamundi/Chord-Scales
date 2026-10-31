@@ -6441,6 +6441,38 @@
         })();
     </script>
 
+    <script>
+    // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
+    (function () {
+        var BUILD = '2026-10-31-c';
+        function cssBuild() {
+            try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
+        }
+        window.addEventListener('load', function () {
+            var seen = {
+                'app/grid/edit-ops.js': typeof EDIT_OPS_BUILD !== 'undefined' ? EDIT_OPS_BUILD : '',
+                'app/ui/measure-editor.js': typeof MEASURE_EDITOR_BUILD !== 'undefined' ? MEASURE_EDITOR_BUILD : '',
+                'app/style.css': cssBuild()
+            };
+            var old = Object.keys(seen).filter(function (f) { return seen[f] !== BUILD; });
+            var tag = document.createElement('div');
+            tag.textContent = 'version ' + BUILD;
+            tag.style.cssText = 'position:fixed;right:8px;bottom:3px;z-index:5;font:10px/1 sans-serif;color:#64748b;pointer-events:none';
+            document.body.appendChild(tag);
+            if (!old.length) return;
+            var bar = document.createElement('div');
+            bar.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:99999;padding:8px 40px 8px 12px;background:#b45309;color:#fff;font:13px/1.35 sans-serif;text-align:center';
+            bar.textContent = 'Mise à jour incomplète : ' + old.join(', ') + ' n\'est pas à la même version que index.html (' + BUILD + '). Renvoyez ce fichier sur GitHub, dans son dossier, puis rechargez.';
+            var x = document.createElement('button');
+            x.textContent = '✕';
+            x.style.cssText = 'position:absolute;right:8px;top:4px;background:none;border:0;color:#fff;font-size:16px;cursor:pointer';
+            x.onclick = function () { bar.remove(); };
+            bar.appendChild(x);
+            document.body.appendChild(bar);
+        });
+    })();
+    </script>
+
     <script src="app/offline.js"></script>
 </body>
 </html> 
