@@ -447,6 +447,16 @@
         .jm-kb .jm-blk:not(.is-on) { background: #19191b; }
         .jm-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; }
         .jm-seg .jm-chip { min-width: 0; padding: 6px 0; }
+        /* Tierce / quinte / septième : boutons plus petits */
+        .jm-seg.jm-seg-sm { gap: 3px; }
+        .jm-seg.jm-seg-sm .jm-chip { padding: 2px 0; font-size: 11px; line-height: 1.2; border-radius: 6px; }
+        /* Choix d'accords : toujours sur 2 lignes (7 colonnes en mode Construire, 8 en mode Catalogue) */
+        .jm-chords { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+        .jm-chords.jm-chords-8 { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+        .jm-chords .jm-chip { min-width: 0; padding: 5px 0; font-size: 11px; letter-spacing: -.2px; white-space: nowrap; overflow: hidden; }
+        .jm-chords.jm-chords-8 .jm-chip { font-size: 10px; letter-spacing: -.3px; }
+        /* Accord déjà utilisé dans la grille avec la même fondamentale : proposé en premier */
+        .jm-chip.jm-mem:not(.is-on) { border-style: dashed; border-color: #60a5fa; color: #bfdbfe; }
         .jm-sub-t { font-size: 10px; color: #94a3b8; margin: 7px 0 3px; }
         .jm-chip.jm-off { opacity: .28; pointer-events: none; }
         .jm-notes { margin-top: 7px; font-size: 11px; color: #94a3b8; }
@@ -529,6 +539,12 @@
         .jm-fn-row.is-on b { color: #fff; }
         .jm-fn-row.is-on span { color: #dbeafe; }
         .jm-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+        .jm-fn-line { display: flex; gap: 4px; margin-top: 4px; }
+        .jm-fn-line .jm-fn-row { margin-top: 0; flex: 1 1 auto; min-width: 0; width: auto; }
+        .jm-fn-all { flex: 0 0 auto; min-width: 42px; padding: 0 6px; border-radius: 7px; border: 1px solid #3b82f6; background: #172554; color: #bfdbfe; font: 700 12px/1 inherit; font-family: inherit; cursor: pointer; }
+        .jm-fn-all:hover { background: #2563eb; color: #fff; border-color: #93c5fd; }
+        .jm-fn-legend { margin-top: 8px; padding: 5px 8px; border-radius: 7px; background: #172554; border: 1px solid #1e40af; font-size: 11px; line-height: 1.3; color: #bfdbfe; }
+        .jm-fn-legend b { color: #fff; }
 
         /* ===== Agencement du mode Jam : colonne de réglages étroite + gammes sur toute la largeur ===== */
         .jr-actions { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap; }

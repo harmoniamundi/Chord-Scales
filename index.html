@@ -320,7 +320,7 @@
                             <button type="button" id="jam-eb-dup" class="jam-eb" onclick="app.jam.gridDuplicate()" title="Dupliquer la sélection juste après elle (⌘D / Ctrl+D)">Dupliquer</button>
                             <button type="button" id="jam-eb-copy" class="jam-eb" onclick="app.jam.gridCopy()" title="Copier (⌘C / Ctrl+C)">Copier</button>
                             <button type="button" id="jam-eb-cut" class="jam-eb" onclick="app.jam.gridCut()" title="Couper (⌘X / Ctrl+X)">Couper</button>
-                            <button type="button" id="jam-eb-paste" class="jam-eb" onclick="app.jam.gridPaste()" title="Coller après la sélection (⌘V / Ctrl+V)">Coller</button>
+                            <button type="button" id="jam-eb-paste" class="jam-eb" onclick="app.jam.gridPaste()" title="Coller les mesures copiées juste après la mesure sélectionnée (⌘V / Ctrl+V)">Coller</button>
                             <button type="button" id="jam-eb-del" class="jam-eb jam-eb-danger" onclick="app.jam.gridDelete()" title="Supprimer la sélection (Suppr)">Supprimer</button>
                             <span id="jam-sel-info" class="jam-eb-info" role="status" aria-live="polite"></span>
                         </div>
@@ -3161,7 +3161,15 @@
                 const auto = this.getHarmonicFunctionLabel({ rootIndex: chord.rootIndex, chordId: chord.chordId, harmonicFunction: useHalf ? null : m.harmonicFunction, fnLabel: null }, flat, measureNumber - 1, useHalf ? 1 : 0, ctxKey.root);
                 const cur = chord.fnLabel || null;
                 const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
-                const row = (label, desc, on, encoded, mod = null) => `<button type="button" class="jm-fn-row${on ? ' is-on' : ''}" data-fn="${encoded}"${mod ? ` data-mod="${encodeURIComponent(JSON.stringify(mod))}"` : ''}><b>${esc(label)}</b><span>${esc(desc)}</span></button>`;
+                // Chaque lecture a deux boutons : la lecture seule (clic sur la ligne) et « ⇣ N » à droite, qui l'applique aussi
+                // aux N occurrences SUIVANTES du même accord (même fondamentale, même type) en un seul geste.
+                const later = laterChordOccurrences(this.grid, measureNumber, useHalf ? 1 : 0).length;
+                const row = (label, desc, on, encoded, mod = null) => {
+                    const modAttr = mod ? ` data-mod="${encodeURIComponent(JSON.stringify(mod))}"` : '';
+                    const all = later ? `<button type="button" class="jm-fn-all" data-fn="${encoded}" data-all="1"${modAttr} title="Appliquer cette lecture ici ET aux ${later} occurrence${later > 1 ? 's' : ''} suivante${later > 1 ? 's' : ''} de ${esc(symbol)}" aria-label="Appliquer aussi aux ${later} occurrence${later > 1 ? 's' : ''} suivante${later > 1 ? 's' : ''}">⇣ ${later}</button>` : '';
+                    return `<div class="jm-fn-line"><button type="button" class="jm-fn-row${on ? ' is-on' : ''}" data-fn="${encoded}"${modAttr}><b>${esc(label)}</b><span>${esc(desc)}</span></button>${all}</div>`;
+                };
+                const legend = later ? `<div class="jm-fn-legend">Bouton <b>⇣ ${later}</b> : applique la lecture aussi aux ${later} occurrence${later > 1 ? 's' : ''} suivante${later > 1 ? 's' : ''} de <b>${esc(symbol)}</b>.</div>` : '';
 
                 const el = document.createElement('div');
                 el.className = 'jm-pop';
@@ -3171,6 +3179,7 @@
                         <button type="button" class="jm-btn" data-close="1" title="Fermer (Échap)">✕</button>
                     </div>
                     <div class="jm-sub">${ctxKey.root === this.mainKey && !ctxKey.minor ? `Tonalité de la grille : ${esc(rootLabels[this.mainKey])}.` : `Tonalité en vigueur : ${esc(rootLabels[ctxKey.root])}${ctxKey.minor ? ' mineur' : ''} (modulation ; grille en ${esc(rootLabels[this.mainKey])}).`} Choisissez une lecture de cet accord. Une lecture « Modulation » change l'analyse des accords suivants.</div>
+                    ${legend}
                     <div class="jm-sec">
                         ${row(`Auto : ${auto}`, 'Fonction calculée d\'après la tonalité (par défaut)', !cur, '__auto__')}
                     </div>
@@ -3183,7 +3192,7 @@
                     const v = b.dataset.fn;
                     let mod = null;
                     if (b.dataset.mod) { try { mod = JSON.parse(decodeURIComponent(b.dataset.mod)); } catch (e) { mod = null; } }
-                    this.applyFunctionLabel(measureNumber, useHalf ? 1 : 0, v === '__auto__' ? null : decodeURIComponent(v), mod);
+                    this.applyFunctionLabel(measureNumber, useHalf ? 1 : 0, v === '__auto__' ? null : decodeURIComponent(v), mod, b.dataset.all === '1');
                 });
                 (document.fullscreenElement || document.body).appendChild(el);
                 this._enablePopupDrag(el);
@@ -3217,10 +3226,19 @@
             }
 
             // Enregistre (ou retire, label = null) la fonction tonale choisie pour une mesure ou une moitié de mesure.
-            applyFunctionLabel(measureNumber, half, label, mod = null) {
-                this.withUndo(() => setFunctionLabel(this.grid, measureNumber, half, label, mod));
+            // propagate : étend aussi le choix aux occurrences suivantes du même accord (une seule entrée d'annulation).
+            applyFunctionLabel(measureNumber, half, label, mod = null, propagate = false) {
+                let n = 0;
+                this.withUndo(() => {
+                    setFunctionLabel(this.grid, measureNumber, half, label, mod);
+                    if (propagate) n = applyFunctionLabelToLater(this.grid, measureNumber, half, label, mod);
+                });
                 this.closeFunctionEditor();
                 this.renderGridUI();
+                if (propagate) {
+                    const what = label ? `« ${label} »` : 'Fonction automatique';
+                    this._flash(`${what} appliquée ici et à ${n} occurrence${n > 1 ? 's' : ''} suivante${n > 1 ? 's' : ''}`);
+                }
             }
 
             // ===== Sélection de mesures et copier / coller dans la grille =====
@@ -3518,7 +3536,8 @@
                 if (!r) { this._flash('Rien à copier : sélectionnez des mesures'); return; }
                 const items = this._measureItems(r.from, r.to);
                 this._setClip(items);
-                this._flash(`${items.length} mesure${items.length > 1 ? 's' : ''} copiée${items.length > 1 ? 's' : ''}`);
+                const what = items.length > 1 ? `Mesures ${r.from} à ${r.to} copiées` : `Mesure ${r.from} copiée`;
+                this._flash(`${what} — Coller les insère après la mesure sélectionnée`);
             }
 
             gridCut() {
@@ -3578,9 +3597,19 @@
                 if (!clip.length) { this._flash('Presse-papiers vide : copiez d\'abord des mesures'); return; }
                 const total = this._totalMeasures();
                 const r = this._actionRange();
+                // Les mesures copiées sont insérées juste APRÈS la mesure sélectionnée (ou après la dernière plage sélectionnée) ;
+                // à défaut de sélection, en fin de grille.
                 const after = total === 0 ? 0 : (r ? r.to : total);
                 this._insertItemsAfter(after, clip);
-                this._flash(`${clip.length} mesure${clip.length > 1 ? 's' : ''} collée${clip.length > 1 ? 's' : ''}`);
+                if (this._editor) {
+                    // Pop-up ouvert : il passe sur la première mesure collée
+                    this._editor.touched = true;
+                    this._editor.measureNumber = after + 1;
+                    this._editor.half = 0;
+                    this._editorSelect();
+                }
+                const where = after === 0 ? 'au début' : `après la mesure ${after}`;
+                this._flash(`${clip.length} mesure${clip.length > 1 ? 's' : ''} collée${clip.length > 1 ? 's' : ''} ${where}`);
             }
 
             gridDuplicate() {
@@ -3642,23 +3671,38 @@
             // Isole une mesure dans son propre bloc (un bloc de 4 mesures devient jusqu'à 3 blocs) et renvoie son index.
             _isolateMeasure(measureNumber) { return isolateMeasure(this.grid, measureNumber); }
 
+            // Nouvelle mesure en fin de grille, sur l'accord de la dernière mesure (ou le I de la tonalité si la grille est vide).
+            _pushNewMeasure() {
+                const flat = this.getFlatMeasureList();
+                let nc;
+                if (flat.length) {
+                    const last = flat[flat.length - 1];
+                    const c = last.split || last;
+                    nc = { rootIndex: c.rootIndex, chordId: c.chordId, scaleId: c.scaleId, measures: 1 };
+                } else {
+                    const d = this.getDiatonicDegrees()[0];
+                    nc = { rootIndex: d.rootIndex, chordId: d.chordId, scaleId: d.scaleId, measures: 1 };
+                }
+                this.grid.push(nc);
+            }
+
+            // Case « + » de la grille : ajoute une mesure à la fin et l'ouvre dans le pop-up. Comme la flèche › du pop-up,
+            // chaque clic en ajoute une de plus, sans limite : si le pop-up est déjà ouvert, la mesure en cours est conservée
+            // (elle n'est plus considérée comme « ajoutée puis abandonnée ») et la nouvelle s'ajoute après la dernière.
             openAddMeasure() {
                 if (this.isPlaying || !this._editBarOpen) return;
-                this.closeMeasureEditor();
+                if (this._editor) {
+                    const ed = this._editor;
+                    ed.touched = true;
+                    this.withUndo(() => this._pushNewMeasure());
+                    ed.measureNumber = this.getFlatMeasureList().length;
+                    ed.half = 0;
+                    this._editorSelect();
+                    return;
+                }
+                this.closeFunctionEditor();
                 this._beginEditor(true);
-                this.withUndo(() => {
-                    const flat = this.getFlatMeasureList();
-                    let nc;
-                    if (flat.length) {
-                        const last = flat[flat.length - 1];
-                        const c = last.split || last;
-                        nc = { rootIndex: c.rootIndex, chordId: c.chordId, scaleId: c.scaleId, measures: 1 };
-                    } else {
-                        const d = this.getDiatonicDegrees()[0];
-                        nc = { rootIndex: d.rootIndex, chordId: d.chordId, scaleId: d.scaleId, measures: 1 };
-                    }
-                    this.grid.push(nc);
-                });
+                this.withUndo(() => this._pushNewMeasure());
                 this._editor.measureNumber = this.getFlatMeasureList().length;
                 this._editorSelect();
             }
@@ -3702,6 +3746,12 @@
                     const tag = (ev.target.tagName || '').toLowerCase();
                     const typing = tag === 'input' || tag === 'textarea' || tag === 'select';
                     if (ev.key === 'Escape') { this.closeMeasureEditor(); ev.preventDefault(); return; }
+                    // ⌘C / ⌘V : copier la mesure éditée, coller juste après elle (le pop-up passe sur la première mesure collée)
+                    if (!typing && (ev.metaKey || ev.ctrlKey) && !ev.altKey && !ev.shiftKey && (ev.key === 'c' || ev.key === 'v' || ev.key === 'C' || ev.key === 'V')) {
+                        if (ev.key.toLowerCase() === 'c') this.gridCopy(); else this.gridPaste();
+                        ev.preventDefault();
+                        return;
+                    }
                     if (typing || ev.metaKey || ev.ctrlKey || ev.altKey) return;
                     if (ev.key === 'Enter') { this._editor.touched = true; this.closeMeasureEditor(); ev.preventDefault(); }
                     else if (ev.key === 'ArrowRight') { this._editorGo(1); ev.preventDefault(); }
@@ -3751,6 +3801,13 @@
                 if (ed.half === 1 && !this.isSplit(step)) ed.half = 0;
                 this.currentStepIndex = m.stepIndex;
                 this.currentBeat = (m.measureInStep - 1) * this.getBeatsPerBar() + (ed.half === 1 ? this.getSplitBeat() : 0);
+                // La mesure éditée est la mesure « sélectionnée » : c'est après elle que Coller insère, et c'est elle que Copier prend
+                // (sauf si elle fait partie d'une plage sélectionnée, qui reste alors la référence).
+                this._selAnchor = ed.measureNumber;
+                if (this._sel && (ed.measureNumber < this._sel.from || ed.measureNumber > this._sel.to)) {
+                    this._sel = null;
+                    this._selPhase = null;
+                }
                 this.renderGridUI();
                 this._renderEditor();
                 const cell = document.querySelector(`#jam-chord-sequence-display .jam-cell[data-measure-number="${ed.measureNumber}"]`);
@@ -3834,6 +3891,8 @@
                     }
                     if (chordChanged) { delete target.fnLabel; delete target.modKey; }
                     if (chordChanged && !useSplit) delete step.harmonicFunction;
+                    // Accord choisi explicitement (un simple changement de fondamentale n'est pas un choix de type d'accord)
+                    if ('chordId' in patch) this._edRecent = rememberChord(this._edRecent, target.rootIndex, target.chordId);
                 });
                 this._editorSelect();
                 // Retour sonore : on entend l'accord choisi
@@ -4004,8 +4063,10 @@
                 if (ed.half === 1 && !isHalf) ed.half = 0;
                 const cur = (ed.half === 1 && isHalf) ? step.split : step;
                 const prevScroll = ed.el.scrollTop;
+                // Accords déjà utilisés dans CETTE grille avec la même fondamentale que l'accord édité : proposés en premier
+                const suggestions = chordSuggestionsForRoot(this.grid, cur.rootIndex, { measureNumber: ed.measureNumber, half: (ed.half === 1 && isHalf) ? 1 : 0 }, this._edRecent || []);
                 ed.el.innerHTML = editorHtml({
-                    m, step, isHalf, cur, half: ed.half, mode: this._edModeGet(), isFolded: (key) => this._editorFolded(key),
+                    m, step, isHalf, cur, half: ed.half, mode: this._edModeGet(), isFolded: (key) => this._editorFolded(key), suggestions,
                     degrees: this.getDiatonicDegrees(), rootLabels, symbol: (c) => this.getChordSymbol(c),
                     jazz: (id) => this.getJazzChordNotation(id), findChordObj: (id) => this.findChordObj(id),
                     halfLabelText: (h) => this.halfLabelText(h), halfTitleText: () => this.halfTitleText()

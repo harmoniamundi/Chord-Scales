@@ -346,3 +346,87 @@ describe('invariants sur les grilles des styles', () => {
         }
     });
 });
+
+
+describe('occurrences suivantes d\'un même accord', () => {
+    const g = () => [st(1, '7alt'), st(0, 'maj7', 2), st(1, '7alt', 1, { split: { rootIndex: 1, chordId: '7alt', scaleId: 'altered' } }), st(1, 'm7'), st(1, '7alt')];
+    test('mêmes fondamentale et type, après la position donnée, moitiés de mesure comprises', () => {
+        assert.deepEqual(E.laterChordOccurrences(g(), 1, 0), [
+            { measureNumber: 4, half: 0 }, { measureNumber: 4, half: 1 }, { measureNumber: 6, half: 0 }]);
+        assert.deepEqual(E.laterChordOccurrences(g(), 4, 0), [{ measureNumber: 4, half: 1 }, { measureNumber: 6, half: 0 }]);
+        assert.deepEqual(E.laterChordOccurrences(g(), 6, 0), []);
+        assert.deepEqual(E.laterChordOccurrences(g(), 99, 0), []);
+    });
+    test('une autre fondamentale ou un autre type ne comptent pas', () => {
+        assert.deepEqual(E.laterChordOccurrences([st(1, '7alt'), st(2, '7alt'), st(1, '7'), st(1, '7alt')], 1), [{ measureNumber: 4, half: 0 }]);
+    });
+    test('applyFunctionLabelToLater : pose la lecture sur toutes les occurrences suivantes, pas sur les précédentes ni sur les autres accords', () => {
+        const grid = [st(1, '7alt'), st(0, 'maj7'), st(1, '7alt'), st(1, '7'), st(1, '7alt', 1, { split: { rootIndex: 1, chordId: '7alt', scaleId: 'altered' } })];
+        E.setFunctionLabel(grid, 1, 0, 'subV');
+        assert.equal(E.applyFunctionLabelToLater(grid, 1, 0, 'subV'), 3);
+        const flat = flatMeasureList(grid);
+        assert.deepEqual(flat.map(m => m.fnLabel), ['subV', null, 'subV', null, 'subV']);
+        assert.equal(flat[4].split.fnLabel, 'subV');
+        assert.equal(total(grid), 5);
+    });
+    test('applyFunctionLabelToLater : telle quelle, même sur une occurrence qui avait déjà un choix manuel, et dans des blocs de plusieurs mesures', () => {
+        const grid = [st(7, '7', 2), st(0, 'maj7', 2), st(7, '7', 1, { fnLabel: 'V7' }), st(7, '7', 2), st(0, 'maj7')];
+        assert.equal(E.applyFunctionLabelToLater(grid, 1, 0, 'subV7/♯IV'), 4);
+        const lab = flatMeasureList(grid).map(m => m.fnLabel);
+        const L = 'subV7/♯IV';   // mesure 1 = l'accord de départ (non posé ici) ; la 2e mesure de son bloc compte comme suivante
+        assert.deepEqual(lab, [null, L, null, null, L, L, L, null]);
+        assert.equal(total(grid), 8);
+    });
+    test('applyFunctionLabelToLater : une lecture de modulation pose aussi la nouvelle tonalité sur chaque occurrence', () => {
+        const grid = [st(1, '7alt'), st(5, 'maj7'), st(1, '7alt'), st(1, '7alt')];
+        assert.equal(E.applyFunctionLabelToLater(grid, 1, 0, 'V7 de Gb', { root: 6, minor: false }), 2);
+        const f = flatMeasureList(grid);
+        assert.deepEqual(f[2].modKey, { root: 6, minor: false });
+        assert.deepEqual(f[3].modKey, { root: 6, minor: false });
+        assert.equal(f[1].modKey, null);
+    });
+    test('applyFunctionLabelToLater : label null = retour au calcul automatique sur les occurrences suivantes', () => {
+        const grid = [st(1, '7alt'), st(1, '7alt', 1, { fnLabel: 'subV' }), st(1, '7alt', 1, { fnLabel: 'bII7', modKey: { root: 1, minor: false } })];
+        assert.equal(E.applyFunctionLabelToLater(grid, 1, 0, null), 2);
+        flatMeasureList(grid).forEach(m => { assert.equal(m.fnLabel, null); assert.equal(m.modKey, null); });
+    });
+    test('applyFunctionLabelToLater : à partir de la 2e moitié d\'une mesure ; aucune occurrence = 0', () => {
+        const grid = [st(1, '7alt', 1, { split: { rootIndex: 1, chordId: '7alt', scaleId: 'altered' } }), st(1, '7alt')];
+        assert.equal(E.applyFunctionLabelToLater(grid, 1, 1, 'subV'), 1);
+        const f = flatMeasureList(grid);
+        assert.equal(f[0].fnLabel, null); assert.equal(f[0].split.fnLabel, null); assert.equal(f[1].fnLabel, 'subV');
+        assert.equal(E.applyFunctionLabelToLater([st(1, '7alt'), st(2, '7alt')], 1, 0, 'x'), 0);
+    });
+});
+
+describe('accords à proposer en premier pour une fondamentale', () => {
+    const grid = [st(1, '7alt'), st(0, 'maj7'), st(1, 'm7'), st(1, '7alt'), st(1, '9', 1, { split: { rootIndex: 1, chordId: '13b9', scaleId: 'x' } })];
+    test('seulement les accords de la grille ayant cette fondamentale, sans doublon, hors position éditée', () => {
+        // ordre de repli : du plus proche de la fin vers le début → 13b9 (2e moitié de m5), 9, 7alt, m7 ; limite 2 par défaut
+        assert.deepEqual(E.chordSuggestionsForRoot(grid, 1, null, [], 10), ['13b9', '9', '7alt', 'm7']);
+        assert.deepEqual(E.chordSuggestionsForRoot(grid, 1), ['13b9', '9']);
+        assert.deepEqual(E.chordSuggestionsForRoot(grid, 1, { measureNumber: 5, half: 1 }, [], 10), ['9', '7alt', 'm7']);
+        assert.deepEqual(E.chordSuggestionsForRoot(grid, 0, null, [], 10), ['maj7']);
+        assert.deepEqual(E.chordSuggestionsForRoot(grid, 6, null, [], 10), []);
+    });
+    test('l\'accord que la mesure éditée est seule à porter n\'est pas proposé (il est déjà choisi)', () => {
+        assert.deepEqual(E.chordSuggestionsForRoot([st(1, '7alt'), st(2, 'm7')], 1, { measureNumber: 1, half: 0 }), []);
+    });
+    test('les accords récemment choisis dans l\'éditeur passent devant, mais seulement s\'ils sont dans la grille', () => {
+        const recent = [{ rootIndex: 1, chordId: 'm7' }, { rootIndex: 1, chordId: 'absent' }, { rootIndex: 0, chordId: 'maj7' }, { rootIndex: 1, chordId: '7alt' }];
+        assert.deepEqual(E.chordSuggestionsForRoot(grid, 1, null, recent, 10), ['m7', '7alt', '13b9', '9']);
+        assert.deepEqual(E.chordSuggestionsForRoot(grid, 1, null, recent), ['m7', '7alt']);
+    });
+    test('grille d\'une autre session : un accord mémorisé mais absent de CETTE grille n\'est jamais proposé', () => {
+        assert.deepEqual(E.chordSuggestionsForRoot([st(1, 'maj7')], 1, null, [{ rootIndex: 1, chordId: '7alt' }]), ['maj7']);
+    });
+    test('rememberChord : en tête, sans doublon, plafonné', () => {
+        let r = E.rememberChord([], 1, '7alt');
+        r = E.rememberChord(r, 1, 'm7');
+        r = E.rememberChord(r, 1, '7alt');
+        assert.deepEqual(r, [{ rootIndex: 1, chordId: '7alt' }, { rootIndex: 1, chordId: 'm7' }]);
+        for (let i = 0; i < 100; i++) r = E.rememberChord(r, 2, `c${i}`);
+        assert.equal(r.length, 60);
+        assert.equal(r[0].chordId, 'c99');
+    });
+});

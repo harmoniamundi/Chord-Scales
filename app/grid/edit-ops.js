@@ -224,6 +224,59 @@ function setFunctionLabel(grid, measureNumber, half, label, mod = null) {
     mergeAround(grid, idx - 1, idx + 1);
 }
 
+// Accords de la grille dans l'ordre de lecture : { measureNumber, half (0 ou 1), rootIndex, chordId }.
+// Une mesure à deux accords en fournit deux (half 0 puis half 1).
+function chordPositions(grid) {
+    const out = [];
+    flatMeasureList(grid).forEach(m => {
+        out.push({ measureNumber: m.measureNumber, half: 0, rootIndex: m.rootIndex, chordId: m.chordId });
+        if (m.split) out.push({ measureNumber: m.measureNumber, half: 1, rootIndex: m.split.rootIndex, chordId: m.split.chordId });
+    });
+    return out;
+}
+
+// Occurrences du MÊME accord (même fondamentale, même type) situées après l'accord (measureNumber, half), dans l'ordre de lecture.
+// Renvoie [{ measureNumber, half }] ; vide si l'accord n'existe pas.
+function laterChordOccurrences(grid, measureNumber, half = 0) {
+    const all = chordPositions(grid);
+    const at = all.findIndex(p => p.measureNumber === measureNumber && p.half === (half === 1 ? 1 : 0));
+    if (at < 0) return [];
+    const ref = all[at];
+    return all.slice(at + 1)
+        .filter(p => p.rootIndex === ref.rootIndex && p.chordId === ref.chordId)
+        .map(p => ({ measureNumber: p.measureNumber, half: p.half }));
+}
+
+// Applique la fonction tonale `label` (null = retour au calcul automatique ; mod = { root, minor } pour une lecture de type
+// modulation) à TOUTES les occurrences suivantes de l'accord (measureNumber, half), telle quelle : le choix de l'utilisateur
+// l'emporte, y compris sur une lecture manuelle déjà posée. Les mesures gardent leur numéro. Renvoie le nombre d'occurrences modifiées.
+function applyFunctionLabelToLater(grid, measureNumber, half, label, mod = null) {
+    const targets = laterChordOccurrences(grid, measureNumber, half);
+    targets.forEach(p => setFunctionLabel(grid, p.measureNumber, p.half, label, mod));
+    return targets.length;
+}
+
+// Types d'accord à proposer en premier quand on choisit la fondamentale rootIndex : ceux déjà présents dans la grille avec cette
+// fondamentale (ailleurs qu'à la position `exclude` = { measureNumber, half }, l'accord en cours d'édition). Les plus récemment
+// choisis dans l'éditeur (`recent` : [{ rootIndex, chordId }], le plus récent d'abord) passent en tête, puis les autres du plus
+// proche de la fin de la grille au plus éloigné. Au plus `limit` identifiants, sans doublon.
+function chordSuggestionsForRoot(grid, rootIndex, exclude = null, recent = [], limit = 2) {
+    const found = chordPositions(grid)
+        .filter(p => p.rootIndex === rootIndex && !(exclude && p.measureNumber === exclude.measureNumber && p.half === exclude.half));
+    const present = [];
+    for (let i = found.length - 1; i >= 0; i--) if (!present.includes(found[i].chordId)) present.push(found[i].chordId);
+    const ordered = [];
+    (recent || []).forEach(r => { if (r.rootIndex === rootIndex && present.includes(r.chordId) && !ordered.includes(r.chordId)) ordered.push(r.chordId); });
+    present.forEach(id => { if (!ordered.includes(id)) ordered.push(id); });
+    return ordered.slice(0, limit);
+}
+
+// Mémorise (en tête de `recent`, sans doublon, 60 entrées au plus) un accord choisi dans l'éditeur ; renvoie la nouvelle liste.
+function rememberChord(recent, rootIndex, chordId, cap = 60) {
+    const rest = (recent || []).filter(r => !(r.rootIndex === rootIndex && r.chordId === chordId));
+    return [{ rootIndex, chordId }, ...rest].slice(0, cap);
+}
+
 // ===== Signes de reprise =====
 // Isole les mesures from..to, applique fn(i0, i1) sur les blocs obtenus, puis refusionne les voisins.
 function withIsolatedRange(grid, from, to, fn) {
@@ -312,5 +365,6 @@ function diatonicDegrees(env) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { partLabelOfMeasure, measureItems, isolateMeasure, isolateRange, splitBeforeMeasure, mergeAround, deleteRange,
         deleteMeasureAt, insertItemsAfter, duplicateMeasureAfter, appendCopyOfLast, setMeasureSplit, transposeRange, setFunctionLabel,
+        chordPositions, laterChordOccurrences, applyFunctionLabelToLater, chordSuggestionsForRoot, rememberChord,
         withIsolatedRange, toggleRepeatStart, cycleRepeatEnd, toggleVolta, clearRepeats, markMeasure, assignAutoParts, diatonicDegrees };
 }

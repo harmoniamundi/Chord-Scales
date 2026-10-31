@@ -7,7 +7,9 @@
 // v : m (mesure à plat : measureNumber, measureInStep…), step (bloc de la grille), isHalf (deux accords), cur (accord édité),
 //     half (0 ou 1, moitié éditée), mode ('build' | 'cat'), isFolded(clé) (section repliée), degrees (degrés diatoniques),
 //     rootLabels (noms des 12 notes), symbol(chord) (symbole texte), jazz(chordId) (notation jazz), findChordObj(id),
-//     halfLabelText(half), halfTitleText().
+//     halfLabelText(half), halfTitleText(), suggestions (ids d'accords déjà utilisés dans la grille avec la même fondamentale,
+//     à proposer en premier ; facultatif).
+// Les sections Gamme, Basse et Reprises se replient (fermées par défaut, flèche ▸/▾) ; les choix d'accords tiennent sur 2 lignes.
 
 // Fonctions de théorie : globales en navigateur (theory.js), à charger sous Node.
 const MED_T = (typeof chordRootName !== 'undefined')
@@ -35,7 +37,15 @@ function editorHtml(v) {
                     .map(([nm, v]) => chip(rootLabels[parseInt(v, 10)] === nm && parseInt(v, 10) === cur.rootIndex, `data-act="root" data-v="${v}"`, nm)).join('');
                 const common = ['maj7', '6', 'maj9', 'm7', 'm9', 'm11', '7', '9', '7alt', '7b9', '7sus4', 'm7b5', 'dim7', 'majTriad', 'minTriad'];
                 const commonObjs = common.map(id => findChordObj(id)).filter(c => c && c.id !== undefined);
-                const chords = commonObjs.map(c => chip(c.id === cur.chordId, `data-act="chord" data-v="${c.id}" title="${c.fullName || ''}"`, jazz(c.id) || c.name)).join('');
+                const memCat = (v.suggestions || []).filter(id => { const co = findChordObj(id); return co && co.id !== undefined; }).slice(0, 1);
+                const catIds = [...new Set([...memCat, ...commonObjs.map(c => c.id)])].slice(0, 16);
+                const chords = catIds.map(id => {
+                    const co = findChordObj(id);
+                    const mem = memCat.includes(id);
+                    return chip(id === cur.chordId,
+                        `data-act="chord" data-v="${id}" title="${mem ? `${med_chordRootName(cur.rootIndex, cur.chordId, rootLabels)}${jazz(id)} : déjà utilisé dans cette grille` : (co.fullName || '')}"`,
+                        jazz(id) || co.name, mem ? ' jm-mem' : '');
+                }).join('');
                 const allChords = Object.values(med_chordTypes).flat();
                 const options = allChords.map(c => `<option value="${c.id}">${jazz(c.id)} — ${c.fullName || c.name}</option>`).join('');
                 const scales = (chordObj ? chordObj.scales : []).map(sc => {
@@ -81,32 +91,40 @@ function editorHtml(v) {
                 const mode = v.mode;
                 const glyph = (s) => String(s).replace(/#/g, '♯').replace(/b/g, '♭');
                 const bst = (med_chordInfo(cur.chordId) || { st: med_cbNormalize({}) }).st;
-                const seg = (act, defs, on) => `<div class="jm-seg">${defs.map(([k, label, tip]) =>
+                const seg = (act, defs, on, cls = '') => `<div class="jm-seg${cls}">${defs.map(([k, label, tip]) =>
                     chip(on(k), `data-act="${act}" data-v="${k}" title="${tip}"`, label)).join('')}</div>`;
                 const thirdSeg = seg('third', [
                     ['M', 'maj', 'Tierce majeure'], ['m', 'min', 'Tierce mineure'],
-                    ['sus4', 'sus4', 'Suspendu : la quarte remplace la tierce'], ['sus2', 'sus2', 'Suspendu : la seconde remplace la tierce']], k => bst.third === k);
+                    ['sus4', 'sus4', 'Suspendu : la quarte remplace la tierce'], ['sus2', 'sus2', 'Suspendu : la seconde remplace la tierce']], k => bst.third === k, ' jm-seg-sm');
                 const fifthSeg = seg('fifth', [
                     ['P', '5', 'Quinte juste'], ['b5', '♭5', 'Quinte diminuée'],
-                    ['s5', '♯5', 'Quinte augmentée']], k => bst.fifth === k);
+                    ['s5', '♯5', 'Quinte augmentée']], k => bst.fifth === k, ' jm-seg-sm');
                 const sevSeg = seg('sev', [
                     ['', '—', 'Aucune septième : triade'], ['6', '6', 'Sixte ajoutée'],
                     ['b7', '7', 'Septième mineure (♭7) : dominante, m7, ø…'], ['M7', 'Δ7', 'Septième majeure'],
-                    ['bb7', '°7', 'Septième diminuée : accord diminué (tierce mineure + quinte ♭5)']], k => bst.sev === k);
+                    ['bb7', '°7', 'Septième diminuée : accord diminué (tierce mineure + quinte ♭5)']], k => bst.sev === k, ' jm-seg-sm');
                 const usedPcs = med_cbStructIntervals(bst);
                 const extTips = { b9: 'Neuvième mineure', '9': 'Neuvième', s9: 'Neuvième augmentée (♯9)', '11': 'Onzième', s11: 'Onzième augmentée (♯11)', b13: 'Treizième mineure (♭13)', '13': 'Treizième' };
                 const extSeg = `<div class="jm-seg">${MED_EXT_ORDER.map(k =>
                     chip(bst.ext.includes(k), `data-act="ext" data-v="${k}" title="${extTips[k]}${usedPcs.includes(MED_EXT[k]) ? ' (déjà dans l\'accord)' : ''}"`,
                         glyph(MED_EXT_LABEL[k]), usedPcs.includes(MED_EXT[k]) ? ' jm-off' : '')).join('')}</div>`;
                 const shortcutIds = ['majTriad', 'minTriad', 'maj7', 'm7', '7', 'm7b5', 'dim7', '7sus4', '7alt', '6', '9', 'm9'];
-                const shortcuts = shortcutIds.map(id => {
+                // Accords déjà utilisés dans cette grille avec la même fondamentale : proposés en premier (v.suggestions, plus récent d'abord)
+                const rootNm = med_chordRootName(cur.rootIndex, cur.chordId, rootLabels);
+                const memIds = (v.suggestions || []).filter(id => { const co = findChordObj(id); return co && co.id !== undefined; });
+                const memChip = (id) => {
                     const co = findChordObj(id);
-                    return chip(id === cur.chordId, `data-act="chord" data-v="${id}" title="${co.fullName || ''}"`, jazz(id) || co.name);
-                }).join('');
+                    const mem = memIds.includes(id);
+                    return chip(id === cur.chordId,
+                        `data-act="chord" data-v="${id}" title="${mem ? `${rootNm}${jazz(id)} : déjà utilisé dans cette grille` : (co.fullName || '')}"`,
+                        jazz(id) || co.name, mem ? ' jm-mem' : '');
+                };
+                // 2 lignes de 7 : les suggestions prennent la tête, les raccourcis habituels suivent (doublons retirés)
+                const shortcuts = [...new Set([...memIds.slice(0, 2), ...shortcutIds])].slice(0, 14).map(memChip).join('');
                 const spelledNotes = med_getSpelledChordNotes(med_chordRootName(cur.rootIndex, cur.chordId, rootLabels), chordObj).map(glyph).join(' ');
                 const notesNote = cur.chordId === '7alt' ? ' <small>(7alt = 7♭5 ; ajoutez ♭9, ♯9, ♭13 pour le détail)</small>' : '';
                 const buildChord = `<div class="jm-sec"><div class="jm-sec-t">Accord</div>
-                        <div class="jm-row">${shortcuts}</div>
+                        <div class="jm-chords">${shortcuts}</div>
                         <div class="jm-sub-t">Tierce</div>${thirdSeg}
                         <div class="jm-sub-t">Quinte</div>${fifthSeg}
                         <div class="jm-sub-t">Septième</div>${sevSeg}
@@ -133,7 +151,8 @@ function editorHtml(v) {
                     </div>`;
                 const secDur = `<div class="jm-sec"><div class="jm-sec-t">Durée</div>${durSeg}</div>`;
                 const secDeg = `<div class="jm-sec"><div class="jm-sec-t">Degrés de la tonalité</div><div class="jm-row">${degrees}</div></div>`;
-                const secScale = `<div class="jm-sec"><div class="jm-sec-t">Gamme</div><div class="jm-row">${scales}</div></div>`;
+                const scaleDb = med_scalesDb[cur.scaleId];
+                const secScale = foldSec('scale', 'Gamme', scaleDb ? scaleDb.name : (cur.scaleId || ''), `<div class="jm-row">${scales}</div>`);
                 const body = mode === 'build' ? `
                     ${secDur}
                     ${secDeg}
@@ -145,7 +164,7 @@ function editorHtml(v) {
                     ${secDur}
                     ${secDeg}
                     <div class="jm-sec"><div class="jm-sec-t">Fondamentale</div><div class="jm-row">${roots}</div></div>
-                    <div class="jm-sec"><div class="jm-sec-t">Accord</div><div class="jm-row">${chords}</div>
+                    <div class="jm-sec"><div class="jm-sec-t">Accord</div><div class="jm-chords jm-chords-8">${chords}</div>
                         <select class="jm-select" data-act="chordsel"><option value="">Autres accords…</option>${options}</select></div>
                     <div class="jm-sec"><div class="jm-sec-t">Basse</div><div class="jm-row">${basses}</div></div>
                     ${secScale}
@@ -165,7 +184,7 @@ function editorHtml(v) {
                         <button type="button" class="jm-btn jm-danger" data-act="del" title="Supprimer cette mesure">Supprimer</button>
                         <button type="button" class="jm-btn jm-primary" data-act="close" title="Entrée">OK</button>
                     </div>
-                    <div class="jm-hint">Touches : 1–7 degrés · ← → mesures · Entrée / Échap pour fermer</div>`;
+                    <div class="jm-hint">1–7 degrés · ← → mesures · ⌘C / ⌘V copier / coller après · Entrée / Échap</div>`;
 }
 
 if (typeof module !== 'undefined' && module.exports) {
