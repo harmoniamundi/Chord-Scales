@@ -106,6 +106,16 @@ describe('sanitizeImportedGrid : second accord, reprises, parties', () => {
     });
 });
 
+describe('sanitizeImportedSettings : swing', () => {
+    test('le swing de l\'orchestration est conservé et borné ; absent ou invalide = Auto', () => {
+        assert.equal(F.sanitizeImportedSettings({ orchestration: { style: 'swing', swing: 0.62 } }).orchestration.swing, 0.62);
+        assert.equal(F.sanitizeImportedSettings({ orchestration: { swing: 0.2 } }).orchestration.swing, 0.5);
+        assert.equal(F.sanitizeImportedSettings({ orchestration: { swing: 3 } }).orchestration.swing, 0.75);
+        for (const bad of [undefined, null, '', 'x']) assert.ok(!('swing' in F.sanitizeImportedSettings({ orchestration: { swing: bad } }).orchestration));
+        assert.ok(!('swing' in F.sanitizeImportedSettings({ orchestration: { style: 'swing' } }).orchestration));
+    });
+});
+
 describe('sanitizeImportedSettings', () => {
     test('entrées invalides → objet vide', () => {
         for (const bad of [null, undefined, 5, 'x', []]) assert.deepEqual(F.sanitizeImportedSettings(bad), {});

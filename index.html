@@ -500,6 +500,7 @@
                 this.bandStyle = 'swing';
                 this.bandVolumes = { piano: 0.5, bass: 0.85, drums: 0.25, bandoneon: 0.7, violin: 0.6, guitar: 0.5 }; // les trois derniers : style Tango nuevo
                 this.bandReverb = 0.25;
+                this.bandSwingSetting = null; // swing choisi au curseur (0.5 à 0.75) ; null = « Auto » (triolet, qui se resserre avec le tempo)
                 this.bandMaster = MASTER_UNITY; // position du curseur Master (0-1), hors sauvegardes / export / import ; le métronome a son propre volume
                 this.masterBus = null;
                 // Métronome (hors sauvegardes / export / import) : intro d'une mesure toujours jouée ; clic pendant la grille seulement si activé
@@ -921,6 +922,7 @@
                             guitar: this.bandVolumes.guitar
                         },
                         reverb: this.bandReverb,
+                        swing: this.bandSwingSetting === null ? undefined : this.bandSwingSetting, // absent = « Auto »
                         groove: this.getEffectiveGroove(this._arpPrevStyle || this.bandStyle) || undefined // rythme imposé (samba, tango, piazzolla, afro…) valable pour l'orchestre actuel ; absent = choix automatique
                     }
                 };
@@ -1017,6 +1019,7 @@
                         Object.keys(o.volumes).forEach(k => this.setBandVolume(k, Math.round(o.volumes[k] * 100)));
                     }
                     if (o.reverb !== undefined) this.setBandReverb(Math.round(o.reverb * 100));
+                    this.setBandSwing(o.swing !== undefined ? o.swing : null); // les fichiers sans swing reviennent à « Auto »
                     this.updateBandModalUI();
                     this.updateBandButtonLabel();
                 }
@@ -1388,6 +1391,7 @@
                     if (el) { el.textContent = unit; el.title = tip; }
                 });
                 if (changed && this.grid && this.grid.length) this.renderGridUI();
+                this.updateBandSwingUI();
             }
 
             setBpm(val) {
@@ -1395,6 +1399,7 @@
                 document.getElementById('jam-bpm-display').textContent = this.bpm;
                 const slider1 = document.getElementById('jam-bpm-slider');
                 if (slider1) slider1.value = this.bpm;
+                if (this.bandSwingSetting === null) this.updateBandSwingUI(); // en « Auto », le swing suit le tempo
             }
 
             // --- Popup Band : choix de l'orchestration (Arpèges / Orchestre) ---
@@ -1637,6 +1642,7 @@
 
             updateBandModalUI() {
                 this.updateMetronomeUI();
+                this.updateBandSwingUI();
                 this.updateBandInstrumentLabel();
                 // En « Classique » (piano seul) : la basse et la batterie de l'orchestre ne servent pas.
                 const solo = this.bandStyle === 'classic';
@@ -2333,7 +2339,30 @@
             // puis mesure de « turnaround » qui anticipe l'accord suivant et peut se terminer par un fill.
 
             // Rapport de swing : triolet au départ, qui se rapproche des croches droites quand le tempo monte.
-            getBandSwing() { return bandSwing(this.bandStyle, this.bpm); }
+            getBandSwing() { return bandSwing(this.bandStyle, this.bpm, this.bandSwingSetting); }
+
+            // Curseur Swing du pop-up Orchestre : val = position de la croche « et » (0.5 à 0.75), ou null pour revenir à « Auto ».
+            setBandSwing(val) {
+                const n = (val === null || val === undefined || val === '') ? NaN : Number(val);
+                this.bandSwingSetting = Number.isFinite(n) ? Math.max(0.5, Math.min(0.75, n)) : null;
+                this.updateBandSwingUI();
+            }
+
+            // Affiche le réglage de swing. La ligne n'a de sens qu'en orchestre Swing à 2, 3 ou 4 temps
+            // (en 6/8, 9/8 et 12/8 le balancement ternaire est écrit dans les motifs).
+            updateBandSwingUI() {
+                const row = document.getElementById('band-row-swing');
+                if (!row) return;
+                row.classList.toggle('hidden', !(this.bandStyle === 'swing' && !this.isTernary() && !this._arpPrevStyle));
+                const v = this.getBandSwing();
+                const pct = Math.round(v * 100);
+                const slider = document.getElementById('band-swing-slider');
+                const display = document.getElementById('band-swing-display');
+                const auto = document.getElementById('band-swing-auto');
+                if (slider) slider.value = pct;
+                if (display) display.textContent = pct + '%';
+                if (auto) auto.classList.toggle('is-active', this.bandSwingSetting === null);
+            }
 
             getBandPhraseLength() { return bandPhraseLength(this.grid); }
 
@@ -4967,6 +4996,7 @@
                     this._arpPrevStyle = null;
                 }
                 this._setArpeggioUI(false);
+                this.updateBandSwingUI();
             }
 
             togglePlay() {
@@ -6335,6 +6365,13 @@
                     </select>
                 </div>
 
+                <div id="band-row-swing" class="flex items-center gap-2" title="Balancement des croches : 50 % = croches droites, 67 % = triolet, plus haut = plus pointé. « Auto » : triolet, qui se resserre quand le tempo monte.">
+                    <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Swing</span>
+                    <input type="range" id="band-swing-slider" min="50" max="75" step="1" value="67" oninput="app.jam.setBandSwing(+this.value === 67 ? 0.667 : this.value / 100)" class="w-full accent-emerald-500">
+                    <span id="band-swing-display" class="text-xs font-mono font-bold text-slate-200 min-w-[32px] text-right">67%</span>
+                    <button type="button" id="band-swing-auto" class="band-swing-auto is-active" onclick="app.jam.setBandSwing(null)" title="Revenir au swing automatique (selon le tempo)">Auto</button>
+                </div>
+
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Master</span>
                     <input type="range" id="band-master-slider" min="0" max="100" value="50" title="Volume général de l'orchestre (50 % = niveau d'origine, au-dessus : plus fort)" oninput="app.jam.setBandMaster(this.value)" class="w-full accent-blue-500">
@@ -6439,38 +6476,6 @@
             });
             acquire();
         })();
-    </script>
-
-    <script>
-    // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
-    (function () {
-        var BUILD = '2026-10-31-c';
-        function cssBuild() {
-            try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
-        }
-        window.addEventListener('load', function () {
-            var seen = {
-                'app/grid/edit-ops.js': typeof EDIT_OPS_BUILD !== 'undefined' ? EDIT_OPS_BUILD : '',
-                'app/ui/measure-editor.js': typeof MEASURE_EDITOR_BUILD !== 'undefined' ? MEASURE_EDITOR_BUILD : '',
-                'app/style.css': cssBuild()
-            };
-            var old = Object.keys(seen).filter(function (f) { return seen[f] !== BUILD; });
-            var tag = document.createElement('div');
-            tag.textContent = 'version ' + BUILD;
-            tag.style.cssText = 'position:fixed;right:8px;bottom:3px;z-index:5;font:10px/1 sans-serif;color:#64748b;pointer-events:none';
-            document.body.appendChild(tag);
-            if (!old.length) return;
-            var bar = document.createElement('div');
-            bar.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:99999;padding:8px 40px 8px 12px;background:#b45309;color:#fff;font:13px/1.35 sans-serif;text-align:center';
-            bar.textContent = 'Mise à jour incomplète : ' + old.join(', ') + ' n\'est pas à la même version que index.html (' + BUILD + '). Renvoyez ce fichier sur GitHub, dans son dossier, puis rechargez.';
-            var x = document.createElement('button');
-            x.textContent = '✕';
-            x.style.cssText = 'position:absolute;right:8px;top:4px;background:none;border:0;color:#fff;font-size:16px;cursor:pointer';
-            x.onclick = function () { bar.remove(); };
-            bar.appendChild(x);
-            document.body.appendChild(bar);
-        });
-    })();
     </script>
 
     <script src="app/offline.js"></script>

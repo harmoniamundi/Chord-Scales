@@ -248,6 +248,15 @@ describe('rythme : bandSwing, swingPos, pickWeighted, meterKey, patternLib', () 
         assert.ok(H.bandSwing('swing', 60) <= 0.667);
         assert.ok(H.bandSwing('swing', 200) < H.bandSwing('swing', 100));
     });
+    test('bandSwing : réglage manuel du curseur (borné 0.5 à 0.75), sans effet hors swing', () => {
+        assert.equal(H.bandSwing('swing', 140, 0.6), 0.6);
+        assert.equal(H.bandSwing('swing', 220, 0.6), 0.6); // indépendant du tempo
+        assert.equal(H.bandSwing('swing', 140, 0.3), 0.5);
+        assert.equal(H.bandSwing('swing', 140, 0.9), 0.75);
+        assert.equal(H.bandSwing('pop', 140, 0.7), 0.5);
+        // null / undefined / NaN : retour au calcul automatique
+        for (const v of [null, undefined, NaN]) assert.equal(H.bandSwing('swing', 200, v), H.bandSwing('swing', 200));
+    });
     test('swingPos : seuls les « et » (x.5) sont décalés', () => {
         assert.equal(H.swingPos(1, 0.62), 1);
         assert.equal(H.swingPos(1.5, 0.62), 1.62);

@@ -392,7 +392,6 @@
         #jam-chord-sequence-display .jam-cell-top > span:last-child { min-width: 0; }
         #jam-chord-sequence-display .jam-add-cell { align-self: stretch; min-height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 1.5px dashed #2f6f57; background: rgba(16,185,129,.06); color: #34d399; font-size: 24px; line-height: 1; cursor: pointer; user-select: none; transition: background .12s, border-color .12s; }
         #jam-chord-sequence-display .jam-add-cell:hover { background: rgba(16,185,129,.16); border-color: #34d399; }
-        :root { --cs-build: '2026-10-31-c'; } /* numéro de version lu par la page */
         .jm-pop { position: fixed; z-index: 2000; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); color: #e2e8f0; padding: 10px 12px 12px; font-size: 12px; }
         .jm-pop.jm-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; max-height: 62vh; }
         /* Pop-up « Orchestre » : fenêtre flottante à gauche de l'écran, sans voile, déplaçable par sa barre de titre */
@@ -404,6 +403,9 @@
         #saved-grids-modal.sg-sheet .jm-head { cursor: default; }
         #band-modal { position: fixed; z-index: 1900; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow-y: auto; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
         #band-modal.hidden { display: none; }
+        #band-modal .band-swing-auto { font-size: 10px; font-weight: 700; line-height: 1; padding: 4px 7px; border-radius: 6px; background: #3a3a3c; color: #cbd5e1; cursor: pointer; transition: background .15s; }
+        #band-modal .band-swing-auto:hover { background: #48484a; }
+        #band-modal .band-swing-auto.is-active { background: #059669; color: #fff; }
         #band-modal.band-dragging { opacity: .96; box-shadow: 0 16px 48px rgba(0,0,0,.7); }
         #band-modal.band-dragging .jm-head { cursor: grabbing; }
         .jm-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }

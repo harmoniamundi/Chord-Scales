@@ -297,10 +297,13 @@ function getStepHalves(step) {
 // Rythme : swing, tirage pondéré, bibliothèque de patterns selon la signature
 // ---------------------------------------------------------------------------------------------
 
-// Rapport de swing : triolet au départ, qui se rapproche des croches droites quand le tempo monte.
+// Rapport de swing : position de la croche « et » dans le temps (0.5 = croches droites, 0.667 = triolet, 0.75 = très pointé).
+// Par défaut (réglage « Auto ») : triolet au départ, qui se rapproche des croches droites quand le tempo monte.
+// `manual` : valeur choisie au curseur Swing du pop-up Orchestre (0.5 à 0.75) ; elle remplace le calcul automatique.
 // Seul le style « swing » swingue ; les autres jouent des croches droites (0.5).
-function bandSwing(style, bpm) {
+function bandSwing(style, bpm, manual) {
     if (style !== 'swing') return 0.5;
+    if (typeof manual === 'number' && Number.isFinite(manual)) return Math.max(0.5, Math.min(0.75, manual));
     return Math.max(0.58, Math.min(0.667, 0.667 - (bpm - 140) * 0.001));
 }
 
