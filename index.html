@@ -242,7 +242,7 @@
                         </div>
                         <button onclick="app.jam.toggleBandModal()" title="Orchestre : style et volumes" aria-label="Orchestre" class="jr-full jr-center flex items-center gap-1.5 text-xs bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-2 px-2.5 rounded-lg transition shadow shrink-0">
                             <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1014 17V7h4V3h-6z"/></svg>
-                            <span id="band-btn-label">Orchestre Swing</span>
+                            <span id="band-btn-label">Orchestre Jazz</span>
                         </button>
                     </div>
                 </div>
@@ -1837,12 +1837,12 @@
                 });
             }
 
-            // Le bouton affiche « Orchestre » suivi du style actif (Swing / Pop / Brasil / Cuba / Classique).
+            // Le bouton affiche « Orchestre » suivi du style actif (Jazz / Pop / Brasil / Cuba / Classique).
             updateBandButtonLabel() {
                 const label = document.getElementById('band-btn-label');
                 if (!label) return;
-                const names = { swing: 'Swing', pop: 'Pop', latin: 'Brasil', cuba: 'Cuba', classic: 'Classique', brass: 'Brass', balkan: 'Balkans', piazzolla: (this.getEffectiveGroove() === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
-                label.textContent = 'Orchestre ' + (names[this.bandStyle] || 'Swing');
+                const names = { swing: 'Jazz', pop: 'Pop', latin: 'Brasil', cuba: 'Cuba', classic: 'Classique', brass: 'Brass', balkan: 'Balkans', piazzolla: (this.getEffectiveGroove() === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
+                label.textContent = 'Orchestre ' + (names[this.bandStyle] || 'Jazz');
             }
 
             setBandVolume(instrument, val) {
@@ -6309,7 +6309,7 @@
     </script>
     <div id="jam-print-area"></div>
 
-    <!-- Pop-up « Orchestre » : style (Swing / Pop / Brasil / Classique), volume général de l'orchestre (Master), volumes des instruments, volume du métronome -->
+    <!-- Pop-up « Orchestre » : style (Jazz / Pop / Brasil / Classique), volume général de l'orchestre (Master), volumes des instruments, volume du métronome -->
     <div id="saved-grids-modal" class="hidden" role="dialog" aria-label="Sauvegardes">
         <div class="bg-[#222222] border border-[#3a3a3c] rounded-xl w-full p-3 space-y-2">
             <div id="saved-grids-modal-head" class="flex items-center justify-between jm-head" title="Glisser pour déplacer">
@@ -6353,7 +6353,7 @@
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Style</span>
                     <select id="band-style-select" onchange="app.jam.chooseBandStyle(this.value)" class="w-full bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-1.5 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
-                        <option value="swing">Swing</option>
+                        <option value="swing">Jazz</option>
                         <option value="pop">Pop</option>
                         <option value="latin">Brasil</option>
                         <option value="cuba">Cuba</option>
