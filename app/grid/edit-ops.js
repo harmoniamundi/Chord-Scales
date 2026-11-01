@@ -7,11 +7,6 @@
 // Les mesures sont numérotées à partir de 1 (comme flatMeasureList). Chargé par index.html via <script src="grid/edit-ops.js">
 // (après grid/play-order.js et grid/grid-format.js) et testé par grid/edit-ops.test.js.
 
-// Triades (theory.js) : globales en navigateur, à charger sous Node.
-const { triadOf: EO_triadOf, scaleFits: EO_scaleFits, TRIAD_IDS: EO_TRIAD_IDS } = (typeof triadOf !== 'undefined')
-    ? { triadOf, scaleFits, TRIAD_IDS }
-    : require('../theory.js');
-
 // Sous Node, les dépendances se chargent ; en navigateur ce sont des globaux (autres fichiers de grid/ et band/).
 if (typeof flatMeasureList === 'undefined' && typeof require === 'function') {
     var { flatMeasureList, effectiveVolta } = require('./play-order.js');
@@ -22,6 +17,7 @@ if (typeof isSplit === 'undefined' && typeof require === 'function') {
     var { isSplit } = require('../band/band-helpers.js');
 }
 
+const EDIT_OPS_BUILD = '2026-11-01-e'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
 const cloneStep = (o) => JSON.parse(JSON.stringify(o));
 
 // Repère de partie porté par la mesure m (liste à plat), seulement si elle ouvre son bloc ; '' sinon.
@@ -338,23 +334,8 @@ function assignAutoParts(grid) {
     marks.forEach(({ i, letter }) => { grid[i].partStart = letter; });
 }
 
-// Accord (et gamme) qui remplace un accord quand la qualité de la tonalité change : celui du même degré dans le nouveau mode,
-// à la septième ; si l'accord d'origine était une triade, sa triade (la dominante du degré devient alors une triade majeure).
-// target : { c, s } (entrée de la table des degrés à la septième) ; findChordObj(id) → accord du catalogue.
-function qualityTargetChord(prevChordId, target, findChordObj) {
-    const wasTriad = EO_TRIAD_IDS.includes(prevChordId);
-    const chordId = wasTriad ? EO_triadOf(target.c, true) : target.c;
-    let scaleId = target.s;
-    if (wasTriad && !EO_scaleFits(scaleId, chordId)) {
-        const co = findChordObj(chordId);
-        if (co && co.scales && co.scales[0]) scaleId = co.scales[0].id;
-    }
-    return { chordId, scaleId };
-}
-
 // Accords diatoniques de la tonalité et du mode en cours : fondamentale + accord + gamme de chaque degré.
-// env : { mainKey, mainQuality, findChordObj, styleScaleFor(chordId, rootIndex) → gamme du style ou null, triads? }.
-// Avec env.triads, chaque degré est donné en triade (I, ii, iii, IV, V, vi, vii°) au lieu de l'accord de septième.
+// env : { mainKey, mainQuality, findChordObj, styleScaleFor(chordId, rootIndex) → gamme du style ou null }.
 function diatonicDegrees(env) {
     const T = [
         { off: 0,  c: 'maj7', s: 'ionian' },
@@ -371,16 +352,14 @@ function diatonicDegrees(env) {
     return numerals.map((num, i) => {
         const target = T[(rot + i) % 7];
         const off = (target.off - T[rot].off + 12) % 12;
-        const chordId = env.triads ? EO_triadOf(target.c, true) : target.c;
         const lower = target.c === 'm7' || target.c === 'm7b5';
         let label = lower ? num.toLowerCase() : num;
-        if (target.c === 'm7b5') label += env.triads ? '°' : 'ø';
-        const co = env.findChordObj(chordId);
+        if (target.c === 'm7b5') label += 'ø';
+        const co = env.findChordObj(target.c);
         let scaleId = (co && co.scales.some(sc => sc.id === target.s)) ? target.s : (co ? co.scales[0].id : target.s);
-        if (env.triads && co && !EO_scaleFits(scaleId, chordId)) scaleId = co.scales[0].id;
         const rootIndex = (env.mainKey + off) % 12;
-        scaleId = env.styleScaleFor(chordId, rootIndex) || scaleId; // gamme adaptée au style en cours
-        return { label, rootIndex, chordId, scaleId };
+        scaleId = env.styleScaleFor(target.c, rootIndex) || scaleId; // gamme adaptée au style en cours
+        return { label, rootIndex, chordId: target.c, scaleId };
     });
 }
 
@@ -388,5 +367,5 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = { partLabelOfMeasure, measureItems, isolateMeasure, isolateRange, splitBeforeMeasure, mergeAround, deleteRange,
         deleteMeasureAt, insertItemsAfter, duplicateMeasureAfter, appendCopyOfLast, setMeasureSplit, transposeRange, setFunctionLabel,
         chordPositions, laterChordOccurrences, applyFunctionLabelToLater, chordSuggestionsForRoot, rememberChord,
-        withIsolatedRange, toggleRepeatStart, cycleRepeatEnd, toggleVolta, clearRepeats, markMeasure, assignAutoParts, diatonicDegrees, qualityTargetChord };
+        withIsolatedRange, toggleRepeatStart, cycleRepeatEnd, toggleVolta, clearRepeats, markMeasure, assignAutoParts, diatonicDegrees };
 }
