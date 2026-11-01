@@ -20,6 +20,20 @@ function play(grid, max = 80) {
 }
 const A = 0, B = 1, C = 2, D = 3, E = 4;
 
+describe('playedMeasureCount : mesures jouées en une lecture complète', () => {
+    test('sans reprise : somme des mesures', () => {
+        assert.equal(P.playedMeasureCount([blk(A, 2), blk(B, 1), blk(C, 4)]), 7);
+        assert.equal(P.playedMeasureCount([]), 0);
+    });
+    test('reprises : |: A B :| C = 2 passages sur A B', () => {
+        assert.equal(P.playedMeasureCount([blk(A, 1, { repeatStart: true }), blk(B, 2, { repeatEnd: 2 }), blk(C, 1)]), 1 + 2 + 1 + 2 + 1);
+    });
+    test('1re et 2e fin : la 1re fin n\'est jouée qu\'au premier passage', () => {
+        const g = [blk(A, 1, { repeatStart: true }), blk(B, 1, { volta: 1 }), blk(C, 1, { volta: 1, repeatEnd: 2 }), blk(D, 1, { volta: 2 })];
+        assert.equal(P.playedMeasureCount(g), 3 + 1 + 1); // A B C, puis A D
+    });
+});
+
 describe('lecture sans reprise', () => {
     test('les blocs se jouent dans l’ordre puis la grille est terminée', () => {
         assert.deepEqual(play([blk(A), blk(B), blk(C)]), [A, B, C]);

@@ -300,11 +300,33 @@ function getStepHalves(step) {
 // Rapport de swing : position de la croche « et » dans le temps (0.5 = croches droites, 0.667 = triolet, 0.75 = très pointé).
 // Par défaut (réglage « Auto ») : triolet au départ, qui se rapproche des croches droites quand le tempo monte.
 // `manual` : valeur choisie au curseur Swing du pop-up Orchestre (0.5 à 0.75) ; elle remplace le calcul automatique.
-// Seul le style « swing » swingue ; les autres jouent des croches droites (0.5).
+// Seuls les styles « swing » (Jazz) et « pop » (Pop-Rock) se règlent : Jazz est en « Auto » par défaut, Pop-Rock à 0.5 (croches
+// droites) ; les autres styles jouent toujours des croches droites (0.5).
 function bandSwing(style, bpm, manual) {
-    if (style !== 'swing') return 0.5;
+    if (style !== 'swing' && style !== 'pop') return 0.5;
     if (typeof manual === 'number' && Number.isFinite(manual)) return Math.max(0.5, Math.min(0.75, manual));
+    if (style === 'pop') return 0.5;
     return Math.max(0.58, Math.min(0.667, 0.667 - (bpm - 140) * 0.001));
+}
+
+// Déformation du temps pour un swing réglable sur un plan déjà écrit en croches droites (Pop-Rock) : dans chaque temps, la
+// première moitié (0 à 0.5) est étirée jusqu'à `swing`, la seconde (0.5 à 1) est comprimée. Les doubles croches suivent le mouvement.
+function swingWarp(pos, swing) {
+    if (Math.abs(swing - 0.5) < 1e-9) return pos;
+    const b = Math.floor(pos + 1e-9);
+    const f = pos - b;
+    return f < 0.5 ? b + f * swing / 0.5 : b + swing + (f - 0.5) * (1 - swing) / 0.5;
+}
+
+// Plan (piano, basse, batterie) dont les positions et les durées suivent swingWarp ; le plan d'origine n'est pas modifié.
+function swingPlan(plan, swing) {
+    if (!plan || Math.abs(swing - 0.5) < 1e-9) return plan;
+    const map = (list) => (list || []).map(e => {
+        const out = { ...e, pos: swingWarp(e.pos, swing) };
+        if (typeof e.dur === 'number' && e.dur > 0) out.dur = Math.max(0.05, swingWarp(e.pos + e.dur, swing) - out.pos);
+        return out;
+    });
+    return { ...plan, piano: map(plan.piano), bass: map(plan.bass), drums: map(plan.drums) };
 }
 
 // Décale vers le triolet les croches placées sur un « et » (x.5).
@@ -413,6 +435,6 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = { popFoldBass, bassPc, bassNear, popBassTones, popBassApproach, popScaleNotes, popLineNote, popRun, latBassTones,
         jamChordPlaybackNotes, popVoicing, popSusVoicing, latThumb, latVary, latDetach,
         brassParts, isSplit, isSplitEffective, getStepHalves,
-        bandSwing, swingPos, pickWeighted, meterKey, patternLib, pianoGuideInterval, pianoHitIntervals,
+        bandSwing, swingWarp, swingPlan, swingPos, pickWeighted, meterKey, patternLib, pianoGuideInterval, pianoHitIntervals,
         clsVoicing, clsLowNote, clsMutate };
 }

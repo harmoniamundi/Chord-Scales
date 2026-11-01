@@ -23,6 +23,17 @@ function view(grid, { measureNumber = 1, half = 0, mode = 'build', folded = () =
 const blk = (o = {}) => ({ rootIndex: 0, chordId: 'maj7', scaleId: 'ionian', measures: 1, ...o });
 const count = (s, re) => (s.match(re) || []).length;
 
+describe('degrés de la tonalité : triades ou septièmes', () => {
+    test('la bascule propose 7es et Triades ; le mode actif est allumé', () => {
+        const a = editorHtml(view([blk()]));
+        assert.ok(/is-on" data-act="degmode" data-v="7"/.test(a));
+        assert.ok(a.includes('data-act="degmode" data-v="3"') && !/is-on" data-act="degmode" data-v="3"/.test(a));
+        const b = editorHtml({ ...view([blk()]), degreeTriads: true });
+        assert.ok(/is-on" data-act="degmode" data-v="3"/.test(b));
+        assert.ok(!/is-on" data-act="degmode" data-v="7"/.test(b));
+    });
+});
+
 describe('structure générale', () => {
     test('en-tête avec numéro de mesure et symbole, pied avec navigation', () => {
         const h = editorHtml(view([blk({ measures: 3 })], { measureNumber: 2 }));

@@ -350,3 +350,39 @@ describe('proposition renouvelée (bouton « Générer »)', () => {
         assert.equal(JSON.stringify(canon), snap);
     });
 });
+
+describe('styles classiques et traditionnels : triades (hors dominantes)', () => {
+    const DOM = ['7', '9', '7alt', '7b9', '7sharp5', '7sus4'];
+    const TRIADS = ['majTriad', 'minTriad', 'dimTriad', 'augTriad'];
+    const chordsOf = (tpl) => tpl.flatMap(it => [it.c, ...(it.split ? [it.split.c] : [])]);
+    const onlyTriadsOrDominants = (tpl) => chordsOf(tpl).every(c => TRIADS.includes(c) || DOM.includes(c));
+    const STYLES = ['trad', 'baroque', 'mozart', 'menuet'];
+    const MODES = ['ionian', 'aeolian', 'dorian', 'mixolydian'];
+
+    test('modèle de référence : triades, dominantes à la septième ; tout reste jouable (gamme adaptée à l\'accord)', () => {
+        for (const s of STYLES) for (const q of MODES) {
+            const tpl = buildStyleTemplate(s, { keyRoot: 0, mainQuality: q, R: null, findChordObj });
+            assert.ok(onlyTriadsOrDominants(tpl), `${s} ${q}: ${chordsOf(tpl).join(',')}`);
+            assert.ok(chordsOf(tpl).some(c => TRIADS.includes(c)), s);
+            tpl.forEach(it => assert.ok(T.scaleFits(it.s, it.c), `${s} ${q} ${it.c} ${it.s}`));
+        }
+    });
+    test('variations du bouton « Générer » (modèle varié et modèle renouvelé) : toujours des triades', () => {
+        for (const s of STYLES) {
+            for (let v = 1; v <= 12; v++) {
+                const base = build(s);
+                const varied = G.createStyleVariation(ctx({ generationVariant: v }), base, s, 0);
+                assert.ok(onlyTriadsOrDominants(varied), `${s} variation ${v}: ${chordsOf(varied).join(',')}`);
+                const renewed = G.renewTemplate(ctx({ generationVariant: v }), s, (R) => build(s, 0, R), 0, base);
+                if (renewed) assert.ok(onlyTriadsOrDominants(renewed), `${s} renouvelé ${v}: ${chordsOf(renewed).join(',')}`);
+            }
+        }
+    });
+    test('les autres styles gardent leurs septièmes (jazz, pop…)', () => {
+        for (const s of ['ii-v-i', 'swing', 'pop', 'bossa']) assert.ok(chordsOf(build(s)).some(c => !TRIADS.includes(c) && !DOM.includes(c)), s);
+    });
+    test('isTriadStyle', () => {
+        STYLES.forEach(s => assert.ok(G.isTriadStyle(s)));
+        ['swing', 'pop', 'chansonsimple', 'brasshymn'].forEach(s => assert.ok(!G.isTriadStyle(s), s));
+    });
+});

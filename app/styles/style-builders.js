@@ -7,6 +7,8 @@
 if (typeof makeStyleToolkit === 'undefined' && typeof require === 'function') {
     var { makeStyleToolkit } = require('./toolkit.js');
 }
+// Triades (theory.js) : globales en navigateur, à charger sous Node.
+const SB_THEORY = (typeof triadizeItem !== 'undefined') ? { triadizeItem, TRIAD_STYLES } : require('../theory.js');
 
 const STYLE_BUILDERS = {
     // ============ 3/4 ============
@@ -843,6 +845,8 @@ function buildStyleTemplate(styleKey, ctx) {
     const template = builder ? builder(t) : [t.chord('I', 4, 'A', 'A1', 'tonic')];
     // Styles à ponts modulants : tout bloc sans tonalité explicite est dans la tonalité d'origine (kc = 0).
     if (template.some(x => Number.isInteger(x.kc))) template.forEach(x => { if (!Number.isInteger(x.kc)) x.kc = 0; });
+    // Styles classiques et traditionnels : triades, sauf les dominantes
+    if (SB_THEORY.TRIAD_STYLES.includes(styleKey)) template.forEach(item => { if (item.split) item.split = { ...item.split }; SB_THEORY.triadizeItem(item); });
     return template.map(item => ({ ...item }));
 }
 

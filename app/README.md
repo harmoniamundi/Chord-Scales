@@ -28,7 +28,7 @@ Les commandes `npm` se lancent **depuis le dossier `app/`** (`cd app`). Dans `in
 | `audio-config.js` | Constantes audio (octave de lecture, niveau master…) |
 | `band/` | Orchestre de la Jam : un fichier par famille de styles (`swing-plan`, `pop-plan`, `latin-plan`, `cuban-plan`, `brass-plan`, `balkan-plan`, `piazzolla-plan`, `classic-plan`, mesures 2/3 temps et ternaires), lignes de basse, choix par phrase (`phrase-plan`), états de départ (`band-state`), utilitaires (`band-helpers`) |
 | `grid/` | La grille d'accords : ordre de lecture et reprises (`play-order`), mécanique de lecture (`transport`), édition (`edit-ops`), génération (`generation`), lecture harmonique (`harmony`), sauvegarde/import (`grid-format`) |
-| `audio/` | Calcul des notes jouées (`note-events`, `practice-notes`), synthèse des percussions (`drum-synths`) et adresses locales des sons (`local-soundfonts`) |
+| `audio/` | Calcul des notes jouées (`note-events`, `practice-notes`), synthèse des percussions (`drum-synths`), fichier WAV de l'export du son (`wav-export`) et adresses locales des sons (`local-soundfonts`) |
 | `styles/` | Les styles musicaux : métadonnées (`style-meta`), outils (`toolkit`), un générateur de grille par style (`style-builders`) |
 | `ui/` | Ce qu'il faut afficher, sans DOM : grille (`grid-view`), cartes de gammes (`scale-cards`), éditeur de mesure (`measure-editor`), pastilles (`pastilles`), portée (`staff-model`), accords affichés (`chord-display`), écran Entraînement (`training-view`) |
 | `tools/` | Contrôles de cohérence du projet (`project-check.test.js`) et du mode hors ligne (`sw-check.test.js`) |

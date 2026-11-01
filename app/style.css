@@ -403,6 +403,29 @@
         #saved-grids-modal.sg-sheet .jm-head { cursor: default; }
         #band-modal { position: fixed; z-index: 1900; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow-y: auto; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
         #band-modal.hidden { display: none; }
+        /* Pop-up « Exporter » : grille (.json) ou son (.wav) ; il couvre l'écran pendant l'enregistrement du son */
+        #export-modal { position: fixed; inset: 0; z-index: 2100; display: flex; align-items: center; justify-content: center; padding: 12px; background: rgba(0,0,0,.5); }
+        #export-modal.hidden { display: none; }
+        #export-modal .exp-card { width: 380px; max-width: 100%; max-height: 100%; overflow-y: auto; background: #222222; border: 1px solid #3a3a3c; border-radius: 12px; padding: 16px; box-shadow: 0 12px 40px rgba(0,0,0,.6); display: flex; flex-direction: column; gap: 12px; color: #e5e7eb; }
+        #export-modal .exp-head { display: flex; align-items: center; justify-content: space-between; }
+        #export-modal .exp-title { font-size: 14px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #fff; }
+        #export-modal .exp-x { color: #94a3b8; padding: 4px; border-radius: 6px; }
+        #export-modal .exp-x:hover { color: #fff; }
+        #export-modal .exp-field { display: flex; flex-direction: column; gap: 4px; font-size: 11px; font-weight: 600; color: #94a3b8; }
+        #export-modal .exp-input { background: #3a3a3c; color: #fff; border: 1px solid #4a4a4c; border-radius: 8px; padding: 7px 9px; font-size: 13px; outline: none; }
+        #export-modal .exp-input:focus { border-color: #10b981; }
+        #export-modal .exp-input:disabled { opacity: .5; }
+        #export-modal .exp-note { font-size: 11px; line-height: 1.45; color: #94a3b8; }
+        #export-modal .exp-bar { height: 6px; border-radius: 3px; background: #3a3a3c; overflow: hidden; }
+        #export-modal .exp-bar.hidden, #export-modal .exp-status.hidden { display: none; }
+        #export-modal .exp-bar > i { display: block; height: 100%; width: 0; background: #10b981; transition: width .25s linear; }
+        #export-modal .exp-status { font-size: 12px; color: #e5e7eb; font-variant-numeric: tabular-nums; }
+        #export-modal .exp-actions { display: flex; justify-content: flex-end; gap: 8px; }
+        #export-modal .exp-btn { font-size: 12px; font-weight: 700; padding: 7px 12px; border-radius: 8px; background: #3a3a3c; color: #fff; cursor: pointer; }
+        #export-modal .exp-btn:hover { background: #48484a; }
+        #export-modal .exp-btn:disabled { opacity: .45; cursor: default; }
+        #export-modal .exp-btn.exp-go { background: #059669; }
+        #export-modal .exp-btn.exp-go:hover:not(:disabled) { background: #10b981; }
         #band-modal .band-swing-auto { font-size: 10px; font-weight: 700; line-height: 1; padding: 4px 7px; border-radius: 6px; background: #3a3a3c; color: #cbd5e1; cursor: pointer; transition: background .15s; }
         #band-modal .band-swing-auto:hover { background: #48484a; }
         #band-modal .band-swing-auto.is-active { background: #059669; color: #fff; }
@@ -452,6 +475,8 @@
         .jm-seg .jm-chip { min-width: 0; padding: 6px 0; }
         /* Tierce / quinte / septième : boutons plus petits */
         .jm-seg.jm-seg-sm { gap: 3px; }
+        .jm-seg.jm-seg-deg { gap: 3px; margin-bottom: 4px; }
+        .jm-seg.jm-seg-deg .jm-chip { padding: 2px 0; font-size: 11px; line-height: 1.2; border-radius: 6px; }
         .jm-seg.jm-seg-sm .jm-chip { padding: 2px 0; font-size: 11px; line-height: 1.2; border-radius: 6px; }
         /* Choix d'accords : toujours sur 2 lignes (7 colonnes en mode Construire, 8 en mode Catalogue) */
         .jm-chords { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }

@@ -15,6 +15,33 @@ const findChordObj = (id) => T.lookupChord(id) || T.chordTypes.maj[0];
 const styleGrid = (key) => buildStyleTemplate(key, { keyRoot: 0, mainQuality: 'ionian', R: null, findChordObj })
     .map(i => ({ rootIndex: i.r, chordId: i.c, measures: i.m, scaleId: i.s, ...(i.section ? { section: i.section } : {}), ...(i.split ? { split: { rootIndex: i.split.r, chordId: i.split.c, scaleId: i.split.s } } : {}) }));
 
+describe('degrés en triades et changement de qualité', () => {
+    const env = (o = {}) => ({ mainKey: 0, mainQuality: 'ionian', findChordObj, styleScaleFor: () => null, ...o });
+    test('degrés à la septième (inchangé) puis en triades', () => {
+        const d7 = E.diatonicDegrees(env());
+        assert.deepEqual(d7.map(d => d.chordId), ['maj7', 'm7', 'm7', 'maj7', '7', 'm7', 'm7b5']);
+        const d3 = E.diatonicDegrees(env({ triads: true }));
+        assert.deepEqual(d3.map(d => d.chordId), ['majTriad', 'minTriad', 'minTriad', 'majTriad', 'majTriad', 'minTriad', 'dimTriad']);
+        assert.deepEqual(d3.map(d => d.label), ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°']);
+        assert.deepEqual(d3.map(d => d.rootIndex), d7.map(d => d.rootIndex));
+    });
+    test('en triades, chaque gamme contient les notes de l\'accord', () => {
+        ['ionian', 'dorian', 'phrygian', 'lydian', 'mixolydian', 'aeolian', 'locrian'].forEach(q => {
+            E.diatonicDegrees(env({ triads: true, mainQuality: q })).forEach(d =>
+                assert.ok(T.scaleFits(d.scaleId, d.chordId), `${q} ${d.label} ${d.chordId} ${d.scaleId}`));
+        });
+    });
+    test('qualityTargetChord : une septième reste une septième, une triade reste une triade', () => {
+        assert.deepEqual(E.qualityTargetChord('maj7', { c: 'm7', s: 'dorian' }, findChordObj), { chordId: 'm7', scaleId: 'dorian' });
+        assert.deepEqual(E.qualityTargetChord('7', { c: 'maj7', s: 'ionian' }, findChordObj), { chordId: 'maj7', scaleId: 'ionian' });
+        assert.deepEqual(E.qualityTargetChord('majTriad', { c: 'm7', s: 'phrygian' }, findChordObj), { chordId: 'minTriad', scaleId: 'phrygian' });
+        assert.equal(E.qualityTargetChord('minTriad', { c: '7', s: 'mixolydian' }, findChordObj).chordId, 'majTriad');
+        const vii = E.qualityTargetChord('majTriad', { c: 'm7b5', s: 'locrianSharp2' }, findChordObj);
+        assert.equal(vii.chordId, 'dimTriad');
+        assert.ok(T.scaleFits(vii.scaleId, 'dimTriad'));
+    });
+});
+
 describe('isoler une mesure', () => {
     test('au milieu d\'un bloc de 4 : trois blocs', () => {
         const g = [st(0, 'maj7', 4)];

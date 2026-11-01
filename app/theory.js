@@ -332,7 +332,7 @@ const chordTypes = {
         { id: "7sharp5", name: "7(#5)", fullName: "Dominante 7 quinte aug", notes: [0, 4, 8, 10], scales: [{ id: "wholeTone", role: "Principal (Ton par ton)" }, { id: "altered", role: "Altéré" }] }
     ],
     other: [
-        { id: "dimTriad", name: "dim", fullName: "Triade diminuée", notes: [0, 3, 6], scales: [{ id: "wholeHalfDim", role: "Principal" }] },
+        { id: "dimTriad", name: "dim", fullName: "Triade diminuée", notes: [0, 3, 6], scales: [{ id: "wholeHalfDim", role: "Principal" }, { id: "locrianSharp2", role: "Degré VII (moderne)" }, { id: "locrian", role: "Degré VII" }] },
         { id: "augTriad", name: "aug", fullName: "Triade augmentée", notes: [0, 4, 8], scales: [{ id: "wholeTone", role: "Principal" }, { id: "lydianAug", role: "Alternative" }] },
         { id: "m7b5", name: "m7b5", fullName: "Semi-diminué (Half-dim)", notes: [0, 3, 6, 10], scales: [{ id: "locrianSharp2", role: "Principal Moderne (Degré II)" }, { id: "locrian", role: "Classique (Degré VII)" }, { id: "minorPentatonicFlat5", role: "Allégé" }] },
         { id: "dim7", name: "dim7", fullName: "Diminué 7", notes: [0, 3, 6, 9], scales: [{ id: "wholeHalfDim", role: "Principal (Couvre la structure symétrique)" }] },
@@ -556,8 +556,48 @@ function lookupChord(id) {
     return obj;
 }
 
+// ===== Triades =====
+// Triade d'un accord à septième ou à tensions (la septième et les tensions sont retirées).
+// Les accords de dominante (7, 9, 7alt…) sont gardés tels quels, sauf si includeDominants : ils deviennent alors une triade majeure.
+// Un accord sans équivalent (ou déjà une triade) est rendu inchangé.
+const TRIAD_OF = {
+    maj7: 'majTriad', '6': 'majTriad', maj9: 'majTriad', maj7sharp11: 'majTriad', maj7sharp5: 'majTriad',
+    m7: 'minTriad', m9: 'minTriad', m11: 'minTriad', mmaj7: 'minTriad',
+    m7b5: 'dimTriad', dim7: 'dimTriad'
+};
+const DOMINANT_IDS = ['7', '9', '7alt', '7b9', '7sharp5', '7sus4'];
+const TRIAD_IDS = ['majTriad', 'minTriad', 'dimTriad', 'augTriad'];
+function triadOf(chordId, includeDominants = false) {
+    if (cbHas(TRIAD_OF, chordId)) return TRIAD_OF[chordId];
+    if (includeDominants && DOMINANT_IDS.includes(chordId)) return 'majTriad';
+    return chordId;
+}
+// La gamme contient-elle toutes les notes de l'accord ?
+function scaleFits(scaleId, chordId) {
+    const sc = scalesDb[scaleId], co = lookupChord(chordId);
+    if (!sc || !co) return false;
+    return co.notes.every(n => sc.intervals.includes(((n % 12) + 12) % 12));
+}
+// Styles « classiques et traditionnels » (Chanson, Baroque, Mozart, Menuet ; « Chanson simple » est déjà tout en triades) :
+// harmonie de triades, seules les dominantes gardent leur septième.
+const TRIAD_STYLES = ['trad', 'baroque', 'mozart', 'menuet'];
+// Remplace dans un bloc de modèle { c, s, split? } les accords à septième (hors dominantes) par leur triade ; la gamme est
+// gardée si elle convient à la triade, sinon la première gamme de la triade.
+function triadizeItem(it) {
+    const fix = (x) => {
+        const t = triadOf(x.c);
+        if (t === x.c) return;
+        x.c = t;
+        if (!scaleFits(x.s, t)) { const co = lookupChord(t); if (co && co.scales[0]) x.s = co.scales[0].id; }
+    };
+    fix(it);
+    if (it.split) fix(it.split);
+    return it;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
+        triadOf, scaleFits, triadizeItem, TRIAD_STYLES, TRIAD_IDS,
         ROOT_NAMES_DEFAULT,
         ROOT_NAMES_SHARP,
         ROOT_NAMES_FLAT,

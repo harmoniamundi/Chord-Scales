@@ -253,9 +253,31 @@ describe('rythme : bandSwing, swingPos, pickWeighted, meterKey, patternLib', () 
         assert.equal(H.bandSwing('swing', 220, 0.6), 0.6); // indépendant du tempo
         assert.equal(H.bandSwing('swing', 140, 0.3), 0.5);
         assert.equal(H.bandSwing('swing', 140, 0.9), 0.75);
-        assert.equal(H.bandSwing('pop', 140, 0.7), 0.5);
+        assert.equal(H.bandSwing('pop', 140), 0.5);          // Pop-Rock : 50 % par défaut, quel que soit le tempo
+        assert.equal(H.bandSwing('pop', 220), 0.5);
+        assert.equal(H.bandSwing('pop', 140, 0.62), 0.62);   // réglable au curseur
+        assert.equal(H.bandSwing('latin', 140, 0.7), 0.5);   // les autres styles restent droits
         // null / undefined / NaN : retour au calcul automatique
         for (const v of [null, undefined, NaN]) assert.equal(H.bandSwing('swing', 200, v), H.bandSwing('swing', 200));
+    });
+    test('swingWarp / swingPlan : le temps est déformé sans sortir de son temps', () => {
+        assert.equal(H.swingWarp(1.5, 0.5), 1.5);
+        assert.ok(Math.abs(H.swingWarp(1.5, 0.667) - 1.667) < 1e-9);   // le « et » passe en triolet
+        assert.ok(Math.abs(H.swingWarp(1.25, 0.667) - (1 + 0.25 * 0.667 / 0.5)) < 1e-9);
+        assert.ok(Math.abs(H.swingWarp(1.75, 0.667) - (1 + 0.667 + 0.25 * 0.333 / 0.5)) < 1e-9);
+        for (const p of [0, 0.25, 0.5, 0.75, 1, 2.5, 3.75]) {
+            const w = H.swingWarp(p, 0.62);
+            assert.ok(w >= Math.floor(p) - 1e-9 && w < Math.floor(p) + 1 + 1e-9, String(p));
+        }
+        const plan = { piano: [{ pos: 0, dur: 1.5, type: 'C' }, { pos: 1.5, dur: 0.5 }], bass: [{ pos: 2, dur: 1 }], drums: [{ pos: 0.5, drum: 'hat' }] };
+        const same = H.swingPlan(plan, 0.5);
+        assert.equal(same, plan);
+        const sw = H.swingPlan(plan, 0.667);
+        assert.ok(Math.abs(sw.piano[1].pos - 1.667) < 1e-9);
+        assert.ok(Math.abs(sw.drums[0].pos - 0.667) < 1e-9);
+        assert.equal(sw.bass[0].pos, 2);
+        assert.ok(Math.abs(sw.piano[0].pos + sw.piano[0].dur - 1.667) < 1e-9); // la fin d'une note longue suit le « et » déformé
+        assert.equal(plan.piano[1].pos, 1.5); // plan d'origine intact
     });
     test('swingPos : seuls les « et » (x.5) sont décalés', () => {
         assert.equal(H.swingPos(1, 0.62), 1);

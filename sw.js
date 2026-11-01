@@ -59,6 +59,7 @@ const SHELL_FILES = [
     'app/audio/drum-synths.js',
     'app/audio/note-events.js',
     'app/audio/practice-notes.js',
+    'app/audio/wav-export.js',
     'app/ui/grid-view.js',
     'app/ui/scale-cards.js',
     'app/ui/measure-editor.js',

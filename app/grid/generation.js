@@ -11,7 +11,7 @@
 
 // Sous Node, la théorie se charge ; en navigateur ce sont des globaux (theory.js).
 const GEN_THEORY = (typeof scalesDb !== 'undefined')
-    ? { scalesDb, lookupChord, chordInfo, chordTypes }
+    ? { scalesDb, lookupChord, chordInfo, chordTypes, triadizeItem, TRIAD_STYLES }
     : require('../theory.js');
 
 // Générateur pseudo-aléatoire déterministe (PCG-like), seedé par le compteur de
@@ -430,6 +430,7 @@ function renewTemplate(ctx, styleKey, buildTemplate, keyRoot, canonical) {
         copyTwinSlots(S, twinRanges);
         resolveEnding(ctx, S);
         if (isBrassStyle(styleKey)) simplifyBrass(S);
+        if (isTriadStyle(styleKey)) simplifyTriads(S);
         if (validateSlots(S).length) continue;
         const out = norm(templateFromSlots(S));
         const keys = keysOf(out);
@@ -454,6 +455,11 @@ function simplifyBrass(S) {
     };
     S.forEach(sl => { fix(sl); if (sl.split) fix(sl.split); });
 }
+
+// Styles classiques et traditionnels (Chanson, Baroque, Mozart, Menuet) : triades, seules les dominantes gardent leur septième.
+// Les réharmonisations du bouton « Générer » (ii-V, substitutions, couleurs) sont ramenées à ce vocabulaire.
+function isTriadStyle(styleKey) { return GEN_THEORY.TRIAD_STYLES.includes(styleKey); }
+function simplifyTriads(S) { S.forEach(sl => GEN_THEORY.triadizeItem(sl)); }
 
 function rememberGenerated(recent, styleKey, generated) {
     const keys = [];
@@ -610,6 +616,7 @@ function createStyleVariation(ctx, template, styleKey, keyRoot) {
         }
     }
     applyTwinCopies(out, template, twinGroups);
+    if (isTriadStyle(styleKey)) simplifyTriads(out); // la variation peut réintroduire une septième (ex. Chanson : maj7 sur le V)
     return out;
 }
 
@@ -815,7 +822,7 @@ function romanDeg(t, lower = false) {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { makeVariationRng, gridSignature, styleProfile, resolveEnding, withResolvedEnding, slotsFromTemplate, templateFromSlots,
-        tagTwinSlots, copyTwinSlots, validateSlots, reharmonize, renewTemplate, isBrassStyle, simplifyBrass, rememberGenerated,
+        tagTwinSlots, copyTwinSlots, validateSlots, reharmonize, renewTemplate, isBrassStyle, simplifyBrass, isTriadStyle, simplifyTriads, rememberGenerated,
         createStyleVariation, findTwinSections, applyTwinCopies, compactGridRepeats, normalizeGeneratedGrid, enforceChordRepeatLimits,
         chordFamily, romanDeg };
 }

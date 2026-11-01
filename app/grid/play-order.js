@@ -161,6 +161,19 @@ function nextStepInfo(grid, i, passes) {
     return { idx: j, wrapped: false };
 }
 
+// Nombre de mesures jouées lors d'une lecture complète de la grille (reprises et 1re / 2e fins comprises), sans boucle.
+function playedMeasureCount(grid) {
+    let total = 0, i = 0, guard = 0;
+    const passes = {};
+    while (grid.length && i >= 0 && i < grid.length && guard++ < 100000) {
+        total += Math.max(1, grid[i].measures || 1);
+        const nx = nextStepInfo(grid, i, passes);
+        if (nx.wrapped) break;
+        i = nx.idx;
+    }
+    return total;
+}
+
 // Index du bloc suivant pour l'affichage / la basse ; -1 s'il n'y en a pas
 // (fin de grille ou de plage sélectionnée, sans boucle).
 // opts : { playRange: { from, to } | null, loopEnabled: boolean, passes: {} } (passes n'est pas modifié).
@@ -210,5 +223,5 @@ function peekNextDisplayIndex(grid, i, opts) {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { flatMeasureList, stepStartMeasure, effectiveVolta, repeatRegions, stepSpan, stepOfMeasure,
-        computePlayRange, nextStepInfo, peekNextIndex, sameChordStep, peekNextDisplayIndex };
+        computePlayRange, nextStepInfo, playedMeasureCount, peekNextIndex, sameChordStep, peekNextDisplayIndex };
 }
