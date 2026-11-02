@@ -229,16 +229,31 @@
                             <input type="range" id="jam-bpm-slider" min="50" max="220" value="120" oninput="app.jam.setBpm(this.value)" class="w-full accent-blue-500">
                             <span id="jam-bpm-display" class="text-xs font-mono font-bold text-slate-200 min-w-[32px]">120</span>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs font-semibold text-slate-400">Mesure</span>
-                            <select id="jam-timesig-select" onchange="app.jam.setTimeSignature(this.value)" title="Signature rythmique" class="bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-1.5 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
-                                <option value="4/4" selected>4/4</option>
-                                <option value="3/4">3/4</option>
-                                <option value="2/4">2/4</option>
-                                <option value="6/8">6/8</option>
-                                <option value="9/8">9/8</option>
-                                <option value="12/8">12/8</option>
-                            </select>
+                        <div class="jr-full jr-meter-row flex items-center gap-1.5">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-semibold text-slate-400">Mesure</span>
+                                <select id="jam-timesig-select" onchange="app.jam.setTimeSignature(this.value)" title="Signature rythmique" class="bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-1.5 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
+                                    <option value="4/4" selected>4/4</option>
+                                    <option value="3/4">3/4</option>
+                                    <option value="2/4">2/4</option>
+                                    <option value="6/8">6/8</option>
+                                    <option value="9/8">9/8</option>
+                                    <option value="12/8">12/8</option>
+                                </select>
+                            </div>
+                            <div id="jam-swing-wrap" class="flex items-center gap-1.5" title="Swing : balancement des croches. 50 % = croches droites, 67 % = triolet, plus haut = plus pointé.">
+                                <span class="text-xs font-semibold text-slate-400">Swing</span>
+                                <select id="jam-swing-select" onchange="app.jam.setBandSwingFromMenu(this.value)" aria-label="Swing" class="bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
+                                    <option value="auto">Auto</option>
+                                    <option value="50">50 %</option>
+                                    <option value="55">55 %</option>
+                                    <option value="60">60 %</option>
+                                    <option value="65">65 %</option>
+                                    <option value="67">67 %</option>
+                                    <option value="70">70 %</option>
+                                    <option value="75">75 %</option>
+                                </select>
+                            </div>
                         </div>
                         <button onclick="app.jam.toggleBandModal()" title="Orchestre : style et volumes" aria-label="Orchestre" class="jr-full jr-center flex items-center gap-1.5 text-xs bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-2 px-2.5 rounded-lg transition shadow shrink-0">
                             <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1014 17V7h4V3h-6z"/></svg>
@@ -503,7 +518,7 @@
                 this.bandStyle = 'swing';
                 this.bandVolumes = { piano: 0.5, bass: 0.85, drums: 0.25, bandoneon: 0.7, violin: 0.6, guitar: 0.5 }; // les trois derniers : style Tango nuevo
                 this.bandReverb = 0.25;
-                this.bandSwingSettings = {}; // swing choisi au curseur (0.5 à 0.75), par style (Jazz, Pop-Rock) ; absent = « Auto » (Jazz : triolet qui se resserre avec le tempo ; Pop-Rock : 50 %)
+                this.bandSwingSettings = {}; // swing choisi (0.5 à 0.75), par orchestre ; absent = « Auto » (valeur par défaut du style : Jazz = triolet qui se resserre avec le tempo, les autres = croches droites 50 %)
                 this._degreeTriads = (() => { try { return localStorage.getItem('csm-degree-triads') === '1'; } catch (e) { return false; } })(); // degrés de l'éditeur : triades ou septièmes
                 this.bandMaster = MASTER_UNITY; // position du curseur Master (0-1), hors sauvegardes / export / import ; le métronome a son propre volume
                 this.masterBus = null;
@@ -2559,39 +2574,70 @@
             // Les patterns sont organisés en phrases (4 mesures en général) : motif, reprise, variation,
             // puis mesure de « turnaround » qui anticipe l'accord suivant et peut se terminer par un fill.
 
-            // Rapport de swing : triolet au départ, qui se rapproche des croches droites quand le tempo monte.
+            // Rapport de swing de l'orchestre actif : réglage choisi, sinon valeur par défaut du style (voir BAND_SWING_DEFAULTS).
             getBandSwing() { return bandSwing(this.bandStyle, this.bpm, this._swingSettingFor(this.bandStyle)); }
 
-            // Réglage manuel du swing d'un style (Jazz ou Pop-Rock) ; null = « Auto ».
+            // Réglage manuel du swing d'un orchestre ; null = « Auto » (valeur par défaut du style).
             _swingSettingFor(style) {
                 const v = this.bandSwingSettings[style];
                 return typeof v === 'number' ? v : null;
             }
 
-            // Curseur Swing du pop-up Orchestre : val = position de la croche « et » (0.5 à 0.75), ou null pour revenir à « Auto ».
-            // Le réglage est propre au style actif (Jazz ou Pop-Rock).
+            // Réglage du swing (jukebox ou pop-up Orchestre) : val = position de la croche « et » (0.5 à 0.75), ou null pour revenir à « Auto ».
+            // Le réglage est propre à l'orchestre actif ; il vaut pour tous les orchestres.
             setBandSwing(val) {
-                if (this.bandStyle !== 'swing' && this.bandStyle !== 'pop') return;
+                if (!(this.bandStyle in BAND_SWING_DEFAULTS)) return;
                 const n = (val === null || val === undefined || val === '') ? NaN : Number(val);
                 if (Number.isFinite(n)) this.bandSwingSettings[this.bandStyle] = Math.max(0.5, Math.min(0.75, n));
                 else delete this.bandSwingSettings[this.bandStyle];
                 this.updateBandSwingUI();
             }
 
-            // Affiche le réglage de swing. La ligne n'a de sens qu'en orchestre Jazz ou Pop-Rock à 2, 3 ou 4 temps
-            // (en 6/8, 9/8 et 12/8 le balancement ternaire est écrit dans les motifs).
+            // Menu Swing du jukebox : « auto » ou un pourcentage (50 à 75).
+            setBandSwingFromMenu(v) {
+                if (v === 'auto') this.setBandSwing(null);
+                else this.setBandSwing(+v === 67 ? 0.667 : +v / 100);
+            }
+
+            // Le swing n'a de sens qu'à 2, 3 ou 4 temps, et pas pendant le bouton « Arpèges » (en 6/8, 9/8 et 12/8 le balancement
+            // ternaire est écrit dans les motifs).
+            isBandSwingAvailable() { return !this.isTernary() && !this._arpPrevStyle; }
+
+            // Affiche le réglage de swing dans le jukebox (menu à côté de « Mesure ») et dans le pop-up Orchestre (curseur).
             updateBandSwingUI() {
-                const row = document.getElementById('band-row-swing');
-                if (!row) return;
-                row.classList.toggle('hidden', !((this.bandStyle === 'swing' || this.bandStyle === 'pop') && !this.isTernary() && !this._arpPrevStyle));
+                const avail = this.isBandSwingAvailable();
                 const v = this.getBandSwing();
                 const pct = Math.round(v * 100);
+                const isAuto = this._swingSettingFor(this.bandStyle) === null;
+                const row = document.getElementById('band-row-swing');
+                if (row) row.classList.toggle('hidden', !avail);
                 const slider = document.getElementById('band-swing-slider');
                 const display = document.getElementById('band-swing-display');
                 const auto = document.getElementById('band-swing-auto');
                 if (slider) slider.value = pct;
                 if (display) display.textContent = pct + '%';
-                if (auto) auto.classList.toggle('is-active', this._swingSettingFor(this.bandStyle) === null);
+                if (auto) auto.classList.toggle('is-active', isAuto);
+                // Jukebox : le menu montre toujours le niveau réel du swing ; « Auto » est une entrée du menu qui rend la main au style
+                // (texte vert quand le réglage est manuel).
+                const wrap = document.getElementById('jam-swing-wrap');
+                const sel = document.getElementById('jam-swing-select');
+                if (wrap) {
+                    wrap.classList.toggle('hidden', !avail);
+                    wrap.title = isAuto
+                        ? 'Swing ' + pct + ' % (automatique : valeur par défaut de l\'orchestre). Pour le changer, choisir un pourcentage : 50 % = croches droites, 67 % = triolet, plus haut = plus pointé.'
+                        : 'Swing ' + pct + ' % (réglé à la main). Choisir « Auto » pour revenir à la valeur par défaut de l\'orchestre (Jazz : triolet qui se resserre avec le tempo ; autres : croches droites).';
+                }
+                if (sel) {
+                    Array.from(sel.querySelectorAll('option[data-custom]')).forEach(o => o.remove()); // valeur intermédiaire (curseur du pop-up, tempo en Auto)
+                    if (!Array.from(sel.options).some(o => o.value === String(pct))) {
+                        const opt = document.createElement('option');
+                        opt.value = String(pct); opt.textContent = pct + ' %'; opt.setAttribute('data-custom', '');
+                        const after = Array.from(sel.options).find(o => o.value !== 'auto' && +o.value > pct);
+                        sel.insertBefore(opt, after || null);
+                    }
+                    sel.value = String(pct);
+                    sel.classList.toggle('jam-swing-manual', !isAuto);
+                }
             }
 
             getBandPhraseLength() { return bandPhraseLength(this.grid); }
@@ -2605,10 +2651,11 @@
                 return buildBandPhrase(ctx, index, style, this._bandPhrase);
             }
 
-            // Pop-Rock : les plans sont écrits en croches droites ; le swing réglé au curseur les déforme ensuite (4/4, 2/4, 3/4).
+            // Tous les orchestres sauf Jazz : les plans sont écrits en croches droites ; le swing réglé les déforme ensuite (4/4, 2/4, 3/4).
+            // Jazz écrit directement ses croches swinguées (swingPos) ; sa valeur par défaut est le triolet.
             buildBandPlan(step, nextStep, measureInStep, isLastMeasureOfStep) {
                 const plan = this._buildBandPlanRaw(step, nextStep, measureInStep, isLastMeasureOfStep);
-                if (plan && this.bandStyle === 'pop' && !this._arpPrevStyle && !this.isTernary()) {
+                if (plan && this.bandStyle !== 'swing' && this.isBandSwingAvailable()) {
                     const sw = this.getBandSwing();
                     if (sw !== 0.5) return swingPlan(plan, sw);
                 }
@@ -2726,7 +2773,7 @@
             // Choix propres au 3/4 et au 2/4, faits une fois par phrase et gardés pendant toute la phrase.
 
             buildMeterPlan(bpb, style, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                const extra = { splitBeat: this.getSplitBeat(), meterKey: this.getMeterKey(), swing: style === 'pop' ? 0.5 : this.getBandSwing() }; // Pop-Rock : swing appliqué après coup (buildBandPlan)
+                const extra = { splitBeat: this.getSplitBeat(), meterKey: this.getMeterKey(), swing: style === 'swing' ? this.getBandSwing() : 0.5 }; // hors Jazz : swing appliqué après coup (buildBandPlan)
                 return this._bandRun(['meterVoice', 'bandLastFill'], env => buildMeterPlan(env, bpb, style, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), extra);
             }
 
@@ -5792,6 +5839,7 @@
                 this.update();
                 this.jam.renderGridUI();
                 this.jam.renderSavedGridsMenu();
+                this.jam.updateBandSwingUI();
                 this.initAudioContextOnInteraction();
                 this.initWakeLock();
             }
@@ -6672,11 +6720,11 @@
                     </select>
                 </div>
 
-                <div id="band-row-swing" class="flex items-center gap-2" title="Balancement des croches : 50 % = croches droites, 67 % = triolet, plus haut = plus pointé. « Auto » : en Jazz, triolet qui se resserre quand le tempo monte ; en Pop-Rock, croches droites (50 %).">
+                <div id="band-row-swing" class="flex items-center gap-2" title="Balancement des croches (aussi réglable dans le jukebox, à côté de « Mesure ») : 50 % = croches droites, 67 % = triolet, plus haut = plus pointé. « Auto » : valeur par défaut de l'orchestre (Jazz : triolet qui se resserre quand le tempo monte ; autres orchestres : croches droites).">
                     <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Swing</span>
                     <input type="range" id="band-swing-slider" min="50" max="75" step="1" value="67" oninput="app.jam.setBandSwing(+this.value === 67 ? 0.667 : this.value / 100)" class="w-full accent-emerald-500">
                     <span id="band-swing-display" class="text-xs font-mono font-bold text-slate-200 min-w-[32px] text-right">67%</span>
-                    <button type="button" id="band-swing-auto" class="band-swing-auto is-active" onclick="app.jam.setBandSwing(null)" title="Revenir au swing automatique (Jazz : selon le tempo ; Pop-Rock : 50 %)">Auto</button>
+                    <button type="button" id="band-swing-auto" class="band-swing-auto is-active" onclick="app.jam.setBandSwing(null)" title="Revenir au swing par défaut de l'orchestre (Jazz : selon le tempo ; autres : 50 %)">Auto</button>
                 </div>
 
                 <div class="flex items-center gap-2">

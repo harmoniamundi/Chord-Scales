@@ -241,24 +241,37 @@ describe('mesures coupées : isSplit, isSplitEffective, getStepHalves', () => {
 });
 
 describe('rythme : bandSwing, swingPos, pickWeighted, meterKey, patternLib', () => {
-    test('bandSwing : croches droites hors swing, triolet qui se resserre avec le tempo', () => {
-        assert.equal(H.bandSwing('pop', 120), 0.5);
+    test('bandSwing : Jazz en triolet qui se resserre avec le tempo, les autres orchestres droits par défaut', () => {
         assert.ok(Math.abs(H.bandSwing('swing', 140) - 0.667) < 1e-9);
         assert.ok(H.bandSwing('swing', 300) >= 0.58);
         assert.ok(H.bandSwing('swing', 60) <= 0.667);
         assert.ok(H.bandSwing('swing', 200) < H.bandSwing('swing', 100));
+        for (const st of ['pop', 'latin', 'cuba', 'classic', 'brass', 'balkan', 'piazzolla']) {
+            assert.equal(H.bandSwing(st, 60), 0.5, st);
+            assert.equal(H.bandSwing(st, 120), 0.5, st);
+            assert.equal(H.bandSwing(st, 220), 0.5, st); // indépendant du tempo
+        }
+        assert.equal(H.bandSwing('inconnu', 120), 0.5);
     });
-    test('bandSwing : réglage manuel du curseur (borné 0.5 à 0.75), sans effet hors swing', () => {
+    test('BAND_SWING_DEFAULTS : un défaut pour chaque orchestre', () => {
+        assert.deepEqual(Object.keys(H.BAND_SWING_DEFAULTS).sort(), ['balkan', 'brass', 'classic', 'cuba', 'latin', 'piazzolla', 'pop', 'swing']);
+        assert.equal(H.defaultBandSwing('swing', 140), H.bandSwing('swing', 140));
+    });
+    test('bandSwing : réglage manuel pour tous les orchestres (borné 0.5 à 0.75)', () => {
         assert.equal(H.bandSwing('swing', 140, 0.6), 0.6);
         assert.equal(H.bandSwing('swing', 220, 0.6), 0.6); // indépendant du tempo
         assert.equal(H.bandSwing('swing', 140, 0.3), 0.5);
         assert.equal(H.bandSwing('swing', 140, 0.9), 0.75);
-        assert.equal(H.bandSwing('pop', 140), 0.5);          // Pop-Rock : 50 % par défaut, quel que soit le tempo
-        assert.equal(H.bandSwing('pop', 220), 0.5);
-        assert.equal(H.bandSwing('pop', 140, 0.62), 0.62);   // réglable au curseur
-        assert.equal(H.bandSwing('latin', 140, 0.7), 0.5);   // les autres styles restent droits
-        // null / undefined / NaN : retour au calcul automatique
-        for (const v of [null, undefined, NaN]) assert.equal(H.bandSwing('swing', 200, v), H.bandSwing('swing', 200));
+        for (const st of ['pop', 'latin', 'cuba', 'classic', 'brass', 'balkan', 'piazzolla']) {
+            assert.equal(H.bandSwing(st, 140, 0.62), 0.62, st);
+            assert.equal(H.bandSwing(st, 140, 0.9), 0.75, st);
+            assert.equal(H.bandSwing(st, 140, 0.2), 0.5, st);
+        }
+        // null / undefined / NaN : retour à la valeur par défaut du style
+        for (const v of [null, undefined, NaN]) {
+            assert.equal(H.bandSwing('swing', 200, v), H.bandSwing('swing', 200));
+            assert.equal(H.bandSwing('latin', 200, v), 0.5);
+        }
     });
     test('swingWarp / swingPlan : le temps est déformé sans sortir de son temps', () => {
         assert.equal(H.swingWarp(1.5, 0.5), 1.5);

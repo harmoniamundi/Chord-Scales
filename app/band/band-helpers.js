@@ -298,18 +298,35 @@ function getStepHalves(step) {
 // ---------------------------------------------------------------------------------------------
 
 // Rapport de swing : position de la croche « et » dans le temps (0.5 = croches droites, 0.667 = triolet, 0.75 = très pointé).
-// Par défaut (réglage « Auto ») : triolet au départ, qui se rapproche des croches droites quand le tempo monte.
-// `manual` : valeur choisie au curseur Swing du pop-up Orchestre (0.5 à 0.75) ; elle remplace le calcul automatique.
-// Seuls les styles « swing » (Jazz) et « pop » (Pop-Rock) se règlent : Jazz est en « Auto » par défaut, Pop-Rock à 0.5 (croches
-// droites) ; les autres styles jouent toujours des croches droites (0.5).
-function bandSwing(style, bpm, manual) {
-    if (style !== 'swing' && style !== 'pop') return 0.5;
-    if (typeof manual === 'number' && Number.isFinite(manual)) return Math.max(0.5, Math.min(0.75, manual));
-    if (style === 'pop') return 0.5;
-    return Math.max(0.58, Math.min(0.667, 0.667 - (bpm - 140) * 0.001));
+// Chaque orchestre a une valeur par défaut adaptée à son style (réglage « Auto ») : Jazz joue en triolet qui se rapproche des
+// croches droites quand le tempo monte ; les autres orchestres (Pop-Rock, Brasil, Cuba, Classique, Brass, Balkans, Tango nuevo)
+// jouent droit par défaut, leurs motifs étant écrits ainsi. Tous se règlent au curseur / menu Swing.
+// `manual` : valeur choisie par l'utilisateur (0.5 à 0.75) ; elle remplace la valeur par défaut du style.
+const BAND_SWING_DEFAULTS = {
+    swing: 'auto',    // Jazz : triolet, resserré par le tempo
+    pop: 0.5,
+    latin: 0.5,       // Brasil
+    cuba: 0.5,
+    classic: 0.5,
+    brass: 0.5,
+    balkan: 0.5,
+    piazzolla: 0.5
+};
+
+// Valeur par défaut (« Auto ») du swing d'un orchestre au tempo donné.
+function defaultBandSwing(style, bpm) {
+    const d = BAND_SWING_DEFAULTS[style];
+    if (typeof d === 'number') return d;
+    if (d === 'auto') return Math.max(0.58, Math.min(0.667, 0.667 - (bpm - 140) * 0.001));
+    return 0.5;
 }
 
-// Déformation du temps pour un swing réglable sur un plan déjà écrit en croches droites (Pop-Rock) : dans chaque temps, la
+function bandSwing(style, bpm, manual) {
+    if (typeof manual === 'number' && Number.isFinite(manual)) return Math.max(0.5, Math.min(0.75, manual));
+    return defaultBandSwing(style, bpm);
+}
+
+// Déformation du temps pour un swing réglable sur un plan déjà écrit en croches droites (tous les orchestres sauf Jazz) : dans chaque temps, la
 // première moitié (0 à 0.5) est étirée jusqu'à `swing`, la seconde (0.5 à 1) est comprimée. Les doubles croches suivent le mouvement.
 function swingWarp(pos, swing) {
     if (Math.abs(swing - 0.5) < 1e-9) return pos;
@@ -435,6 +452,6 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = { popFoldBass, bassPc, bassNear, popBassTones, popBassApproach, popScaleNotes, popLineNote, popRun, latBassTones,
         jamChordPlaybackNotes, popVoicing, popSusVoicing, latThumb, latVary, latDetach,
         brassParts, isSplit, isSplitEffective, getStepHalves,
-        bandSwing, swingWarp, swingPlan, swingPos, pickWeighted, meterKey, patternLib, pianoGuideInterval, pianoHitIntervals,
+        bandSwing, defaultBandSwing, BAND_SWING_DEFAULTS, swingWarp, swingPlan, swingPos, pickWeighted, meterKey, patternLib, pianoGuideInterval, pianoHitIntervals,
         clsVoicing, clsLowNote, clsMutate };
 }

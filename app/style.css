@@ -811,3 +811,13 @@
 @media (max-width: 639px) {
     #jam-grid-editor .jr-icon-btn { width: 40px; height: 40px; flex-basis: 40px; }
 }
+
+
+/* ===== Jukebox : réglage du swing à côté de la signature rythmique ===== */
+#jam-swing-select { width: auto; flex: 0 0 auto; padding: 6px 4px; } /* largeur non compressible : le texte ne doit jamais être rogné */
+#jam-swing-select.jam-swing-manual { color: #6ee7b7; } /* réglé à la main (sinon : valeur automatique de l'orchestre) */
+#jam-swing-wrap.hidden { display: none; }
+@media (max-width: 639px) {
+    /* Mesure et Swing se partagent une ligne ; le bouton Orchestre passe sur la ligne suivante */
+    #jam-grid-editor .jr-meter-row { justify-content: space-between; }
+}
