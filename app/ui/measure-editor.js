@@ -7,7 +7,7 @@
 // v : m (mesure à plat : measureNumber, measureInStep…), step (bloc de la grille), isHalf (deux accords), cur (accord édité),
 //     half (0 ou 1, moitié éditée), mode ('build' | 'cat'), isFolded(clé) (section repliée), degrees (degrés diatoniques),
 //     rootLabels (noms des 12 notes), symbol(chord) (symbole texte), jazz(chordId) (notation jazz), findChordObj(id),
-//     halfLabelText(half), halfTitleText(), suggestions (ids d'accords déjà utilisés dans la grille avec la même fondamentale,
+//     degreeTriads (degrés en triades plutôt qu'en septièmes), halfLabelText(half), halfTitleText(), suggestions (ids d'accords déjà utilisés dans la grille avec la même fondamentale,
 //     à proposer en premier ; facultatif).
 // Les sections Gamme, Basse et Reprises se replient (fermées par défaut, flèche ▸/▾) ; les choix d'accords tiennent sur 2 lignes.
 
@@ -19,7 +19,7 @@ const { chordRootName: med_chordRootName, bassNoteName: med_bassNoteName, chordI
     cbStructIntervals: med_cbStructIntervals, CB_EXT_ORDER: MED_EXT_ORDER, CB_EXT: MED_EXT, CB_EXT_LABEL: MED_EXT_LABEL,
     getSpelledChordNotes: med_getSpelledChordNotes, chordTypes: med_chordTypes, scalesDb: med_scalesDb } = MED_T;
 
-const MEASURE_EDITOR_BUILD = '2026-11-01-e'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
+const MEASURE_EDITOR_BUILD = '2026-11-02-f'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
 
 function editorHtml(v) {
     const { m, step, isHalf, cur, half, rootLabels, isFolded, findChordObj, halfLabelText, halfTitleText } = v;
@@ -152,7 +152,11 @@ function editorHtml(v) {
                         ${chip(mode === 'cat', 'data-act="mode" data-v="cat" title="Liste d\'accords prédéfinis"', 'Catalogue')}
                     </div>`;
                 const secDur = `<div class="jm-sec"><div class="jm-sec-t">Durée</div>${durSeg}</div>`;
-                const secDeg = `<div class="jm-sec"><div class="jm-sec-t">Degrés de la tonalité</div><div class="jm-row">${degrees}</div></div>`;
+                // Degrés en triades (I, ii, V, vii°…) ou en accords de septième (Imaj7, IIm7, V7…) : le choix se garde d'une session à l'autre
+                const degMode = `<div class="jm-seg jm-seg-deg">${
+                    chip(!v.degreeTriads, 'data-act="degmode" data-v="7" title="Degrés en accords de septième : Imaj7, IIm7, V7…"', '7es')}${
+                    chip(!!v.degreeTriads, 'data-act="degmode" data-v="3" title="Degrés en triades : I, ii, V, vii°…"', 'Triades')}</div>`;
+                const secDeg = `<div class="jm-sec"><div class="jm-sec-t">Degrés de la tonalité</div>${degMode}<div class="jm-row">${degrees}</div></div>`;
                 const scaleDb = med_scalesDb[cur.scaleId];
                 const secScale = foldSec('scale', 'Gamme', scaleDb ? scaleDb.name : (cur.scaleId || ''), `<div class="jm-row">${scales}</div>`);
                 const body = mode === 'build' ? `

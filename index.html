@@ -242,7 +242,7 @@
                         </div>
                         <button onclick="app.jam.toggleBandModal()" title="Orchestre : style et volumes" aria-label="Orchestre" class="jr-full jr-center flex items-center gap-1.5 text-xs bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-2 px-2.5 rounded-lg transition shadow shrink-0">
                             <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1014 17V7h4V3h-6z"/></svg>
-                            <span id="band-btn-label">Orchestre Swing</span>
+                            <span id="band-btn-label">Orchestre Jazz</span>
                         </button>
                     </div>
                 </div>
@@ -263,7 +263,7 @@
                             <span class="text-slate-500">▾</span>
                         </button>
                     </div>
-                    <button onclick="app.jam.exportGrid()" title="Exporter la grille en cours dans un fichier .json" class="jr-half text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2.5 py-1 rounded transition whitespace-nowrap">Exporter</button>
+                    <button onclick="app.jam.exportGrid()" title="Exporter la grille en cours (fichier .json) ou son son (fichier .wav)" class="jr-half text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2.5 py-1 rounded transition whitespace-nowrap">Exporter</button>
                     <button onclick="document.getElementById('jam-import-file').click()" title="Importer une grille depuis un fichier .json" class="jr-half text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2.5 py-1 rounded transition whitespace-nowrap">Importer</button>
                     <input type="file" id="jam-import-file" accept=".json,application/json" class="hidden" onchange="app.jam.importGridFile(this)">
                 </div>
@@ -455,6 +455,7 @@
     <script src="app/audio/drum-synths.js"></script>
     <script src="app/audio/note-events.js"></script>
     <script src="app/audio/practice-notes.js"></script>
+    <script src="app/audio/wav-export.js"></script>
     <script src="app/ui/grid-view.js"></script>
     <script src="app/ui/scale-cards.js"></script>
     <script src="app/ui/measure-editor.js"></script>
@@ -483,6 +484,8 @@
                 this.currentBeat = 0;
                 this.activeSlot = 0; // créneau (0 = gauche/haut, 1 = droite/bas) occupé par la gamme active
                 this.timer = null;
+                this._EXPORT_TAIL = 2.5; // export du son : durée (s) enregistrée après le dernier temps (queue de réverbération)
+                this._exporting = false; this._exportRec = null; this._exportKind = 'grid';
                 this._LEAD = 0.12;       // avance (s) des ticks sur leur temps audio
                 this._FIRST_LEAD = 0.35; // délai (s) avant le tout premier temps : laisse la sortie audio se réveiller
                 this._beatAudio = null;  // instant audio du prochain temps
@@ -500,6 +503,8 @@
                 this.bandStyle = 'swing';
                 this.bandVolumes = { piano: 0.5, bass: 0.85, drums: 0.25, bandoneon: 0.7, violin: 0.6, guitar: 0.5 }; // les trois derniers : style Tango nuevo
                 this.bandReverb = 0.25;
+                this.bandSwingSettings = {}; // swing choisi au curseur (0.5 à 0.75), par style (Jazz, Pop-Rock) ; absent = « Auto » (Jazz : triolet qui se resserre avec le tempo ; Pop-Rock : 50 %)
+                this._degreeTriads = (() => { try { return localStorage.getItem('csm-degree-triads') === '1'; } catch (e) { return false; } })(); // degrés de l'éditeur : triades ou septièmes
                 this.bandMaster = MASTER_UNITY; // position du curseur Master (0-1), hors sauvegardes / export / import ; le métronome a son propre volume
                 this.masterBus = null;
                 // Métronome (hors sauvegardes / export / import) : intro d'une mesure toujours jouée ; clic pendant la grille seulement si activé
@@ -694,8 +699,10 @@
                         if (offsetOf(rotOld, i) !== offset) continue;
                         const target = DEGREE_TABLE[(rotNew + i) % 7];
                         half.rootIndex = (this.mainKey + offsetOf(rotNew, i)) % 12;
-                        half.chordId = target.c;
-                        half.scaleId = this._styleScaleFor(half.chordId, half.rootIndex) || target.s;
+                        // un accord d'origine en triade reste une triade (celle du degré cible)
+                        const tc = qualityTargetChord(half.chordId, target, (id) => this.findChordObj(id));
+                        half.chordId = tc.chordId;
+                        half.scaleId = this._styleScaleFor(half.chordId, half.rootIndex) || tc.scaleId;
                         if (Number.isInteger(half.bassRootIndex)) {
                             const tones = this.findChordObj(half.chordId).notes.map(n => (half.rootIndex + n) % 12);
                             if (!tones.includes(half.bassRootIndex)) delete half.bassRootIndex;
@@ -921,6 +928,7 @@
                             guitar: this.bandVolumes.guitar
                         },
                         reverb: this.bandReverb,
+                        swing: this._swingSettingFor(this._arpPrevStyle || this.bandStyle) ?? undefined, // réglage du style enregistré ; absent = « Auto »
                         groove: this.getEffectiveGroove(this._arpPrevStyle || this.bandStyle) || undefined // rythme imposé (samba, tango, piazzolla, afro…) valable pour l'orchestre actuel ; absent = choix automatique
                     }
                 };
@@ -959,13 +967,108 @@
             }
 
             // --- Export / import d'une grille au format .json (partage entre utilisateurs) ---
-            exportGrid() {
+            // ===== Export : pop-up au choix entre la grille (fichier .json) et le son (fichier .wav) =====
+
+            exportGrid() { this.openExportModal(); }
+
+            openExportModal() {
                 if (this.grid.length === 0) { alert('La grille est vide : rien à exporter.'); return; }
-                let name = this.loadedGridName;
-                if (!name) {
-                    name = prompt('Nom de la grille à exporter :', 'grille');
-                    if (!name) return;
+                const modal = document.getElementById('export-modal');
+                if (!modal) return;
+                if (!this._exportRec) {
+                    const nameEl = document.getElementById('export-name');
+                    if (nameEl) nameEl.value = this.loadedGridName || nameEl.value || 'grille';
+                    this._exportStatus('', 0);
                 }
+                if (!this._exportKeyBound) {
+                    this._exportKeyBound = true;
+                    document.addEventListener('keydown', (ev) => {
+                        const m = document.getElementById('export-modal');
+                        if (ev.key === 'Escape' && m && !m.classList.contains('hidden')) { ev.stopPropagation(); this.closeExportModal(); }
+                    }, true);
+                }
+                this._exportRefresh();
+                modal.classList.remove('hidden');
+                const nameEl = document.getElementById('export-name');
+                if (nameEl && !this._exportRec) { try { nameEl.focus(); nameEl.select(); } catch (e) {} }
+            }
+
+            // Fermer pendant l'enregistrement du son l'annule.
+            closeExportModal() {
+                if (this._exportRec) this._exportCancel();
+                const modal = document.getElementById('export-modal');
+                if (modal) modal.classList.add('hidden');
+            }
+
+            setExportKind(kind) {
+                if (this._exportRec) return;
+                this._exportKind = kind === 'audio' ? 'audio' : 'grid';
+                this._exportStatus('', 0);
+                this._exportRefresh();
+            }
+
+            // Estimation de la durée du son exporté (toute la grille une fois, reprises comprises)
+            _exportSeconds() { return playedMeasureCount(this.grid) * this.getBeatsPerBar() * 60 / this.bpm; }
+
+            _exportRefresh() {
+                const audio = this._exportKind === 'audio';
+                const busy = !!this._exportRec;
+                [['export-kind-grid', !audio], ['export-kind-audio', audio]].forEach(([id, on]) => {
+                    const b = document.getElementById(id);
+                    if (!b) return;
+                    b.classList.toggle('is-on', on);
+                    b.setAttribute('aria-pressed', String(on));
+                    b.disabled = busy;
+                });
+                const note = document.getElementById('export-note');
+                if (note) {
+                    note.textContent = audio
+                        ? `Le son est enregistré en temps réel : la grille est jouée une fois par l'orchestre (sans métronome, sans boucle, mesures sélectionnées ignorées). Durée de l'export : environ ${wavDurationLabel(this._exportSeconds() + this._EXPORT_TAIL)}. Fichier WAV stéréo.`
+                        : 'Fichier .json avec la grille, la tonalité, le tempo et l\'orchestration : il peut être importé dans une autre copie de l\'appli.';
+                }
+                const go = document.getElementById('export-go');
+                if (go) { go.textContent = audio ? 'Enregistrer le son' : 'Exporter la grille'; go.disabled = busy; }
+                const cancel = document.getElementById('export-cancel');
+                if (cancel) cancel.textContent = busy ? 'Annuler l\'export' : 'Fermer';
+                const nameEl = document.getElementById('export-name');
+                if (nameEl) nameEl.disabled = busy;
+            }
+
+            _exportStatus(text, pct) {
+                const st = document.getElementById('export-status');
+                const bar = document.getElementById('export-bar');
+                if (st) { st.textContent = text; st.classList.toggle('hidden', !text); }
+                if (bar) { bar.classList.toggle('hidden', !(pct > 0)); const i = bar.firstElementChild; if (i) i.style.width = Math.max(0, Math.min(100, pct)) + '%'; }
+            }
+
+            _exportFileName() {
+                const nameEl = document.getElementById('export-name');
+                const raw = (nameEl && nameEl.value.trim()) || 'grille';
+                return raw.replace(/[\\/:*?"<>|]+/g, '_').trim() || 'grille';
+            }
+
+            runExport() {
+                if (this._exportRec) return;
+                if (this._exportKind === 'audio') this.exportAudio();
+                else {
+                    const nameEl = document.getElementById('export-name');
+                    this._exportGridFile((nameEl && nameEl.value.trim()) || 'grille');
+                    this.closeExportModal();
+                }
+            }
+
+            _downloadBlob(blob, fileName) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            }
+
+            _exportGridFile(name) {
                 const payload = {
                     format: 'chord-scales-jam-grid',
                     version: 1,
@@ -975,15 +1078,130 @@
                     grid: JSON.parse(JSON.stringify(this.grid))
                 };
                 const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
                 const fileName = name.replace(/[\\/:*?"<>|]+/g, '_').trim() || 'grille';
-                a.href = url;
-                a.download = fileName + '.json';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                this._downloadBlob(blob, fileName + '.json');
+            }
+
+            // Instruments de l'orchestre nécessaires au style en cours : prêts quand ils sont tous chargés.
+            _bandInstrumentsReady() {
+                const s = this.bandStyle;
+                if (!this.app.pianoInstrument) return false;
+                if (s === 'brass') return !!(this.brassInst && this.brassInst.tuba);
+                if (s === 'balkan') return !!this.accordionInstrument;
+                if (s === 'piazzolla') return !!(this.pzInst && Object.keys(this.pzInst).length > 1);
+                if (s === 'latin') return !!this.guitarInstrument && !!this.bassInstrument;
+                if (s === 'classic') return !!this.bandPianoInstrument;
+                return !!this.bandPianoInstrument && !!this.bassInstrument;
+            }
+
+            // Enregistre le son de l'orchestre (sortie du limiteur général, donc sans métronome) pendant une lecture complète
+            // de la grille, puis le propose en fichier WAV. Temps réel : l'export dure aussi longtemps que la grille.
+            async exportAudio() {
+                if (this._exportRec) return;
+                if (this.grid.length === 0) return;
+                if (this.isPlaying) this.stop();
+                this._exportRefresh();
+                const fileName = this._exportFileName();
+                const rec = { fileName, cancelled: false, ended: false, chunksL: [], chunksR: [], ctxStart: 0 };
+                this._exportRec = rec; // pose le verrou tout de suite
+                this._exportRefresh();
+                try {
+                    this._exportStatus('Préparation des instruments…', 0);
+                    if (!this.app.pianoInstrument) this.app.loadPiano();
+                    else if (!this.app.audioCtx) this.app.loadPiano();
+                    const ctx = this.app.audioCtx;
+                    if (!ctx) throw new Error('Pas de sortie audio');
+                    if (ctx.state === 'suspended') { try { await ctx.resume(); } catch (e) {} }
+                    this.initGainNode();
+                    this.ensureBandAudio();
+                    const t0 = performance.now();
+                    while (!this._bandInstrumentsReady()) {
+                        if (rec.cancelled) return this._exportAbort(rec, '');
+                        if (performance.now() - t0 > 40000) throw new Error('Les instruments n\'ont pas fini de se charger (connexion trop lente ?).');
+                        this.ensureBandAudio();
+                        await new Promise(r => setTimeout(r, 200));
+                    }
+                    if (rec.cancelled) return this._exportAbort(rec, '');
+                    const bus = this._getMasterBus(ctx);
+                    if (!this.masterShaper || !bus) throw new Error('Sortie de l\'orchestre introuvable.');
+                    // Tampon d'écoute branché sur la sortie de l'orchestre ; sa sortie, coupée, ne sert qu'à le faire tourner.
+                    const proc = ctx.createScriptProcessor(4096, 2, 2);
+                    const mute = ctx.createGain();
+                    mute.gain.value = 0;
+                    const toInt16 = (f) => { const o = new Int16Array(f.length); for (let i = 0; i < f.length; i++) { const x = f[i] > 1 ? 1 : (f[i] < -1 ? -1 : f[i]); o[i] = x < 0 ? x * 32768 : x * 32767; } return o; };
+                    proc.onaudioprocess = (e) => {
+                        if (rec.stopped) return;
+                        const l = e.inputBuffer.getChannelData(0);
+                        const r = e.inputBuffer.numberOfChannels > 1 ? e.inputBuffer.getChannelData(1) : l;
+                        rec.chunksL.push(toInt16(l));
+                        rec.chunksR.push(toInt16(r));
+                    };
+                    this.masterShaper.connect(proc);
+                    proc.connect(mute);
+                    mute.connect(ctx.destination);
+                    rec.proc = proc; rec.mute = mute; rec.rate = ctx.sampleRate;
+                    // Lecture : toute la grille, une fois
+                    const prevLoop = this.loopEnabled;
+                    rec.prevLoop = prevLoop;
+                    this.loopEnabled = false;
+                    this._exporting = true;
+                    rec.ctxStart = ctx.currentTime;
+                    const total = this._exportSeconds() + this._EXPORT_TAIL;
+                    rec.timer = setInterval(() => {
+                        const el = Math.max(0, ctx.currentTime - rec.ctxStart - this._FIRST_LEAD);
+                        const pct = Math.min(99, 100 * el / total);
+                        this._exportStatus(`Enregistrement… ${wavDurationLabel(Math.min(el, total))} / ${wavDurationLabel(total)}`, Math.max(1, pct));
+                    }, 250);
+                    this._exportStatus('Enregistrement…', 1);
+                    await this.start();
+                    if (!this.isPlaying) this._exportEnd(); // le démarrage a échoué : on referme proprement
+                } catch (err) {
+                    this._exportAbort(rec, err && err.message ? err.message : 'L\'export a échoué.');
+                }
+            }
+
+            // Annulation (bouton, Échap, fermeture du pop-up ou bouton Arrêter) : rien n'est enregistré dans un fichier.
+            _exportCancel() {
+                const rec = this._exportRec;
+                if (!rec) return;
+                rec.cancelled = true;
+                if (this.isPlaying) this.stop(); // stop() appelle _exportEnd
+                else this._exportAbort(rec, '');
+            }
+
+            _exportDetach(rec) {
+                rec.stopped = true;
+                if (rec.timer) clearInterval(rec.timer);
+                try { if (rec.proc) { rec.proc.onaudioprocess = null; this.masterShaper.disconnect(rec.proc); rec.proc.disconnect(); } } catch (e) {}
+                try { if (rec.mute) rec.mute.disconnect(); } catch (e) {}
+                this._exporting = false;
+                if (typeof rec.prevLoop === 'boolean') this.loopEnabled = rec.prevLoop;
+                this._exportRec = null;
+            }
+
+            _exportAbort(rec, message) {
+                this._exportDetach(rec);
+                this._exportStatus(message, 0);
+                this._exportRefresh();
+            }
+
+            // Appelé par stop() : fin naturelle de la grille (fichier WAV) ou arrêt anticipé (annulation).
+            _exportEnd() {
+                const rec = this._exportRec;
+                if (!rec) return;
+                const done = rec.ended && !rec.cancelled;
+                this._exportDetach(rec);
+                if (!done) { this._exportStatus(rec.cancelled ? '' : 'Export interrompu.', 0); this._exportRefresh(); return; }
+                try {
+                    const L = wavJoinChunks(rec.chunksL), R = wavJoinChunks(rec.chunksR);
+                    const trimmed = wavTrimSilence(L, R, rec.rate);
+                    const buf = wavEncode16(trimmed.left, trimmed.right, rec.rate);
+                    this._downloadBlob(new Blob([buf], { type: 'audio/wav' }), rec.fileName + '.wav');
+                    this._exportStatus(`Son enregistré : ${rec.fileName}.wav (${wavDurationLabel(trimmed.left.length / rec.rate)}).`, 100);
+                } catch (e) {
+                    this._exportStatus('Impossible de créer le fichier audio.', 0);
+                }
+                this._exportRefresh();
             }
 
             // Lecture sécurisée d'une grille importée (fichier .json) : le calcul est dans grid/grid-format.js.
@@ -1017,6 +1235,8 @@
                         Object.keys(o.volumes).forEach(k => this.setBandVolume(k, Math.round(o.volumes[k] * 100)));
                     }
                     if (o.reverb !== undefined) this.setBandReverb(Math.round(o.reverb * 100));
+                    this.bandSwingSettings = {}; // les fichiers sans swing reviennent à « Auto »
+                    if (o.swing !== undefined) this.setBandSwing(o.swing);
                     this.updateBandModalUI();
                     this.updateBandButtonLabel();
                 }
@@ -1388,6 +1608,7 @@
                     if (el) { el.textContent = unit; el.title = tip; }
                 });
                 if (changed && this.grid && this.grid.length) this.renderGridUI();
+                this.updateBandSwingUI();
             }
 
             setBpm(val) {
@@ -1395,6 +1616,7 @@
                 document.getElementById('jam-bpm-display').textContent = this.bpm;
                 const slider1 = document.getElementById('jam-bpm-slider');
                 if (slider1) slider1.value = this.bpm;
+                if (this._swingSettingFor(this.bandStyle) === null) this.updateBandSwingUI(); // en « Auto », le swing suit le tempo
             }
 
             // --- Popup Band : choix de l'orchestration (Arpèges / Orchestre) ---
@@ -1511,7 +1733,11 @@
             _renderHarmonyModal() {
                 const modal = document.getElementById('harmony-modal');
                 if (!modal || modal.classList.contains('hidden')) return;
-                const degrees = this.getDiatonicDegrees();
+                const degrees = this.getDiatonicDegrees({ triads: this._degreeTriads });
+                [['harmony-mode-7', !this._degreeTriads], ['harmony-mode-3', !!this._degreeTriads]].forEach(([id, on]) => {
+                    const b = document.getElementById(id);
+                    if (b) { b.classList.toggle('is-on', on); b.setAttribute('aria-pressed', String(on)); }
+                });
                 const qualSel = document.getElementById('jam-quality-select');
                 const qualText = qualSel && qualSel.selectedOptions[0] ? qualSel.selectedOptions[0].textContent.trim() : '';
                 document.getElementById('harmony-key-title').textContent = `${rootLabels[this.mainKey]} ${qualText}`.trim();
@@ -1567,7 +1793,7 @@
 
             // Clic sur un accord de la liste : il est joué plaqué et ses notes s'affichent en bas du pop-up.
             playHarmonyChord(i) {
-                const d = this.getDiatonicDegrees()[i];
+                const d = this.getDiatonicDegrees({ triads: this._degreeTriads })[i];
                 if (!d) return;
                 this._harmonySel = i;
                 this._renderHarmonyModal();
@@ -1577,7 +1803,7 @@
 
             // Clic sur le nom de l'accord choisi (à côté de ses notes) : il est joué en arpège.
             playHarmonyArpeggio() {
-                const d = Number.isInteger(this._harmonySel) ? this.getDiatonicDegrees()[this._harmonySel] : null;
+                const d = Number.isInteger(this._harmonySel) ? this.getDiatonicDegrees({ triads: this._degreeTriads })[this._harmonySel] : null;
                 if (d) this.playChordArpeggioFor({ rootIndex: d.rootIndex, chordId: d.chordId });
             }
 
@@ -1637,6 +1863,7 @@
 
             updateBandModalUI() {
                 this.updateMetronomeUI();
+                this.updateBandSwingUI();
                 this.updateBandInstrumentLabel();
                 // En « Classique » (piano seul) : la basse et la batterie de l'orchestre ne servent pas.
                 const solo = this.bandStyle === 'classic';
@@ -1831,12 +2058,12 @@
                 });
             }
 
-            // Le bouton affiche « Orchestre » suivi du style actif (Swing / Pop / Brasil / Cuba / Classique).
+            // Le bouton affiche « Orchestre » suivi du style actif (Jazz / Pop-Rock / Brasil / Cuba / Classique).
             updateBandButtonLabel() {
                 const label = document.getElementById('band-btn-label');
                 if (!label) return;
-                const names = { swing: 'Swing', pop: 'Pop', latin: 'Brasil', cuba: 'Cuba', classic: 'Classique', brass: 'Brass', balkan: 'Balkans', piazzolla: (this.getEffectiveGroove() === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
-                label.textContent = 'Orchestre ' + (names[this.bandStyle] || 'Swing');
+                const names = { swing: 'Jazz', pop: 'Pop-Rock', latin: 'Brasil', cuba: 'Cuba', classic: 'Classique', brass: 'Brass', balkan: 'Balkans', piazzolla: (this.getEffectiveGroove() === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
+                label.textContent = 'Orchestre ' + (names[this.bandStyle] || 'Jazz');
             }
 
             setBandVolume(instrument, val) {
@@ -2333,7 +2560,39 @@
             // puis mesure de « turnaround » qui anticipe l'accord suivant et peut se terminer par un fill.
 
             // Rapport de swing : triolet au départ, qui se rapproche des croches droites quand le tempo monte.
-            getBandSwing() { return bandSwing(this.bandStyle, this.bpm); }
+            getBandSwing() { return bandSwing(this.bandStyle, this.bpm, this._swingSettingFor(this.bandStyle)); }
+
+            // Réglage manuel du swing d'un style (Jazz ou Pop-Rock) ; null = « Auto ».
+            _swingSettingFor(style) {
+                const v = this.bandSwingSettings[style];
+                return typeof v === 'number' ? v : null;
+            }
+
+            // Curseur Swing du pop-up Orchestre : val = position de la croche « et » (0.5 à 0.75), ou null pour revenir à « Auto ».
+            // Le réglage est propre au style actif (Jazz ou Pop-Rock).
+            setBandSwing(val) {
+                if (this.bandStyle !== 'swing' && this.bandStyle !== 'pop') return;
+                const n = (val === null || val === undefined || val === '') ? NaN : Number(val);
+                if (Number.isFinite(n)) this.bandSwingSettings[this.bandStyle] = Math.max(0.5, Math.min(0.75, n));
+                else delete this.bandSwingSettings[this.bandStyle];
+                this.updateBandSwingUI();
+            }
+
+            // Affiche le réglage de swing. La ligne n'a de sens qu'en orchestre Jazz ou Pop-Rock à 2, 3 ou 4 temps
+            // (en 6/8, 9/8 et 12/8 le balancement ternaire est écrit dans les motifs).
+            updateBandSwingUI() {
+                const row = document.getElementById('band-row-swing');
+                if (!row) return;
+                row.classList.toggle('hidden', !((this.bandStyle === 'swing' || this.bandStyle === 'pop') && !this.isTernary() && !this._arpPrevStyle));
+                const v = this.getBandSwing();
+                const pct = Math.round(v * 100);
+                const slider = document.getElementById('band-swing-slider');
+                const display = document.getElementById('band-swing-display');
+                const auto = document.getElementById('band-swing-auto');
+                if (slider) slider.value = pct;
+                if (display) display.textContent = pct + '%';
+                if (auto) auto.classList.toggle('is-active', this._swingSettingFor(this.bandStyle) === null);
+            }
 
             getBandPhraseLength() { return bandPhraseLength(this.grid); }
 
@@ -2346,7 +2605,17 @@
                 return buildBandPhrase(ctx, index, style, this._bandPhrase);
             }
 
+            // Pop-Rock : les plans sont écrits en croches droites ; le swing réglé au curseur les déforme ensuite (4/4, 2/4, 3/4).
             buildBandPlan(step, nextStep, measureInStep, isLastMeasureOfStep) {
+                const plan = this._buildBandPlanRaw(step, nextStep, measureInStep, isLastMeasureOfStep);
+                if (plan && this.bandStyle === 'pop' && !this._arpPrevStyle && !this.isTernary()) {
+                    const sw = this.getBandSwing();
+                    if (sw !== 0.5) return swingPlan(plan, sw);
+                }
+                return plan;
+            }
+
+            _buildBandPlanRaw(step, nextStep, measureInStep, isLastMeasureOfStep) {
                 // Orchestre « Cuba » : l'orchestration afro-cubaine (piano montuno, tumbao, cloche, congas, clave) pour n'importe quelle
                 // grille ; il s'appuie sur la génération Latin avec le rythme « afro » imposé.
                 const cuba = this.bandStyle === 'cuba';
@@ -2457,7 +2726,7 @@
             // Choix propres au 3/4 et au 2/4, faits une fois par phrase et gardés pendant toute la phrase.
 
             buildMeterPlan(bpb, style, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                const extra = { splitBeat: this.getSplitBeat(), meterKey: this.getMeterKey(), swing: this.getBandSwing() };
+                const extra = { splitBeat: this.getSplitBeat(), meterKey: this.getMeterKey(), swing: style === 'pop' ? 0.5 : this.getBandSwing() }; // Pop-Rock : swing appliqué après coup (buildBandPlan)
                 return this._bandRun(['meterVoice', 'bandLastFill'], env => buildMeterPlan(env, bpb, style, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), extra);
             }
 
@@ -3667,8 +3936,18 @@
             // ===== Édition d'une mesure directement depuis la grille (pop-up) =====
 
             // Accords diatoniques de la tonalité et du mode en cours : un clic = fondamentale + accord + gamme.
-            getDiatonicDegrees() {
-                return diatonicDegrees({ mainKey: this.mainKey, mainQuality: this.mainQuality, findChordObj: (id) => this.findChordObj(id),
+            // opts.triads : degrés en triades (I, ii, iii, IV, V, vi, vii°) au lieu des accords de septième
+            // Degrés de la tonalité en triades ou en septièmes : un seul réglage pour l'éditeur de mesure et le pop-up Harmonisation,
+            // gardé d'une session à l'autre.
+            setDegreeTriads(on) {
+                this._degreeTriads = !!on;
+                try { localStorage.setItem('csm-degree-triads', this._degreeTriads ? '1' : '0'); } catch (e) {}
+                this._renderEditor();
+                this._renderHarmonyModal();
+            }
+
+            getDiatonicDegrees(opts) {
+                return diatonicDegrees({ mainKey: this.mainKey, mainQuality: this.mainQuality, triads: !!(opts && opts.triads), findChordObj: (id) => this.findChordObj(id),
                     styleScaleFor: (id, root) => this._styleScaleFor(id, root) });
             }
 
@@ -3684,7 +3963,7 @@
                     const c = last.split || last;
                     nc = { rootIndex: c.rootIndex, chordId: c.chordId, scaleId: c.scaleId, measures: 1 };
                 } else {
-                    const d = this.getDiatonicDegrees()[0];
+                    const d = this.getDiatonicDegrees({ triads: this._degreeTriads })[0];
                     nc = { rootIndex: d.rootIndex, chordId: d.chordId, scaleId: d.scaleId, measures: 1 };
                 }
                 this.grid.push(nc);
@@ -3824,10 +4103,11 @@
                 if (!ed) return;
                 switch (act) {
                     case 'degree': {
-                        const d = this.getDiatonicDegrees()[parseInt(i, 10)];
+                        const d = this.getDiatonicDegrees({ triads: this._degreeTriads })[parseInt(i, 10)];
                         if (d) this._editorApply({ rootIndex: d.rootIndex, chordId: d.chordId, scaleId: d.scaleId });
                         break;
                     }
+                    case 'degmode': this.setDegreeTriads(v === '3'); break;
                     case 'root': {
                         const pc = parseInt(v, 10);
                         const acc = /([sf])$/.exec(String(v));
@@ -4071,7 +4351,7 @@
                 const suggestions = chordSuggestionsForRoot(this.grid, cur.rootIndex, { measureNumber: ed.measureNumber, half: (ed.half === 1 && isHalf) ? 1 : 0 }, this._edRecent || []);
                 ed.el.innerHTML = editorHtml({
                     m, step, isHalf, cur, half: ed.half, mode: this._edModeGet(), isFolded: (key) => this._editorFolded(key), suggestions,
-                    degrees: this.getDiatonicDegrees(), rootLabels, symbol: (c) => this.getChordSymbol(c),
+                    degrees: this.getDiatonicDegrees({ triads: this._degreeTriads }), degreeTriads: this._degreeTriads, rootLabels, symbol: (c) => this.getChordSymbol(c),
                     jazz: (id) => this.getJazzChordNotation(id), findChordObj: (id) => this.findChordObj(id),
                     halfLabelText: (h) => this.halfLabelText(h), halfTitleText: () => this.halfTitleText()
                 });
@@ -4971,6 +5251,7 @@
                     this._arpPrevStyle = null;
                 }
                 this._setArpeggioUI(false);
+                this.updateBandSwingUI();
             }
 
             togglePlay() {
@@ -5009,13 +5290,14 @@
                 this._beatAudio = null;
                 this.isPlaying = true;
                 // Une sélection de mesures limite la lecture à cette plage (en boucle si la boucle est activée)
-                this._playRange = this._computePlayRange();
+                // Export du son : toute la grille, une seule fois (ni sélection, ni boucle)
+                this._playRange = this._exporting ? null : this._computePlayRange();
                 const startPos = this._playRange ? this._stepOfMeasure(this._playRange.from) : { idx: 0, measureInStep: 1 };
                 this.currentStepIndex = startPos.idx;
                 this.currentBeat = (startPos.measureInStep - 1) * this.getBeatsPerBar();
                 this.activeSlot = 0;
                 Object.assign(this, bandRunState(newBandSeed()), bandVoiceState());
-                this._countInBeats = this.getBeatsPerBar(); // l'intro d'une mesure est toujours jouée
+                this._countInBeats = this._exporting ? 0 : this.getBeatsPerBar(); // l'intro d'une mesure est toujours jouée (sauf à l'export du son)
                 document.getElementById('view-jam')?.classList.add('jam-playing');
 
                 const btn = document.getElementById('jam-play-btn');
@@ -5083,6 +5365,7 @@
                 document.getElementById('jam-bar-counter').textContent = "Mesure : -/-";
                 this.renderGridUI();
                 this.updateActiveJamScaleHighlight();
+                if (this._exportRec) this._exportEnd();
             }
 
             // --- Horloge du métronome / de la jam -------------------------------------------------
@@ -5219,7 +5502,7 @@
                 const totalBeatsInStep = step.measures * bpb;
 
                 // Le clic est programmé EN PREMIER, à l'instant exact du temps.
-                if (this.metronomeEnabled) {
+                if (this.metronomeEnabled && !this._exporting) {
                     this.playMetronomeClick(beat % bpb === 0, t);
                     this._metronomeSubdivide(t, intervalSec);
                 }
@@ -5269,7 +5552,9 @@
 
                 if (adv.kind === 'stop') {
                     // Fin de plage / de grille sans boucle : le dernier temps sonne jusqu'au bout, puis la jam s'arrête.
-                    this._runAtAudioTime(t + intervalSec, runId, () => this.stop());
+                    // À l'export du son, on attend en plus la queue de réverbération pour qu'elle soit enregistrée.
+                    if (this._exportRec) this._exportRec.ended = true;
+                    this._runAtAudioTime(t + intervalSec + (this._exportRec ? this._EXPORT_TAIL : 0), runId, () => this.stop());
                     return;
                 }
                 if (adv.kind !== 'continue') {
@@ -6302,7 +6587,7 @@
     </script>
     <div id="jam-print-area"></div>
 
-    <!-- Pop-up « Orchestre » : style (Swing / Pop / Brasil / Classique), volume général de l'orchestre (Master), volumes des instruments, volume du métronome -->
+    <!-- Pop-up « Orchestre » : style (Jazz / Pop-Rock / Brasil / Classique), volume général de l'orchestre (Master), volumes des instruments, volume du métronome -->
     <div id="saved-grids-modal" class="hidden" role="dialog" aria-label="Sauvegardes">
         <div class="bg-[#222222] border border-[#3a3a3c] rounded-xl w-full p-3 space-y-2">
             <div id="saved-grids-modal-head" class="flex items-center justify-between jm-head" title="Glisser pour déplacer">
@@ -6323,6 +6608,10 @@
                 </button>
             </div>
             <div class="text-xs text-slate-400">Accords de la gamme de <span id="harmony-key-title" class="font-bold text-white"></span></div>
+            <div class="jm-seg jm-seg-deg" role="group" aria-label="Type d'accords">
+                <button type="button" id="harmony-mode-7" class="jm-chip" onclick="app.jam.setDegreeTriads(false)" title="Accords de septième : Imaj7, IIm7, V7…">7es</button>
+                <button type="button" id="harmony-mode-3" class="jm-chip" onclick="app.jam.setDegreeTriads(true)" title="Triades : I, ii, V, vii°…">Triades</button>
+            </div>
             <div id="harmony-chords" class="harmony-grid"></div>
             <div class="harmony-notes-box">
                 <div id="harmony-notes-row" class="hidden flex items-center gap-3 flex-wrap">
@@ -6330,6 +6619,31 @@
                     <div id="harmony-notes" class="flex flex-wrap gap-1.5"></div>
                 </div>
                 <div id="harmony-notes-hint" class="jm-hint">Cliquez sur un accord pour l'entendre et voir ses notes ; cliquez ensuite sur son nom, à côté des notes, pour l'entendre en arpège.</div>
+            </div>
+        </div>
+    </div>
+    <!-- Pop-up « Exporter » : la grille (fichier .json) ou son son (fichier .wav, enregistré en temps réel) -->
+    <div id="export-modal" class="hidden" role="dialog" aria-modal="true" aria-label="Exporter" onclick="if (event.target === this) app.jam.closeExportModal()">
+        <div class="exp-card">
+            <div class="exp-head">
+                <span class="exp-title">Exporter</span>
+                <button type="button" onclick="app.jam.closeExportModal()" title="Fermer (Échap)" aria-label="Fermer" class="exp-x">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="jm-seg jm-seg-deg" role="group" aria-label="Que faut-il exporter ?">
+                <button type="button" id="export-kind-grid" class="jm-chip is-on" onclick="app.jam.setExportKind('grid')" title="La grille d'accords et ses réglages, dans un fichier .json">Grille (.json)</button>
+                <button type="button" id="export-kind-audio" class="jm-chip" onclick="app.jam.setExportKind('audio')" title="Le son de la grille jouée par l'orchestre, dans un fichier .wav">Son (.wav)</button>
+            </div>
+            <label class="exp-field"><span>Nom du fichier</span>
+                <input type="text" id="export-name" class="exp-input" value="grille" maxlength="80" autocomplete="off" onkeydown="if (event.key === 'Enter') app.jam.runExport()">
+            </label>
+            <div id="export-note" class="exp-note"></div>
+            <div id="export-bar" class="exp-bar hidden"><i></i></div>
+            <div id="export-status" class="exp-status hidden" role="status" aria-live="polite"></div>
+            <div class="exp-actions">
+                <button type="button" id="export-cancel" class="exp-btn" onclick="app.jam.closeExportModal()">Fermer</button>
+                <button type="button" id="export-go" class="exp-btn exp-go" onclick="app.jam.runExport()">Exporter la grille</button>
             </div>
         </div>
     </div>
@@ -6346,8 +6660,8 @@
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Style</span>
                     <select id="band-style-select" onchange="app.jam.chooseBandStyle(this.value)" class="w-full bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-1.5 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
-                        <option value="swing">Swing</option>
-                        <option value="pop">Pop</option>
+                        <option value="swing">Jazz</option>
+                        <option value="pop">Pop-Rock</option>
                         <option value="latin">Brasil</option>
                         <option value="cuba">Cuba</option>
                         <option value="classic">Classique</option>
@@ -6356,6 +6670,13 @@
                         <option value="piazzolla">Tango nuevo (quinteto)</option>
                         <option value="milongalyrique">Milonga lyrique (quinteto)</option>
                     </select>
+                </div>
+
+                <div id="band-row-swing" class="flex items-center gap-2" title="Balancement des croches : 50 % = croches droites, 67 % = triolet, plus haut = plus pointé. « Auto » : en Jazz, triolet qui se resserre quand le tempo monte ; en Pop-Rock, croches droites (50 %).">
+                    <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Swing</span>
+                    <input type="range" id="band-swing-slider" min="50" max="75" step="1" value="67" oninput="app.jam.setBandSwing(+this.value === 67 ? 0.667 : this.value / 100)" class="w-full accent-emerald-500">
+                    <span id="band-swing-display" class="text-xs font-mono font-bold text-slate-200 min-w-[32px] text-right">67%</span>
+                    <button type="button" id="band-swing-auto" class="band-swing-auto is-active" onclick="app.jam.setBandSwing(null)" title="Revenir au swing automatique (Jazz : selon le tempo ; Pop-Rock : 50 %)">Auto</button>
                 </div>
 
                 <div class="flex items-center gap-2">
@@ -6467,7 +6788,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-01-e';
+        var BUILD = '2026-11-02-f';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }
