@@ -26,7 +26,7 @@ Les commandes `npm` se lancent **depuis le dossier `app/`** (`cd app`). Dans `in
 | `theory.js` | Théorie musicale : noms de notes, orthographe, accords, gammes, notes à éviter / cibles |
 | `band-patterns.js` | Données des motifs rythmiques de l'orchestre |
 | `audio-config.js` | Constantes audio (octave de lecture, niveau master…) |
-| `band/` | Orchestre de la Jam : un fichier par famille de styles (`swing-plan`, `pop-plan`, `latin-plan`, `cuban-plan`, `brass-plan`, `balkan-plan`, `piazzolla-plan`, `classic-plan`, mesures 2/3 temps et ternaires), lignes de basse, choix par phrase (`phrase-plan`), états de départ (`band-state`), utilitaires (`band-helpers`) |
+| `band/` | Orchestre de la Jam : un fichier par famille de styles (`swing-plan`, `pop-plan`, `latin-plan`, `cuban-plan`, `brass-plan`, `balkan-plan`, `piazzolla-plan`, `classic-plan`, `guitar-plan` pour la guitare classique seule, mesures 2/3 temps et ternaires), lignes de basse, choix par phrase (`phrase-plan`), états de départ (`band-state`), utilitaires (`band-helpers`) |
 | `grid/` | La grille d'accords : ordre de lecture et reprises (`play-order`), mécanique de lecture (`transport`), édition (`edit-ops`), génération (`generation`), lecture harmonique (`harmony`), sauvegarde/import (`grid-format`) |
 | `audio/` | Calcul des notes jouées (`note-events`, `practice-notes`), synthèse des percussions (`drum-synths`), fichier WAV de l'export du son (`wav-export`) et adresses locales des sons (`local-soundfonts`) |
 | `styles/` | Les styles musicaux : métadonnées (`style-meta`), outils (`toolkit`), un générateur de grille par style (`style-builders`) |
@@ -142,7 +142,7 @@ Si un test échoue après votre modification, regardez la ligne `not ok` et le m
 
 ## 7. Où en est le code
 
-- `index.html` est passé d'environ 16 000 à environ 6 100 lignes ; la logique pure est dans 36 modules testés.
+- `index.html` est passé d'environ 16 000 à environ 6 100 lignes ; la logique pure est dans 37 modules testés.
 - Il reste dans `index.html` des méthodes surtout liées à l'écran et au son : câblage des événements, Web Audio (réverbération, bus des cuivres et du tango), création des éléments.
 - Pistes possibles, par ordre d'intérêt :
   1. Découper `JamEngine` (une seule classe de plus de 4 000 lignes) en plusieurs fichiers par responsabilité (lecture, édition de grille, orchestre, rendu), sans changer la logique.

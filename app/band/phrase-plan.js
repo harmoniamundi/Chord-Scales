@@ -18,6 +18,7 @@ if (typeof varyCell === 'undefined' && typeof require === 'function') {
 if (typeof popPhraseExtras === 'undefined' && typeof require === 'function') { var { popPhraseExtras } = require('./pop-plan.js'); }
 if (typeof latinPhraseExtras === 'undefined' && typeof require === 'function') { var { latinPhraseExtras } = require('./latin-plan.js'); }
 if (typeof classicPhraseExtras === 'undefined' && typeof require === 'function') { var { classicPhraseExtras } = require('./classic-plan.js'); }
+if (typeof guitarPhraseExtras === 'undefined' && typeof require === 'function') { var { guitarPhraseExtras } = require('./guitar-plan.js'); }
 if (typeof brassPhraseExtras === 'undefined' && typeof require === 'function') { var { brassPhraseExtras } = require('./brass-plan.js'); }
 if (typeof balkanPhraseExtras === 'undefined' && typeof require === 'function') { var { balkanPhraseExtras } = require('./balkan-plan.js'); }
 if (typeof piazzollaPhraseExtras === 'undefined' && typeof require === 'function') { var { piazzollaPhraseExtras } = require('./piazzolla-plan.js'); }
@@ -50,6 +51,7 @@ function buildBandPhrase(ctx, index, style, prev) {
     if (style === 'pop') Object.assign(phrase, popPhraseExtras(rng, prev, index));
     else if (style === 'latin') Object.assign(phrase, latinPhraseExtras({ isCuba: ctx.isCuba, bpm: ctx.bpm, groove: ctx.groove }, rng, prev, index));
     else if (style === 'classic') Object.assign(phrase, classicPhraseExtras(ctx.bpm, rng, prev, index));
+    else if (style === 'guitar') Object.assign(phrase, guitarPhraseExtras({ bpm: ctx.bpm, ternary: ctx.ternary, bpb }, rng, prev, index));
     else if (style === 'brass') Object.assign(phrase, brassPhraseExtras({ groove: ctx.groove }, rng, prev, index));
     else if (style === 'balkan') Object.assign(phrase, balkanPhraseExtras(rng, prev, index));
     else if (style === 'piazzolla') Object.assign(phrase, piazzollaPhraseExtras({ groove: ctx.groove }, rng, prev, index));

@@ -27,7 +27,7 @@ Si Playwright n'est pas installé, les tests du navigateur sont simplement ignor
 ### Ce que les tests ne peuvent pas vérifier (à faire à l'oreille / à l'œil)
 Les tests tournent sans vrai son, avec une version minimale de VexFlow et sans réseau.
 
-1. **Son** : lancer une jam (swing, bossa, tango) ; vérifier que l'intro, le métronome, la basse, la batterie et le piano sonnent et restent réguliers, y compris avec l'onglet en arrière-plan.
+1. **Son** : lancer une jam (swing, bossa, tango, orchestre Guitare : guitare classique à cordes nylon, arpèges et accords) ; vérifier que l'intro, le métronome, la basse, la batterie et le piano sonnent et restent réguliers, y compris avec l'onglet en arrière-plan.
 2. **Changements en cours de lecture** : changer d'orchestre, de tempo, activer/désactiver le métronome.
 3. **Portée** : en Entraînement (mode Portée), vérifier les notes, altérations, couleurs (rouge = à éviter, orange = caractéristique, bleu = cible) et les gammes descendantes (clic droit sur une carte).
 4. **Safari / iPhone** : le son démarre après un premier toucher ; l'affichage reste lisible.

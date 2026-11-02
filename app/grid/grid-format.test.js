@@ -145,6 +145,9 @@ describe('sanitizeImportedSettings', () => {
     test('anciens fichiers : mode « arpeges » → style classique', () => {
         assert.equal(F.sanitizeImportedSettings({ orchestration: { mode: 'arpeges', style: 'swing' } }).orchestration.style, 'classic');
     });
+    test('le style Guitare est reconnu à l\'import', () => {
+        assert.equal(F.sanitizeImportedSettings({ orchestration: { style: 'guitar' } }).orchestration.style, 'guitar');
+    });
     test('anciens fichiers : Brasil + rythme afro → style Cuba', () => {
         assert.equal(F.sanitizeImportedSettings({ orchestration: { style: 'latin', groove: 'afro' } }).orchestration.style, 'cuba');
     });

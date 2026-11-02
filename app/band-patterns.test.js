@@ -31,7 +31,7 @@ describe('forme générale', () => {
 describe('BAND_PATTERNS (mesure à 4 temps)', () => {
     const styles = Object.keys(P.BAND_PATTERNS);
     test('les styles connus sont présents', () => {
-        for (const s of ['swing', 'pop', 'latin', 'classic', 'brass', 'piazzolla', 'balkan']) assert.ok(styles.includes(s), s);
+        for (const s of ['swing', 'pop', 'latin', 'classic', 'guitar', 'brass', 'piazzolla', 'balkan']) assert.ok(styles.includes(s), s);
     });
     for (const style of styles) {
         const def = P.BAND_PATTERNS[style];

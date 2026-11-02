@@ -48,6 +48,7 @@ const SHELL_FILES = [
     'app/band/bass-lines.js',
     'app/band/swing-plan.js',
     'app/band/classic-plan.js',
+    'app/band/guitar-plan.js',
     'app/band/phrase-plan.js',
     'app/band/band-state.js',
     'app/grid/play-order.js',

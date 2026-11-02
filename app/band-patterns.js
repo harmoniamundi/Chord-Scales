@@ -262,6 +262,13 @@ BAND_PATTERNS.classic = {
     turn: [bandCell(1, [[0, 1, 'C', 0.8]])]
 };
 
+// Le style « Guitare » (guitare classique seule) a son propre générateur (buildGuitarPlan) : entrée factice pour le moteur commun.
+BAND_PATTERNS.guitar = {
+    rootlessProb: 0, fillProb: 0,
+    piano: [bandCell(1, [[0, 1, 'C', 0.8]])],
+    turn: [bandCell(1, [[0, 1, 'C', 0.8]])]
+};
+
 // Le style « Brass band » a son propre générateur (buildBrassPlan) : entrée factice pour le moteur commun.
 BAND_PATTERNS.brass = {
     rootlessProb: 0, fillProb: 0,

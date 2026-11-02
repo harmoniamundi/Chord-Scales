@@ -11,7 +11,7 @@ const ctxFor = (style, key = '4/4', seed = 1, extra = {}) => {
     const bpb = ternary ? n / 3 : n;
     return { lib: H.patternLib(key, style), bpb, ternary, bpm: 100, isCuba: false, groove: undefined, rng: G.makeVariationRng(seed, style, 0), ...extra };
 };
-const STYLES = ['swing', 'pop', 'latin', 'classic', 'brass', 'balkan', 'piazzolla'];
+const STYLES = ['swing', 'pop', 'latin', 'classic', 'guitar', 'brass', 'balkan', 'piazzolla'];
 const COMMON = ['index', 'style', 'rng', 'motif', 'second', 'varied', 'turn', 'bassMotif', 'bassAlt', 'bassTurn', 'voicing', 'density', 'feather', 'kickPattern', 'hat16', 'fill', 'fillKind'];
 
 describe('buildBandPhrase : champs communs', () => {

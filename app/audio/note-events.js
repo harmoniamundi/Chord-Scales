@@ -87,6 +87,33 @@ function guitarNotes(env, e, time, beatSec) {
     });
 }
 
+// Guitare classique seule (orchestre Guitare) : le pouce et les doigts pincent les cordes de nylon, qui vibrent librement jusqu'à
+// leur fin (durée donnée par le plan) ; un accord est roulé de la corde grave à l'aiguë (ou l'inverse si e.dir < 0), les notes
+// aiguës sont un peu adoucies et les cordes graves un peu mises en avant. Chaque note a son léger désaccord et son retard : deux
+// cordes ne sont jamais pincées exactement ensemble. Sans le piano ni la basse, le niveau est relevé par e.gainMul (plan).
+function classicalGuitarNotes(env, e, time, beatSec) {
+    const rand = randOf(env);
+    const vel = e.vel * (0.95 + rand() * 0.10);
+    const dur0 = Math.max(0.12, e.dur * beatSec);
+    const dur = env.perfTier >= 2 ? Math.min(dur0, 1.8) : dur0; // machine lente : notes plus courtes, moins de voix à la fois
+    const n = e.intervals.length;
+    const roll = n > 1 ? (e.roll !== undefined ? e.roll : 0.016) : 0;
+    const off = env.transOffset;
+    const release = Math.min(0.7, 0.2 + 0.18 * Math.min(2, dur)); // la corde s'éteint doucement
+    return e.intervals.map((interval, idx) => {
+        const order = e.dir < 0 ? (n - 1 - idx) : idx;
+        const midi = 48 + interval + off;                           // hauteur réelle
+        const tilt = 1 - 0.011 * Math.min(24, Math.max(0, midi - 60)) + (midi < 47 ? 0.04 : 0);
+        const nv = e.noteVels ? e.noteVels[idx] : 1;
+        const gain = Math.min(1.25, (0.30 + 0.9 * vel * nv) * tilt) * (e.gainMul || 1);
+        return {
+            noteStr: playNoteName(env.instrumentKey, e.rootIndex, interval, OCT),
+            when: Math.max(env.currentTime, time + order * roll * (0.85 + rand() * 0.3)),
+            opts: { duration: dur, gain, attack: 0.003, release, cents: (rand() - 0.5) * 3 }
+        };
+    });
+}
+
 // Brass band : chaque pupitre (cornets, cors, trombones) joue sa note avec ses propres retards, attaques et désaccords.
 const BRASS_ART = {
     marc:  { attack: 0.016, decay: 0.24, sustain: 0.76, release: 0.15, gain: 1.08, max: 1.3 },
@@ -235,5 +262,5 @@ function arcoNote(env, abs, time, dur, vel) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { playNoteName, bassNote, pianoNotes, guitarNotes, brassNotes, tubaNote, accordionNotes, piazzollaNotes, arcoNote };
+    module.exports = { playNoteName, bassNote, pianoNotes, guitarNotes, classicalGuitarNotes, brassNotes, tubaNote, accordionNotes, piazzollaNotes, arcoNote };
 }

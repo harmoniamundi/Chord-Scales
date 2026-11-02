@@ -1,5 +1,5 @@
 // band/band-state.js — états de départ de l'orchestre de la Jam, sans DOM : mémoire de conduite des voix (piano pop, guitare
-// latine, cuivres, accordéon, tango…), phrase et plan en cours, compteurs de lecture. Un seul endroit décrit les valeurs « à zéro »
+// latine, guitare classique seule, cuivres, accordéon, tango…), phrase et plan en cours, compteurs de lecture. Un seul endroit décrit les valeurs « à zéro »
 // utilisées à la construction du moteur, au lancement de la lecture, au changement d'orchestre et au changement de mesure.
 // Le moteur applique le résultat avec Object.assign(this, …).
 // Chargé par index.html via <script src="band/band-state.js"> et testé par band/band-state.test.js.
@@ -14,6 +14,7 @@ function bandVoiceState() {
         _brassVoice: null, _brassPrevKey: null, _brassLines: null,
         _balkanVoice: null, _balkanMel: null,
         _pzState: null,
+        _gtrVoice: null,
     };
 }
 

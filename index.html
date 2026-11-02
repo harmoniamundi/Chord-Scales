@@ -459,6 +459,7 @@
     <script src="app/band/bass-lines.js"></script>
     <script src="app/band/swing-plan.js"></script>
     <script src="app/band/classic-plan.js"></script>
+    <script src="app/band/guitar-plan.js"></script>
     <script src="app/band/phrase-plan.js"></script>
     <script src="app/band/band-state.js"></script>
     <script src="app/grid/play-order.js"></script>
@@ -514,7 +515,7 @@
                 this.gainNode = null;
                 this.instrumentKey = 'Bb';
 
-                // Style de la bande son de la jam : swing, pop, latin ou classique (arpèges au piano).
+                // Style de la bande son de la jam : swing, pop, latin, cuba, classique (arpèges au piano), guitare (guitare classique seule), brass, balkan ou piazzolla.
                 this.bandStyle = 'swing';
                 this.bandVolumes = { piano: 0.5, bass: 0.85, drums: 0.25, bandoneon: 0.7, violin: 0.6, guitar: 0.5 }; // les trois derniers : style Tango nuevo
                 this.bandReverb = 0.25;
@@ -1105,6 +1106,7 @@
                 if (s === 'balkan') return !!this.accordionInstrument;
                 if (s === 'piazzolla') return !!(this.pzInst && Object.keys(this.pzInst).length > 1);
                 if (s === 'latin') return !!this.guitarInstrument && !!this.bassInstrument;
+                if (s === 'guitar') return !!this.guitarInstrument;
                 if (s === 'classic') return !!this.bandPianoInstrument;
                 return !!this.bandPianoInstrument && !!this.bassInstrument;
             }
@@ -1880,8 +1882,8 @@
                 this.updateMetronomeUI();
                 this.updateBandSwingUI();
                 this.updateBandInstrumentLabel();
-                // En « Classique » (piano seul) : la basse et la batterie de l'orchestre ne servent pas.
-                const solo = this.bandStyle === 'classic';
+                // En « Classique » (piano seul) et en « Guitare » (guitare seule) : la basse et la batterie de l'orchestre ne servent pas.
+                const solo = this.bandStyle === 'classic' || this.bandStyle === 'guitar';
                 ['band-vol-bass', 'band-vol-drums'].forEach(id => {
                     const el = document.getElementById(id);
                     if (!el) return;
@@ -2043,7 +2045,7 @@
                 this._arpPrevStyle = null; // un choix explicite de style met fin au mode « arpèges » transitoire
                 this._setArpeggioUI(false);
                 const prevBand = this.bandStyle;
-                this.bandStyle = ['swing', 'pop', 'latin', 'cuba', 'classic', 'brass', 'balkan', 'piazzolla'].includes(style) ? style : 'swing';
+                this.bandStyle = ['swing', 'pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'piazzolla'].includes(style) ? style : 'swing';
                 if (prevBand !== this.bandStyle) {
                     // Chaque orchestre repart d'un état propre : phrase, plan et conduite des voix de l'orchestre précédent ne doivent pas
                     // se retrouver dans le suivant.
@@ -2053,6 +2055,7 @@
                 this.updateBandInstrumentLabel();
                 this.updateBandModalUI();
                 this.ensureBandAudio(); // lance le chargement de la guitare / de la basse selon le style
+                this._tuneGuitarBus();  // la guitare seule a un peu plus d'air que la guitare de l'orchestre Brasil
             }
 
             // Le premier curseur de volume règle le piano, ou la guitare classique en style Brasil.
@@ -2061,7 +2064,7 @@
                 const balkan = this.bandStyle === 'balkan';
                 const pz = this.bandStyle === 'piazzolla';
                 const el = document.getElementById('band-vol-piano-label');
-                if (el) el.textContent = brass ? 'Cuivres' : (balkan ? 'Accordéon' : (this.bandStyle === 'latin' ? 'Guitare' : 'Piano'));
+                if (el) el.textContent = brass ? 'Cuivres' : (balkan ? 'Accordéon' : ((this.bandStyle === 'latin' || this.bandStyle === 'guitar') ? 'Guitare' : 'Piano'));
                 const eb = document.getElementById('band-vol-bass-label');
                 if (eb) eb.textContent = brass ? 'Tubas' : (pz ? 'Contreb.' : 'Basse');
                 const ed = document.getElementById('band-vol-drums-label');
@@ -2073,11 +2076,11 @@
                 });
             }
 
-            // Le bouton affiche « Orchestre » suivi du style actif (Jazz / Pop-Rock / Brasil / Cuba / Classique).
+            // Le bouton affiche « Orchestre » suivi du style actif (Jazz / Pop-Rock / Brasil / Cuba / Classique / Guitare…).
             updateBandButtonLabel() {
                 const label = document.getElementById('band-btn-label');
                 if (!label) return;
-                const names = { swing: 'Jazz', pop: 'Pop-Rock', latin: 'Brasil', cuba: 'Cuba', classic: 'Classique', brass: 'Brass', balkan: 'Balkans', piazzolla: (this.getEffectiveGroove() === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
+                const names = { swing: 'Jazz', pop: 'Pop-Rock', latin: 'Brasil', cuba: 'Cuba', classic: 'Classique', guitar: 'Guitare', brass: 'Brass', balkan: 'Balkans', piazzolla: (this.getEffectiveGroove() === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
                 label.textContent = 'Orchestre ' + (names[this.bandStyle] || 'Jazz');
             }
 
@@ -2264,9 +2267,9 @@
                 if (this.bandStyle === 'brass') this.loadBrass();
                 if (this.bandStyle === 'balkan') this.loadAccordion();
                 if (this.bandStyle === 'piazzolla') this.loadPiazzolla();
-                if (this.bandStyle !== 'classic' && !this.bassInstrument) this.loadBass();
+                if (this.bandStyle !== 'classic' && this.bandStyle !== 'guitar' && !this.bassInstrument) this.loadBass();
                 if (this.bandStyle === 'pop') this.loadBassPop();
-                if (this.bandStyle === 'latin') this.loadGuitarLatin();
+                if (this.bandStyle === 'latin' || this.bandStyle === 'guitar') this.loadGuitarLatin();
             }
 
             // Piano de l'orchestre. soundfont-player n'honore l'option « destination » qu'à la création de l'instrument (pas
@@ -2353,7 +2356,23 @@
                 for (let k = 0; k + 1 < chain.length; k++) chain[k].connect(chain[k + 1]);
                 makeup.connect(this.bandGains.piano || ctx.destination);
                 this._guitarBus = hp;
+                this._guitarFx = { body, warm, ping, air, lp };
+                this._tuneGuitarBus(true);
                 return hp;
+            }
+
+            // Réglage du timbre de la guitare selon l'orchestre. Dans l'orchestre Brasil elle partage le mix avec la basse et la batterie
+            // (aigus très adoucis) ; seule (orchestre Guitare) elle garde un peu plus de présence et d'air, pour un nylon plus ouvert.
+            _tuneGuitarBus(now) {
+                const fx = this._guitarFx, ctx = this.app.audioCtx;
+                if (!fx || !ctx) return;
+                const solo = this.bandStyle === 'guitar';
+                const set = (param, v) => { if (now) param.value = v; else param.setTargetAtTime(v, ctx.currentTime, 0.04); };
+                set(fx.body.gain, solo ? 2 : 3.5);   // la guitare seule n'a pas besoin d'autant de corps dans le grave
+                set(fx.warm.gain, solo ? 1.5 : 2.5);
+                set(fx.ping.gain, solo ? -3.5 : -4.5);
+                set(fx.air.gain, solo ? -4.5 : -7);
+                set(fx.lp.frequency, solo ? 8500 : 7000);
             }
 
             loadGuitarLatin() {
@@ -2687,6 +2706,8 @@
                 // Bouton « Arpèges » : arpège simple (basse puis notes de l'accord en montant), quelle que soit la signature
                 if (this._arpPrevStyle) return this.buildArpPlan(bpbNow, step, nextStep, isLastMeasureOfStep, halves);
                 // Brass band : orchestre dédié (cuivres, tubas, caisse claire, grosse caisse, timbales), quelle que soit la signature
+                // Guitare classique seule : arpèges et accords, quelle que soit la signature
+                if (style === 'guitar') return this.buildGuitarPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 if (style === 'brass') return this.buildBrassPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 // Balkans : accordéon, basse, percussions (tapan / darbuka), quelle que soit la signature
                 if (style === 'balkan') return this.buildBalkanPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
@@ -2749,6 +2770,20 @@
 
             buildLatinPlan(step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
                 return this._bandRun(['latVoice', 'latTie', 'latRunAt', 'bandLastFill'], env => buildLatinPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m));
+            }
+
+            // ===================== Orchestration GUITARE : le calcul est dans band/guitar-plan.js =====================
+            // Guitare classique seule : le pouce tient les basses, les doigts arpègent les cordes aiguës, les accords sont roulés.
+            buildGuitarPlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
+                return this._bandRun(['gtrVoice'], env => buildGuitarPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat(), bpm: this.bpm });
+            }
+
+            // Une frappe de la guitare seule (pouce, doigts, accord roulé) sur les cordes de nylon. Sans guitare chargée, le piano prend le relais.
+            playClassicalGuitarHit(e, time, beatSec) {
+                const inst = this.guitarInstrument;
+                if (!inst || !this.app.audioCtx) { this.playPianoHit(e, time, beatSec); return; }
+                // Le volume est réglé par le bus (bandGains.piano) : pas de second facteur de volume ici.
+                this._playNotes(inst, classicalGuitarNotes(this._noteEnv(), e, time, beatSec));
             }
 
             // Jeu d'une frappe de guitare : notes de l'accord « grattées » (coup descendant du grave à l'aigu, coup
@@ -3158,7 +3193,7 @@
                 const at = (e) => Math.max(now, now + (e.pos - beatInMeasure) * beatSec + (e.lay || 0) + (Math.random() - 0.5) * 0.012);
                 plan.drums.filter(inBeat).forEach(e => this.playBandDrum(e, at(e)));
                 plan.bass.filter(inBeat).forEach(e => plan.piazzolla ? this.playPiazzollaBass(e, at(e), beatSec) : plan.brass ? this.playTubaAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), e.art) : this.playBassAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), !!e.wide));
-                plan.piano.filter(inBeat).forEach(e => plan.piazzolla ? this.playPiazzollaHit(e, at(e), beatSec) : plan.brass ? this.playBrassHit(e, at(e), beatSec) : (plan.accordion ? this.playAccordionHit(e, at(e), beatSec) : (plan.guitar ? this.playGuitarHit(e, at(e), beatSec) : this.playPianoHit(e, at(e), beatSec))));
+                plan.piano.filter(inBeat).forEach(e => plan.classicalGuitar ? this.playClassicalGuitarHit(e, at(e), beatSec) : plan.piazzolla ? this.playPiazzollaHit(e, at(e), beatSec) : plan.brass ? this.playBrassHit(e, at(e), beatSec) : (plan.accordion ? this.playAccordionHit(e, at(e), beatSec) : (plan.guitar ? this.playGuitarHit(e, at(e), beatSec) : this.playPianoHit(e, at(e), beatSec))));
             }
 
 
@@ -6713,6 +6748,7 @@
                         <option value="latin">Brasil</option>
                         <option value="cuba">Cuba</option>
                         <option value="classic">Classique</option>
+                        <option value="guitar">Guitare</option>
                         <option value="brass">Brass band</option>
                         <option value="balkan">Balkans</option>
                         <option value="piazzolla">Tango nuevo (quinteto)</option>

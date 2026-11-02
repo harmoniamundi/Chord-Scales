@@ -108,6 +108,45 @@ describe('guitarNotes', () => {
     });
 });
 
+describe('classicalGuitarNotes', () => {
+    const e = { rootIndex: 0, intervals: [-8, 4, 7, 12], vel: 0.7, dur: 2, roll: 0.02, gainMul: 1 };
+    test('chaque note joue son nom, durée du plan, attaque franche, release doux', () => {
+        const n = N.classicalGuitarNotes(env(), e, 5, 0.5);
+        assert.deepEqual(n.map(x => x.noteStr), ['E2', 'E3', 'G3', 'C4']);
+        n.forEach(x => { close(x.opts.duration, 1); assert.equal(x.opts.attack, 0.003); assert.ok(x.opts.release >= 0.2 && x.opts.release <= 0.7); });
+    });
+    test('accord roulé : montant par défaut, descendant avec dir < 0 ; une note seule n\'est pas retardée', () => {
+        const up = N.classicalGuitarNotes(env(), e, 5, 1), down = N.classicalGuitarNotes(env(), { ...e, dir: -1 }, 5, 1);
+        for (let k = 1; k < 4; k++) { assert.ok(up[k].when > up[k - 1].when); assert.ok(down[k].when < down[k - 1].when); }
+        assert.equal(N.classicalGuitarNotes(env(), { ...e, intervals: [4] }, 5, 1)[0].when, 5);
+    });
+    test('jamais dans le passé', () => {
+        N.classicalGuitarNotes(env({ currentTime: 9 }), e, 3, 1).forEach(x => assert.ok(x.when >= 9));
+    });
+    test('les cordes graves sont un peu mises en avant, les aiguës adoucies ; gainMul relève le niveau', () => {
+        const one = (iv, extra = {}) => N.classicalGuitarNotes(env(), { rootIndex: 0, intervals: [iv], vel: 0.7, dur: 1, ...extra }, 0, 1)[0].opts.gain;
+        assert.ok(one(-12) > one(0));
+        assert.ok(one(24) < one(0));
+        assert.ok(one(0, { gainMul: 1.2 }) > one(0));
+    });
+    test('un accord est joué plus fort qu\'une note quand sa vélocité l\'est ; noteVels règle chaque corde', () => {
+        const g = N.classicalGuitarNotes(env(), { ...e, noteVels: [1, 0.5, 0.5, 0.5] }, 0, 1);
+        assert.ok(g[0].opts.gain > g[1].opts.gain);
+    });
+    test('la transposition de l\'instrument décale l\'adoucissement des notes aiguës', () => {
+        const hi = (off) => N.classicalGuitarNotes(env({ transOffset: off }), { rootIndex: 0, intervals: [24], vel: 0.7, dur: 1 }, 0, 1)[0].opts.gain;
+        assert.ok(hi(-9) > hi(0));
+    });
+    test('machine lente (niveau minimal) : notes plus courtes', () => {
+        const long = { ...e, intervals: [0], dur: 8 };
+        close(N.classicalGuitarNotes(env({ perfTier: 0 }), long, 0, 1)[0].opts.duration, 8);
+        close(N.classicalGuitarNotes(env({ perfTier: 2 }), long, 0, 1)[0].opts.duration, 1.8);
+    });
+    test('désaccord de quelques centièmes de ton seulement', () => {
+        for (const r of [0, 0.5, 0.9999]) N.classicalGuitarNotes(env({ rand: () => r }), e, 0, 1).forEach(x => assert.ok(Math.abs(x.opts.cents) <= 1.5));
+    });
+});
+
 describe('brassNotes', () => {
     const e = { rootIndex: 0, intervals: [0, 4, 7, 11], vel: 0.8, dur: 1, art: 'marc' };
     test('six pupitres pour un accord de 4 notes, noms d\'instruments existants', () => {
@@ -219,7 +258,7 @@ describe('ordre de consommation du hasard (déterminisme)', () => {
     test('même graine → mêmes notes, pour chaque instrument', () => {
         const e = { rootIndex: 2, intervals: [0, 3, 7, 10], vel: 0.6, dur: 1.5, art: 'marc' };
         const fns = [
-            (v) => N.pianoNotes(env({ rand: v }), e, 0, 0.5), (v) => N.guitarNotes(env({ rand: v }), e, 0, 0.5),
+            (v) => N.pianoNotes(env({ rand: v }), e, 0, 0.5), (v) => N.guitarNotes(env({ rand: v }), e, 0, 0.5), (v) => N.classicalGuitarNotes(env({ rand: v }), e, 0, 0.5),
             (v) => N.brassNotes(env({ rand: v }), e, 0, 0.5), (v) => N.accordionNotes(env({ rand: v }), e, 0, 0.5),
             (v) => N.piazzollaNotes(env({ rand: v }), e, 0, 0.5, 'bandoneon')
         ];

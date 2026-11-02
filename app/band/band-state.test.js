@@ -12,17 +12,19 @@ describe('bandVoiceState', () => {
             _brassVoice: null, _brassPrevKey: null, _brassLines: null,
             _balkanVoice: null, _balkanMel: null,
             _pzState: null,
+            _gtrVoice: null,
         });
     });
     test('un nouvel objet à chaque appel', () => {
         assert.notEqual(S.bandVoiceState(), S.bandVoiceState());
     });
     test('appliqué à un moteur « sale », tout est remis à zéro sans toucher au reste', () => {
-        const engine = { _bandPhrase: { a: 1 }, _popVoice: [60], _pzState: { x: 1 }, _latTie: true, bpm: 120, bandStyle: 'pop' };
+        const engine = { _bandPhrase: { a: 1 }, _popVoice: [60], _pzState: { x: 1 }, _gtrVoice: { bass: 40 }, _latTie: true, bpm: 120, bandStyle: 'pop' };
         Object.assign(engine, S.bandVoiceState());
         assert.equal(engine._bandPhrase, null);
         assert.equal(engine._popVoice, null);
         assert.equal(engine._pzState, null);
+        assert.equal(engine._gtrVoice, null);
         assert.equal(engine._latTie, false);
         assert.equal(engine.bpm, 120);
         assert.equal(engine.bandStyle, 'pop');

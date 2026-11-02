@@ -299,7 +299,7 @@ function getStepHalves(step) {
 
 // Rapport de swing : position de la croche « et » dans le temps (0.5 = croches droites, 0.667 = triolet, 0.75 = très pointé).
 // Chaque orchestre a une valeur par défaut adaptée à son style (réglage « Auto ») : Jazz joue en triolet qui se rapproche des
-// croches droites quand le tempo monte ; les autres orchestres (Pop-Rock, Brasil, Cuba, Classique, Brass, Balkans, Tango nuevo)
+// croches droites quand le tempo monte ; les autres orchestres (Pop-Rock, Brasil, Cuba, Classique, Guitare, Brass, Balkans, Tango nuevo)
 // jouent droit par défaut, leurs motifs étant écrits ainsi. Tous se règlent au curseur / menu Swing.
 // `manual` : valeur choisie par l'utilisateur (0.5 à 0.75) ; elle remplace la valeur par défaut du style.
 const BAND_SWING_DEFAULTS = {
@@ -308,6 +308,7 @@ const BAND_SWING_DEFAULTS = {
     latin: 0.5,       // Brasil
     cuba: 0.5,
     classic: 0.5,
+    guitar: 0.5,
     brass: 0.5,
     balkan: 0.5,
     piazzolla: 0.5
