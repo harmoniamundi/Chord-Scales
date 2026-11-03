@@ -33,7 +33,7 @@ function latinPhraseExtras(ctx, rng, prev, index) {
     const wg = bpm < 125 ? [0.72, 0.08] : (bpm < 175 ? [0.42, 0.33] : [0.12, 0.6]);
     // Orchestre Cuba : toujours le rythme afro-cubain. Orchestre Brasil : samba, tango et Piazzolla imposent leur rythme ;
     // sinon le moteur choisit bossa / samba selon le tempo (jamais « afro » : c'est le rôle de l'orchestre Cuba).
-    const hint = isCuba ? 'afro' : ctx.groove;
+    const hint = isCuba ? (ctx.groove === 'salsa' ? 'salsa' : 'afro') : ctx.groove; // Cuba : rythme afro-cubain, ou salsa quand le style de grille l'impose
     const groove = hint || ((pl && pl.groove && pl.groove !== 'afro' && rng() < 0.75) ? pl.groove : pickW([['bossa', wg[0]], ['samba', wg[1]]]));
     const byDensity = (list) => pickW(list.map((c, k) => [k, 0.25 + 1.6 * Math.max(0, 1 - Math.abs(c.d - I) * 2)]));
     const keep = !!(pl && pl.groove === groove && rng() < 0.35);
@@ -44,8 +44,8 @@ function latinPhraseExtras(ctx, rng, prev, index) {
         afroIdx: (keep && pl.afroIdx !== undefined) ? pl.afroIdx : byDensity(LATIN_PAT.LAT_AFRO),
         tangoIdx: (keep && pl.tangoIdx !== undefined) ? pl.tangoIdx : byDensity(LATIN_PAT.LAT_TANGO),
         piazzollaIdx: (keep && pl.piazzollaIdx !== undefined) ? pl.piazzollaIdx : byDensity(LATIN_PAT.LAT_PIAZZOLLA),
-        bassIdx: Math.floor(rng() * LATIN_PAT.LAT_BASS[groove].length),
-        bassAlt: Math.floor(rng() * LATIN_PAT.LAT_BASS[groove].length),
+        bassIdx: Math.floor(rng() * LATIN_PAT.LAT_BASS[groove === 'salsa' ? 'afro' : groove].length), // la salsa a son propre tumbao (band/salsa-plan.js)
+        bassAlt: Math.floor(rng() * LATIN_PAT.LAT_BASS[groove === 'salsa' ? 'afro' : groove].length),
         claveOn: rng() < 0.88,
         fill: rng() < 0.45 && groove !== 'tango', // le tango marcato n'a pas de fills de batterie
         fillKind: Math.floor(rng() * 3)

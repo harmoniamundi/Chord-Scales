@@ -39,6 +39,12 @@ describe('tables par style', () => {
         assert.deepEqual(M.tempoMeterFor('flamencobulerias'), { bpm: 88, meter: '12/8' });
         assert.deepEqual(M.tempoMeterFor('flamencotangos'), { bpm: 108, meter: '4/4' });
     });
+    test('salsa : orchestre Cuba, rythme salsa, 4/4 autour de 180', () => {
+        assert.equal(M.bandStyleFor('salsa'), 'cuba');
+        assert.equal(M.grooveHintFor('salsa'), 'salsa');
+        assert.deepEqual(M.tempoMeterFor('salsa'), { bpm: 180, meter: '4/4' });
+        assert.equal(M.STYLE_SCALE_PROFILE.salsa, 'jazz');
+    });
     test('style inconnu ou clé héritée d\'Object : null partout', () => {
         for (const k of ['inconnu', 'constructor', 'toString', undefined, null, 42]) {
             assert.equal(M.bandStyleFor(k), null);
@@ -59,7 +65,7 @@ describe('tables par style', () => {
     test('orchestres et grooves : valeurs connues du moteur', () => {
         const bands = new Set(['swing', 'latin', 'pop', 'classic', 'cuba', 'piazzolla', 'brass', 'balkan', 'guitar']);
         Object.values(M.STYLE_BAND).forEach(b => assert.ok(bands.has(b), b));
-        const grooves = new Set(['samba', 'tango', 'piazzolla', 'lyrique', 'afro', 'b-chorale', 'f-solea', 'f-bulerias', 'f-tangos']);
+        const grooves = new Set(['samba', 'tango', 'piazzolla', 'lyrique', 'afro', 'salsa', 'b-chorale', 'f-solea', 'f-bulerias', 'f-tangos']);
         Object.values(M.STYLE_GROOVE).forEach(g => assert.ok(grooves.has(g), g));
     });
 });

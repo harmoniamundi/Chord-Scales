@@ -438,6 +438,30 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         noErrors();
     });
 
+    test('Jam : Salsa — orchestre Cuba en rythme salsa (clave, cáscara, congas, bongos, güiro) ; le rythme ne fuit pas vers l'orchestre Brasil', async () => {
+        await page.selectOption('#jam-style-select', 'salsa');
+        assert.equal(await page.evaluate(() => app.jam.bandStyle), 'cuba');
+        assert.equal(await page.evaluate(() => app.jam.getEffectiveGroove()), 'salsa');
+        assert.equal(await page.evaluate(() => app.jam.bpm), 180);
+        assert.equal(await page.evaluate(() => app.jam.getBeatsPerBar()), 4);
+        await page.evaluate(() => {
+            app.jam.bpm = 240;
+            window.__drums = [];
+            const real = app.jam.playBandDrum.bind(app.jam);
+            app.jam.playBandDrum = (e, t) => { window.__drums.push(e.drum); return real(e, t); };
+        });
+        await page.click('#jam-play-btn');
+        await waitFor(() => window.__drums.length >= 120, null, 25000);
+        await page.click('#jam-play-btn');
+        const heard = await page.evaluate(() => [...new Set(window.__drums)].sort());
+        for (const d of ['clave', 'shell', 'slap', 'conga2', 'bongol', 'guiro']) assert.ok(heard.includes(d), `${d} jamais joué : ${heard.join(' ')}`);
+        // autre orchestre : le rythme salsa ne fuit pas
+        await page.evaluate(() => app.jam.setBandStyle('latin'));
+        assert.equal(await page.evaluate(() => app.jam.getEffectiveGroove()), null);
+        await page.selectOption('#jam-style-select', 'swing');
+        noErrors();
+    });
+
     test('Jam : mode édition, sélection d\'une plage et lecture de cette plage', async () => {
         await page.selectOption('#jam-style-select', 'blues');
         await page.evaluate(() => {

@@ -19,8 +19,8 @@ const STYLES = Object.keys(STYLE_BUILDERS);
 const bars = (tpl) => tpl.reduce((s, x) => s + x.m, 0);
 
 describe('catalogue des styles', () => {
-    test('43 styles, dont les alias blues128, ballad128 et balkan98', () => {
-        assert.equal(STYLES.length, 43);
+    test('44 styles, dont les alias blues128, ballad128 et balkan98', () => {
+        assert.equal(STYLES.length, 44);
         assert.equal(STYLE_BUILDERS.blues128, STYLE_BUILDERS.blues);
         assert.equal(STYLE_BUILDERS.ballad128, STYLE_BUILDERS.ballad);
         assert.equal(STYLE_BUILDERS.balkan98, STYLE_BUILDERS.balkan);

@@ -43,6 +43,7 @@ const SHELL_FILES = [
     'app/band/latin-plan.js',
     'app/band/balkan-plan.js',
     'app/band/cuban-plan.js',
+    'app/band/salsa-plan.js',
     'app/band/meter-plan.js',
     'app/band/ternary-plan.js',
     'app/band/bass-lines.js',

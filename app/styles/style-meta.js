@@ -13,7 +13,7 @@ if (typeof chordFamily === 'undefined' && typeof require === 'function') {
 // Profil de gammes par style : 'jazz' (1re gamme de l'accord), 'blues', 'funk', 'classic' (mode diatonique du degré), 'balkan'.
 const STYLE_SCALE_PROFILE = {
     'ii-v-i':'jazz', anatole:'jazz', 'i-got-rythm':'jazz', bebop:'jazz', swing:'jazz', hardbop:'jazz', ballad:'jazz', ballad128:'jazz',
-    valsejazz:'jazz', fusion:'jazz', modal:'jazz', bossa:'jazz', latin:'jazz', samba:'jazz', piazzolla:'jazz', milongalyrique:'jazz', afro68:'jazz',
+    valsejazz:'jazz', fusion:'jazz', modal:'jazz', bossa:'jazz', latin:'jazz', samba:'jazz', piazzolla:'jazz', milongalyrique:'jazz', afro68:'jazz', salsa:'jazz',
     blues:'blues', blues128:'blues', funk:'funk',
     baroque:'classic', mozart:'classic', trad:'classic', chansonsimple:'classic', menuet:'classic', valseviennoise:'classic',
     valsemusette:'classic', barcarolle:'classic', tarentelle:'classic', dixieland:'classic', tango:'classic', brasshymn:'classic',
@@ -30,7 +30,7 @@ const STYLE_BAND = {
     pop: 'pop', funk: 'pop', fusion: 'pop',
     baroque: 'classic', mozart: 'classic', trad: 'classic', chansonsimple: 'pop',
     valsejazz: 'swing', valsemusette: 'pop', valseviennoise: 'classic', menuet: 'classic', valsecountry: 'pop',
-    jig: 'pop', afro68: 'cuba', barcarolle: 'classic', tarentelle: 'classic', slipjig: 'pop',
+    jig: 'pop', afro68: 'cuba', salsa: 'cuba', barcarolle: 'classic', tarentelle: 'classic', slipjig: 'pop',
     blues128: 'swing', gospel: 'pop', ballad128: 'swing',
     samba: 'latin', tango: 'piazzolla', piazzolla: 'piazzolla', milongalyrique: 'piazzolla',
     brasshymn: 'brass', brasscantique: 'brass',
@@ -39,7 +39,7 @@ const STYLE_BAND = {
 };
 
 // Rythme imposé à l'orchestre Latin par certains styles (sinon le moteur choisit bossa / samba / afro selon le tempo).
-const STYLE_GROOVE = { samba: 'samba', tango: 'lyrique', piazzolla: 'piazzolla', milongalyrique: 'lyrique', afro68: 'afro', brasshymn: 'b-chorale', brasscantique: 'b-chorale',
+const STYLE_GROOVE = { samba: 'samba', tango: 'lyrique', piazzolla: 'piazzolla', milongalyrique: 'lyrique', afro68: 'afro', salsa: 'salsa', brasshymn: 'b-chorale', brasscantique: 'b-chorale',
     flamencosolea: 'f-solea', flamencobulerias: 'f-bulerias', flamencotangos: 'f-tangos' };
 
 // Tempo (noires par minute ; pulsations ♩. en mesure composée) et signature proposés pour chaque style.
@@ -87,7 +87,8 @@ const STYLE_TEMPO_METER = {
     balkan98:      { bpm: 100, meter: '9/8' },
     flamencosolea:    { bpm: 52,  meter: '12/8' }, // 12 temps : un compás = 4 pulsations ♩. (≈ 4,6 s)
     flamencobulerias: { bpm: 88,  meter: '12/8' }, // compás de ≈ 2,7 s
-    flamencotangos:   { bpm: 108, meter: '4/4' }
+    flamencotangos:   { bpm: 108, meter: '4/4' },
+    salsa:            { bpm: 180, meter: '4/4' } // salsa dansée : noire autour de 180 (clave sur deux mesures ≈ 2,7 s)
 };
 
 // Recherche par clé propre : une clé inattendue (« constructor »…) ne renvoie jamais un membre hérité d'Object.

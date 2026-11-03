@@ -36,7 +36,8 @@ function drumSpec(e) {
     const MAXDUR = { kick: 0.5, snare: 0.35, ghost: 0.25, hat: 0.15, ohat: 0.65, ride: 1.3, crash: 2.9, clash: 1.1, rim: 0.12,
         tom1: 0.45, tom2: 0.45, tom3: 0.45, bell: 0.3, clave: 0.15, conga1: 0.2, conga2: 0.4, slap: 0.15, shaker: 0.12,
         bdrum: 0.75, golpe: 0.25, chich: 0.3, latigo: 0.3, dum: 0.7, tek: 0.7, ka: 0.7, tapan: 0.7, stick: 0.7, daire: 0.7,
-        cajonb: 0.35, cajont: 0.25, palma: 0.22, sorda: 0.15, pito: 0.12 }; // cajonb/cajont : cajón flamenco (grave, claqué) ; palma/sorda : palmas claires/sourdes ; pito : claquement de doigts
+        cajonb: 0.35, cajont: 0.25, palma: 0.22, sorda: 0.15, pito: 0.12,
+        shell: 0.1, guiro: 0.16, guirot: 0.06, bongoh: 0.14, bongol: 0.18 }; // cajonb/cajont : cajón flamenco (grave, claqué) ; palma/sorda : palmas claires/sourdes ; pito : claquement de doigts ; shell : cáscara (flanc du timbal) ; guiro/guirot : güiro, coup long / court ; bongoh/bongol : bongó aigu (hembra) / grave (macho)
     let maxDur = MAXDUR[drum], name = drum, freq, short;
     if (drum === 'timp') {
         freq = e.freq || 98; short = !!e.short;
@@ -80,6 +81,11 @@ function synthDrumLive(rt, e, time, dest, v) {
         case 'palma': synthPalma(rt, time, dest, false, v); break;
         case 'sorda': synthPalma(rt, time, dest, true, v); break;
         case 'pito': synthPito(rt, time, dest, v); break;
+        case 'shell': synthShell(rt, time, dest, v); break;
+        case 'guiro': synthGuiro(rt, time, dest, v, true); break;
+        case 'guirot': synthGuiro(rt, time, dest, v, false); break;
+        case 'bongoh': synthConga(rt, time, dest, 700, 0.11, v); break;
+        case 'bongol': synthConga(rt, time, dest, 520, 0.14, v); break;
         case 'dum': case 'tek': case 'ka': case 'tapan': case 'stick': case 'daire': synthDarbuka(rt, time, dest, e.drum, v); break;
     }
 }
@@ -405,6 +411,66 @@ function synthShaker(rt, time, destination, vel = 1) {
     noise.connect(hp); hp.connect(g); g.connect(destination);
     noise.start(time); noise.stop(time + 0.09);
     rt.nodes.push(noise);
+}
+
+// Cáscara : le flanc métallique du timbal frappé à la baguette. Sec, brillant et très bref : un « toc » plus aigu et plus métallique
+// que la clave (bois) et que le rim (bord de caisse claire).
+function synthShell(rt, time, destination, vel = 1) {
+    const ctx = rt.ctx;
+    if (!ctx || !destination) return;
+    const noise = ctx.createBufferSource();
+    noise.buffer = rt.noise();
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = 3100; bp.Q.value = 2.2;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.001, time);
+    g.gain.exponentialRampToValueAtTime(0.42 * vel, time + 0.0012);
+    g.gain.exponentialRampToValueAtTime(0.0006, time + 0.055);
+    noise.connect(bp); bp.connect(g); g.connect(destination);
+    noise.start(time); noise.stop(time + 0.07);
+    rt.nodes.push(noise);
+    // Résonance du métal : deux partiels non harmoniques qui s'éteignent vite
+    const ring = ctx.createGain();
+    ring.gain.setValueAtTime(0.001, time);
+    ring.gain.exponentialRampToValueAtTime(0.14 * vel, time + 0.002);
+    ring.gain.exponentialRampToValueAtTime(0.0005, time + 0.085);
+    ring.connect(destination);
+    [1480, 2210].forEach(f => {
+        const o = ctx.createOscillator();
+        o.type = 'triangle'; o.frequency.value = f;
+        o.connect(ring);
+        o.start(time); o.stop(time + 0.09);
+        rt.nodes.push(o);
+    });
+}
+
+// Güiro : racloir en calebasse. Coup long (« grattage » descendant, bruit à grain rapide) ou coup court (retour vif).
+function synthGuiro(rt, time, destination, vel = 1, long = true) {
+    const ctx = rt.ctx;
+    if (!ctx || !destination) return;
+    const dur = long ? 0.13 : 0.045;
+    const noise = ctx.createBufferSource();
+    noise.buffer = rt.noise();
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.Q.value = 1.4;
+    bp.frequency.setValueAtTime(long ? 5200 : 6000, time);
+    bp.frequency.exponentialRampToValueAtTime(long ? 3200 : 5000, time + dur);
+    // Les dents du racloir : le niveau est haché à environ 70 Hz (long) ou 110 Hz (court)
+    const teeth = ctx.createGain();
+    teeth.gain.value = 0.55;
+    const lfo = ctx.createOscillator();
+    lfo.type = 'square'; lfo.frequency.value = long ? 70 : 110;
+    const lfoDepth = ctx.createGain();
+    lfoDepth.gain.value = 0.45;
+    lfo.connect(lfoDepth); lfoDepth.connect(teeth.gain);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.001, time);
+    g.gain.exponentialRampToValueAtTime((long ? 0.2 : 0.15) * vel, time + (long ? 0.012 : 0.004));
+    g.gain.exponentialRampToValueAtTime(0.0007, time + dur);
+    noise.connect(bp); bp.connect(teeth); teeth.connect(g); g.connect(destination);
+    noise.start(time); noise.stop(time + dur + 0.02);
+    lfo.start(time); lfo.stop(time + dur + 0.02);
+    rt.nodes.push(noise); rt.nodes.push(lfo);
 }
 
 function synthRim(rt, time, destination, vel = 1) {
@@ -831,5 +897,5 @@ function synthPito(rt, time, destination, vel = 1) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { makeNoiseBuffer, makeSaturationCurve, drumSpec, synthDrumLive, synthKick, synthSnare, metalOscBank, synthHihat,
         synthCymbal, synthCowbell, synthClave, synthConga, synthSlap, synthShaker, synthRim, synthTom, synthBassDrum, synthTimp,
-        synthDarbuka, synthGolpe, synthChicharra, synthLatigo, synthCajonBass, synthCajonTap, synthPalma, synthPito };
+        synthDarbuka, synthGolpe, synthChicharra, synthLatigo, synthCajonBass, synthCajonTap, synthPalma, synthPito, synthShell, synthGuiro };
 }

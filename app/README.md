@@ -26,7 +26,7 @@ Les commandes `npm` se lancent **depuis le dossier `app/`** (`cd app`). Dans `in
 | `theory.js` | Théorie musicale : noms de notes, orthographe, accords, gammes, notes à éviter / cibles |
 | `band-patterns.js` | Données des motifs rythmiques de l'orchestre |
 | `audio-config.js` | Constantes audio (octave de lecture, niveau master…) |
-| `band/` | Orchestre de la Jam : un fichier par famille de styles (`swing-plan`, `pop-plan`, `latin-plan`, `cuban-plan`, `brass-plan`, `balkan-plan`, `piazzolla-plan`, `classic-plan`, `guitar-plan` pour la guitare classique seule, `flamenco-plan` pour le toque flamenco de cette même guitare, mesures 2/3 temps et ternaires), lignes de basse, choix par phrase (`phrase-plan`), états de départ (`band-state`), utilitaires (`band-helpers`) |
+| `band/` | Orchestre de la Jam : un fichier par famille de styles (`swing-plan`, `pop-plan`, `latin-plan`, `cuban-plan`, `salsa-plan` pour la salsa, `brass-plan`, `balkan-plan`, `piazzolla-plan`, `classic-plan`, `guitar-plan` pour la guitare classique seule, `flamenco-plan` pour le toque flamenco de cette même guitare, mesures 2/3 temps et ternaires), lignes de basse, choix par phrase (`phrase-plan`), états de départ (`band-state`), utilitaires (`band-helpers`) |
 | `grid/` | La grille d'accords : ordre de lecture et reprises (`play-order`), mécanique de lecture (`transport`), édition (`edit-ops`), génération (`generation`), lecture harmonique (`harmony`), sauvegarde/import (`grid-format`) |
 | `audio/` | Calcul des notes jouées (`note-events`, `practice-notes`), synthèse des percussions (`drum-synths`), fichier WAV de l'export du son (`wav-export`) et adresses locales des sons (`local-soundfonts`) |
 | `styles/` | Les styles musicaux : métadonnées (`style-meta`), outils (`toolkit`), un générateur de grille par style (`style-builders`) |
@@ -132,6 +132,19 @@ Trois styles de grille du menu « Flamenco » (`flamencosolea`, `flamencobuleria
 - Harmonie : cadence andalouse La m - Sol - Fa - Mi en triades, un ou deux accords par compás, tonalité par défaut La (voir `BRASS_KEYS` dans `changeStyle`). Aucune réharmonisation au bouton « Générer » (la couleur est dans le mode).
 - Les autres signatures (2/4, 3/4, 6/8, 9/8) gardent un cycle générique sur les temps.
 
+
+---
+
+## 5 ter. Le style Salsa (orchestre Cuba)
+
+Le style de grille « Salsa (4/4) » (`salsa`, écrit dans `styles/style-builders.js`) propose l'orchestre **Cuba** avec le rythme `salsa` (tempo 180, 4/4 ; voir `styles/style-meta.js`). Ce rythme fait passer l'orchestre de `band/cuban-plan.js` (afro-cubain) à `band/salsa-plan.js`. Tout est calé sur la **clave de son** (deux mesures : côté « trois » = temps 1, 2& et 4 ; côté « deux » = temps 2 et 3). Son sens, 3-2 ou 2-3, est fixé par la graine de la lecture et ne change pas en cours de morceau.
+
+- **Piano** : montuno en octaves, une cellule par côté de la clave et par densité ; les coups de clave portent les voix hautes de l'arpège, les voix intérieures remplissent entre eux. Il passe au nouvel accord en même temps que la basse (anticipation).
+- **Basse** : tumbao. Quinte sur le « et » du 2, puis fondamentale de l'accord suivant sur le temps 4 (ou le « et » du 4), tenue par-dessus la barre de mesure : le 1 n'est presque jamais joué.
+- **Percussions** : clave en continu ; conga (claque sur le 2, tons ouverts sur le « et » du 2 et sur le 4) ; deux ambiances alternent par groupes de deux phrases : **son** (cáscara au flanc du timbal, bongos en martillo, güiro) puis **montuno** (cloche, maracas, piano plus dense) ; roulement de doubles croches au dernier temps d'une phrase.
+- Nouveaux sons de `audio/drum-synths.js` : `shell` (cáscara), `guiro` et `guirot` (coup long et court), `bongoh` et `bongol` (bongó aigu et grave). Au niveau de performance minimal, güiro court et bongos sont supprimés.
+- Harmonie : le plus souvent en mineur (i - iv - V7 - i, vamp i - V7, cadence andalouse, i - ♭VI - iiø - V7), plus rarement en majeur (I - IV - V7 - IV, I - vi - ii - V7) ; 16 mesures en quatre phrases de quatre.
+- Choisir un autre orchestre ou une autre signature rythmique ramène l'orchestration habituelle : `salsa` n'est valable que pour l'orchestre Cuba en 4/4.
 ---
 
 ## 6. Mode hors ligne (service worker)

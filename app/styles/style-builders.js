@@ -190,6 +190,53 @@ const STYLE_BUILDERS = {
         );
         return template;
     },
+    salsa: (t) => {
+        const { R, pick, join, cells, okAfter } = t;
+        let template = [];
+        // Salsa (4/4, orchestre Cuba rythme « salsa », voir band/salsa-plan.js) : le plus souvent en mineur, sur des boucles courtes où la
+        // basse annonce chaque accord au temps 4 : vamp i - V7, i - iv - V7 - i, cadence andalouse i - ♭VII - ♭VI - V7(♭9), ii-V-i avec
+        // ♭VI ; plus rarement en majeur (I - IV - V7 - IV, I - vi - ii - V7). Quatre phrases de quatre mesures : deux couplets (son)
+        // puis deux phrases de coro / montuno plus ramassées.
+        const major = !!(R && R() < 0.25);
+        let A, B1, B2;
+        if (!major) {
+            A  = [ [['m7a',0],['m7',5],['D9b',7],['m7a',0]],               // i - iv - V7 - i
+                   [['m7a',0,2],['D9b',7,2]],                              // vamp i - V7
+                   [['m7a',0],['M',10],['maj7',8],['D9b',7]],              // cadence andalouse
+                   [['m7a',0],['maj7',8],['hd',2],['D9b',7]],              // i - ♭VI - iiø - V7
+                   [['m7a',0,2],['m7',5],['D9b',7]] ];
+            B1 = [ [['m7a',0,2],['D9b',7,2]],
+                   [['m7a',0],['D9b',7],['m7a',0],['D9b',7]],              // vamp serré, un accord par mesure
+                   [['maj7',8],['D9b',7],['m7a',0,2]],                     // ♭VI - V7 - i
+                   [['m7',5],['D9b',7],['m7a',0],['m7a',0]] ];
+            B2 = [ [['m7a',0],['m7',5],['m7a',0],['D9b',7]],
+                   [['m7a',0,2],['D9b',7],['m7a',0]],
+                   [['m7a',0],['M',10],['maj7',8],['D9b',7]],
+                   [['hd',2],['D9b',7],['m7a',0,2]] ];
+        } else {
+            A  = [ [['maj7i',0],['maj7',5],['D',7],['maj7',5]],            // I - IV - V7 - IV (son montuno)
+                   [['maj7i',0],['m7a',9],['m7',2],['D',7]],               // I - vi - ii - V7
+                   [['maj7i',0,2],['D',7,2]],
+                   [['maj7i',0],['D',9],['m7',2],['D',7]] ];               // I - VI7 - ii - V7
+            B1 = [ [['maj7i',0,2],['D',7,2]],
+                   [['maj7',5],['D',7],['maj7i',0,2]],
+                   [['m7',2],['D',7],['maj7i',0],['maj7i',0]] ];
+            B2 = [ [['maj7i',0],['m7',2],['D',7],['maj7i',0]],
+                   [['maj7i',0],['maj7',5],['D',7],['maj7i',0]],
+                   [['m7a',9],['m7',2],['D',7],['maj7i',0]] ];
+        }
+        const a1 = pick(A);
+        const a2opts = okAfter(a1, A).filter(o => o !== a1);
+        const a2 = pick(a2opts.length ? a2opts : A);
+        const b1 = pick(okAfter(a2, B1));
+        template = join(
+            cells(a1,'A','A1'),
+            cells(a2,'A','A2'),
+            cells(b1,'B','B1'),
+            cells(pick(okAfter(b1, B2)),'B','B2')
+        );
+        return template;
+    },
     barcarolle: (t) => {
         const { pick, join, cells } = t;
         let template = [];
