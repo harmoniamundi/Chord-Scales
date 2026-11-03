@@ -19,7 +19,7 @@ const { chordRootName: med_chordRootName, bassNoteName: med_bassNoteName, chordI
     cbStructIntervals: med_cbStructIntervals, CB_EXT_ORDER: MED_EXT_ORDER, CB_EXT: MED_EXT, CB_EXT_LABEL: MED_EXT_LABEL,
     getSpelledChordNotes: med_getSpelledChordNotes, chordTypes: med_chordTypes, scalesDb: med_scalesDb } = MED_T;
 
-const MEASURE_EDITOR_BUILD = '2026-11-02-f'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
+const MEASURE_EDITOR_BUILD = '2026-11-03-a'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
 
 function editorHtml(v) {
     const { m, step, isHalf, cur, half, rootLabels, isFolded, findChordObj, halfLabelText, halfTitleText } = v;

@@ -21,8 +21,11 @@ const EDIT_IS_PART_LABEL = (typeof isPartLabel !== 'undefined') ? isPartLabel : 
 if (typeof isSplit === 'undefined' && typeof require === 'function') {
     var { isSplit } = require('../band/band-helpers.js');
 }
+if (typeof romanDegByRank === 'undefined' && typeof require === 'function') {
+    var { romanDegByRank, fnMinorRef } = require('./generation.js');
+}
 
-const EDIT_OPS_BUILD = '2026-11-02-f'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
+const EDIT_OPS_BUILD = '2026-11-03-a'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
 const cloneStep = (o) => JSON.parse(JSON.stringify(o));
 
 // Repère de partie porté par la mesure m (liste à plat), seulement si elle ouvre son bloc ; '' sinon.
@@ -356,6 +359,8 @@ function qualityTargetChord(prevChordId, target, findChordObj) {
 // Accords diatoniques de la tonalité et du mode en cours : fondamentale + accord + gamme de chaque degré.
 // env : { mainKey, mainQuality, findChordObj, styleScaleFor(chordId, rootIndex) → gamme du style ou null, triads? }.
 // Avec env.triads, chaque degré est donné en triade (I, ii, iii, IV, V, vi, vii°) au lieu de l'accord de septième.
+// env.convention : chiffrage des degrés, 'jazz' (par défaut : par rapport à la gamme majeure, ♭III ♭VI ♭VII en mineur) ou
+// 'classic' (par rapport à la gamme du mode, III VI VII en mineur) ; sans effet en majeur.
 function diatonicDegrees(env) {
     const T = [
         { off: 0,  c: 'maj7', s: 'ionian' },
@@ -368,13 +373,13 @@ function diatonicDegrees(env) {
     ];
     const ROT = { ionian: 0, dorian: 1, phrygian: 2, lydian: 3, mixolydian: 4, aeolian: 5, locrian: 6 };
     const rot = ROT[env.mainQuality] ?? 0;
-    const numerals = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
-    return numerals.map((num, i) => {
+    const minorRef = fnMinorRef(env.convention === 'classic' ? 'classic' : 'jazz', env.mainQuality);
+    return [0, 1, 2, 3, 4, 5, 6].map((i) => {
         const target = T[(rot + i) % 7];
         const off = (target.off - T[rot].off + 12) % 12;
         const chordId = env.triads ? EO_triadOf(target.c, true) : target.c;
         const lower = target.c === 'm7' || target.c === 'm7b5';
-        let label = lower ? num.toLowerCase() : num;
+        let label = romanDegByRank(i, off, lower, minorRef);
         if (target.c === 'm7b5') label += env.triads ? '°' : 'ø';
         const co = env.findChordObj(chordId);
         let scaleId = (co && co.scales.some(sc => sc.id === target.s)) ? target.s : (co ? co.scales[0].id : target.s);

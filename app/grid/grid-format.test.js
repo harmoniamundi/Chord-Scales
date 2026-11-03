@@ -176,3 +176,11 @@ describe('unpackSavedEntry et parseMeter', () => {
         assert.deepEqual(F.parseMeter(undefined), { key: '4/4', bpb: 4, ternary: false });
     });
 });
+
+describe('sanitizeImportedSettings : chiffrage des degrés', () => {
+    test('jazz et classic acceptés ; toute autre valeur ignorée (absent = selon le style)', () => {
+        assert.equal(F.sanitizeImportedSettings({ fnConvention: 'jazz' }).fnConvention, 'jazz');
+        assert.equal(F.sanitizeImportedSettings({ fnConvention: 'classic' }).fnConvention, 'classic');
+        for (const bad of [undefined, null, '', 'Jazz', 'classique', 1, {}]) assert.ok(!('fnConvention' in F.sanitizeImportedSettings({ fnConvention: bad })), String(bad));
+    });
+});

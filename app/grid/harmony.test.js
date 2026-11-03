@@ -175,3 +175,120 @@ describe('lectures alternatives', () => {
         }
     });
 });
+
+describe('chiffrage jazz / classique en tonalité mineure', () => {
+    // la mineur : Am G F E (cadence andalouse), mainKey = 9
+    const am = flatOf([ch(9, 'minTriad'), ch(7, 'majTriad'), ch(5, 'majTriad'), ch(4, 'majTriad')]);
+    const lbl = (flat, opts, mainKey = 9) => flat.map((m, i) => H.harmonicFunctionLabel(m, flat, i, 0, null, mainKey, opts));
+    test('jazz (par défaut) : i ♭VII ♭VI V', () => {
+        assert.deepEqual(lbl(am, { mainQuality: 'aeolian' }), ['i', '♭VII', '♭VI', 'V']);
+        assert.deepEqual(lbl(am, { convention: 'jazz', mainQuality: 'aeolian' }), ['i', '♭VII', '♭VI', 'V']);
+        assert.deepEqual(lbl(am), ['i', '♭VII', '♭VI', 'V'], 'sans options : comme avant');
+    });
+    test('classique : i VII VI V', () => {
+        assert.deepEqual(lbl(am, { convention: 'classic', mainQuality: 'aeolian' }), ['i', 'VII', 'VI', 'V']);
+    });
+    test('classique : sans effet en tonalité majeure ou si le mode de la grille n\'est pas connu', () => {
+        const c = flatOf([ch(0, 'maj7'), ch(10, 'maj7'), ch(8, 'maj7')]);
+        assert.deepEqual(lbl(c, { convention: 'classic', mainQuality: 'ionian' }, 0), ['I', '♭VII', '♭VI']);
+        assert.deepEqual(lbl(am, { convention: 'classic' }), ['i', '♭VII', '♭VI', 'V']);
+    });
+    test('classique : le mode dorien lit aussi la gamme mineure ; le mixolydien reste jazz', () => {
+        const d = flatOf([ch(2, 'm7'), ch(0, 'maj7'), ch(5, 'maj7')]); // ré dorien : Dm7 C F
+        assert.deepEqual(lbl(d, { convention: 'jazz', mainQuality: 'dorian' }, 2), ['i', '♭VII', '♭III']);
+        assert.deepEqual(lbl(d, { convention: 'classic', mainQuality: 'dorian' }, 2), ['i', 'VII', 'III']);
+        const m = flatOf([ch(7, '7'), ch(5, 'maj7')]);
+        assert.deepEqual(lbl(m, { convention: 'classic', mainQuality: 'mixolydian' }, 7), ['I', '♭VII']);
+    });
+    test('degrés chromatiques en classique : ♯VI, vii° (sensible, sans ♯), ♭II inchangé', () => {
+        const x = flatOf([ch(9, 'minTriad'), ch(8, 'dimTriad'), ch(10, 'majTriad'), ch(6, 'majTriad')]); // Am G#° B♭ F#
+        assert.deepEqual(lbl(x, { convention: 'jazz', mainQuality: 'aeolian' }), ['i', 'vii°', '♭II', 'VI']);
+        assert.deepEqual(lbl(x, { convention: 'classic', mainQuality: 'aeolian' }), ['i', 'vii°', '♭II', '♯VI']);
+    });
+    test('dominantes secondaires : la cible suit la convention', () => {
+        // la mineur ; C7 résout sur F (VI en classique, ♭VI en jazz) : V7/VI
+        const f = flatOf([ch(9, 'minTriad'), ch(0, '7', { harmonicFunction: 'secondaryDominant' }), ch(5, 'maj7')]);
+        assert.equal(H.harmonicFunctionLabel(f[1], f, 1, 0, null, 9, { convention: 'jazz', mainQuality: 'aeolian' }), 'V/♭VI');
+        assert.equal(H.harmonicFunctionLabel(f[1], f, 1, 0, null, 9, { convention: 'classic', mainQuality: 'aeolian' }), 'V/VI');
+    });
+    test('fnLabel enregistré en jazz : relu en classique à l\'affichage, jamais modifié dans la grille', () => {
+        const f = flatOf([ch(9, 'minTriad'), ch(7, '7', { fnLabel: '♭VII7' }), ch(4, '7', { fnLabel: 'V7' })]);
+        const jazz = lbl(f, { convention: 'jazz', mainQuality: 'aeolian' }), classic = lbl(f, { convention: 'classic', mainQuality: 'aeolian' });
+        assert.deepEqual(jazz, ['i', '♭VII7', 'V7']);
+        assert.deepEqual(classic, ['i', 'VII7', 'V7']);
+        assert.equal(f[1].fnLabel, '♭VII7');
+    });
+    test('fnLabel dans une tonalité majeure atteinte par modulation : inchangé', () => {
+        const f = flatOf([ch(9, 'minTriad'), ch(0, 'maj7', { fnLabel: 'I de C', modKey: { root: 0, minor: false } }), ch(10, 'maj7', { fnLabel: '♭VII' })]);
+        assert.deepEqual(lbl(f, { convention: 'classic', mainQuality: 'aeolian' }), ['i', 'I de C', '♭VII']);
+        const g = flatOf([ch(9, 'minTriad'), ch(4, 'min7', { fnLabel: 'i (Em)', modKey: { root: 4, minor: true } }), ch(2, 'maj7', { fnLabel: '♭VII' })]);
+        assert.equal(lbl(g, { convention: 'classic', mainQuality: 'aeolian' })[2], 'VII', 'tonalité Em mineure : ♭VII lu VII');
+    });
+    test('keyOverride : la tonalité mineure est donnée par keyMinor', () => {
+        const m = ch(11, 'maj7'); // 8 demi-tons au-dessus de ré♭ (3) : ♭VI en jazz, VI en classique
+        assert.equal(H.harmonicFunctionLabel(m, [], 0, 0, 3, 9, { convention: 'classic', keyMinor: true }), 'VI');
+        assert.equal(H.harmonicFunctionLabel(m, [], 0, 0, 3, 9, { convention: 'classic', keyMinor: false }), '♭VI');
+        assert.equal(H.harmonicFunctionLabel(m, [], 0, 0, 3, 9, { convention: 'classic' }), '♭VI');
+        assert.equal(H.harmonicFunctionLabel(m, [], 0, 0, 3, 9, { convention: 'jazz', keyMinor: true }), '♭VI');
+    });
+    test('localKeyInfo / localKeyMinor : marqueur ou mode de la grille', () => {
+        const f = flatOf([ch(0, 'maj7'), ch(3, 'maj7', { modKey: { root: 3, minor: false } }), ch(0, 'maj7', { modKey: { root: 9, minor: true } })]);
+        assert.equal(H.localKeyInfo(f, 0).marked, false);
+        assert.equal(H.localKeyInfo(f, 1).marked, true);
+        assert.deepEqual(H.localKey(f, 0), { root: 0, minor: false }, 'localKey inchangé');
+        assert.equal(H.localKeyMinor(f, 0, 0, false, 0, 'aeolian'), true, 'repli : mode de la grille');
+        assert.equal(H.localKeyMinor(f, 0, 0, false, 0, 'ionian'), false);
+        assert.equal(H.localKeyMinor(f, 1, 0, false, 0, 'aeolian'), false, 'marqueur majeur dans une grille mineure');
+        assert.equal(H.localKeyMinor(f, 2, 0, false, 0, 'ionian'), true, 'marqueur mineur dans une grille majeure');
+    });
+    test('displayAlternatives : étiquette et description relues en classique, valeur enregistrée intacte', () => {
+        const g = H.functionAlternatives(ch(7, '7'), null, 9, { mainKey: 9, rootLabels: LABELS }); // G7 en la mineur (r = 10)
+        const jz = H.displayAlternatives(g, 'jazz', true), cl = H.displayAlternatives(g, 'classic', true), cm = H.displayAlternatives(g, 'classic', false);
+        const flat = (d) => d.flatMap(x => x.items);
+        flat(jz).forEach(i => { assert.equal(i.shownLabel, i.label); assert.equal(i.shownDesc, i.desc); });
+        flat(cm).forEach(i => { assert.equal(i.shownLabel, i.label, 'majeur : inchangé'); });
+        flat(cl).forEach(i => { assert.ok(!/♭VII|♭VI\b|♭III/.test(i.shownLabel), i.shownLabel); assert.equal(typeof i.label, 'string'); });
+        const labelsCl = flat(cl).map(i => i.shownLabel), labelsJz = flat(cl).map(i => i.label);
+        assert.ok(labelsJz.includes('♭VII7/I') === false);
+        assert.equal(labelsCl.length, labelsJz.length);
+    });
+    test('displayAlternatives : degré lu en classique pour un accord majeur sur ♭VII', () => {
+        const g = H.functionAlternatives(ch(7, 'maj7'), null, 9, { mainKey: 9, rootLabels: LABELS });
+        const item = g.flatMap(x => x.items).find(i => i.label === '♭VII');
+        assert.ok(item);
+        const shown = H.displayAlternatives(g, 'classic', true).flatMap(x => x.items).find(i => i.label === '♭VII');
+        assert.equal(shown.shownLabel, 'VII');
+    });
+});
+
+describe('lectures : accord diatonique ou emprunté selon la gamme de la tonalité', () => {
+    const SC = require('./generation.js').FN_MODE_SCALES;
+    const degreeDesc = (chord, key, scale) => {
+        const g = H.functionAlternatives(chord, null, key, { mainKey: key, rootLabels: LABELS, scale });
+        return g.find(x => x.title === 'Degré').items[0];
+    };
+    test('la mineur : G, C, F sont diatoniques (plus d\'« emprunt »), Dm aussi', () => {
+        for (const [root, word] of [[7, 'Sous-tonique'], [0, 'Médiante'], [5, 'Sus-dominante']]) {
+            const d = degreeDesc(ch(root, 'majTriad'), 9, SC.aeolian);
+            assert.ok(d.desc.startsWith(word) && !/mprunt/.test(d.desc), `${root} : ${d.desc}`);
+        }
+        assert.match(degreeDesc(ch(2, 'minTriad'), 9, SC.aeolian).desc, /diatonique/);
+        assert.equal(degreeDesc(ch(7, 'majTriad'), 9, SC.aeolian).label, '♭VII', 'le libellé enregistré ne change pas');
+    });
+    test('do majeur : les mêmes accords sont bien des emprunts au mineur parallèle', () => {
+        for (const root of [3, 8, 10]) assert.match(degreeDesc(ch(root, 'majTriad'), 0, SC.ionian).desc, /mprunt/);
+        assert.match(degreeDesc(ch(5, 'minTriad'), 0, SC.ionian).desc, /mprunt/);
+    });
+    test('sans gamme fournie : texte d\'origine ; mixolydien : ♭VII est diatonique, mais un iv mineur reste un emprunt', () => {
+        assert.match(degreeDesc(ch(7, 'majTriad'), 9, undefined).desc, /mprunt/);
+        assert.match(degreeDesc(ch(10, 'majTriad'), 0, SC.mixolydian).desc, /diatonique/);
+        assert.match(degreeDesc(ch(5, 'minTriad'), 0, SC.mixolydian).desc, /mprunt/);
+    });
+    test('localKeyScale : mode de la grille, ou majeure / mineure naturelle après une modulation', () => {
+        const f = flatOf([ch(0, 'maj7'), ch(3, 'maj7', { modKey: { root: 3, minor: false } }), ch(0, 'maj7', { modKey: { root: 9, minor: true } })]);
+        assert.deepEqual(H.localKeyScale(f, 0, 0, false, 0, 'dorian'), SC.dorian);
+        assert.deepEqual(H.localKeyScale(f, 1, 0, false, 0, 'aeolian'), SC.ionian);
+        assert.deepEqual(H.localKeyScale(f, 2, 0, false, 0, 'ionian'), SC.aeolian);
+        assert.deepEqual(H.localKeyScale(f, 0, 0, false, 0, 'inconnu'), SC.ionian);
+    });
+});

@@ -49,6 +49,59 @@ describe('petits utilitaires', () => {
         assert.equal(G.romanDeg(-1), 'VII');
         assert.equal(G.romanDeg(12), 'I');
     });
+    test('romanDeg en lecture classique d\'une tonalité mineure : III VI VII diatoniques, ♯ pour les degrés chromatiques', () => {
+        assert.deepEqual([3, 8, 10].map(t => G.romanDeg(t, false, true)), ['III', 'VI', 'VII']);
+        assert.deepEqual([3, 8, 10].map(t => G.romanDeg(t, false, false)), ['♭III', '♭VI', '♭VII']);
+        assert.deepEqual([4, 9, 11].map(t => G.romanDeg(t, false, true)), ['♯III', '♯VI', '♯VII']);
+        assert.equal(G.romanDeg(11, true, true), 'vii', 'sensible diminuée : vii°');
+        assert.equal(G.romanDeg(3, true, true), 'iii');
+        assert.equal(G.romanDeg(1, false, true), '♭II');
+        for (const t of [0, 2, 5, 7]) assert.equal(G.romanDeg(t, false, true), G.romanDeg(t), 'degrés communs aux deux lectures');
+    });
+    test('romanDegByRank : l\'altération se lit par rapport à la gamme de référence', () => {
+        assert.equal(G.romanDegByRank(4, 6, true, false), '♭v', 'locrien : quinte diminuée');
+        assert.equal(G.romanDegByRank(3, 6, false, false), '♯IV', 'lydien');
+        assert.equal(G.romanDegByRank(1, 1, false, false), '♭II', 'phrygien');
+        assert.equal(G.romanDegByRank(2, 3, false, false), '♭III');
+        assert.equal(G.romanDegByRank(2, 3, false, true), 'III');
+        assert.equal(G.romanDegByRank(5, 9, true, true), '♯vi', 'dorien lu par rapport au mineur naturel');
+    });
+    test('fnMinorRef : seulement en classique et pour un mode à tierce mineure', () => {
+        assert.equal(G.fnMinorRef('classic', 'aeolian'), true);
+        assert.equal(G.fnMinorRef('classic', 'dorian'), true);
+        assert.equal(G.fnMinorRef('classic', 'ionian'), false);
+        assert.equal(G.fnMinorRef('classic', 'mixolydian'), false);
+        assert.equal(G.fnMinorRef('jazz', 'aeolian'), false);
+        assert.equal(G.fnMinorRef('classic', undefined), false);
+    });
+    test('fnConventionForStyle : classique sans style ou pour un style classique, jazz pour tous les autres', () => {
+        for (const k of [null, undefined, '', 'custom', 'baroque', 'mozart', 'menuet', 'valseviennoise', 'trad', 'chansonsimple', 'brasshymn']) assert.equal(G.fnConventionForStyle(k), 'classic', String(k));
+        for (const k of ['ii-v-i', 'swing', 'blues', 'pop', 'funk', 'bossa', 'balkan', 'tango', 'flamenco', 'inconnu']) assert.equal(G.fnConventionForStyle(k), 'jazz', k);
+        G.FN_CLASSIC_STYLES.forEach(k => assert.equal(G.fnConventionForStyle(k), 'classic'));
+    });
+    test('convertRomanLabel : jazz → classique en mineur seulement, jamais dans une autre tonalité', () => {
+        const c = (l, conv = 'classic', minor = true) => G.convertRomanLabel(l, conv, minor);
+        assert.equal(c('♭VII'), 'VII'); assert.equal(c('♭VI'), 'VI'); assert.equal(c('♭III'), 'III'); assert.equal(c('♭iii'), 'iii');
+        assert.equal(c('♭VII7/♭III'), 'VII7/III');
+        assert.equal(c('V7/♭VI'), 'V7/VI');
+        assert.equal(c('↗ ♭VI'), '↗ VI');
+        assert.equal(c('♯II°7'), 'III°7', 'dim de passage sur le 3e demi-ton');
+        assert.equal(c('viiø'), 'viiø'); assert.equal(c('V'), 'V'); assert.equal(c('subV7/♭II'), 'subV7/♭II'); assert.equal(c('ii/♭VI'), 'ii/VI');
+        assert.equal(c('V7 de A'), 'V7 de A', 'se lit dans une autre tonalité');
+        assert.equal(c('i (Gm)'), 'i (Gm)'); assert.equal(c('iii de F'), 'iii de F');
+        assert.equal(c('♭VII', 'jazz'), '♭VII', 'jazz : inchangé');
+        assert.equal(c('♭VII', 'classic', false), '♭VII', 'tonalité majeure : inchangé');
+        assert.equal(G.convertRomanLabel(null, 'classic', true), null);
+    });
+    test('convertRomanText : les mots ne sont pas touchés, « X de Y » reste lu dans Y', () => {
+        const t = (x) => G.convertRomanText(x, 'classic', true);
+        assert.equal(t('Dominante secondaire (tonicisation) : résout sur ♭VI (F), une quinte plus bas'), 'Dominante secondaire (tonicisation) : résout sur VI (F), une quinte plus bas');
+        assert.equal(t('Modulation (accord pivot) : iii de F, rôle de tonique relative'), 'Modulation (accord pivot) : iii de F, rôle de tonique relative');
+        assert.equal(t('Le ii d\'un ii–V secondaire : mène à V7/♭III puis ♭III (C)'), 'Le ii d\'un ii–V secondaire : mène à V7/III puis III (C)');
+        const words = 'Sous-dominante mineure : emprunt vivant, vision, civil, Vers, Ils, Il';
+        assert.equal(t(words), words);
+        assert.equal(t('Sensible demi-diminuée : viiø vers I'), 'Sensible demi-diminuée : viiø vers I', 'ø fait partie du chiffrage');
+    });
     test('isBrassStyle : seulement les deux styles brass', () => {
         assert.ok(G.isBrassStyle('brasshymn') && G.isBrassStyle('brasscantique'));
         assert.ok(!G.isBrassStyle('swing') && !G.isBrassStyle(undefined));

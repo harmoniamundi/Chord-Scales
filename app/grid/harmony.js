@@ -9,8 +9,11 @@ const HARM_THEORY = (typeof lookupChord !== 'undefined')
     ? { lookupChord, chordInfo, chordTypes, chordRootName, bassNoteName }
     : require('../theory.js');
 if (typeof romanDeg === 'undefined' && typeof require === 'function') {
-    var { romanDeg, chordFamily } = require('./generation.js');
+    var { romanDeg, chordFamily, convertRomanText, convertRomanLabel } = require('./generation.js');
 }
+// FN_MINOR_MODES est une constante globale (grid/generation.js) : on la reprend sous un nom propre à ce fichier.
+const HARM_MINOR_MODES = (typeof FN_MINOR_MODES !== 'undefined') ? FN_MINOR_MODES : require('./generation.js').FN_MINOR_MODES;
+const HARM_MODE_SCALES = (typeof FN_MODE_SCALES !== 'undefined') ? FN_MODE_SCALES : require('./generation.js').FN_MODE_SCALES;
 
 // Notation Jam d'un accord : une triade majeure s'écrit avec la fondamentale seule (D, C, F#…).
 function jazzChordNotation(chordId) {
@@ -56,8 +59,8 @@ function chordSymbolHtml(chord, rootLabels) {
 // (modKey, posé quand l'utilisateur choisit une lecture « I de X », « IV de X », etc.) rencontré en
 // remontant la grille, sinon la tonalité de la grille. excludeSelf : ignore le marqueur du bloc lui-même
 // (tonalité qui précède cet accord, base des lectures proposées).
-function localKey(flatMeasures, index, half = 0, excludeSelf = false, mainKey = 0) {
-    const fallback = { root: mainKey, minor: false };
+function localKeyInfo(flatMeasures, index, half = 0, excludeSelf = false, mainKey = 0) {
+    const fallback = { root: mainKey, minor: false, marked: false };
     if (!Array.isArray(flatMeasures) || !flatMeasures.length || !(index >= 0)) return fallback;
     const i0 = Math.min(index, flatMeasures.length - 1);
     const selfStep = flatMeasures[i0].stepIndex;
@@ -65,16 +68,51 @@ function localKey(flatMeasures, index, half = 0, excludeSelf = false, mainKey = 
         const m = flatMeasures[j];
         const own = excludeSelf && m.stepIndex === selfStep;
         // marqueur de la 2e moitié de mesure : en vigueur seulement pour elle-même (2e moitié) ou pour les mesures suivantes
-        if (m.split && m.split.modKey && (j < i0 || half === 1) && !own) return { root: m.split.modKey.root, minor: !!m.split.modKey.minor };
+        if (m.split && m.split.modKey && (j < i0 || half === 1) && !own) return { root: m.split.modKey.root, minor: !!m.split.modKey.minor, marked: true };
         // marqueur du bloc : sauf le sien propre, sauf pour la 2e moitié de la mesure qu'il marque
-        if (m.modKey && (!own || (half === 1 && j === i0))) return { root: m.modKey.root, minor: !!m.modKey.minor };
+        if (m.modKey && (!own || (half === 1 && j === i0))) return { root: m.modKey.root, minor: !!m.modKey.minor, marked: true };
     }
     return fallback;
 }
 
-function harmonicFunctionLabel(measure, flatMeasures, index, half = 0, keyOverride = null, mainKey = 0) {
-    if (measure.fnLabel) return measure.fnLabel; // fonction choisie par l'utilisateur
-    const tonic = Number.isInteger(keyOverride) ? keyOverride : localKey(flatMeasures, index, half, false, mainKey).root;
+// Même lecture, sans l'indicateur « marked » : { root, minor }. minor ne vaut true que pour une tonalité posée par un marqueur
+// de modulation ; la tonalité de la grille elle-même est toujours rendue avec minor = false (voir localKeyMinor).
+function localKey(flatMeasures, index, half = 0, excludeSelf = false, mainKey = 0) {
+    const { root, minor } = localKeyInfo(flatMeasures, index, half, excludeSelf, mainKey);
+    return { root, minor };
+}
+
+// La tonalité en vigueur est-elle à tierce mineure ? Un marqueur de modulation le dit ; sinon c'est le mode de la grille
+// (mainQuality : aeolian, dorian, phrygian, locrian).
+function localKeyMinor(flatMeasures, index, half = 0, excludeSelf = false, mainKey = 0, mainQuality = 'ionian') {
+    const k = localKeyInfo(flatMeasures, index, half, excludeSelf, mainKey);
+    return k.marked ? k.minor : HARM_MINOR_MODES.includes(mainQuality);
+}
+
+// Gamme (demi-tons depuis la tonique) de la tonalité en vigueur : celle du mode de la grille, ou majeure / mineure naturelle
+// quand un marqueur de modulation a posé une autre tonalité.
+function localKeyScale(flatMeasures, index, half = 0, excludeSelf = false, mainKey = 0, mainQuality = 'ionian') {
+    const k = localKeyInfo(flatMeasures, index, half, excludeSelf, mainKey);
+    if (k.marked) return HARM_MODE_SCALES[k.minor ? 'aeolian' : 'ionian'];
+    return HARM_MODE_SCALES[mainQuality] || HARM_MODE_SCALES.ionian;
+}
+
+// opts (facultatif) : { convention: 'jazz' (par défaut) | 'classic', mainQuality, keyMinor }.
+//   convention : chiffrage des degrés en tonalité mineure (♭III ♭VI ♭VII en jazz, III VI VII en classique) ;
+//   mainQuality : mode de la grille, pour savoir si la tonalité de repli est mineure ;
+//   keyMinor : la tonalité imposée par keyOverride est-elle mineure ?
+// Une fonction choisie par l'utilisateur (fnLabel) est enregistrée en chiffrage jazz : elle est réécrite à l'affichage.
+function harmonicFunctionLabel(measure, flatMeasures, index, half = 0, keyOverride = null, mainKey = 0, opts = {}) {
+    const convention = opts && opts.convention === 'classic' ? 'classic' : 'jazz';
+    let tonic, minor;
+    if (Number.isInteger(keyOverride)) { tonic = keyOverride; minor = !!(opts && opts.keyMinor); }
+    else {
+        const k = localKeyInfo(flatMeasures, index, half, false, mainKey);
+        tonic = k.root;
+        minor = k.marked ? k.minor : HARM_MINOR_MODES.includes(opts && opts.mainQuality);
+    }
+    const minorRef = convention === 'classic' && minor;
+    if (measure.fnLabel) return convertRomanLabel(measure.fnLabel, convention, minor); // fonction choisie par l'utilisateur
     const root = ((measure.rootIndex - tonic) % 12 + 12) % 12;
     const chordId = measure.chordId || '';
     // Degré chromatique exact (♭II, ♭III, ♭VI, ♭VII… et non « #I », « #II », « #V », « #VI ») ;
@@ -82,7 +120,7 @@ function harmonicFunctionLabel(measure, flatMeasures, index, half = 0, keyOverri
     // ø = demi-diminué (m7♭5), ° = diminué (triade ou septième diminuée).
     const cinfo = HARM_THEORY.chordInfo(chordId);
     const lowerCase = !!cinfo && cinfo.minorish;
-    let degreeLabel = romanDeg(root, lowerCase);
+    let degreeLabel = romanDeg(root, lowerCase, minorRef);
     if (cinfo && cinfo.fam === 'hdim') degreeLabel += 'ø';
     else if (cinfo && cinfo.fam === 'dim') degreeLabel += '°';
     const diminished = !!cinfo && (cinfo.fam === 'hdim' || cinfo.fam === 'dim');
@@ -101,8 +139,8 @@ function harmonicFunctionLabel(measure, flatMeasures, index, half = 0, keyOverri
             const targetRoot = ((next.rootIndex - tonic) % 12 + 12) % 12;
             const tinfo = HARM_THEORY.chordInfo(next.chordId);
             const targetMinor = !!tinfo && tinfo.minorish && tinfo.fam !== 'dim';
-            if (d === 5) return targetRoot === 0 ? 'V' : `V/${romanDeg(targetRoot, targetMinor)}`; // dominante qui résout une quarte plus haut
-            if (d === 11) return targetRoot === 0 ? 'subV' : `subV/${romanDeg(targetRoot, targetMinor)}`; // substitut de triton : résolution par demi-ton descendant
+            if (d === 5) return targetRoot === 0 ? 'V' : `V/${romanDeg(targetRoot, targetMinor, minorRef)}`; // dominante qui résout une quarte plus haut
+            if (d === 11) return targetRoot === 0 ? 'subV' : `subV/${romanDeg(targetRoot, targetMinor, minorRef)}`; // substitut de triton : résolution par demi-ton descendant
         }
         return degreeLabel; // pas de résolution lisible : degré dans la tonalité en vigueur (jamais de « V/? »)
     }
@@ -122,6 +160,8 @@ function harmonicFunctionLabel(measure, flatMeasures, index, half = 0, keyOverri
 // next : accord de la mesure suivante (pour les accords d'approche chromatique), ou null.
 function functionAlternatives(chord, next = null, keyOverride = null, env = {}) {
     const { mainKey, rootLabels } = env;
+    // env.scale (facultatif) : gamme de la tonalité en vigueur ; un accord dont les notes y sont toutes est diatonique, pas « emprunté »
+    const diatonicIn = (r, triad) => Array.isArray(env.scale) && triad.every(n => env.scale.includes((r + n) % 12));
     const key = Number.isInteger(keyOverride) ? keyOverride : mainKey;
     const r = ((chord.rootIndex - key) % 12 + 12) % 12;
     const R = (t, lower) => romanDeg(t, lower);
@@ -181,6 +221,7 @@ function functionAlternatives(chord, next = null, keyOverride = null, env = {}) 
             10: ['♭vii', 'Emprunt (couleur dorienne / éolienne)'],
             11: ['vii', 'Accord chromatique']
         }[r];
+        if (r === 5 && diatonicIn(r, [0, 3, 7])) degreeInfo[1] = 'Sous-dominante mineure : accord diatonique de la gamme';
         add('Degré', [it(degreeInfo[0], degreeInfo[1])]);
         const tIi = mod(r - 2);
         if (r !== 2) add('Dominantes secondaires', [it(`ii/${R(tIi)}`, `Le ii d'un ii–V secondaire : mène à V7/${R(tIi)} puis ${R(tIi)} (${K(tIi)})`)]);
@@ -205,6 +246,9 @@ function functionAlternatives(chord, next = null, keyOverride = null, env = {}) 
             10: ['♭VII', 'Emprunt au mode parallèle mineur / couleur mixolydienne'],
             11: ['VII', 'Accord chromatique']
         }[r];
+        const diatonicRole = { 3: 'Médiante : accord diatonique de la gamme (relatif majeur de la tonique)', 8: 'Sus-dominante : accord diatonique de la gamme',
+            10: 'Sous-tonique : accord diatonique de la gamme, sans sensible (couleur éolienne / mixolydienne)' }[r];
+        if (diatonicRole && diatonicIn(r, [0, 4, 7])) degreeInfo[1] = diatonicRole;
         add('Degré', [it(degreeInfo[0], degreeInfo[1])]);
         const tIv = mod(r + 7), tV = mod(r + 5);
         add('Modulation', [
@@ -242,6 +286,14 @@ function functionAlternatives(chord, next = null, keyOverride = null, env = {}) 
     return groups;
 }
 
+// Lectures proposées (functionAlternatives, écrites en chiffrage jazz et enregistrées telles quelles) mises en forme pour
+// l'affichage selon la convention : chaque lecture garde `label` / `desc` d'origine et reçoit `shownLabel` / `shownDesc`.
+function displayAlternatives(groups, convention, minor) {
+    return groups.map(g => ({ ...g, items: g.items.map(i => ({ ...i,
+        shownLabel: convertRomanLabel(i.label, convention, minor),
+        shownDesc: convertRomanText(i.desc, convention, minor) })) }));
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { jazzChordNotation, chordSymbol, chordSymbolHtml, localKey, harmonicFunctionLabel, functionAlternatives };
+    module.exports = { jazzChordNotation, chordSymbol, chordSymbolHtml, localKey, localKeyInfo, localKeyMinor, localKeyScale, harmonicFunctionLabel, functionAlternatives, displayAlternatives };
 }

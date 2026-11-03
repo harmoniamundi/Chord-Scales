@@ -310,6 +310,73 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         noErrors();
     });
 
+    test('Jam : chiffrage des degrés jazz / classique en mineur (grille, panneau d\'analyse, Harmonisation, style, sauvegarde)', async () => {
+        const gridLabels = () => page.evaluate(() => [...document.querySelectorAll('#jam-chord-sequence-display .jam-fn-label')].map(e => e.textContent.trim()));
+        const popup = () => page.evaluate(() => {
+            const p = document.querySelector('.jm-pop [data-conv]') && document.querySelector('.jm-pop [data-conv]').closest('.jm-pop');
+            if (!p) return null;
+            return { on: [...p.querySelectorAll('[data-conv].is-on')].map(b => b.dataset.conv), labels: [...p.querySelectorAll('.jm-fn-row b')].map(b => b.textContent) };
+        });
+        // grille enregistrée (donc sans style) : la mineur, Am G F E
+        await page.evaluate(() => {
+            const g = [[9, 'minTriad'], [7, 'majTriad'], [5, 'majTriad'], [4, 'majTriad']].map(([r, c]) => ({ rootIndex: r, chordId: c, scaleId: 'aeolian', measures: 1 }));
+            const saved = JSON.parse(localStorage.getItem('jamSavedGrids') || '{}');
+            saved['e2e-andalouse'] = { grid: g, settings: { key: 9, quality: 'aeolian', bpm: 100, timeSignature: '4/4' } };
+            localStorage.setItem('jamSavedGrids', JSON.stringify(saved));
+            app.jam.loadSavedGrid('e2e-andalouse');
+            app.jam.showHarmonicFunctions = true;
+            app.jam._editBarOpen = true;
+            app.jam.renderGridUI();
+        });
+        assert.equal(await page.evaluate(() => app.jam.getFnConvention()), 'classic', 'grille sans style : classique par défaut');
+        assert.deepEqual(await gridLabels(), ['i', 'VII', 'VI', 'V']);
+
+        // panneau « Fonction tonale » : choix Jazz / Classique, classique sélectionné
+        await page.evaluate(() => app.jam.openFunctionEditor(2));
+        let p = await popup();
+        assert.deepEqual(p.on, ['classic']);
+        assert.ok(p.labels.includes('VII') && !p.labels.includes('♭VII'), 'lectures affichées en classique : ' + p.labels.join(' '));
+        await page.locator('.jm-pop [data-conv="jazz"]').click();
+        p = await popup();
+        assert.deepEqual(p.on, ['jazz'], 'le panneau reste ouvert, Jazz sélectionné');
+        assert.ok(p.labels.includes('♭VII'));
+        assert.deepEqual(await gridLabels(), ['i', '♭VII', '♭VI', 'V'], 'la grille suit');
+        assert.equal(await page.evaluate(() => app.jam.collectSettings().fnConvention), 'jazz', 'le choix manuel est enregistré avec la grille');
+
+        // Harmonisation : mêmes chiffrages que la grille
+        await page.evaluate(() => app.jam.toggleHarmonyModal());
+        const chips = () => page.evaluate(() => [...document.querySelectorAll('#harmony-chords .harmony-chip small')].map(e => e.textContent));
+        assert.deepEqual(await chips(), ['i', 'iiø', '♭III', 'iv', 'v', '♭VI', '♭VII']);
+        await page.locator('.jm-pop [data-conv="classic"]').click();
+        assert.deepEqual(await chips(), ['i', 'iiø', 'III', 'iv', 'v', 'VI', 'VII'], 'le panneau Harmonisation suit le choix');
+        assert.equal(await page.evaluate(() => app.jam.collectSettings().fnConvention), undefined, 'revenir au choix par défaut : plus rien d\'enregistré');
+
+        // une lecture choisie en classique est enregistrée en jazz et relue dans la convention en cours
+        await page.evaluate(() => { const rows = [...document.querySelectorAll('.jm-pop .jm-fn-row')]; rows.find(r => r.querySelector('b').textContent === 'VII').click(); });
+        assert.equal(await page.evaluate(() => app.jam.grid[1].fnLabel), '♭VII', 'enregistré en jazz');
+        assert.deepEqual(await gridLabels(), ['i', 'VII', 'VI', 'V']);
+        await page.evaluate(() => app.jam.setFnConvention('jazz'));
+        assert.deepEqual(await gridLabels(), ['i', '♭VII', '♭VI', 'V']);
+
+        // un style a son chiffrage par défaut (jazz) et efface le choix manuel ; la grille générée garde sa tonalité mineure
+        await page.evaluate(() => { app.jam.closeHarmonyModal(); app.jam.closeFunctionEditor(); app.jam.setFnConvention('classic'); });
+        assert.equal(await page.evaluate(() => app.jam.getFnConvention()), 'classic');
+        await page.selectOption('#jam-style-select', 'swing');
+        assert.equal(await page.evaluate(() => app.jam._fnConvention), null, 'changer de style efface le choix manuel');
+        assert.equal(await page.evaluate(() => app.jam.getFnConvention()), 'jazz', 'style jazz : jazz par défaut');
+        await page.selectOption('#jam-style-select', 'baroque');
+        assert.equal(await page.evaluate(() => app.jam.getFnConvention()), 'classic', 'style classique : classique par défaut');
+
+        // retour à un état neutre
+        await page.evaluate(() => {
+            const saved = JSON.parse(localStorage.getItem('jamSavedGrids') || '{}'); delete saved['e2e-andalouse']; localStorage.setItem('jamSavedGrids', JSON.stringify(saved));
+            app.jam.showHarmonicFunctions = false; app.jam._editBarOpen = false; app.jam.renderSequenceUI();
+        });
+        await page.selectOption('#jam-key-select', '0');
+        await page.selectOption('#jam-quality-select', 'ionian');
+        noErrors();
+    });
+
     test('Jam : mode édition, sélection d\'une plage et lecture de cette plage', async () => {
         await page.selectOption('#jam-style-select', 'blues');
         await page.evaluate(() => {

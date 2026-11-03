@@ -334,6 +334,24 @@ describe('degrés diatoniques', () => {
         assert.equal(d[4].scaleId, 'bluesScale');
         assert.notEqual(d[0].scaleId, 'bluesScale');
     });
+    test('mineur : jazz = ♭III ♭VI ♭VII (par défaut), classique = III VI VII', () => {
+        const labels = (o) => E.diatonicDegrees(env({ mainKey: 9, mainQuality: 'aeolian', triads: true, ...o })).map(x => x.label);
+        assert.deepEqual(labels({}), ['i', 'ii°', '♭III', 'iv', 'v', '♭VI', '♭VII']);
+        assert.deepEqual(labels({ convention: 'jazz' }), ['i', 'ii°', '♭III', 'iv', 'v', '♭VI', '♭VII']);
+        assert.deepEqual(labels({ convention: 'classic' }), ['i', 'ii°', 'III', 'iv', 'v', 'VI', 'VII']);
+        const sevenths = E.diatonicDegrees(env({ mainKey: 9, mainQuality: 'aeolian', convention: 'classic' })).map(x => x.label);
+        assert.deepEqual(sevenths, ['i', 'iiø', 'III', 'iv', 'v', 'VI', 'VII']);
+    });
+    test('les autres modes : altération lue par rapport à la gamme majeure (jazz) ou au mode à tierce mineure (classique)', () => {
+        const L = (q, convention) => E.diatonicDegrees(env({ mainQuality: q, convention, triads: true })).map(x => x.label);
+        assert.deepEqual(L('dorian', 'jazz'), ['i', 'ii', '♭III', 'IV', 'v', 'vi°', '♭VII']);
+        assert.deepEqual(L('dorian', 'classic'), ['i', 'ii', 'III', 'IV', 'v', '♯vi°', 'VII']);
+        assert.deepEqual(L('phrygian', 'classic'), ['i', '♭II', 'III', 'iv', 'v°', 'VI', 'vii']);
+        assert.deepEqual(L('locrian', 'jazz'), ['i°', '♭II', '♭iii', 'iv', '♭V', '♭VI', '♭vii']);
+        assert.deepEqual(L('locrian', 'classic'), ['i°', '♭II', 'iii', 'iv', '♭V', 'VI', 'vii']);
+        for (const q of ['ionian', 'lydian', 'mixolydian']) assert.deepEqual(L(q, 'classic'), L(q, 'jazz'), `${q} : identique`);
+        assert.deepEqual(L('lydian', 'jazz'), ['I', 'II', 'iii', '♯iv°', 'V', 'vi', 'vii']);
+    });
     test('mode inconnu : traité comme ionien', () => {
         assert.deepEqual(E.diatonicDegrees(env({ mainQuality: 'xx' })).map(x => x.label), E.diatonicDegrees(env()).map(x => x.label));
     });
