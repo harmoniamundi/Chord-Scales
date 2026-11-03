@@ -196,6 +196,11 @@
                                 <option value="balkan">Balkans : kolo / čoček (2/4)</option>
                                 <option value="balkan98">Balkans : aksak (9/8)</option>
                             </optgroup>
+                            <optgroup label="Flamenco">
+                                <option value="flamencosolea">Flamenco : soleá (12 temps)</option>
+                                <option value="flamencobulerias">Flamenco : bulerías (12 temps)</option>
+                                <option value="flamencotangos">Flamenco : rumba / tangos (4/4)</option>
+                            </optgroup>
                             <optgroup label="Amérique Latine">
                                 <option value="bossa">Bossa Nova</option>
                                 <option value="afro68">Afro-cubain (6/8)</option>
@@ -459,6 +464,7 @@
     <script src="app/band/bass-lines.js"></script>
     <script src="app/band/swing-plan.js"></script>
     <script src="app/band/classic-plan.js"></script>
+    <script src="app/band/flamenco-plan.js"></script>
     <script src="app/band/guitar-plan.js"></script>
     <script src="app/band/phrase-plan.js"></script>
     <script src="app/band/band-state.js"></script>
@@ -578,8 +584,6 @@
                 this.visMode = 'staff';
 
                 this.loadedGridName = null;
-                this._fnConvention = null; // chiffrage des degrés choisi à la main ('jazz' | 'classic') ; null = adapté au style
-                this._fnStyle = 'ii-v-i';  // style dont la grille est issue (null : grille sans style) ; pilote le chiffrage par défaut
                 this.mainKey = 0;
                 this.mainQuality = 'ionian';
                 this.rootSpell = DEFAULT_SPELL; // orthographe des touches noires (Db/C#, Eb/D#, F#/Gb, Ab/G#, Bb/A#)
@@ -861,7 +865,7 @@
 
             changeStyle(styleKey) {
                 if (styleKey === 'custom') return;
-                const BRASS_KEYS = { brasshymn: 5, brasscantique: 3, balkan: 2, balkan98: 9, milongalyrique: 2 }; // + Balkans : ré mineur (kolo), la mineur (aksak) ; Milonga lyrique : ré mineur (Oblivion)
+                const BRASS_KEYS = { brasshymn: 5, brasscantique: 3, balkan: 2, balkan98: 9, milongalyrique: 2, flamencosolea: 9, flamencobulerias: 9, flamencotangos: 9 }; // + Balkans : ré mineur (kolo), la mineur (aksak) ; Milonga lyrique : ré mineur (Oblivion) ; Flamenco : la (cadence andalouse La m - Sol - Fa - Mi)
                 this.withUndo(() => {
                     if (styleKey === 'i-got-rythm') {
                         const prevKey = this.mainKey;
@@ -874,7 +878,6 @@
                         this.mainKey = BRASS_KEYS[styleKey];
                         this._refreshSpelling(prevKey);
                     }
-                    this._fnConvention = null; // un nouveau style revient au chiffrage qui lui convient
                     this.generationVariant = 0; // choisir un style affiche sa forme de référence ; « Générer » la renouvelle ensuite
                     this._seedBase = (Math.random() * 4294967296) >>> 0;
                     // Un mode posé automatiquement par le style précédent ne doit pas s'imposer au suivant
@@ -933,7 +936,6 @@
                     key: this.mainKey,
                     quality: this.mainQuality,
                     spell: this.rootSpell,
-                    fnConvention: this._fnConvention || undefined, // chiffrage des degrés choisi à la main ; absent = selon le style
                     bpm: this.bpm,
                     timeSignature: this.getMeterKey(),
                     orchestration: {
@@ -1241,7 +1243,6 @@
                 // Orthographe enregistrée avec la grille ; les anciens fichiers la déduisent de la tonalité et du mode
                 if (st.spell) { this._applySpell(st.spell); this._syncKeySelect(); }
                 else if (st.key !== undefined || st.quality !== undefined) this._refreshSpelling(-1);
-                this._fnConvention = st.fnConvention || null;
                 if (st.bpm !== undefined) this.setBpm(st.bpm);
                 // Les anciens fichiers n'ont pas de signature : ils sont en 4/4.
                 this.setTimeSignature(st.timeSignature !== undefined ? st.timeSignature : '4/4');
@@ -1427,8 +1428,6 @@
                 if (!entry) return;
                 this.grid = JSON.parse(JSON.stringify(entry.grid));
                 this._scaleStyle = null; // grille enregistrée : le profil de gammes du style précédent ne s'applique plus
-                this._fnStyle = null; // grille enregistrée : plus de style, donc chiffrage classique sauf choix enregistré avec la grille
-                this._fnConvention = null;
                 this.setStyleMenuCustom();
                 if (entry.settings) this.applyImportedSettings(this.sanitizeImportedSettings(entry.settings));
                 else this.setTimeSignature('4/4'); // grille enregistrée avant l'existence des signatures : 4/4
@@ -1767,7 +1766,7 @@
                 document.getElementById('harmony-key-title').textContent = `${rootLabels[this.mainKey]} ${qualText}`.trim();
 
                 // Les accords ne sont redessinés que si la tonalité, la qualité ou l'orthographe a changé
-                const sig = [this.mainKey, this.mainQuality, rootLabels.join(','), degrees.map(d => d.chordId + d.label).join(',')].join('|');
+                const sig = [this.mainKey, this.mainQuality, rootLabels.join(','), degrees.map(d => d.chordId).join(',')].join('|');
                 const box = document.getElementById('harmony-chords');
                 if (sig !== this._harmonySig) {
                     this._harmonySig = sig;
@@ -2033,7 +2032,7 @@
             // (samba, tango, Piazzolla, afro, brass chorale…) : il ne vaut que pour l'orchestre auquel il appartient, sinon il
             // « fuit » (ex. : rythme afro d'un style Afro-cubain qui ferait sonner Cuba sous l'orchestre Brasil).
             getEffectiveGroove(style) {
-                const ok = { latin: ['samba', 'tango', 'piazzolla'], cuba: ['afro'], brass: ['b-chorale'], piazzolla: ['lyrique'] }[style || this.bandStyle];
+                const ok = { latin: ['samba', 'tango', 'piazzolla'], cuba: ['afro'], brass: ['b-chorale'], piazzolla: ['lyrique'], guitar: ['f-solea', 'f-bulerias', 'f-tangos'] }[style || this.bandStyle];
                 return (this._bandGroove && ok && ok.includes(this._bandGroove)) ? this._bandGroove : null;
             }
 
@@ -2087,7 +2086,7 @@
             updateBandButtonLabel() {
                 const label = document.getElementById('band-btn-label');
                 if (!label) return;
-                const names = { swing: 'Jazz', pop: 'Pop-Rock', latin: 'Brasil', cuba: 'Cuba', classic: 'Classique', guitar: 'Guitare', brass: 'Brass', balkan: 'Balkans', piazzolla: (this.getEffectiveGroove() === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
+                const names = { swing: 'Jazz', pop: 'Pop-Rock', latin: 'Brasil', cuba: 'Cuba', classic: 'Classique', guitar: (this.getEffectiveGroove('guitar') ? 'Flamenco' : 'Guitare'), brass: 'Brass', balkan: 'Balkans', piazzolla: (this.getEffectiveGroove() === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
                 label.textContent = 'Orchestre ' + (names[this.bandStyle] || 'Jazz');
             }
 
@@ -2374,12 +2373,15 @@
                 const fx = this._guitarFx, ctx = this.app.audioCtx;
                 if (!fx || !ctx) return;
                 const solo = this.bandStyle === 'guitar';
+                // Guitare flamenca (style de grille Flamenco) : son plus sec, plus clair et plus incisif que le nylon classique
+                // (moins de grave, plus de mordant dans le médium-aigu et d'air), comme une guitare de cante.
+                const flam = solo && !!this.getEffectiveGroove('guitar');
                 const set = (param, v) => { if (now) param.value = v; else param.setTargetAtTime(v, ctx.currentTime, 0.04); };
-                set(fx.body.gain, solo ? 2 : 3.5);   // la guitare seule n'a pas besoin d'autant de corps dans le grave
-                set(fx.warm.gain, solo ? 1.5 : 2.5);
-                set(fx.ping.gain, solo ? -3.5 : -4.5);
-                set(fx.air.gain, solo ? -4.5 : -7);
-                set(fx.lp.frequency, solo ? 8500 : 7000);
+                set(fx.body.gain, flam ? 1 : (solo ? 2 : 3.5));   // la guitare seule n'a pas besoin d'autant de corps dans le grave
+                set(fx.warm.gain, flam ? 0 : (solo ? 1.5 : 2.5));
+                set(fx.ping.gain, flam ? -1.5 : (solo ? -3.5 : -4.5));
+                set(fx.air.gain, flam ? -1.5 : (solo ? -4.5 : -7));
+                set(fx.lp.frequency, flam ? 10000 : (solo ? 8500 : 7000));
             }
 
             loadGuitarLatin() {
@@ -2438,6 +2440,8 @@
 
             playBandDrum(e, time) {
                 let dest = this.bandGains.drums;
+                // Golpe de la guitare flamenca (coup d'annulaire sur la table) : il passe par le bus de la guitare, donc par son curseur de volume
+                if (e.onGuitar && this.bandGains.piano) dest = this.bandGains.piano;
                 if (!dest) return;
                 // Niveau minimal : on laisse tomber les notes fantômes et percussions d'ornement
                 if (this.perfTier >= 2 && (e.drum === 'ghost' || e.drum === 'pedal' || e.drum === 'chich' || e.drum === 'latigo')) return;
@@ -3265,7 +3269,6 @@
                 }
 
                 this._rememberGenerated(styleKey, generated);
-                this._fnStyle = styleKey;
                 this._syncTonalityToStyle(styleKey, generated);
                 this._applyStyleScaleProfile(styleKey, generated); // gammes par défaut adaptées au style (blues, funk, classique…)
                 this.grid = this.compactGridRepeats(generated); // signature calculée sur la grille complète : « Générer » varie comme avant
@@ -3298,7 +3301,7 @@
                 const flat = this.getFlatMeasureList();
                 const idx = this.getStepStartMeasure(stepIndex) - 1;
                 if (!flat[idx]) return '';
-                return this.getHarmonicFunctionLabel(flat[idx], flat, idx, 0, home.root, { convention: 'jazz', keyMinor: !!home.minor }) || ''; // enregistré en chiffrage jazz, comme toute fonction choisie
+                return this.getHarmonicFunctionLabel(flat[idx], flat, idx, 0, home.root) || '';
             }
             // Un style écrit en absolu définit sa propre tonalité : champs et sélecteurs suivent (aucun remaniement des accords).
             _syncTonalityToStyle(styleKey, generated) {
@@ -3361,29 +3364,8 @@
             // sinon la tonalité de la grille. excludeSelf : ignore le marqueur du bloc lui-même.
             getLocalKey(flatMeasures, index, half = 0, excludeSelf = false) { return localKey(flatMeasures, index, half, excludeSelf, this.mainKey); }
 
-            // opts : { convention, keyMinor } pour forcer une lecture (sinon : la convention de chiffrage en cours).
-            getHarmonicFunctionLabel(measure, flatMeasures, index, half = 0, keyOverride = null, opts = null) {
-                return harmonicFunctionLabel(measure, flatMeasures, index, half, keyOverride, this.mainKey,
-                    { convention: this.getFnConvention(), mainQuality: this.mainQuality, ...(opts || {}) });
-            }
-
-            // ===== Chiffrage des degrés : jazz (♭III ♭VI ♭VII par rapport à la gamme majeure) ou classique (III VI VII par rapport au mode) =====
-            // Sans effet en tonalité majeure. Par défaut : classique pour une grille sans style (manuelle ou enregistrée) et pour les styles
-            // de tradition classique, jazz pour les autres ; un choix fait dans le panneau « Fonction tonale » l'emporte jusqu'au prochain style.
-            getFnConvention() { return this._fnConvention || fnConventionForStyle(this._fnStyle); }
-
-            setFnConvention(conv) {
-                if (conv !== 'jazz' && conv !== 'classic') return;
-                this._fnConvention = (conv === fnConventionForStyle(this._fnStyle)) ? null : conv; // le choix par défaut n'est pas « figé »
-                this.renderGridUI();
-                this._renderEditor();
-                this._renderHarmonyModal();
-                const fe = this._fnEditor;
-                if (fe) { // la fenêtre se redessine avec les nouveaux chiffrages, au même endroit
-                    const scroll = fe.el.scrollTop;
-                    this.openFunctionEditor(fe.measureNumber, fe.half || 0);
-                    if (this._fnEditor) this._fnEditor.el.scrollTop = scroll;
-                }
+            getHarmonicFunctionLabel(measure, flatMeasures, index, half = 0, keyOverride = null) {
+                return harmonicFunctionLabel(measure, flatMeasures, index, half, keyOverride, this.mainKey);
             }
 
             // ===== Reprises et ordre de lecture : le calcul est dans grid/play-order.js =====
@@ -3520,9 +3502,8 @@
             _chordFamily(id) { return chordFamily(id); }
 
             // Lectures possibles d'un accord dans la tonalité de la grille (degré, dominantes secondaires, substitutions, emprunts, modulations).
-            // scale (facultatif) : gamme de la tonalité en vigueur, pour distinguer un accord diatonique d'un accord emprunté.
-            getFunctionAlternatives(chord, next = null, keyOverride = null, scale = null) {
-                return functionAlternatives(chord, next, keyOverride, { mainKey: this.mainKey, rootLabels, scale });
+            getFunctionAlternatives(chord, next = null, keyOverride = null) {
+                return functionAlternatives(chord, next, keyOverride, { mainKey: this.mainKey, rootLabels });
             }
 
             openFunctionEditor(measureNumber, half = 0) {
@@ -3537,12 +3518,9 @@
                 const nextM = flat[measureNumber] || null;
                 // Tonalité en vigueur avant cet accord (les lectures proposées sont relatives à elle)
                 const ctxKey = this.getLocalKey(flat, measureNumber - 1, useHalf ? 1 : 0, true);
-                // Les lectures sont calculées et enregistrées en chiffrage jazz ; elles s'affichent dans la convention choisie (jazz / classique).
-                const conv = this.getFnConvention();
-                const ctxMinor = localKeyMinor(flat, measureNumber - 1, useHalf ? 1 : 0, true, this.mainKey, this.mainQuality);
-                const groups = displayAlternatives(this.getFunctionAlternatives(chord, useHalf ? nextM : (m.split ? m.split : nextM), ctxKey.root, localKeyScale(flat, measureNumber - 1, useHalf ? 1 : 0, true, this.mainKey, this.mainQuality)), conv, ctxMinor);
+                const groups = this.getFunctionAlternatives(chord, useHalf ? nextM : (m.split ? m.split : nextM), ctxKey.root);
                 const symbol = `${chordRootName(chord.rootIndex, chord.chordId, rootLabels)}${this.getJazzChordNotation(chord.chordId)}`;
-                const auto = this.getHarmonicFunctionLabel({ rootIndex: chord.rootIndex, chordId: chord.chordId, harmonicFunction: useHalf ? null : m.harmonicFunction, fnLabel: null }, flat, measureNumber - 1, useHalf ? 1 : 0, ctxKey.root, { keyMinor: ctxMinor });
+                const auto = this.getHarmonicFunctionLabel({ rootIndex: chord.rootIndex, chordId: chord.chordId, harmonicFunction: useHalf ? null : m.harmonicFunction, fnLabel: null }, flat, measureNumber - 1, useHalf ? 1 : 0, ctxKey.root);
                 const cur = chord.fnLabel || null;
                 const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
                 // Chaque lecture a deux boutons : la lecture seule (clic sur la ligne) et « ⇣ N » à droite, qui l'applique aussi
@@ -3567,26 +3545,14 @@
                         <button type="button" class="jm-btn" data-close="1" title="Fermer (Échap)">✕</button>
                     </div>
                     <div class="jm-sub">${ctxKey.root === this.mainKey && !ctxKey.minor ? `Tonalité de la grille : ${esc(rootLabels[this.mainKey])}.` : `Tonalité en vigueur : ${esc(rootLabels[ctxKey.root])}${ctxKey.minor ? ' mineur' : ''} (modulation ; grille en ${esc(rootLabels[this.mainKey])}).`} Choisissez une lecture de cet accord. Une lecture « Modulation » change l'analyse des accords suivants.</div>
-                    <div class="jm-sec">
-                        <div class="jm-sec-t">Chiffrage des degrés</div>
-                        <div class="jm-seg jm-seg-deg" role="group" aria-label="Chiffrage des degrés">
-                            <button type="button" class="jm-chip${conv === 'jazz' ? ' is-on' : ''}" data-conv="jazz" aria-pressed="${conv === 'jazz'}" title="Jazz, pop, flamenco : degrés lus par rapport à la gamme majeure de la tonique (en mineur : i, ♭III, iv, v, ♭VI, ♭VII)">Jazz</button>
-                            <button type="button" class="jm-chip${conv === 'classic' ? ' is-on' : ''}" data-conv="classic" aria-pressed="${conv === 'classic'}" title="Analyse classique : degrés lus par rapport à la gamme du mode (en mineur : i, III, iv, v, VI, VII)">Classique</button>
-                        </div>
-                        <div class="jm-hint">${ctxMinor
-                            ? `En mineur, jazz : ♭III ♭VI ♭VII (gamme majeure de référence) ; classique : III VI VII (gamme mineure). ${this._fnConvention ? 'Choix manuel, valable jusqu\'au prochain style.' : (this._fnStyle ? 'Choix automatique, adapté au style.' : 'Choix automatique : grille sans style.')}`
-                            : 'Tonalité majeure : les deux chiffrages sont identiques (ils ne diffèrent qu\'en mineur).'}</div>
-                    </div>
                     ${legend}
                     <div class="jm-sec">
                         ${row(`Auto : ${auto}`, 'Fonction calculée d\'après la tonalité (par défaut)', !cur, '__auto__')}
                     </div>
-                    ${groups.map(g => `<div class="jm-sec"><div class="jm-sec-t">${esc(g.title)}</div>${g.items.map(i => row(i.shownLabel, i.shownDesc, cur === i.label, encodeURIComponent(i.label), i.mod)).join('')}</div>`).join('')}
+                    ${groups.map(g => `<div class="jm-sec"><div class="jm-sec-t">${esc(g.title)}</div>${g.items.map(i => row(i.label, i.desc, cur === i.label, encodeURIComponent(i.label), i.mod)).join('')}</div>`).join('')}
                 `;
                 el.addEventListener('click', (ev) => {
                     if (ev.target.closest('[data-close]')) { this.closeFunctionEditor(); return; }
-                    const cv = ev.target.closest('[data-conv]');
-                    if (cv) { this.setFnConvention(cv.dataset.conv); return; }
                     const b = ev.target.closest('[data-fn]');
                     if (!b || b.disabled) return;
                     const v = b.dataset.fn;
@@ -3596,7 +3562,7 @@
                 });
                 (document.fullscreenElement || document.body).appendChild(el);
                 this._enablePopupDrag(el);
-                this._fnEditor = { el, measureNumber, half: useHalf ? 1 : 0 };
+                this._fnEditor = { el, measureNumber };
                 this._fnOutside = (ev) => {
                     const t = ev.target;
                     if (!this._fnEditor || this._fnEditor.el.contains(t)) return;
@@ -3636,8 +3602,7 @@
                 this.closeFunctionEditor();
                 this.renderGridUI();
                 if (propagate) {
-                    const shown = label ? convertRomanLabel(label, this.getFnConvention(), localKeyMinor(this.getFlatMeasureList(), measureNumber - 1, half, true, this.mainKey, this.mainQuality)) : '';
-                    const what = label ? `« ${shown} »` : 'Fonction automatique';
+                    const what = label ? `« ${label} »` : 'Fonction automatique';
                     this._flash(`${what} appliquée ici et à ${n} occurrence${n > 1 ? 's' : ''} suivante${n > 1 ? 's' : ''}`);
                 }
             }
@@ -4075,7 +4040,7 @@
             }
 
             getDiatonicDegrees(opts) {
-                return diatonicDegrees({ mainKey: this.mainKey, mainQuality: this.mainQuality, convention: this.getFnConvention(), triads: !!(opts && opts.triads), findChordObj: (id) => this.findChordObj(id),
+                return diatonicDegrees({ mainKey: this.mainKey, mainQuality: this.mainQuality, triads: !!(opts && opts.triads), findChordObj: (id) => this.findChordObj(id),
                     styleScaleFor: (id, root) => this._styleScaleFor(id, root) });
             }
 
@@ -6918,7 +6883,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-03-a';
+        var BUILD = '2026-11-02-f';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }
