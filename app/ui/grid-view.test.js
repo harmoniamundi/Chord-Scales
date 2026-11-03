@@ -264,6 +264,32 @@ describe('position, sélection et défilement', () => {
         assert.equal(V.halfToHighlight(true, 6, 4, 2), 1);
         assert.equal(V.halfToHighlight(true, 4, 4, 2), 0);
     });
+    test('neighborMeasure : ← → passent à la mesure voisine, d\'une ligne à l\'autre, sans dépasser les bords', () => {
+        const rows = V.layoutRows(Array.from({ length: 10 }, (_, i) => ({ measureNumber: i + 1 })), () => null);
+        assert.equal(V.neighborMeasure(rows, 3, 'ArrowRight'), 4);
+        assert.equal(V.neighborMeasure(rows, 4, 'ArrowRight'), 5);
+        assert.equal(V.neighborMeasure(rows, 5, 'ArrowLeft'), 4);
+        assert.equal(V.neighborMeasure(rows, 1, 'ArrowLeft'), 1);
+        assert.equal(V.neighborMeasure(rows, 10, 'ArrowRight'), 10);
+    });
+    test('neighborMeasure : ↑ ↓ gardent la colonne, la dernière case si la ligne est plus courte, et s\'arrêtent aux bords', () => {
+        const rows = V.layoutRows(Array.from({ length: 10 }, (_, i) => ({ measureNumber: i + 1 })), () => null); // 4 + 4 + 2
+        assert.equal(V.neighborMeasure(rows, 2, 'ArrowDown'), 6);
+        assert.equal(V.neighborMeasure(rows, 6, 'ArrowDown'), 10);   // 3e ligne : 2 mesures seulement
+        assert.equal(V.neighborMeasure(rows, 8, 'ArrowDown'), 10);
+        assert.equal(V.neighborMeasure(rows, 10, 'ArrowUp'), 6);
+        assert.equal(V.neighborMeasure(rows, 3, 'ArrowUp'), 3);
+        assert.equal(V.neighborMeasure(rows, 10, 'ArrowDown'), 10);
+        assert.equal(V.neighborMeasure(rows, 99, 'ArrowRight'), 99);
+    });
+    test('neighborMeasure : une nouvelle partie commence une nouvelle ligne, ↑ ↓ suivent ces lignes', () => {
+        const flat = Array.from({ length: 6 }, (_, i) => ({ measureNumber: i + 1 }));
+        const rows = V.layoutRows(flat, (m) => (m.measureNumber === 3 ? 'B' : null)); // [1 2] [3 4 5 6]
+        assert.equal(V.neighborMeasure(rows, 1, 'ArrowDown'), 3);
+        assert.equal(V.neighborMeasure(rows, 2, 'ArrowDown'), 4);
+        assert.equal(V.neighborMeasure(rows, 6, 'ArrowUp'), 2);
+        assert.equal(V.neighborMeasure(rows, 2, 'ArrowRight'), 3);
+    });
     test('scrollTargetFor : ligne visible → pas de défilement', () => {
         assert.equal(V.scrollTargetFor(100, 300, 150, 50), null);
         assert.equal(V.scrollTargetFor(100, 300, 100, 300), null);

@@ -247,6 +247,26 @@ function halfToHighlight(isCurrentMeasure, currentBeat, bpb, splitBeat) {
     return isCurrentMeasure ? ((currentBeat % bpb) >= splitBeat ? 1 : 0) : -1;
 }
 
+// Navigation au clavier : numéro de la mesure voisine de n. rows : lignes de layoutRows ; key : 'ArrowLeft' | 'ArrowRight' |
+// 'ArrowUp' | 'ArrowDown'. Gauche / droite : mesure précédente / suivante (d'une ligne à l'autre). Haut / bas : même colonne
+// dans la ligne du dessus / du dessous (la dernière case si cette ligne est plus courte). Au bord de la grille : n inchangé.
+function neighborMeasure(rows, n, key) {
+    let r = -1, c = -1;
+    rows.forEach((row, i) => {
+        const j = row.findIndex((m) => m.measureNumber === n);
+        if (j >= 0) { r = i; c = j; }
+    });
+    if (r < 0) return n;
+    if (key === 'ArrowLeft' || key === 'ArrowRight') {
+        const all = [].concat(...rows);
+        const i = all.findIndex((m) => m.measureNumber === n) + (key === 'ArrowLeft' ? -1 : 1);
+        return i >= 0 && i < all.length ? all[i].measureNumber : n;
+    }
+    const nr = r + (key === 'ArrowUp' ? -1 : key === 'ArrowDown' ? 1 : 0);
+    if (nr === r || nr < 0 || nr >= rows.length) return n;
+    return rows[nr][Math.min(c, rows[nr].length - 1)].measureNumber;
+}
+
 // Défilement de la grille pendant la lecture : la ligne de l'accord en cours doit rester entièrement visible.
 // Renvoie la nouvelle position de défilement, ou null si la ligne est déjà visible.
 function scrollTargetFor(containerTop, clientHeight, rowTop, rowHeight) {
@@ -260,6 +280,6 @@ function scrollTargetFor(containerTop, clientHeight, rowTop, rowHeight) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         layoutRows, cellClassName, measureCellModel, cellExtraClasses, cellInnerHtml, cellMarksHtml, sequenceFingerprint, printMarks, printGridHtml,
-        currentMeasureNumber, selectionFix, gutterMark, rowFillers, needsAddRow, clickPosition, playRangeAfterClick, halfToHighlight, scrollTargetFor,
+        currentMeasureNumber, selectionFix, gutterMark, rowFillers, needsAddRow, clickPosition, playRangeAfterClick, halfToHighlight, neighborMeasure, scrollTargetFor,
     };
 }

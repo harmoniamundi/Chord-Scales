@@ -3884,6 +3884,60 @@
                         }
                     }
                 });
+
+                // Flèches du clavier : après un clic sur un accord de la grille (jam à l'arrêt), ← → passent à la mesure
+                // précédente / suivante et ↑ ↓ à la ligne du dessus / du dessous (même colonne). Chaque pas fait comme un clic.
+                // La navigation s'arrête dès qu'on clique en dehors de la carte de la grille.
+                document.addEventListener('pointerdown', (ev) => {
+                    if (this._gridNavActive && !(ev.target.closest && ev.target.closest('#jam-chord-card'))) this._gridNavActive = false;
+                }, true);
+                document.addEventListener('keydown', (e) => {
+                    if (!this._gridNavActive || e.defaultPrevented) return;
+                    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+                    if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+                    const view = document.getElementById('view-jam');
+                    if (!view || view.classList.contains('hidden')) return;
+                    if (this.isPlaying || this._editor || this._fnEditor || this._selMode) return;
+                    const t = e.target;
+                    if (t && (t.isContentEditable || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.tagName === 'INPUT')) return;
+                    const flat = this.getFlatMeasureList();
+                    const current = this._activeMeasureNumber();
+                    if (!current || !flat.length) return;
+                    e.preventDefault(); // la page ne défile pas
+                    const target = neighborMeasure(this._layoutRows(flat), current, e.key);
+                    if (target === current) return; // bord de la grille : on reste sur place
+                    this._selAnchor = target;
+                    if (this._sel) this.clearSelection();
+                    this._activateMeasure(flat[target - 1], 0);
+                    this._scrollGridToMeasure(target);
+                });
+            }
+
+            // Sélectionne la mesure m (moitié « half » si elle a deux accords) comme le fait un clic : position courante,
+            // affichage de l'accord et de sa gamme, puis lecture de l'accord. Partagé par le clic et les flèches du clavier.
+            _activateMeasure(m, half) {
+                const pos = clickPosition(m, half, this.getBeatsPerBar(), this.getSplitBeat());
+                this.currentStepIndex = pos.stepIndex;
+                this.currentBeat = pos.beat;
+                if (this.isPlaying) {
+                    this._passes = {};
+                    this._playRange = playRangeAfterClick(this._playRange, m.measureNumber);
+                }
+                const step = this.grid[m.stepIndex];
+                this.updateJamDisplay(step, half);
+                this.renderGridUI();
+                const chord = half === 1 ? m.split : m;
+                this.app.playJamChord(chord.rootIndex, chord.chordId, chord.bassRootIndex);
+            }
+
+            // Fait défiler la grille (et non la page) si la ligne de la mesure n n'est pas entièrement visible.
+            _scrollGridToMeasure(n) {
+                const container = document.getElementById('jam-chord-sequence-display');
+                const cell = container && container.querySelector(`.jam-cell[data-measure-number="${n}"]`);
+                const row = cell && cell.closest('.jam-row');
+                if (!row) return;
+                const top = scrollTargetFor(container.scrollTop, container.clientHeight, row.offsetTop, row.offsetHeight);
+                if (top !== null) container.scrollTo({ top });
             }
 
             _getClip() {
@@ -4777,18 +4831,8 @@
                                 this.openMeasureEditor(m.measureNumber, { half });
                                 return;
                             }
-                            const pos = clickPosition(m, half, this.getBeatsPerBar(), this.getSplitBeat());
-                            this.currentStepIndex = pos.stepIndex;
-                            this.currentBeat = pos.beat;
-                            if (this.isPlaying) {
-                                this._passes = {};
-                                this._playRange = playRangeAfterClick(this._playRange, m.measureNumber);
-                            }
-                            const step = this.grid[m.stepIndex];
-                            this.updateJamDisplay(step, half);
-                            this.renderGridUI();
-                            const chord = half === 1 ? m.split : m;
-                            this.app.playJamChord(chord.rootIndex, chord.chordId, chord.bassRootIndex);
+                            this._gridNavActive = true; // les flèches du clavier naviguent désormais dans la grille
+                            this._activateMeasure(m, half);
                         };
 
                         mBox.innerHTML = cellInnerHtml(c);

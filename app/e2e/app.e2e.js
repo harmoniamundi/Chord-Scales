@@ -179,6 +179,43 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         noErrors();
     });
 
+    test('Jam : après un clic sur un accord, les flèches du clavier naviguent dans la grille', async () => {
+        await page.selectOption('#jam-style-select', 'bossa');
+        const active = () => page.evaluate(() => app.jam._activeMeasureNumber());
+        const total = await page.evaluate(() => app.jam._totalMeasures());
+        assert.ok(total >= 9, `grille trop courte pour le test (${total} mesures)`);
+        // Sans clic préalable sur la grille, les flèches ne font rien
+        await page.mouse.click(2, 2);
+        const before = await active();
+        await page.keyboard.press('ArrowRight');
+        assert.equal(await active(), before);
+        // Clic sur la mesure 2 : → → ← ↓ ↑
+        await page.locator('#jam-chord-sequence-display .jam-cell[data-measure-number="2"]').click();
+        assert.equal(await active(), 2);
+        await page.keyboard.press('ArrowRight'); assert.equal(await active(), 3);
+        await page.keyboard.press('ArrowRight'); assert.equal(await active(), 4);
+        await page.keyboard.press('ArrowRight'); assert.equal(await active(), 5);   // passe à la ligne suivante
+        await page.keyboard.press('ArrowLeft');  assert.equal(await active(), 4);
+        await page.keyboard.press('ArrowDown');  assert.equal(await active(), 8);   // même colonne, ligne du dessous
+        await page.keyboard.press('ArrowUp');    assert.equal(await active(), 4);
+        // L'accord affiché suit la mesure choisie
+        const shown = await page.evaluate(() => ({
+            title: document.getElementById('jam-current-chord-title').textContent,
+            cell: document.querySelector('#jam-chord-sequence-display .jam-cell.bg-blue-600')?.dataset.measureNumber,
+        }));
+        assert.equal(shown.cell, '4');
+        assert.ok(shown.title && shown.title !== '---');
+        // Bords : on reste sur place
+        await page.locator('#jam-chord-sequence-display .jam-cell[data-measure-number="1"]').click();
+        await page.keyboard.press('ArrowLeft'); await page.keyboard.press('ArrowUp');
+        assert.equal(await active(), 1);
+        // Un clic en dehors de la grille arrête la navigation
+        await page.mouse.click(2, 2);
+        await page.keyboard.press('ArrowRight');
+        assert.equal(await active(), 1);
+        noErrors();
+    });
+
     test('Jam : lecture (intro, mesures qui avancent) puis arrêt', async () => {
         await page.selectOption('#jam-style-select', 'bossa');
         await page.evaluate(() => {
