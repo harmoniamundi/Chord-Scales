@@ -12,7 +12,7 @@ const PART_LABELS = ['in', 'A', 'B', 'C', 'D', 'E', 'F', 'G', "A'", "B'", "C'", 
 const isPartLabel = (v) => typeof v === 'string' && (PART_LABELS.includes(v) || /^[A-Z]$/.test(v));
 
 // Rythmes imposés par un style (samba, tango…), valables dans un fichier importé.
-const IMPORT_GROOVES = ['samba', 'tango', 'piazzolla', 'lyrique', 'afro', 'b-chorale', 'f-solea', 'f-bulerias', 'f-tangos'];
+const IMPORT_GROOVES = ['samba', 'tango', 'piazzolla', 'lyrique', 'afro', 'b-chorale'];
 
 // Lit une signature (nombre 2, 3, 4 des anciennes versions, ou texte « 6/8 »).
 function parseMeter(val) {
@@ -79,7 +79,7 @@ function sanitizeImportedGrid(raw) {
     return clean;
 }
 
-// Lit les paramètres de jam d'un fichier importé (tonalité, qualité, bpm, orchestration).
+// Lit les paramètres de jam d'un fichier importé (tonalité, qualité, chiffrage des degrés, bpm, orchestration).
 // Seuls les champs valides sont conservés ; les autres sont ignorés.
 function sanitizeImportedSettings(data) {
     const out = {};
@@ -89,6 +89,7 @@ function sanitizeImportedSettings(data) {
     const qualities = ['ionian', 'aeolian', 'dorian', 'phrygian', 'lydian', 'mixolydian', 'locrian'];
     if (typeof data.quality === 'string' && qualities.includes(data.quality)) out.quality = data.quality;
     if (GF_THEORY.isValidSpell(data.spell)) out.spell = data.spell;
+    if (data.fnConvention === 'jazz' || data.fnConvention === 'classic') out.fnConvention = data.fnConvention; // chiffrage des degrés choisi à la main ; absent = selon le style
     const bpm = Number(data.bpm);
     if (Number.isFinite(bpm)) out.bpm = Math.max(50, Math.min(220, Math.round(bpm)));
     if (data.timeSignature !== undefined && data.timeSignature !== null) {

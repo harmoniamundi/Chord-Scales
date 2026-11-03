@@ -68,9 +68,7 @@ function styleProfile(styleKey) {
         brasshymn: { turn: false, w: { secDom: 2, subdom: 1.5 } },
         brasscantique: { turn: false, w: { secDom: 1.5, subdom: 1.5 } },
         // Balkans : triades et dominante V7(b9), aucune réharmonisation (la couleur est dans le mode, pas dans les accords)
-        balkan: { turn: false, w: {} }, balkan98: { turn: false, w: {} },
-        // Flamenco : triades du mode flamenco (cadence andalouse), aucune réharmonisation
-        flamencosolea: { turn: false, w: {} }, flamencobulerias: { turn: false, w: {} }, flamencotangos: { turn: false, w: {} }
+        balkan: { turn: false, w: {} }, balkan98: { turn: false, w: {} }
     };
     return table[styleKey] || { turn: false, w: { colour: 3 } };
 }
@@ -815,16 +813,78 @@ function chordFamily(id) {
     return info ? info.fam : 'maj';
 }
 
-// ===== Fonction tonale : alternatives conformes à la théorie =====
-function romanDeg(t, lower = false) {
-    const R = ['I', '♭II', 'II', '♭III', 'III', 'IV', '♯IV', 'V', '♭VI', 'VI', '♭VII', 'VII'];
-    const x = R[((t % 12) + 12) % 12];
-    return lower ? x.toLowerCase() : x;
+// ===== Fonction tonale : chiffrage des degrés, deux conventions =====
+// « Jazz » (convention Berklee, pop, flamenco) : les degrés se lisent par rapport à la gamme MAJEURE de la tonique ;
+//    en mineur : i, ii°, ♭III, iv, v, ♭VI, ♭VII.
+// « Classique » : les degrés se lisent par rapport à la gamme du mode lui-même (mineure naturelle pour un mode à tierce mineure) ;
+//    en mineur : i, ii°, III, iv, v, VI, VII. En tonalité majeure, les deux conventions sont identiques.
+// Les fonctions ci-dessous reçoivent `minorRef` = true quand la lecture classique s'applique à une tonalité mineure.
+const FN_MINOR_MODES = ['dorian', 'phrygian', 'aeolian', 'locrian']; // modes dont la tierce est mineure
+// Notes (demi-tons depuis la tonique) de la gamme de chaque mode de la grille.
+const FN_MODE_SCALES = {
+    ionian: [0, 2, 4, 5, 7, 9, 11], dorian: [0, 2, 3, 5, 7, 9, 10], phrygian: [0, 1, 3, 5, 7, 8, 10], lydian: [0, 2, 4, 6, 7, 9, 11],
+    mixolydian: [0, 2, 4, 5, 7, 9, 10], aeolian: [0, 2, 3, 5, 7, 8, 10], locrian: [0, 1, 3, 5, 6, 8, 10]
+};
+const FN_NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+const FN_REF_MAJOR = [0, 2, 4, 5, 7, 9, 11];
+const FN_REF_MINOR = [0, 2, 3, 5, 7, 8, 10];
+const FN_CHROMA_MAJOR = ['I', '♭II', 'II', '♭III', 'III', 'IV', '♯IV', 'V', '♭VI', 'VI', '♭VII', 'VII'];
+const FN_CHROMA_MINOR = ['I', '♭II', 'II', 'III', '♯III', 'IV', '♯IV', 'V', 'VI', '♯VI', 'VII', '♯VII'];
+
+// Convention de chiffrage utilisée par défaut selon le style chargé : 'classic' pour une grille sans style (manuelle ou enregistrée)
+// et pour les styles de tradition classique / chanson ; 'jazz' pour tous les autres (jazz, blues, pop, funk, latin, balkans, flamenco…).
+const FN_CLASSIC_STYLES = ['baroque', 'mozart', 'menuet', 'valseviennoise', 'valsemusette', 'trad', 'chansonsimple', 'brasshymn', 'brasscantique', 'barcarolle', 'tarentelle'];
+function fnConventionForStyle(styleKey) {
+    return (!styleKey || styleKey === 'custom' || FN_CLASSIC_STYLES.includes(styleKey)) ? 'classic' : 'jazz';
 }
+
+// Le chiffrage classique ne change quelque chose que dans une tonalité (ou un mode) à tierce mineure.
+function fnMinorRef(convention, mainQuality) {
+    return convention === 'classic' && FN_MINOR_MODES.includes(mainQuality);
+}
+
+// Degré chromatique d'une fondamentale à t demi-tons de la tonique (majuscule : accord majeur ou dominant, minuscule : mineur / diminué).
+// minorRef : lecture classique en tonalité mineure (♯ plutôt que ♭ : III, VI, VII sont diatoniques, ♯III, ♯VI, ♯VII chromatiques).
+function romanDeg(t, lower = false, minorRef = false) {
+    const k = ((t % 12) + 12) % 12;
+    const x = (minorRef ? FN_CHROMA_MINOR : FN_CHROMA_MAJOR)[k];
+    if (!lower) return x;
+    return (minorRef && k === 11) ? 'vii' : x.toLowerCase(); // la sensible diminuée s'écrit vii° (le ♯ est sous-entendu)
+}
+
+// Degré dont on connaît le rang dans la gamme (0 = I … 6 = VII) et la distance à la tonique : l'altération est lue
+// par rapport à la gamme de référence (♭V en locrien, ♯IV en lydien, ♭II en phrygien…).
+function romanDegByRank(rank, semitones, lower = false, minorRef = false) {
+    const ref = (minorRef ? FN_REF_MINOR : FN_REF_MAJOR)[rank];
+    const diff = ((((semitones - ref) % 12) + 12 + 6) % 12) - 6; // −6 … +5
+    const acc = ({ '-2': '♭♭', '-1': '♭', '0': '', '1': '♯', '2': '♯♯' })[String(diff)];
+    if (acc === undefined) return romanDeg(semitones, lower, minorRef);
+    return acc + (lower ? FN_NUMERALS[rank].toLowerCase() : FN_NUMERALS[rank]);
+}
+
+// Réécrit en lecture classique les degrés d'un texte écrit en chiffrage jazz (c'est la forme sous laquelle les fonctions
+// choisies sont enregistrées dans les grilles). Sans effet hors tonalité mineure. Un degré suivi de « de X » ou, pour une
+// étiquette entière (label = true), de « (Xm) » se lit dans la tonalité X et reste tel quel.
+const FN_TOKEN = /([♭♯]?)(VII|VI|IV|V|III|II|I|vii|vi|iv|v|iii|ii|i)/g;
+const FN_LETTER = 'A-Za-z\\u00C0-\\u00F6\\u00F9-\\u017F'; // lettres, sans ø (ø est un signe de chiffrage)
+function convertRomanText(text, convention, minor, label = false) {
+    if (typeof text !== 'string' || convention !== 'classic' || !minor) return text;
+    if (label && (/ de | \(/.test(text))) return text;
+    return text.replace(FN_TOKEN, (m, acc, num, offset, whole) => {
+        if (offset > 0 && /[A-Za-zÀ-ſ]/.test(whole[offset - 1])) return m; // milieu d'un mot
+        const after = whole.slice(offset + m.length);
+        if (/^[A-Za-zÀ-ſ]/.test(after)) return m; // début d'un mot (« ii-V » reste lu, « iron » non)
+        if (/^[0-9°ø+]*(?:sus|alt)?\s+de\s/.test(after)) return m; // « iii de F » : degré lu dans une autre tonalité
+        const rank = FN_NUMERALS.indexOf(num.toUpperCase());
+        const semi = ((FN_REF_MAJOR[rank] + (acc === '♭' ? -1 : acc === '♯' ? 1 : 0)) % 12 + 12) % 12;
+        return romanDeg(semi, num === num.toLowerCase(), true);
+    });
+}
+function convertRomanLabel(label, convention, minor) { return convertRomanText(label, convention, minor, true); }
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { makeVariationRng, gridSignature, styleProfile, resolveEnding, withResolvedEnding, slotsFromTemplate, templateFromSlots,
         tagTwinSlots, copyTwinSlots, validateSlots, reharmonize, renewTemplate, isBrassStyle, simplifyBrass, isTriadStyle, simplifyTriads, rememberGenerated,
         createStyleVariation, findTwinSections, applyTwinCopies, compactGridRepeats, normalizeGeneratedGrid, enforceChordRepeatLimits,
-        chordFamily, romanDeg };
+        chordFamily, romanDeg, romanDegByRank, convertRomanText, convertRomanLabel, fnConventionForStyle, fnMinorRef, FN_MINOR_MODES, FN_MODE_SCALES, FN_CLASSIC_STYLES };
 }
