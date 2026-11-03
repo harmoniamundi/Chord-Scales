@@ -30,6 +30,15 @@ describe('tables par style', () => {
         assert.equal(M.grooveHintFor('milongalyrique'), 'lyrique');
         assert.equal(M.grooveHintFor('swing'), null);
     });
+    test('flamenco : orchestre Guitare, rythme du palo, tempo et signature', () => {
+        assert.equal(M.bandStyleFor('flamencosolea'), 'guitar');
+        assert.equal(M.grooveHintFor('flamencosolea'), 'f-solea');
+        assert.equal(M.grooveHintFor('flamencobulerias'), 'f-bulerias');
+        assert.equal(M.grooveHintFor('flamencotangos'), 'f-tangos');
+        assert.deepEqual(M.tempoMeterFor('flamencosolea'), { bpm: 52, meter: '12/8' });
+        assert.deepEqual(M.tempoMeterFor('flamencobulerias'), { bpm: 88, meter: '12/8' });
+        assert.deepEqual(M.tempoMeterFor('flamencotangos'), { bpm: 108, meter: '4/4' });
+    });
     test('style inconnu ou clé héritée d\'Object : null partout', () => {
         for (const k of ['inconnu', 'constructor', 'toString', undefined, null, 42]) {
             assert.equal(M.bandStyleFor(k), null);
@@ -48,9 +57,9 @@ describe('tables par style', () => {
         }
     });
     test('orchestres et grooves : valeurs connues du moteur', () => {
-        const bands = new Set(['swing', 'latin', 'pop', 'classic', 'cuba', 'piazzolla', 'brass', 'balkan']);
+        const bands = new Set(['swing', 'latin', 'pop', 'classic', 'cuba', 'piazzolla', 'brass', 'balkan', 'guitar']);
         Object.values(M.STYLE_BAND).forEach(b => assert.ok(bands.has(b), b));
-        const grooves = new Set(['samba', 'tango', 'piazzolla', 'lyrique', 'afro', 'b-chorale']);
+        const grooves = new Set(['samba', 'tango', 'piazzolla', 'lyrique', 'afro', 'b-chorale', 'f-solea', 'f-bulerias', 'f-tangos']);
         Object.values(M.STYLE_GROOVE).forEach(g => assert.ok(grooves.has(g), g));
     });
 });
@@ -172,6 +181,14 @@ describe('gamme par défaut selon le style', () => {
         const id = M.styleScaleFor(env({ scaleStyle: 'balkan' }), '7', 7);
         assert.ok(['phrygianDominant', 'mixolydianFlat9', 'mixolydian'].includes(id));
     });
+    test('flamenco : phrygien dominant sur le Mi (V), éolien sur le La mineur, lydien sur le Fa, mixolydien sur le Sol', () => {
+        const e = env({ scaleStyle: 'flamencosolea', mainKey: 9 });
+        assert.equal(M.styleScaleFor(e, '7b9', 4), 'phrygianDominant');
+        assert.equal(M.styleScaleFor(e, 'minTriad', 9), 'aeolian');
+        assert.equal(M.styleScaleFor(e, 'minTriad', 2), 'dorian');
+        assert.equal(M.styleScaleFor(e, 'majTriad', 5), 'lydian');
+        assert.equal(M.styleScaleFor(e, '7', 7), 'mixolydian');   // Sol7 : mixolydien (la triade, elle, n'a que ionien / lydien dans le catalogue)
+    });
     test('classic : mode du degré dans la tonalité', () => {
         const e = env({ scaleStyle: 'baroque' });
         assert.equal(M.styleScaleFor(e, 'maj7', 0), 'ionian');
@@ -190,7 +207,7 @@ describe('gamme par défaut selon le style', () => {
         assert.ok(['mixolydianFlat13', 'mixolydian'].includes(id));
     });
     test('toujours une gamme disponible pour l\'accord, ou null', () => {
-        for (const ps of ['blues', 'funk', 'balkan', 'baroque']) for (const id of ['maj7', 'm7', '7', 'm7b5', '7alt', 'dim7', 'majTriad', 'minTriad'])
+        for (const ps of ['blues', 'funk', 'balkan', 'baroque', 'flamencosolea']) for (const id of ['maj7', 'm7', '7', 'm7b5', '7alt', 'dim7', 'majTriad', 'minTriad'])
             for (let r = 0; r < 12; r++) {
                 const sc = M.styleScaleFor(env({ scaleStyle: ps }), id, r);
                 if (sc !== null) assert.ok(findChordObj(id).scales.some(s => s.id === sc), `${ps} ${id} ${r} ${sc}`);

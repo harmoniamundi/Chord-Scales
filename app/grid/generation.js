@@ -68,7 +68,9 @@ function styleProfile(styleKey) {
         brasshymn: { turn: false, w: { secDom: 2, subdom: 1.5 } },
         brasscantique: { turn: false, w: { secDom: 1.5, subdom: 1.5 } },
         // Balkans : triades et dominante V7(b9), aucune réharmonisation (la couleur est dans le mode, pas dans les accords)
-        balkan: { turn: false, w: {} }, balkan98: { turn: false, w: {} }
+        balkan: { turn: false, w: {} }, balkan98: { turn: false, w: {} },
+        // Flamenco : triades du mode flamenco (cadence andalouse), aucune réharmonisation
+        flamencosolea: { turn: false, w: {} }, flamencobulerias: { turn: false, w: {} }, flamencotangos: { turn: false, w: {} }
     };
     return table[styleKey] || { turn: false, w: { colour: 3 } };
 }

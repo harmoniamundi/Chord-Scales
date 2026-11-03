@@ -25,6 +25,11 @@
 if (typeof jamChordPlaybackNotes === 'undefined' && typeof require === 'function') {
     var { jamChordPlaybackNotes, bassPc } = require('./band-helpers.js');
 }
+// Toque flamenco (band/flamenco-plan.js) : quand le style de grille impose un rythme flamenco, la phrase porte `ph.flamenco`
+// et la mesure est écrite par buildFlamencoPlan (même guitare, mêmes cordes de nylon, autre répertoire de gestes).
+if (typeof buildFlamencoPlan === 'undefined' && typeof require === 'function') {
+    var { buildFlamencoPlan, flamencoPhraseExtras } = require('./flamenco-plan.js');
+}
 
 const GTR_BASE = 48;                      // hauteur réelle (MIDI) de la note écrite 0 sans transposition (octave de lecture 3 : do3)
 const GTR_BASS_LO = 40, GTR_BASS_HI = 55; // registre des basses : mi2 à sol3
@@ -219,6 +224,12 @@ function gtrApproachMidi(env, cur, nextCs, rng) {
 // Phrase : choix faits une fois et gardés pendant toute la phrase
 // ---------------------------------------------------------------------------------------------
 function guitarPhraseExtras(ctx, rng, prev, index) {
+    const base = guitarClassicalExtras(ctx, rng, prev, index);
+    // Rythme flamenco imposé par le style de grille (ctx.groove = 'f-solea', 'f-bulerias' ou 'f-tangos') : champs du toque flamenco en plus
+    return ctx && ctx.groove ? Object.assign(base, flamencoPhraseExtras(ctx, rng, prev, index)) : base;
+}
+
+function guitarClassicalExtras(ctx, rng, prev, index) {
     const pl = (prev && prev.style === 'guitar') ? prev : null;
     const prevI = (pl && typeof pl.intensity === 'number') ? pl.intensity : 0.5;
     let I = index === 0 ? 0.3 + rng() * 0.25 : prevI + (0.5 - prevI) * 0.25 + (rng() - 0.5) * 0.4;
@@ -249,6 +260,7 @@ function guitarPhraseExtras(ctx, rng, prev, index) {
 const GTR_VEL = { B: 0.72, b: 0.58, f: 0.52, C: 0.72, c: 0.54, u: 0.46, P: 0.7, R: 0.66, A: 0.58 };
 
 function buildGuitarPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
+    if (ph.flamenco) return buildFlamencoPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
     const rng = ph.rng;
     const I = ph.intensity;
     const off = env.transOffset;

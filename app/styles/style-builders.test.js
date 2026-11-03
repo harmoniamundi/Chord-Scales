@@ -19,8 +19,8 @@ const STYLES = Object.keys(STYLE_BUILDERS);
 const bars = (tpl) => tpl.reduce((s, x) => s + x.m, 0);
 
 describe('catalogue des styles', () => {
-    test('40 styles, dont les alias blues128, ballad128 et balkan98', () => {
-        assert.equal(STYLES.length, 40);
+    test('43 styles, dont les alias blues128, ballad128 et balkan98', () => {
+        assert.equal(STYLES.length, 43);
         assert.equal(STYLE_BUILDERS.blues128, STYLE_BUILDERS.blues);
         assert.equal(STYLE_BUILDERS.ballad128, STYLE_BUILDERS.ballad);
         assert.equal(STYLE_BUILDERS.balkan98, STYLE_BUILDERS.balkan);
@@ -95,6 +95,48 @@ describe('formes connues', () => {
         const t = build('i-got-rythm', 0);
         assert.equal(bars(t), 24);
         assert.deepEqual([...new Set(t.map(x => x.section))], ['A', 'B', 'A3']);
+    });
+});
+
+describe('flamenco', () => {
+    const FLA = ['flamencosolea', 'flamencobulerias', 'flamencotangos'];
+    test('formes de référence : soleá et bulerías 12 compás, rumba / tangos 16 mesures, en La (cadence andalouse)', () => {
+        assert.equal(bars(build('flamencosolea', 9)), 12);
+        assert.equal(bars(build('flamencobulerias', 9)), 12);
+        assert.equal(bars(build('flamencotangos', 9)), 16);
+        const t = build('flamencosolea', 9);
+        // première cellule : La mineur - Sol - Fa - Mi
+        assert.deepEqual(t.slice(0, 4).map(x => [x.r, x.c]), [[9, 'minTriad'], [7, 'majTriad'], [5, 'majTriad'], [4, 'majTriad']]);
+        assert.equal(t[3].s, 'phrygianDominant');
+    });
+    test('chaque cellule de quatre mesures part de l\'accord que la précédente appelle (V puis i, i puis V…)', () => {
+        const lastOf = (x) => x.split || { r: x.r, c: x.c };
+        for (const style of FLA) {
+            for (let seed = 0; seed <= 40; seed++) {
+                const tpl = build(style, 9, seed ? seeded(seed) : null);
+                const cells = {};
+                tpl.forEach(x => { (cells[x.phrase] = cells[x.phrase] || []).push(x); });
+                const order = [...new Set(tpl.map(x => x.phrase))];
+                order.forEach((ph, k) => {
+                    const cur = cells[ph], prev = cells[order[(k + order.length - 1) % order.length]];
+                    const start = cur[0].r, end = lastOf(prev[prev.length - 1]).r;
+                    // fin de cellule sur V (Mi) ou sur i (La) ; début sur i (La), V (Mi), iv (Ré) ou III (Do) pour le contraste de la rumba
+                    assert.ok([9, 4].includes(end) || (style === 'flamencobulerias' && end === 5), `${style}/${seed} fin ${ph}: ${end}`);
+                    assert.ok([9, 4, 2, 0].includes(start), `${style}/${seed} début ${ph}: ${start}`);
+                    if (end === 4) assert.ok([9, 4].includes(start), `${style}/${seed} V puis ${start}`); // le Mi résout sur La (ou se prolonge : por medio)
+                });
+            }
+        }
+    });
+    test('mesures à deux accords (moitiés de compás) : jamais deux fois le même accord', () => {
+        for (const style of FLA) {
+            for (let seed = 0; seed <= 40; seed++) {
+                build(style, 9, seed ? seeded(seed) : null).forEach(x => { if (x.split) assert.ok(x.split.r !== x.r || x.split.c !== x.c); });
+            }
+        }
+    });
+    test('toutes les formes suivent la tonique', () => {
+        FLA.forEach(style => assert.equal(build(style, 2)[0].r, 2));
     });
 });
 

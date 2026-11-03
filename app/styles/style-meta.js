@@ -18,7 +18,8 @@ const STYLE_SCALE_PROFILE = {
     baroque:'classic', mozart:'classic', trad:'classic', chansonsimple:'classic', menuet:'classic', valseviennoise:'classic',
     valsemusette:'classic', barcarolle:'classic', tarentelle:'classic', dixieland:'classic', tango:'classic', brasshymn:'classic',
     brasscantique:'classic', pop:'classic', gospel:'classic', jig:'classic', slipjig:'classic', valsecountry:'classic',
-    balkan:'balkan', balkan98:'balkan'
+    balkan:'balkan', balkan98:'balkan',
+    flamencosolea:'flamenco', flamencobulerias:'flamenco', flamencotangos:'flamenco'
 };
 
 // Orchestre proposé pour chaque style (modifiable ensuite dans la fenêtre « Orchestre »).
@@ -33,11 +34,13 @@ const STYLE_BAND = {
     blues128: 'swing', gospel: 'pop', ballad128: 'swing',
     samba: 'latin', tango: 'piazzolla', piazzolla: 'piazzolla', milongalyrique: 'piazzolla',
     brasshymn: 'brass', brasscantique: 'brass',
-    balkan: 'balkan', balkan98: 'balkan'
+    balkan: 'balkan', balkan98: 'balkan',
+    flamencosolea: 'guitar', flamencobulerias: 'guitar', flamencotangos: 'guitar'
 };
 
 // Rythme imposé à l'orchestre Latin par certains styles (sinon le moteur choisit bossa / samba / afro selon le tempo).
-const STYLE_GROOVE = { samba: 'samba', tango: 'lyrique', piazzolla: 'piazzolla', milongalyrique: 'lyrique', afro68: 'afro', brasshymn: 'b-chorale', brasscantique: 'b-chorale' };
+const STYLE_GROOVE = { samba: 'samba', tango: 'lyrique', piazzolla: 'piazzolla', milongalyrique: 'lyrique', afro68: 'afro', brasshymn: 'b-chorale', brasscantique: 'b-chorale',
+    flamencosolea: 'f-solea', flamencobulerias: 'f-bulerias', flamencotangos: 'f-tangos' };
 
 // Tempo (noires par minute ; pulsations ♩. en mesure composée) et signature proposés pour chaque style.
 // Valeurs modifiables ensuite avec le curseur de tempo et le sélecteur « Mesure ».
@@ -81,7 +84,10 @@ const STYLE_TEMPO_METER = {
     brasshymn:     { bpm: 72,  meter: '4/4' },
     brasscantique: { bpm: 66,  meter: '3/4' },
     balkan:        { bpm: 128, meter: '2/4' },
-    balkan98:      { bpm: 100, meter: '9/8' }
+    balkan98:      { bpm: 100, meter: '9/8' },
+    flamencosolea:    { bpm: 52,  meter: '12/8' }, // 12 temps : un compás = 4 pulsations ♩. (≈ 4,6 s)
+    flamencobulerias: { bpm: 88,  meter: '12/8' }, // compás de ≈ 2,7 s
+    flamencotangos:   { bpm: 108, meter: '4/4' }
 };
 
 // Recherche par clé propre : une clé inattendue (« constructor »…) ne renvoie jamais un membre hérité d'Object.
@@ -216,6 +222,15 @@ function styleScaleFor(env, chordId, rootIndex) {
         if (fam === 'dom') return off === 7 ? pick('phrygianDominant', 'mixolydianFlat9', 'mixolydian') : pick('mixolydian');
         if (fam === 'min') return off === 0 ? pick('harmonicMinor', 'aeolian') : (off === 5 ? pick('dorian') : pick('aeolian', 'dorian'));
         if (fam === 'maj') return off === 1 ? pick('lydian', 'ionian') : pick('ionian');
+        return null;
+    }
+
+    // flamenco : mode flamenco (phrygien) autour de la cadence andalouse i - bVII - bVI - V ; le V majeur prend le phrygien dominant
+    if (profile === 'flamenco') {
+        if (off === 7 && (fam === 'maj' || fam === 'dom')) return pick('phrygianDominant', 'mixolydian', 'ionian');
+        if (fam === 'min') return off === 5 ? pick('dorian', 'aeolian') : pick('aeolian', 'dorian');
+        if (fam === 'maj') return off === 10 ? pick('mixolydian', 'ionian') : (off === 8 ? pick('lydian', 'ionian') : pick('ionian'));
+        if (fam === 'dom') return pick('mixolydian');
         return null;
     }
 

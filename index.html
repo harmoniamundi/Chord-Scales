@@ -196,6 +196,11 @@
                                 <option value="balkan">Balkans : kolo / čoček (2/4)</option>
                                 <option value="balkan98">Balkans : aksak (9/8)</option>
                             </optgroup>
+                            <optgroup label="Flamenco">
+                                <option value="flamencosolea">Flamenco : soleá (12 temps)</option>
+                                <option value="flamencobulerias">Flamenco : bulerías (12 temps)</option>
+                                <option value="flamencotangos">Flamenco : rumba / tangos (4/4)</option>
+                            </optgroup>
                             <optgroup label="Amérique Latine">
                                 <option value="bossa">Bossa Nova</option>
                                 <option value="afro68">Afro-cubain (6/8)</option>
@@ -459,6 +464,7 @@
     <script src="app/band/bass-lines.js"></script>
     <script src="app/band/swing-plan.js"></script>
     <script src="app/band/classic-plan.js"></script>
+    <script src="app/band/flamenco-plan.js"></script>
     <script src="app/band/guitar-plan.js"></script>
     <script src="app/band/phrase-plan.js"></script>
     <script src="app/band/band-state.js"></script>
@@ -859,7 +865,7 @@
 
             changeStyle(styleKey) {
                 if (styleKey === 'custom') return;
-                const BRASS_KEYS = { brasshymn: 5, brasscantique: 3, balkan: 2, balkan98: 9, milongalyrique: 2 }; // + Balkans : ré mineur (kolo), la mineur (aksak) ; Milonga lyrique : ré mineur (Oblivion)
+                const BRASS_KEYS = { brasshymn: 5, brasscantique: 3, balkan: 2, balkan98: 9, milongalyrique: 2, flamencosolea: 9, flamencobulerias: 9, flamencotangos: 9 }; // + Balkans : ré mineur (kolo), la mineur (aksak) ; Milonga lyrique : ré mineur (Oblivion) ; Flamenco : la (cadence andalouse La m - Sol - Fa - Mi)
                 this.withUndo(() => {
                     if (styleKey === 'i-got-rythm') {
                         const prevKey = this.mainKey;
@@ -2026,7 +2032,7 @@
             // (samba, tango, Piazzolla, afro, brass chorale…) : il ne vaut que pour l'orchestre auquel il appartient, sinon il
             // « fuit » (ex. : rythme afro d'un style Afro-cubain qui ferait sonner Cuba sous l'orchestre Brasil).
             getEffectiveGroove(style) {
-                const ok = { latin: ['samba', 'tango', 'piazzolla'], cuba: ['afro'], brass: ['b-chorale'], piazzolla: ['lyrique'] }[style || this.bandStyle];
+                const ok = { latin: ['samba', 'tango', 'piazzolla'], cuba: ['afro'], brass: ['b-chorale'], piazzolla: ['lyrique'], guitar: ['f-solea', 'f-bulerias', 'f-tangos'] }[style || this.bandStyle];
                 return (this._bandGroove && ok && ok.includes(this._bandGroove)) ? this._bandGroove : null;
             }
 
@@ -2080,7 +2086,7 @@
             updateBandButtonLabel() {
                 const label = document.getElementById('band-btn-label');
                 if (!label) return;
-                const names = { swing: 'Jazz', pop: 'Pop-Rock', latin: 'Brasil', cuba: 'Cuba', classic: 'Classique', guitar: 'Guitare', brass: 'Brass', balkan: 'Balkans', piazzolla: (this.getEffectiveGroove() === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
+                const names = { swing: 'Jazz', pop: 'Pop-Rock', latin: 'Brasil', cuba: 'Cuba', classic: 'Classique', guitar: (this.getEffectiveGroove('guitar') ? 'Flamenco' : 'Guitare'), brass: 'Brass', balkan: 'Balkans', piazzolla: (this.getEffectiveGroove() === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
                 label.textContent = 'Orchestre ' + (names[this.bandStyle] || 'Jazz');
             }
 
@@ -2367,12 +2373,15 @@
                 const fx = this._guitarFx, ctx = this.app.audioCtx;
                 if (!fx || !ctx) return;
                 const solo = this.bandStyle === 'guitar';
+                // Guitare flamenca (style de grille Flamenco) : son plus sec, plus clair et plus incisif que le nylon classique
+                // (moins de grave, plus de mordant dans le médium-aigu et d'air), comme une guitare de cante.
+                const flam = solo && !!this.getEffectiveGroove('guitar');
                 const set = (param, v) => { if (now) param.value = v; else param.setTargetAtTime(v, ctx.currentTime, 0.04); };
-                set(fx.body.gain, solo ? 2 : 3.5);   // la guitare seule n'a pas besoin d'autant de corps dans le grave
-                set(fx.warm.gain, solo ? 1.5 : 2.5);
-                set(fx.ping.gain, solo ? -3.5 : -4.5);
-                set(fx.air.gain, solo ? -4.5 : -7);
-                set(fx.lp.frequency, solo ? 8500 : 7000);
+                set(fx.body.gain, flam ? 1 : (solo ? 2 : 3.5));   // la guitare seule n'a pas besoin d'autant de corps dans le grave
+                set(fx.warm.gain, flam ? 0 : (solo ? 1.5 : 2.5));
+                set(fx.ping.gain, flam ? -1.5 : (solo ? -3.5 : -4.5));
+                set(fx.air.gain, flam ? -1.5 : (solo ? -4.5 : -7));
+                set(fx.lp.frequency, flam ? 10000 : (solo ? 8500 : 7000));
             }
 
             loadGuitarLatin() {
@@ -2431,6 +2440,8 @@
 
             playBandDrum(e, time) {
                 let dest = this.bandGains.drums;
+                // Golpe de la guitare flamenca (coup d'annulaire sur la table) : il passe par le bus de la guitare, donc par son curseur de volume
+                if (e.onGuitar && this.bandGains.piano) dest = this.bandGains.piano;
                 if (!dest) return;
                 // Niveau minimal : on laisse tomber les notes fantômes et percussions d'ornement
                 if (this.perfTier >= 2 && (e.drum === 'ghost' || e.drum === 'pedal' || e.drum === 'chich' || e.drum === 'latigo')) return;

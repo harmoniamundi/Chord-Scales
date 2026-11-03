@@ -26,7 +26,7 @@ Les commandes `npm` se lancent **depuis le dossier `app/`** (`cd app`). Dans `in
 | `theory.js` | Théorie musicale : noms de notes, orthographe, accords, gammes, notes à éviter / cibles |
 | `band-patterns.js` | Données des motifs rythmiques de l'orchestre |
 | `audio-config.js` | Constantes audio (octave de lecture, niveau master…) |
-| `band/` | Orchestre de la Jam : un fichier par famille de styles (`swing-plan`, `pop-plan`, `latin-plan`, `cuban-plan`, `brass-plan`, `balkan-plan`, `piazzolla-plan`, `classic-plan`, `guitar-plan` pour la guitare classique seule, mesures 2/3 temps et ternaires), lignes de basse, choix par phrase (`phrase-plan`), états de départ (`band-state`), utilitaires (`band-helpers`) |
+| `band/` | Orchestre de la Jam : un fichier par famille de styles (`swing-plan`, `pop-plan`, `latin-plan`, `cuban-plan`, `brass-plan`, `balkan-plan`, `piazzolla-plan`, `classic-plan`, `guitar-plan` pour la guitare classique seule, `flamenco-plan` pour le toque flamenco de cette même guitare, mesures 2/3 temps et ternaires), lignes de basse, choix par phrase (`phrase-plan`), états de départ (`band-state`), utilitaires (`band-helpers`) |
 | `grid/` | La grille d'accords : ordre de lecture et reprises (`play-order`), mécanique de lecture (`transport`), édition (`edit-ops`), génération (`generation`), lecture harmonique (`harmony`), sauvegarde/import (`grid-format`) |
 | `audio/` | Calcul des notes jouées (`note-events`, `practice-notes`), synthèse des percussions (`drum-synths`), fichier WAV de l'export du son (`wav-export`) et adresses locales des sons (`local-soundfonts`) |
 | `styles/` | Les styles musicaux : métadonnées (`style-meta`), outils (`toolkit`), un générateur de grille par style (`style-builders`) |
@@ -109,7 +109,7 @@ Exemples :
 
 | Commande | Contrôle |
 |---|---|
-| `npm test` | Tous les tests unitaires (plus de 900) + cohérence du projet. Quelques secondes. |
+| `npm test` | Tous les tests unitaires (plus de 1 100) + cohérence du projet. Quelques secondes. |
 | `npm run test:e2e` | L'appli entière dans un navigateur : chargement, Entraînement, portée, tous les styles de la Jam, lecture/arrêt, changement d'orchestre, plage sélectionnée. |
 | `npm run test:offline` | Le mode hors ligne pour de vrai : visite en ligne, puis réseau coupé ; la page se recharge, les 13 instruments se décodent, la portée et la police s'affichent, aucune requête ne part vers un autre site. |
 
@@ -118,6 +118,18 @@ Installation du test navigateur (une fois) : `npm install` puis `npx playwright 
 Les tests n'écoutent pas le son et ne voient pas la vraie portée : la liste de contrôle manuelle de `TESTS.md` complète le tout.
 
 Si un test échoue après votre modification, regardez la ligne `not ok` et le message d'erreur juste en dessous : ils indiquent le fichier et ce qui a changé.
+
+---
+
+## 5 bis. Le style Flamenco (orchestre Guitare)
+
+Trois styles de grille du menu « Flamenco » (`flamencosolea`, `flamencobulerias`, `flamencotangos`, écrits dans `styles/style-builders.js`) proposent l'orchestre **Guitare** et imposent un rythme (`f-solea`, `f-bulerias`, `f-tangos`, voir `styles/style-meta.js`). Ce rythme fait passer la guitare de `band/guitar-plan.js` (arpèges classiques) à `band/flamenco-plan.js` :
+
+- **Formes d'accords réelles** (La m 002210, Mi 022100, Sol 320003, Fa en barré…, cejilla quand la fondamentale n'est pas celle d'une forme ouverte), pas de renversements de piano ; les cordes à vide sonnent comme sur une guitare.
+- **Compás de 12 temps** en 12/8 (soleá, bulerías) : la mesure commence sur le temps 12, accents sur 12-3-6-8-10 ; 4/4 pour la rumba / tangos. Gestes : coups de pouce, coups montants d'index, abanicos (rasgueos en éventail), pouce sur la basse, arpèges, **golpes** (la percussion `golpe` de `audio/drum-synths.js`, envoyée sur le bus de la guitare : elle suit son curseur de volume).
+- **Falsetas** (phrase à une voix qui retombe sur les accents, dans la gamme de l'accord : phrygien dominant sur le Mi), **remate** en fin de phrase, **adelanto** (le dernier coup montant annonce l'accord suivant), abanico et golpe sur l'accord final.
+- Harmonie : cadence andalouse La m - Sol - Fa - Mi en triades, un ou deux accords par compás, tonalité par défaut La (voir `BRASS_KEYS` dans `changeStyle`). Aucune réharmonisation au bouton « Générer » (la couleur est dans le mode).
+- Les autres signatures (2/4, 3/4, 6/8, 9/8) gardent un cycle générique sur les temps.
 
 ---
 
@@ -142,7 +154,7 @@ Si un test échoue après votre modification, regardez la ligne `not ok` et le m
 
 ## 7. Où en est le code
 
-- `index.html` est passé d'environ 16 000 à environ 6 100 lignes ; la logique pure est dans 37 modules testés.
+- `index.html` est passé d'environ 16 000 à environ 6 100 lignes ; la logique pure est dans 38 modules testés.
 - Il reste dans `index.html` des méthodes surtout liées à l'écran et au son : câblage des événements, Web Audio (réverbération, bus des cuivres et du tango), création des éléments.
 - Pistes possibles, par ordre d'intérêt :
   1. Découper `JamEngine` (une seule classe de plus de 4 000 lignes) en plusieurs fichiers par responsabilité (lecture, édition de grille, orchestre, rendu), sans changer la logique.

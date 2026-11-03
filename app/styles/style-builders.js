@@ -10,6 +10,43 @@ if (typeof makeStyleToolkit === 'undefined' && typeof require === 'function') {
 // Triades (theory.js) : globales en navigateur, à charger sous Node.
 const SB_THEORY = (typeof triadizeItem !== 'undefined') ? { triadizeItem, TRIAD_STYLES } : require('../theory.js');
 
+// ============ Flamenco ============
+// Trois palos jouables par l'orchestre « Guitare » (rythme imposé f-solea / f-bulerias / f-tangos, voir band/flamenco-plan.js) :
+//  - soleá et bulerías : mesure de 12 temps (12/8), 12 compás en trois cellules de quatre ;
+//  - rumba / tangos : 4/4, 16 mesures en quatre cellules de quatre.
+// Harmonie en mode flamenco (phrygien) : cadence andalouse La mineur - Sol - Fa - Mi (i - bVII - bVI - V), Mi majeur sur la gamme phrygienne
+// dominante (V7(b9) en renouvellement), iv (Ré mineur) et III (Do) pour les couleurs. Des triades et un accord par compás, ou deux
+// (moitiés de compás : Am|G puis F|E) comme dans les palos rapides. Chaque cellule part de l'accord que la précédente appelle.
+function flamencoForm(t, palo) {
+    const { R, pick, join, abs, keyRoot } = t;
+    const row = (rows, sec, phr) => rows.map(([off, c, sc, fn, m = 1, sp]) => {
+        const it = abs(off, c, m, sc, sec, phr, fn);
+        if (sp) it.split = { r: (keyRoot + sp[0] + 12) % 12, c: sp[1], s: sp[2] };
+        return it;
+    });
+    const Vc = (R && R() < 0.3) ? '7b9' : 'majTriad';          // le Mi est le plus souvent majeur ; la neuvième mineure vient en renouvellement
+    const sp = {
+        i: [0, 'minTriad', 'aeolian'], VII: [10, 'majTriad', 'mixolydian'], VI: [8, 'majTriad', 'lydian'], V: [7, Vc, 'phrygianDominant']
+    };
+    const i = (m = 1, s) => [0, 'minTriad', 'aeolian', 'tonic', m, s];
+    const VII = (m = 1, s) => [10, 'majTriad', 'mixolydian', 'predominant', m, s];
+    const VI = (m = 1, s) => [8, 'majTriad', 'lydian', 'predominant', m, s];
+    const V = (m = 1, s) => [7, Vc, 'phrygianDominant', 'dominant', m, s];
+    const iv = (m = 1, s) => [5, 'minTriad', 'dorian', 'predominant', m, s];
+    const III = (m = 1, s) => [3, 'majTriad', 'ionian', 'color', m, s];
+    // Cellules de quatre mesures
+    const T = [ [i(), VII(), VI(), V()], [i(1, sp.VII), VI(1, sp.V), i(1, sp.VII), VI(1, sp.V)], [i(2), VI(), V()], [i(), iv(), VI(), V()], [i(), VII(), VI(1, sp.V), V()] ];   // part de i, finit sur V
+    const U = [ [i(), VI(), V(), i()], [i(2), V(), i()], [i(1, sp.VII), VI(1, sp.V), i(2)], [i(), iv(), V(), i()], [i(), VII(), VI(), i()] ];                                // part de i, finit sur i
+    const Rm = [ [V(2), VI(), V()], [V(), VI(), V(2)], [V(1, sp.VI), VI(1, sp.V), V(2)] ];                                                                                       // « por medio » : part de V, finit sur V
+    const W = [ [V(), VI(), V(), VI()], [V(2), VI(), V()], [V(1, sp.VI), V(1, sp.VI), V(1, sp.VI), V()] ];                                                                        // pendule Mi - Fa des bulerías
+    const B = [ [iv(1), i(1), V(2)], [iv(), i(), iv(), V()], [iv(2), V(2)], [III(), VII(), VI(), V()] ];                                                                          // contraste de la rumba : part de i, finit sur V
+    let template;
+    if (palo === 'solea') template = join(row(pick(T), 'A', 'A1'), row(pick(U), 'A', 'A2'), row(pick(Rm), 'B', 'B1'));
+    else if (palo === 'bulerias') template = join(row(pick(T), 'A', 'A1'), row(pick(W), 'B', 'B1'), row(pick(U), 'A2', 'A3'));
+    else template = join(row(pick(T), 'A', 'A1'), row(pick(U), 'A', 'A2'), row(pick(B), 'B', 'B1'), row(pick(T), 'A2', 'A3'));
+    return template;
+}
+
 const STYLE_BUILDERS = {
     // ============ 3/4 ============
     valsejazz: (t) => {
@@ -831,6 +868,10 @@ const STYLE_BUILDERS = {
         }
         return template;
     },
+    // ============ Flamenco ============
+    flamencosolea: (t) => flamencoForm(t, 'solea'),
+    flamencobulerias: (t) => flamencoForm(t, 'bulerias'),
+    flamencotangos: (t) => flamencoForm(t, 'tangos'),
 };
 
 STYLE_BUILDERS.blues128 = STYLE_BUILDERS.blues;
