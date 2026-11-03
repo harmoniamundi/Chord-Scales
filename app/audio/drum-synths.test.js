@@ -38,7 +38,7 @@ function seeded(seed) { let a = seed >>> 0; return () => { a |= 0; a = (a + 0x6D
 const withSeed = (n, fn) => { const r = Math.random; Math.random = seeded(n); try { return fn(); } finally { Math.random = r; } };
 
 const DRUMS = ['kick', 'snare', 'ghost', 'hat', 'pedal', 'ohat', 'ride', 'crash', 'clash', 'rim', 'tom1', 'tom2', 'tom3', 'bell', 'clave', 'conga1', 'conga2', 'slap', 'shaker',
-    'bdrum', 'timp', 'golpe', 'chich', 'latigo', 'dum', 'tek', 'ka', 'tapan', 'stick', 'daire'];
+    'bdrum', 'timp', 'golpe', 'chich', 'latigo', 'dum', 'tek', 'ka', 'tapan', 'stick', 'daire', 'cajonb', 'cajont', 'palma', 'sorda', 'pito'];
 
 describe('tampons partagés', () => {
     test('bruit blanc d\'une seconde dans [-1, 1]', () => {

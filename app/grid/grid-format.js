@@ -89,7 +89,7 @@ function sanitizeImportedSettings(data) {
     const qualities = ['ionian', 'aeolian', 'dorian', 'phrygian', 'lydian', 'mixolydian', 'locrian'];
     if (typeof data.quality === 'string' && qualities.includes(data.quality)) out.quality = data.quality;
     if (GF_THEORY.isValidSpell(data.spell)) out.spell = data.spell;
-    if (data.fnConvention === 'jazz' || data.fnConvention === 'classic') out.fnConvention = data.fnConvention; // chiffrage des degrés choisi à la main ; absent = selon le style
+    if (data.fnConvention === 'jazz' || data.fnConvention === 'classic') out.fnConvention = data.fnConvention; // chiffrage des degrés choisi à la main ; absent = classique (défaut)
     const bpm = Number(data.bpm);
     if (Number.isFinite(bpm)) out.bpm = Math.max(50, Math.min(220, Math.round(bpm)));
     if (data.timeSignature !== undefined && data.timeSignature !== null) {

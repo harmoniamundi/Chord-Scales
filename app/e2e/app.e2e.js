@@ -358,12 +358,12 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         await page.evaluate(() => app.jam.setFnConvention('jazz'));
         assert.deepEqual(await gridLabels(), ['i', '♭VII', '♭VI', 'V']);
 
-        // un style a son chiffrage par défaut (jazz) et efface le choix manuel ; la grille générée garde sa tonalité mineure
+        // tout style a le chiffrage classique par défaut et efface le choix manuel ; la grille générée garde sa tonalité mineure
         await page.evaluate(() => { app.jam.closeHarmonyModal(); app.jam.closeFunctionEditor(); app.jam.setFnConvention('classic'); });
         assert.equal(await page.evaluate(() => app.jam.getFnConvention()), 'classic');
         await page.selectOption('#jam-style-select', 'swing');
         assert.equal(await page.evaluate(() => app.jam._fnConvention), null, 'changer de style efface le choix manuel');
-        assert.equal(await page.evaluate(() => app.jam.getFnConvention()), 'jazz', 'style jazz : jazz par défaut');
+        assert.equal(await page.evaluate(() => app.jam.getFnConvention()), 'classic', 'style jazz : classique par défaut aussi');
         await page.selectOption('#jam-style-select', 'baroque');
         assert.equal(await page.evaluate(() => app.jam.getFnConvention()), 'classic', 'style classique : classique par défaut');
 
@@ -374,6 +374,30 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         });
         await page.selectOption('#jam-key-select', '0');
         await page.selectOption('#jam-quality-select', 'ionian');
+        noErrors();
+    });
+
+    test('Jam : Flamenco — cajón, palmas et pitos jouent, le curseur « Percus. » les règle ; les autres orchestres Guitare gardent la batterie grisée', async () => {
+        const sliders = () => page.evaluate(() => ({ label: document.getElementById('band-vol-drums-label').textContent, drumsOff: document.getElementById('band-vol-drums').disabled, bassOff: document.getElementById('band-vol-bass').disabled }));
+        await page.selectOption('#jam-style-select', 'flamencobulerias');
+        assert.equal(await page.evaluate(() => app.jam.bandStyle), 'guitar');
+        assert.deepEqual(await sliders(), { label: 'Percus.', drumsOff: false, bassOff: true });
+        await page.evaluate(() => {
+            app.jam.bpm = 240;
+            window.__drums = [];
+            const real = app.jam.playBandDrum.bind(app.jam);
+            app.jam.playBandDrum = (e, t) => { window.__drums.push(e.drum); return real(e, t); };
+        });
+        await page.click('#jam-play-btn');
+        await waitFor(() => window.__drums.length >= 40, null, 20000);
+        await page.click('#jam-play-btn');
+        const heard = await page.evaluate(() => [...new Set(window.__drums)].sort());
+        for (const d of ['cajonb', 'cajont', 'palma', 'golpe']) assert.ok(heard.includes(d), `${d} jamais joué : ${heard.join(' ')}`);
+        // orchestre Guitare sans rythme flamenco : batterie grisée comme avant
+        await page.evaluate(() => { app.jam._bandGroove = null; app.jam.setBandStyle('guitar'); });
+        assert.deepEqual(await sliders(), { label: 'Batterie', drumsOff: true, bassOff: true });
+        await page.selectOption('#jam-style-select', 'swing');
+        assert.deepEqual(await sliders(), { label: 'Batterie', drumsOff: false, bassOff: false });
         noErrors();
     });
 

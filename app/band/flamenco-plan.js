@@ -21,6 +21,21 @@
 //  - La dernière mesure d'une phrase est un « remate » (rasgueos enchaînés qui lancent le compás suivant) ; sur le dernier accord
 //    de la grille, un abanico et un golpe concluent.
 //  - Au dernier temps d'un accord qui va changer, le coup montant annonce parfois l'accord suivant (« adelanto »).
+//
+// ===================== Les percussions (cajón, palmas, pitos) =====================
+//  Elles jouent le même compás que la guitare mais s'écrivent à part (flaPercussion), indépendamment du découpage en accords :
+//    B cajón grave (au centre de la tapa)   t cajón claqué (près du bord)   c palma claire (sèche)   s palma sourde (mains en coupe)
+//    p pito (claquement de doigts)
+//  - Soleá : palmas sourdes sur les accents (12-3-6-8-10), très discrètes ; avec l'intensité de la phrase, le cajón s'invite (grave sur
+//    le 12, claqué ailleurs) puis les palmas claires prennent les accents.
+//  - Bulerías : palmas claires sur les accents, palmas sourdes en contretemps, cajón (graves sur 12 et 6, claqués sur 3-8-10, coups
+//    fantômes), pitos en contretemps quand la phrase s'emballe.
+//  - Rumba / tangos : cajón « grave – claqué – grave – claqué », palmas claires sur les temps 2 et 4, palmas sourdes sur 1 et 3.
+//  - Autres signatures : grave sur le premier temps, palmas claires sur les temps forts.
+//  - Mesure de falseta : les percussions s'effacent (palmas sourdes et un grave léger). Remate : la dernière mesure d'une phrase se
+//    termine par un petit roulement de claqués et une palma claire qui relancent le compás. Dernier accord : grave + palma avec le golpe.
+//  Elles sont renvoyées dans plan.drums (drum: 'cajonb' | 'cajont' | 'palma' | 'sorda' | 'pito', perc: true) ; le golpe de la guitare
+//  garde son propre bus (onGuitar).
 
 // Sous Node, les utilitaires partagés se chargent ; en navigateur ce sont des globaux.
 const FLA_H = (typeof bassPc !== 'undefined') ? { bassPc } : require('./band-helpers.js');
@@ -177,6 +192,66 @@ function flaCellsFor(palo, N, spb, kind) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Percussions : cajón, palmas, pitos
+// ---------------------------------------------------------------------------------------------
+const FLA_PERC_DRUM = { B: 'cajonb', t: 'cajont', c: 'palma', s: 'sorda', p: 'pito' };
+
+// Petit générateur pseudo-aléatoire (mulberry32) : les percussions ont le leur, pour ne pas décaler les tirages de la guitare.
+function flaHashRng(seed) {
+    let a = seed >>> 0;
+    return () => {
+        a = (a + 0x6D2B79F5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+// Percussions d'une mesure entière : liste de { k, g, vel } (k = case du compás, g = geste B/t/c/s/p).
+//   palo : 'solea' | 'bulerias' | 'tangos' ; Nfull : cases de la mesure ; spb : cases par temps ; acc : cases des accents du compás
+//   kind : 'base' | 'alt' | 'arp' | 'turn' ; I : intensité de la phrase (0,3 à 0,92) ; lite : mesure de falseta (la guitare chante seule)
+function flaPercussion(palo, Nfull, spb, acc, kind, I, rng, lite) {
+    const out = [];
+    const add = (k, g, vel, p = 1) => {
+        if (k < 0 || k >= Nfull || (p < 1 && rng() >= p)) return;
+        const v = flaClamp(vel * (lite ? 0.7 : 1), 0.1, 1);
+        const same = out.find(x => x.k === k && x.g === g);
+        if (same) same.vel = Math.max(same.vel, v); else out.push({ k, g, vel: v });
+    };
+    const cycle12 = Nfull === 12 && spb === 3;
+    if (palo === 'solea' && cycle12) {
+        const strong = I >= 0.7, cajon = I >= 0.5 && !lite;
+        acc.forEach(a => add(a, (strong && a !== 0) ? 'c' : 's', (a === 0 ? 0.5 : 0.4) + 0.2 * I));
+        if (cajon) { add(0, 'B', 0.4 + 0.3 * I); add(6, 't', 0.3 + 0.25 * I, 0.6); add(10, 't', 0.28 + 0.25 * I, 0.4); }
+        if (kind === 'turn') { add(10, 'c', 0.5 + 0.2 * I); add(11, 'c', 0.62 + 0.25 * I); if (cajon) add(11, 't', 0.45 + 0.25 * I); }
+    } else if (palo === 'bulerias' && cycle12) {
+        acc.forEach(a => add(a, 'c', (a === 0 ? 0.55 : 0.45) + 0.25 * I));
+        [1, 4, 7, 11].forEach(k => add(k, 's', 0.26 + 0.14 * I, 0.7));
+        if (!lite) {
+            add(0, 'B', 0.6 + 0.3 * I); add(6, 'B', 0.5 + 0.25 * I);
+            [3, 8, 10].forEach(k => add(k, 't', 0.45 + 0.3 * I, 0.85));
+            [5, 9].forEach(k => add(k, 't', 0.2 + 0.1 * I, 0.35));
+            [4, 9].forEach(k => add(k, 'p', 0.34 + 0.2 * I, I > 0.55 ? 0.55 : 0.2));
+        } else add(0, 'B', 0.45);
+        if (kind === 'turn') { for (let k = 9; k < 12; k++) add(k, 't', 0.4 + 0.3 * I + 0.05 * (k - 9)); add(11, 'c', 0.75 + 0.2 * I); }
+    } else if (palo === 'tangos' && Nfull === 8 && spb === 2) {
+        add(0, 'B', 0.65 + 0.25 * I); add(4, 'B', 0.5 + 0.2 * I, 0.9); add(5, 'B', 0.3 + 0.2 * I, 0.4);
+        [2, 6].forEach(k => { add(k, 't', 0.5 + 0.25 * I); add(k, 'c', 0.42 + 0.2 * I); });
+        [0, 4].forEach(k => add(k, 's', 0.3 + 0.1 * I, 0.7));
+        add(7, 't', 0.22 + 0.1 * I, 0.4);
+        if (!lite) [3, 7].forEach(k => add(k, 'p', 0.3 + 0.2 * I, I > 0.5 ? 0.35 : 0.1));
+        if (kind === 'turn') { add(6, 't', 0.5 + 0.3 * I); add(7, 't', 0.55 + 0.3 * I); add(7, 'c', 0.75 + 0.2 * I); }
+    } else {
+        // signature sans cycle écrit : un grave sur le premier temps, des palmas claires sur les temps forts, un claqué de temps en temps
+        add(0, 'B', 0.55 + 0.3 * I);
+        acc.forEach(a => { if (a > 0) add(a, 'c', 0.42 + 0.2 * I); });
+        for (let k = spb; k < Nfull; k += spb) if (!acc.includes(k)) add(k, 't', 0.3 + 0.2 * I, 0.45);
+        if (kind === 'turn') { add(Nfull - 1, 't', 0.5 + 0.2 * I); add(Nfull - 1, 'c', 0.7); }
+    }
+    return out.sort((a, b) => a.k - b.k);
+}
+
+// ---------------------------------------------------------------------------------------------
 // Phrase : choix faits une fois et gardés pendant toute la phrase
 // ---------------------------------------------------------------------------------------------
 const FLA_PALO = { 'f-solea': 'solea', 'f-bulerias': 'bulerias', 'f-tangos': 'tangos' };
@@ -323,6 +398,7 @@ function buildFlamencoPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfSte
     const splitAt = env.splitBeat || 2;
     const beatSec = 60 / (env.bpm || 100);
     const slotSec = beatSec / spb;
+    const dtBeats0 = (sec) => sec / beatSec;
     const prog = L > 1 ? i / (L - 1) : 0;
     const gv = (0.78 + 0.3 * I) * (0.96 + 0.04 * prog);
     const segs = halves
@@ -447,6 +523,17 @@ function buildFlamencoPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfSte
         });
     });
 
+    // ---------- percussions : cajón, palmas, pitos (cycle du palo sur la mesure entière, quel que soit le découpage en accords) ----------
+    const perc = (pos, g, vel) => drums.push({ pos: flaClamp(pos, 0, bpb - 0.01), drum: FLA_PERC_DRUM[g], vel: flaClamp(vel, 0.1, 1), perc: true, tok: g });
+    if (isFinal && !halves) {
+        const dtF = dtBeats0(Math.min(0.07, slotSec * 0.9 / 4));       // même instant que le golpe final de la guitare
+        perc(3 * dtF, 'B', 0.9); perc(3 * dtF, 'c', 0.85);
+    } else {
+        const prng = flaHashRng(Math.imul(Math.floor(ph.toque) * 131 + Math.floor(ph.toque2) * 17 + Math.floor(ph.altIdx) * 7 + Math.floor(ph.arpIdx) * 3 + Math.floor(ph.turnIdx) + 1, 1009)
+            + (i + 1) * 7919 + ((m || 0) + 1) * 31);
+        flaPercussion(palo, Nfull, spb, acc, kind, I, prng, wantFalseta).forEach(x => perc(x.k / spb, x.g, x.vel * (0.96 + 0.04 * prog)));
+    }
+
     ev.sort((a, b) => a.pos - b.pos);
     drums.sort((a, b) => a.pos - b.pos);
     return { piano: ev, bass: [], drums, classicalGuitar: true };
@@ -454,7 +541,7 @@ function buildFlamencoPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfSte
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        flamencoPhraseExtras, buildFlamencoPlan,
+        flamencoPhraseExtras, buildFlamencoPlan, flaPercussion, flaHashRng, FLA_PERC_DRUM,
         flaFamily, flaPickShape, flaVoice, flaGenericVoice, flaFalseta, flaLadder, flaRun, flaAccents, flaCellsFor, flaGenericCell, flaMutate,
         FLA_SHAPES, FLA_BANK, FLA_PALO, FLA_OPEN, FLA_BASE
     };

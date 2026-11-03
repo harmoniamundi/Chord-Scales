@@ -23,6 +23,7 @@ const METERS = { '2/4': [2, false], '3/4': [3, false], '4/4': [4, false], '6/8':
 const ALL_CHORDS = Object.values(T.chordTypes).flat().map(c => c.id);
 const TOKENS = new Set(['D', 'd', 'U', 'S', 'A', 'a', 'T', 't', '1', '2', '3', '.']);
 const PALOS = ['f-solea', 'f-bulerias', 'f-tangos'];
+const PERC = new Set(['cajonb', 'cajont', 'palma', 'sorda', 'pito']);
 const NAME = { 'f-solea': 'solea', 'f-bulerias': 'bulerias', 'f-tangos': 'tangos' };
 
 // Rejoue une grille mesure par mesure comme le moteur (phrases de 4 mesures)
@@ -160,7 +161,7 @@ describe('extras de phrase', () => {
 });
 
 describe('plan d\'une mesure flamenca', () => {
-    test('tous les palos : événements dans la mesure, triés, hauteurs entières, golpes sur le bus de la guitare', () => {
+    test('tous les palos : événements dans la mesure, triés, hauteurs entières, golpes sur le bus de la guitare, percussions sur le leur', () => {
         for (const [groove, meter] of [['f-solea', '12/8'], ['f-bulerias', '12/8'], ['f-tangos', '4/4']]) {
             for (let seed = 1; seed <= 6; seed++) {
                 playGrid({ meter, groove, seed, grid: MIXED, measures: 16, bpm: groove === 'f-tangos' ? 108 : 70 }).forEach(({ plan, bpb }) => {
@@ -175,7 +176,11 @@ describe('plan d\'une mesure flamenca', () => {
                         assert.ok(e.intervals.length >= 1 && e.intervals.every(Number.isInteger));
                         assert.equal(e.noteVels.length, e.intervals.length);
                     });
-                    plan.drums.forEach(d => { assert.equal(d.drum, 'golpe'); assert.equal(d.onGuitar, true); assert.ok(d.pos >= 0 && d.pos < bpb); assert.ok(d.vel > 0 && d.vel <= 1); });
+                    plan.drums.forEach(d => {
+                        if (d.drum === 'golpe') assert.equal(d.onGuitar, true);
+                        else { assert.ok(PERC.has(d.drum), d.drum); assert.equal(d.perc, true); assert.ok(!d.onGuitar); }
+                        assert.ok(d.pos >= 0 && d.pos < bpb); assert.ok(d.vel > 0 && d.vel <= 1);
+                    });
                 });
             }
         }
@@ -224,8 +229,13 @@ describe('plan d\'une mesure flamenca', () => {
     test('dernière mesure de la grille (sans boucle) : abanico et golpe, l\'accord résonne longtemps', () => {
         const out = playGrid({ grid: [st(9, 'minTriad', 'aeolian')], measures: 1, loop: false });
         const { plan } = out[0];
-        assert.equal(plan.drums.length, 1);
-        assert.equal(plan.drums[0].tok, 'G');
+        const golpes = plan.drums.filter(d => d.drum === 'golpe');
+        assert.equal(golpes.length, 1);
+        assert.equal(golpes[0].tok, 'G');
+        // cajón grave + palma claire tombent avec le golpe final, rien d'autre
+        const percs = plan.drums.filter(d => d.perc);
+        assert.deepEqual(percs.map(d => d.drum).sort(), ['cajonb', 'palma']);
+        percs.forEach(d => assert.ok(Math.abs(d.pos - golpes[0].pos) < 1e-9));
         assert.ok(plan.piano.length >= 4);
         const lastStroke = plan.piano[plan.piano.length - 1];
         assert.ok(lastStroke.dur > 4, 'dur ' + lastStroke.dur);
@@ -287,6 +297,99 @@ describe('falseta', () => {
             assert.equal(idx.length, 9);
             assert.equal(idx[idx.length - 1], 7);
             for (let k = 1; k < idx.length; k++) { assert.ok(Math.abs(idx[k] - idx[k - 1]) <= 2 && idx[k] !== idx[k - 1]); assert.ok(idx[k] >= 0 && idx[k] < 15); }
+        }
+    });
+});
+
+
+describe('percussions : cajón, palmas, pitos', () => {
+    const run = (o) => playGrid({ grid: ANDALUSIAN, measures: 32, ...o });
+    const percOf = (r) => r.plan.drums.filter(d => d.perc);
+    const countBy = (outs, drum) => outs.reduce((n, r) => n + percOf(r).filter(d => d.drum === drum).length, 0);
+
+    test('chaque palo a ses percussions à chaque mesure, sur des positions de case du compás', () => {
+        for (const [groove, meter, spb, bpm] of [['f-solea', '12/8', 3, 52], ['f-bulerias', '12/8', 3, 88], ['f-tangos', '4/4', 2, 108]]) {
+            for (let seed = 1; seed <= 5; seed++) {
+                run({ groove, meter, seed, bpm, loop: true }).forEach(r => {
+                    const p = percOf(r);
+                    assert.ok(p.length >= 1, `${groove} mesure ${r.mi}`);
+                    p.forEach(d => assert.ok(Math.abs(d.pos * spb - Math.round(d.pos * spb)) < 1e-9, `${groove} pos ${d.pos}`));
+                });
+            }
+        }
+    });
+    test('soleá : palmas sourdes sur les accents 12-3-6-8-10, plus discrète que la bulerías', () => {
+        const solea = run({ groove: 'f-solea', seed: 2, bpm: 52 });
+        const bul = run({ groove: 'f-bulerias', seed: 2, bpm: 88 });
+        const accPos = new Set([0, 1, 2, 8 / 3, 10 / 3].map(x => Math.round(x * 3) / 3));
+        solea.forEach(r => percOf(r).filter(d => d.drum === 'sorda').forEach(d => assert.ok(accPos.has(Math.round(d.pos * 3) / 3), 'sorda hors accent ' + d.pos)));
+        assert.ok(countBy(solea, 'sorda') > 0);
+        const total = (outs) => outs.reduce((n, r) => n + percOf(r).length, 0);
+        assert.ok(total(bul) > total(solea), 'bulerías plus fournie');
+        assert.ok(countBy(bul, 'cajonb') > 0 && countBy(bul, 'cajont') > 0 && countBy(bul, 'palma') > 0);
+    });
+    test('bulerías : cajón grave sur le temps 12 de chaque mesure normale, pitos et palmas sourdes en contretemps', () => {
+        const outs = run({ groove: 'f-bulerias', seed: 3, bpm: 88, measures: 64 });
+        outs.filter(r => !r.isLast && r.plan.piano.every(e => e.tok !== 'p')).forEach(r => assert.ok(percOf(r).some(d => d.drum === 'cajonb' && d.pos < 1e-9), `mesure ${r.mi}`));
+        assert.ok(countBy(outs, 'pito') > 0, 'pitos');
+        assert.ok(countBy(outs, 'sorda') > 0, 'palmas sourdes');
+    });
+    test('rumba / tangos : grave sur le temps 1, claqué + palma claire sur les temps 2 et 4', () => {
+        run({ groove: 'f-tangos', meter: '4/4', seed: 1, bpm: 108, measures: 16 }).filter(r => r.plan.piano.every(e => e.tok !== 'p')).forEach(r => {
+            const p = percOf(r);
+            assert.ok(p.some(d => d.drum === 'cajonb' && d.pos < 1e-9), 'grave sur 1');
+            [1, 3].forEach(t => {
+                assert.ok(p.some(d => d.drum === 'cajont' && Math.abs(d.pos - t) < 1e-9), 'claqué ' + t);
+                assert.ok(p.some(d => d.drum === 'palma' && Math.abs(d.pos - t) < 1e-9), 'palma ' + t);
+            });
+        });
+    });
+    test('mesure de falseta : percussions allégées (ni pito, ni claqué de cajón)', () => {
+        let seen = 0;
+        for (let seed = 1; seed <= 40; seed++) {
+            run({ groove: 'f-bulerias', seed, bpm: 88, measures: 8 }).forEach(r => {
+                if (!r.plan.piano.some(e => e.tok === 'p')) return;
+                seen++;
+                percOf(r).forEach(d => { assert.ok(d.drum !== 'pito' && d.drum !== 'cajont', d.drum); assert.ok(d.vel <= 0.75); });
+            });
+        }
+        assert.ok(seen > 5);
+    });
+    test('remate : la dernière mesure d\'une phrase finit par une palma claire sur la dernière case', () => {
+        for (const [groove, meter, last] of [['f-bulerias', '12/8', 11 / 3], ['f-solea', '12/8', 11 / 3], ['f-tangos', '4/4', 3.5]]) {
+            const outs = run({ groove, meter, seed: 4, bpm: 80, measures: 16 }).filter(r => r.mi % 4 === 3 && r.plan.piano.every(e => e.tok !== 'p'));
+            assert.ok(outs.length >= 2);
+            outs.forEach(r => assert.ok(percOf(r).some(d => d.drum === 'palma' && Math.abs(d.pos - last) < 1e-9), `${groove} remate ${r.mi}`));
+        }
+    });
+    test('les autres signatures (2/4, 3/4, 6/8, 9/8) ont un grave sur le premier temps et des palmas sur les temps forts', () => {
+        for (const meter of ['2/4', '3/4', '6/8', '9/8']) for (const groove of PALOS) {
+            run({ groove, meter, seed: 2, bpm: 90, measures: 12 }).forEach(r => {
+                const p = percOf(r);
+                assert.ok(p.some(d => d.drum === 'cajonb' && d.pos < 1e-9), `${meter} ${groove} grave`);
+                assert.ok(p.every(d => d.pos >= 0 && d.pos < r.bpb));
+            });
+        }
+    });
+    test('mesure à deux accords : mêmes percussions, indépendantes du découpage', () => {
+        const a = playGrid({ grid: [st(9, 'minTriad', 'aeolian')], seed: 6, measures: 1, groove: 'f-bulerias', bpm: 88 })[0];
+        const b = playGrid({ grid: [st(9, 'minTriad', 'aeolian', { rootIndex: 7, chordId: 'majTriad', scaleId: 'mixolydian' })], seed: 6, measures: 1, groove: 'f-bulerias', bpm: 88 })[0];
+        assert.deepEqual(percOf(a), percOf(b));
+    });
+    test('la guitare ne change pas : mêmes notes qu\'avant (le tirage des percussions est à part)', () => {
+        const a = run({ groove: 'f-bulerias', seed: 9 }).map(r => r.plan.piano);
+        const b = run({ groove: 'f-bulerias', seed: 9 }).map(r => r.plan.piano);
+        assert.deepEqual(a, b);
+        assert.ok(a.every(p => p.length > 0));
+    });
+    test('flaPercussion : positions uniques par geste, vélocités dans [0,1], cases dans la mesure', () => {
+        for (const [palo, N, spb] of [['solea', 12, 3], ['bulerias', 12, 3], ['tangos', 8, 2], ['solea', 6, 2], ['bulerias', 9, 3]]) {
+            for (const kind of ['base', 'alt', 'arp', 'turn']) for (const lite of [false, true]) for (const I of [0.3, 0.6, 0.92]) {
+                const out = F.flaPercussion(palo, N, spb, F.flaAccents(N, spb), kind, I, seeded(5), lite);
+                const keys = out.map(x => x.k + x.g);
+                assert.equal(new Set(keys).size, keys.length, `${palo} ${N} ${kind}`);
+                out.forEach(x => { assert.ok(x.k >= 0 && x.k < N); assert.ok(x.vel >= 0.1 && x.vel <= 1); assert.ok(F.FLA_PERC_DRUM[x.g]); });
+            }
         }
     });
 });

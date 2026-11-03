@@ -35,7 +35,8 @@ function drumSpec(e) {
     if (drum === 'pedal') { drum = 'hat'; mul = 0.8; }
     const MAXDUR = { kick: 0.5, snare: 0.35, ghost: 0.25, hat: 0.15, ohat: 0.65, ride: 1.3, crash: 2.9, clash: 1.1, rim: 0.12,
         tom1: 0.45, tom2: 0.45, tom3: 0.45, bell: 0.3, clave: 0.15, conga1: 0.2, conga2: 0.4, slap: 0.15, shaker: 0.12,
-        bdrum: 0.75, golpe: 0.25, chich: 0.3, latigo: 0.3, dum: 0.7, tek: 0.7, ka: 0.7, tapan: 0.7, stick: 0.7, daire: 0.7 };
+        bdrum: 0.75, golpe: 0.25, chich: 0.3, latigo: 0.3, dum: 0.7, tek: 0.7, ka: 0.7, tapan: 0.7, stick: 0.7, daire: 0.7,
+        cajonb: 0.35, cajont: 0.25, palma: 0.22, sorda: 0.15, pito: 0.12 }; // cajonb/cajont : cajón flamenco (grave, claqué) ; palma/sorda : palmas claires/sourdes ; pito : claquement de doigts
     let maxDur = MAXDUR[drum], name = drum, freq, short;
     if (drum === 'timp') {
         freq = e.freq || 98; short = !!e.short;
@@ -43,7 +44,7 @@ function drumSpec(e) {
         name = 'timp' + freq + (short ? 's' : 'l');
     }
     if (!maxDur) return null;
-    const variants = (drum === 'snare' || drum === 'ghost' || drum === 'tom1' || drum === 'tom2' || drum === 'tom3') ? 2 : 1; // hauteur légèrement aléatoire à chaque coup
+    const variants = (drum === 'snare' || drum === 'ghost' || drum === 'tom1' || drum === 'tom2' || drum === 'tom3' || drum === 'cajonb' || drum === 'cajont' || drum === 'palma' || drum === 'sorda') ? 2 : 1; // hauteur légèrement aléatoire à chaque coup
     return { drum, mul, freq, short, name, variants, maxDur, long: maxDur >= 0.8 };
 }
 
@@ -74,6 +75,11 @@ function synthDrumLive(rt, e, time, dest, v) {
         case 'golpe': synthGolpe(rt, time, dest, v); break;
         case 'chich': synthChicharra(rt, time, dest, v); break;
         case 'latigo': synthLatigo(rt, time, dest, v); break;
+        case 'cajonb': synthCajonBass(rt, time, dest, v); break;
+        case 'cajont': synthCajonTap(rt, time, dest, v); break;
+        case 'palma': synthPalma(rt, time, dest, false, v); break;
+        case 'sorda': synthPalma(rt, time, dest, true, v); break;
+        case 'pito': synthPito(rt, time, dest, v); break;
         case 'dum': case 'tek': case 'ka': case 'tapan': case 'stick': case 'daire': synthDarbuka(rt, time, dest, e.drum, v); break;
     }
 }
@@ -680,8 +686,150 @@ function synthLatigo(rt, time, destination, vel = 1) {
     rt.nodes.push(s, o);
 }
 
+// ---------------------------------------------------------------------------------------------
+// Percussions du flamenco : cajón, palmas, pitos
+// ---------------------------------------------------------------------------------------------
+
+// Cajón, coup grave (au centre de la tapa) : thump boisé court, avec une petite chute de hauteur ; un souffle grave sert d'attaque.
+function synthCajonBass(rt, time, destination, vel = 1) {
+    const ctx = rt.ctx;
+    if (!ctx || !destination) return;
+    const f0 = 150 * (0.97 + Math.random() * 0.06);
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(f0, time);
+    o.frequency.exponentialRampToValueAtTime(68, time + 0.1);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.001, time);
+    g.gain.exponentialRampToValueAtTime(0.9 * vel, time + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0007, time + 0.24);
+    o.connect(g); g.connect(destination);
+    o.start(time); o.stop(time + 0.26);
+    rt.nodes.push(o);
+    if (rt.tier >= 2) return;                                   // niveau minimal : le thump seul
+    const s = ctx.createBufferSource();
+    s.buffer = rt.noise();
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 800; lp.Q.value = 0.7;
+    const gn = ctx.createGain();
+    gn.gain.setValueAtTime(0.001, time);
+    gn.gain.exponentialRampToValueAtTime(0.4 * vel, time + 0.002);
+    gn.gain.exponentialRampToValueAtTime(0.0007, time + 0.05);
+    s.connect(lp); lp.connect(gn); gn.connect(destination);
+    s.start(time, Math.random() * 0.5); s.stop(time + 0.07);
+    rt.nodes.push(s);
+}
+
+// Cajón, coup claqué (près du bord de la tapa) : claquement sec et brillant, résonance de la caisse et frisson des cordes/timbres.
+function synthCajonTap(rt, time, destination, vel = 1) {
+    const ctx = rt.ctx;
+    if (!ctx || !destination) return;
+    const s = ctx.createBufferSource();
+    s.buffer = rt.noise();
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = 2700 * (0.96 + Math.random() * 0.08); bp.Q.value = 0.75;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.001, time);
+    g.gain.exponentialRampToValueAtTime(0.8 * vel, time + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0007, time + 0.085);
+    s.connect(bp); bp.connect(g); g.connect(destination);
+    s.start(time, Math.random() * 0.5); s.stop(time + 0.1);
+    const o = ctx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(340, time);
+    o.frequency.exponentialRampToValueAtTime(235, time + 0.05);
+    const go = ctx.createGain();
+    go.gain.setValueAtTime(0.001, time);
+    go.gain.exponentialRampToValueAtTime(0.36 * vel, time + 0.002);
+    go.gain.exponentialRampToValueAtTime(0.0007, time + 0.11);
+    o.connect(go); go.connect(destination);
+    o.start(time); o.stop(time + 0.12);
+    rt.nodes.push(s, o);
+    if (rt.tier >= 2) return;
+    const r = ctx.createBufferSource();                          // frisson des timbres, légèrement après l'attaque
+    r.buffer = rt.noise();
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass'; hp.frequency.value = 5500;
+    const gr = ctx.createGain();
+    gr.gain.setValueAtTime(0.001, time);
+    gr.gain.exponentialRampToValueAtTime(0.16 * vel, time + 0.006);
+    gr.gain.exponentialRampToValueAtTime(0.0007, time + 0.15);
+    r.connect(hp); hp.connect(gr); gr.connect(destination);
+    r.start(time, Math.random() * 0.5); r.stop(time + 0.17);
+    rt.nodes.push(r);
+}
+
+// Palmas : claquement de mains. Claire (sorda = false) : sèche, brillante, faite de trois micro-claquements très rapprochés ;
+// sourde (sorda = true) : mains en coupe, étouffée et plus grave.
+function synthPalma(rt, time, destination, sorda = false, vel = 1) {
+    const ctx = rt.ctx;
+    if (!ctx || !destination) return;
+    const s = ctx.createBufferSource();
+    s.buffer = rt.noise();
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.001, time);
+    if (sorda) {
+        bp.frequency.value = 780 * (0.95 + Math.random() * 0.1); bp.Q.value = 1;
+        g.gain.exponentialRampToValueAtTime(1 * vel, time + 0.002);
+        g.gain.exponentialRampToValueAtTime(0.0007, time + 0.07);
+    } else {
+        bp.frequency.value = 1900 * (0.95 + Math.random() * 0.1); bp.Q.value = 1.3;
+        g.gain.exponentialRampToValueAtTime(0.75 * vel, time + 0.001);
+        g.gain.exponentialRampToValueAtTime(0.11 * vel, time + 0.005);
+        g.gain.exponentialRampToValueAtTime(0.66 * vel, time + 0.007);
+        g.gain.exponentialRampToValueAtTime(0.11 * vel, time + 0.011);
+        g.gain.exponentialRampToValueAtTime(1.1 * vel, time + 0.0135);
+        g.gain.exponentialRampToValueAtTime(0.0007, time + 0.1);
+    }
+    s.connect(bp); bp.connect(g); g.connect(destination);
+    s.start(time, Math.random() * 0.5); s.stop(time + (sorda ? 0.09 : 0.12));
+    rt.nodes.push(s);
+    if (rt.tier >= 2) return;
+    // Creux de la main : petite résonance grave sous le claquement
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(sorda ? 320 : 520, time);
+    o.frequency.exponentialRampToValueAtTime(sorda ? 210 : 360, time + 0.05);
+    const go = ctx.createGain();
+    go.gain.setValueAtTime(0.001, time);
+    go.gain.exponentialRampToValueAtTime((sorda ? 0.4 : 0.18) * vel, time + 0.003);
+    go.gain.exponentialRampToValueAtTime(0.0007, time + (sorda ? 0.06 : 0.07));
+    o.connect(go); go.connect(destination);
+    o.start(time); o.stop(time + 0.08);
+    rt.nodes.push(o);
+}
+
+// Pito : claquement de doigts, bref clic aigu avec une petite résonance.
+function synthPito(rt, time, destination, vel = 1) {
+    const ctx = rt.ctx;
+    if (!ctx || !destination) return;
+    const s = ctx.createBufferSource();
+    s.buffer = rt.noise();
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = 3300; bp.Q.value = 4;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.001, time);
+    g.gain.exponentialRampToValueAtTime(0.85 * vel, time + 0.001);
+    g.gain.exponentialRampToValueAtTime(0.0007, time + 0.045);
+    s.connect(bp); bp.connect(g); g.connect(destination);
+    s.start(time, Math.random() * 0.5); s.stop(time + 0.06);
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(1900, time);
+    o.frequency.exponentialRampToValueAtTime(1300, time + 0.035);
+    const go = ctx.createGain();
+    go.gain.setValueAtTime(0.001, time);
+    go.gain.exponentialRampToValueAtTime(0.24 * vel, time + 0.001);
+    go.gain.exponentialRampToValueAtTime(0.0007, time + 0.04);
+    o.connect(go); go.connect(destination);
+    o.start(time); o.stop(time + 0.05);
+    rt.nodes.push(s, o);
+}
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { makeNoiseBuffer, makeSaturationCurve, drumSpec, synthDrumLive, synthKick, synthSnare, metalOscBank, synthHihat,
         synthCymbal, synthCowbell, synthClave, synthConga, synthSlap, synthShaker, synthRim, synthTom, synthBassDrum, synthTimp,
-        synthDarbuka, synthGolpe, synthChicharra, synthLatigo };
+        synthDarbuka, synthGolpe, synthChicharra, synthLatigo, synthCajonBass, synthCajonTap, synthPalma, synthPito };
 }

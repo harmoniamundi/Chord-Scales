@@ -584,8 +584,8 @@
                 this.visMode = 'staff';
 
                 this.loadedGridName = null;
-                this._fnConvention = null; // chiffrage des degrés choisi à la main ('jazz' | 'classic') ; null = adapté au style
-                this._fnStyle = 'ii-v-i';  // style dont la grille est issue (null : grille sans style) ; pilote le chiffrage par défaut
+                this._fnConvention = null; // chiffrage des degrés choisi à la main ('jazz' | 'classic') ; null = classique (défaut, quel que soit le style)
+                this._fnStyle = 'ii-v-i';  // style dont la grille est issue (null : grille sans style) ; n'influe plus sur le chiffrage (classique par défaut pour tous les styles)
                 this.mainKey = 0;
                 this.mainQuality = 'ionian';
                 this.rootSpell = DEFAULT_SPELL; // orthographe des touches noires (Db/C#, Eb/D#, F#/Gb, Ab/G#, Bb/A#)
@@ -1896,12 +1896,14 @@
                 this.updateBandSwingUI();
                 this.updateBandInstrumentLabel();
                 // En « Classique » (piano seul) et en « Guitare » (guitare seule) : la basse et la batterie de l'orchestre ne servent pas.
+                // Exception : en Flamenco (orchestre Guitare + rythme d'un palo) le curseur « Percus. » règle cajón, palmas et pitos.
                 const solo = this.bandStyle === 'classic' || this.bandStyle === 'guitar';
-                ['band-vol-bass', 'band-vol-drums'].forEach(id => {
+                const flamPerc = this.bandStyle === 'guitar' && !!this.getEffectiveGroove('guitar');
+                [['band-vol-bass', solo], ['band-vol-drums', solo && !flamPerc]].forEach(([id, off]) => {
                     const el = document.getElementById(id);
                     if (!el) return;
-                    el.disabled = solo;
-                    if (el.parentElement) el.parentElement.classList.toggle('opacity-40', solo);
+                    el.disabled = off;
+                    if (el.parentElement) el.parentElement.classList.toggle('opacity-40', off);
                 });
 
                 const styleSelect = document.getElementById('band-style-select');
@@ -2081,7 +2083,7 @@
                 const eb = document.getElementById('band-vol-bass-label');
                 if (eb) eb.textContent = brass ? 'Tubas' : (pz ? 'Contreb.' : 'Basse');
                 const ed = document.getElementById('band-vol-drums-label');
-                if (ed) ed.textContent = (brass || balkan || pz) ? 'Percus.' : 'Batterie';
+                if (ed) ed.textContent = (brass || balkan || pz || (this.bandStyle === 'guitar' && !!this.getEffectiveGroove('guitar'))) ? 'Percus.' : 'Batterie';
                 // curseurs propres au Tango nuevo (bandonéon, violon, guitare électrique)
                 ['bandoneon', 'violin', 'guitar'].forEach(k => {
                     const row = document.getElementById('band-row-pz-' + k);
@@ -2451,8 +2453,10 @@
                 if (e.onGuitar && this.bandGains.piano) dest = this.bandGains.piano;
                 if (!dest) return;
                 // Niveau minimal : on laisse tomber les notes fantômes et percussions d'ornement
-                if (this.perfTier >= 2 && (e.drum === 'ghost' || e.drum === 'pedal' || e.drum === 'chich' || e.drum === 'latigo')) return;
+                if (this.perfTier >= 2 && (e.drum === 'ghost' || e.drum === 'pedal' || e.drum === 'chich' || e.drum === 'latigo' || e.drum === 'pito')) return;
                 let v = e.vel * (0.92 + Math.random() * 0.16);
+                // Percussions du flamenco (cajón, palmas, pitos) : pas de batterie derrière, elles doivent tenir leur place face à la guitare
+                if (e.perc) v *= 1.7;
                 // Brass band : percussions en retrait (bus plus doux et plus sombre ; cymbales encore plus discrètes)
                 if (this.bandStyle === 'brass') {
                     dest = this._getBrassPercBus();
@@ -3581,11 +3585,11 @@
                     <div class="jm-sec">
                         <div class="jm-sec-t">Chiffrage des degrés</div>
                         <div class="jm-seg jm-seg-deg" role="group" aria-label="Chiffrage des degrés">
-                            <button type="button" class="jm-chip${conv === 'jazz' ? ' is-on' : ''}" data-conv="jazz" aria-pressed="${conv === 'jazz'}" title="Jazz, pop, flamenco : degrés lus par rapport à la gamme majeure de la tonique (en mineur : i, ♭III, iv, v, ♭VI, ♭VII)">Jazz</button>
+                            <button type="button" class="jm-chip${conv === 'jazz' ? ' is-on' : ''}" data-conv="jazz" aria-pressed="${conv === 'jazz'}" title="Jazz : degrés lus par rapport à la gamme majeure de la tonique (en mineur : i, ♭III, iv, v, ♭VI, ♭VII)">Jazz</button>
                             <button type="button" class="jm-chip${conv === 'classic' ? ' is-on' : ''}" data-conv="classic" aria-pressed="${conv === 'classic'}" title="Analyse classique : degrés lus par rapport à la gamme du mode (en mineur : i, III, iv, v, VI, VII)">Classique</button>
                         </div>
                         <div class="jm-hint">${ctxMinor
-                            ? `En mineur, jazz : ♭III ♭VI ♭VII (gamme majeure de référence) ; classique : III VI VII (gamme mineure). ${this._fnConvention ? 'Choix manuel, valable jusqu\'au prochain style.' : (this._fnStyle ? 'Choix automatique, adapté au style.' : 'Choix automatique : grille sans style.')}`
+                            ? `En mineur, jazz : ♭III ♭VI ♭VII (gamme majeure de référence) ; classique : III VI VII (gamme mineure). ${this._fnConvention ? 'Choix manuel, valable jusqu\'au prochain style.' : 'Choix par défaut : classique.'}`
                             : 'Tonalité majeure : les deux chiffrages sont identiques (ils ne diffèrent qu\'en mineur).'}</div>
                     </div>
                     ${legend}

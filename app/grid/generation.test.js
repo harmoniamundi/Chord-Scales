@@ -74,10 +74,8 @@ describe('petits utilitaires', () => {
         assert.equal(G.fnMinorRef('jazz', 'aeolian'), false);
         assert.equal(G.fnMinorRef('classic', undefined), false);
     });
-    test('fnConventionForStyle : classique sans style ou pour un style classique, jazz pour tous les autres', () => {
-        for (const k of [null, undefined, '', 'custom', 'baroque', 'mozart', 'menuet', 'valseviennoise', 'trad', 'chansonsimple', 'brasshymn']) assert.equal(G.fnConventionForStyle(k), 'classic', String(k));
-        for (const k of ['ii-v-i', 'swing', 'blues', 'pop', 'funk', 'bossa', 'balkan', 'tango', 'flamenco', 'inconnu']) assert.equal(G.fnConventionForStyle(k), 'jazz', k);
-        G.FN_CLASSIC_STYLES.forEach(k => assert.equal(G.fnConventionForStyle(k), 'classic'));
+    test('fnConventionForStyle : classique par défaut pour tous les styles (le jazz se choisit à la main)', () => {
+        for (const k of [null, undefined, '', 'custom', 'baroque', 'mozart', 'brasshymn', 'ii-v-i', 'swing', 'blues', 'pop', 'funk', 'bossa', 'balkan', 'tango', 'flamenco', 'flamencosolea', 'inconnu']) assert.equal(G.fnConventionForStyle(k), 'classic', String(k));
     });
     test('convertRomanLabel : jazz → classique en mineur seulement, jamais dans une autre tonalité', () => {
         const c = (l, conv = 'classic', minor = true) => G.convertRomanLabel(l, conv, minor);

@@ -831,11 +831,10 @@ const FN_REF_MINOR = [0, 2, 3, 5, 7, 8, 10];
 const FN_CHROMA_MAJOR = ['I', '♭II', 'II', '♭III', 'III', 'IV', '♯IV', 'V', '♭VI', 'VI', '♭VII', 'VII'];
 const FN_CHROMA_MINOR = ['I', '♭II', 'II', 'III', '♯III', 'IV', '♯IV', 'V', 'VI', '♯VI', 'VII', '♯VII'];
 
-// Convention de chiffrage utilisée par défaut selon le style chargé : 'classic' pour une grille sans style (manuelle ou enregistrée)
-// et pour les styles de tradition classique / chanson ; 'jazz' pour tous les autres (jazz, blues, pop, funk, latin, balkans, flamenco…).
-const FN_CLASSIC_STYLES = ['baroque', 'mozart', 'menuet', 'valseviennoise', 'valsemusette', 'trad', 'chansonsimple', 'brasshymn', 'brasscantique', 'barcarolle', 'tarentelle'];
+// Convention de chiffrage utilisée par défaut : 'classic' pour tous les styles (et pour une grille sans style). Le chiffrage jazz
+// reste disponible : il se choisit à la main dans le panneau « Fonction tonale » / Harmonisation (choix valable jusqu'au prochain style).
 function fnConventionForStyle(styleKey) {
-    return (!styleKey || styleKey === 'custom' || FN_CLASSIC_STYLES.includes(styleKey)) ? 'classic' : 'jazz';
+    return 'classic';
 }
 
 // Le chiffrage classique ne change quelque chose que dans une tonalité (ou un mode) à tierce mineure.
@@ -886,5 +885,5 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = { makeVariationRng, gridSignature, styleProfile, resolveEnding, withResolvedEnding, slotsFromTemplate, templateFromSlots,
         tagTwinSlots, copyTwinSlots, validateSlots, reharmonize, renewTemplate, isBrassStyle, simplifyBrass, isTriadStyle, simplifyTriads, rememberGenerated,
         createStyleVariation, findTwinSections, applyTwinCopies, compactGridRepeats, normalizeGeneratedGrid, enforceChordRepeatLimits,
-        chordFamily, romanDeg, romanDegByRank, convertRomanText, convertRomanLabel, fnConventionForStyle, fnMinorRef, FN_MINOR_MODES, FN_MODE_SCALES, FN_CLASSIC_STYLES };
+        chordFamily, romanDeg, romanDegByRank, convertRomanText, convertRomanLabel, fnConventionForStyle, fnMinorRef, FN_MINOR_MODES, FN_MODE_SCALES };
 }
