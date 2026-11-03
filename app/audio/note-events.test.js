@@ -102,6 +102,14 @@ describe('guitarNotes', () => {
         close(n[0].opts.release, 0.18 + 0.2);
         close(N.guitarNotes(env(), { ...e, dur: 0.1 }, 0, 0.5)[0].opts.release, 0.2);
     });
+    test('chaque corde a son léger retard et son léger désaccord (jamais deux cordes identiques)', () => {
+        const a = N.guitarNotes(env({ rand: seeded(7) }), e, 5, 1);
+        a.forEach(x => assert.ok(Math.abs(x.opts.cents) <= 1.5));
+        assert.ok(new Set(a.map(x => x.opts.cents)).size > 1);
+        // retard entre cordes : e.roll × rang × (0,85 à 1,15)
+        a.forEach((x, k) => { const r = (x.when - 5) / (k * 0.012 || 1); if (k) assert.ok(r >= 0.85 - 1e-9 && r <= 1.15 + 1e-9); });
+        assert.equal(a[0].when, 5);
+    });
     test('la transposition de l\'instrument décale l\'adoucissement', () => {
         const hiGain = (off) => N.guitarNotes(env({ transOffset: off }), { ...e, intervals: [12] }, 0, 1)[0].opts.gain;
         assert.ok(hiGain(-9) > hiGain(0));

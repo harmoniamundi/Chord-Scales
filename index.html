@@ -2386,11 +2386,13 @@
                 // (moins de grave, plus de mordant dans le médium-aigu et d'air), comme une guitare de cante.
                 const flam = solo && !!this.getEffectiveGroove('guitar');
                 const set = (param, v) => { if (now) param.value = v; else param.setTargetAtTime(v, ctx.currentTime, 0.04); };
-                set(fx.body.gain, flam ? 1 : (solo ? 2 : 3.5));   // la guitare seule n'a pas besoin d'autant de corps dans le grave
-                set(fx.warm.gain, flam ? 0 : (solo ? 1.5 : 2.5));
-                set(fx.ping.gain, flam ? -1.5 : (solo ? -3.5 : -4.5));
-                set(fx.air.gain, flam ? -1.5 : (solo ? -4.5 : -7));
-                set(fx.lp.frequency, flam ? 10000 : (solo ? 8500 : 7000));
+                // Guitare de l'orchestre Brasil : timbre un peu plus ouvert qu'avant (elle sonnait feutrée), mais toujours plus rond que
+                // la guitare seule pour rester bien posée avec la basse et la batterie.
+                set(fx.body.gain, flam ? 1 : (solo ? 2 : 3));   // la guitare seule n'a pas besoin d'autant de corps dans le grave
+                set(fx.warm.gain, flam ? 0 : (solo ? 1.5 : 2));
+                set(fx.ping.gain, flam ? -1.5 : (solo ? -3.5 : -3.5));
+                set(fx.air.gain, flam ? -1.5 : (solo ? -4.5 : -5.5));
+                set(fx.lp.frequency, flam ? 10000 : (solo ? 8500 : 8000));
             }
 
             loadGuitarLatin() {

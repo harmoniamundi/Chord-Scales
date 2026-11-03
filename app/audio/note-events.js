@@ -66,6 +66,9 @@ function pianoNotes(env, e, time, beatSec) {
 }
 
 // Guitare classique (style Brasil) : cordes grattées du grave à l'aigu (ou l'inverse si e.dir < 0), notes aiguës adoucies.
+// Comme pour la guitare seule, deux cordes ne sont jamais pincées exactement à la même vitesse ni accordées pareil :
+// léger retard aléatoire entre cordes (±15 % de e.roll) et léger désaccord par note (±1,5 cent), ce qui évite l'effet
+// « même échantillon rejoué à l'identique ».
 function guitarNotes(env, e, time, beatSec) {
     const rand = randOf(env);
     const vel = e.vel * (0.94 + rand() * 0.12);
@@ -81,8 +84,8 @@ function guitarNotes(env, e, time, beatSec) {
         const g = (e.noteVels ? Math.min(1.25, gain * e.noteVels[idx]) : gain) * tilt;
         return {
             noteStr: playNoteName(env.instrumentKey, e.rootIndex, interval, OCT),
-            when: Math.max(env.currentTime, time + order * roll),
-            opts: { duration: dur, gain: g, attack: 0.004, release }
+            when: Math.max(env.currentTime, time + order * roll * (0.85 + rand() * 0.3)),
+            opts: { duration: dur, gain: g, attack: 0.004, release, cents: (rand() - 0.5) * 3 }
         };
     });
 }
