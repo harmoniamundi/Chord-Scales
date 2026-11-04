@@ -307,6 +307,13 @@ BAND_PATTERNS.balkan = {
     turn: [bandCell(1, [[0, 1, 'C', 0.8]])]
 };
 
+// Le style « Cumbia » a son propre générateur (buildCumbiaPlan) : entrée factice pour le moteur commun.
+BAND_PATTERNS.cumbia = {
+    rootlessProb: 0, fillProb: 0,
+    piano: [bandCell(1, [[0, 1, 'C', 0.8]])],
+    turn: [bandCell(1, [[0, 1, 'C', 0.8]])]
+};
+
 // --- Motifs du 3/4 et du 2/4 ---
 // Mêmes conventions que les motifs 4/4 ci-dessus, mais la mesure n'a plus que 3 (positions 0 à 2.5) ou 2 temps
 // (0 à 1.5). Les bibliothèques sont choisies par getPatternLib() ; les cellules sont tirées par phrase, comme en 4/4.

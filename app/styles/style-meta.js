@@ -19,6 +19,7 @@ const STYLE_SCALE_PROFILE = {
     valsemusette:'classic', barcarolle:'classic', tarentelle:'classic', dixieland:'classic', tango:'classic', brasshymn:'classic',
     brasscantique:'classic', pop:'classic', gospel:'classic', jig:'classic', slipjig:'classic', valsecountry:'classic',
     balkan:'balkan', balkan98:'balkan',
+    cumbia:'classic',
     flamencosolea:'flamenco', flamencobulerias:'flamenco', flamencotangos:'flamenco'
 };
 
@@ -35,6 +36,7 @@ const STYLE_BAND = {
     samba: 'latin', tango: 'piazzolla', piazzolla: 'piazzolla', milongalyrique: 'piazzolla',
     brasshymn: 'brass', brasscantique: 'brass',
     balkan: 'balkan', balkan98: 'balkan',
+    cumbia: 'cumbia',
     flamencosolea: 'guitar', flamencobulerias: 'guitar', flamencotangos: 'guitar'
 };
 
@@ -85,6 +87,7 @@ const STYLE_TEMPO_METER = {
     brasscantique: { bpm: 66,  meter: '3/4' },
     balkan:        { bpm: 128, meter: '2/4' },
     balkan98:      { bpm: 100, meter: '9/8' },
+    cumbia:        { bpm: 98,  meter: '4/4' },    // cumbia colombienne : 85-110 à la noire
     flamencosolea:    { bpm: 52,  meter: '12/8' }, // 12 temps : un compás = 4 pulsations ♩. (≈ 4,6 s)
     flamencobulerias: { bpm: 88,  meter: '12/8' }, // compás de ≈ 2,7 s
     flamencotangos:   { bpm: 108, meter: '4/4' },

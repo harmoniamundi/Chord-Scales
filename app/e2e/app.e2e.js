@@ -255,7 +255,7 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         await page.evaluate(() => { app.jam.bpm = 240; });
         await page.click('#jam-play-btn');
         await waitFor(() => /^Mesure/.test(document.getElementById('jam-bar-counter').textContent));
-        for (const band of ['pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'piazzolla', 'swing']) {
+        for (const band of ['pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'cumbia', 'piazzolla', 'swing']) {
             await page.evaluate((b) => app.jam.setBandStyle(b), band);
             await page.waitForTimeout(250);
         }
@@ -414,6 +414,41 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         noErrors();
     });
 
+    test('Jam : Cumbia — accordéon, basse, guacharaca / llamador / tambora jouent ; 4/4 à 98 ; le curseur « Percus. » les règle', async () => {
+        await page.selectOption('#jam-style-select', 'cumbia');
+        const st = await page.evaluate(() => ({ band: app.jam.bandStyle, bpm: app.jam.bpm, label: document.getElementById('band-vol-piano-label').textContent,
+            perc: document.getElementById('band-vol-drums-label').textContent, btn: document.getElementById('band-btn-label').textContent,
+            bars: app.jam.grid.reduce((s, x) => s + (x.measures || 1), 0), first: app.jam.grid[0].chordId }));
+        assert.deepEqual(st, { band: 'cumbia', bpm: 98, label: 'Accordéon', perc: 'Percus.', btn: 'Orchestre Cumbia', bars: 16, first: 'majTriad' });
+        await page.evaluate(() => {
+            app.jam.bpm = 240;
+            window.__drums = []; window.__acc = []; window.__bass = [];
+            const real = app.jam.playBandDrum.bind(app.jam);
+            app.jam.playBandDrum = (e, t) => { window.__drums.push(e.drum); return real(e, t); };
+            const ra = app.jam.playAccordionHit.bind(app.jam);
+            app.jam.playAccordionHit = (e, t, b) => { window.__acc.push(e.art); return ra(e, t, b); };
+            const rb = app.jam.playBassAbs.bind(app.jam);
+            app.jam.playBassAbs = (...a) => { window.__bass.push(a[0]); return rb(...a); };
+        });
+        await page.click('#jam-play-btn');
+        await waitFor(() => window.__drums.length >= 80, null, 20000);
+        await page.click('#jam-play-btn');
+        const heard = await page.evaluate(() => ({ drums: [...new Set(window.__drums)].sort(), acc: [...new Set(window.__acc)].sort(), bass: window.__bass.length }));
+        for (const d of ['guacd', 'guacu', 'llam', 'llamo', 'tamb', 'palo']) assert.ok(heard.drums.includes(d), `${d} jamais joué : ${heard.drums.join(' ')}`);
+        assert.ok(heard.acc.includes('pah'), 'accords en contretemps');
+        assert.ok(heard.bass > 4, 'la basse joue');
+        // toutes les signatures se lancent sans erreur
+        for (const sig of ['2/4', '3/4', '6/8', '9/8', '12/8', '4/4']) {
+            await page.evaluate((x) => app.jam.setTimeSignature(x), sig);
+            await page.click('#jam-play-btn');
+            await waitFor(() => /^Mesure/.test(document.getElementById('jam-bar-counter').textContent));
+            await page.waitForTimeout(400);
+            await page.click('#jam-play-btn');
+        }
+        await page.selectOption('#jam-style-select', 'swing');
+        noErrors();
+    });
+
     test('Jam : Flamenco — cajón, palmas et pitos jouent, le curseur « Percus. » les règle ; les autres orchestres Guitare gardent la batterie grisée', async () => {
         const sliders = () => page.evaluate(() => ({ label: document.getElementById('band-vol-drums-label').textContent, drumsOff: document.getElementById('band-vol-drums').disabled, bassOff: document.getElementById('band-vol-bass').disabled }));
         await page.selectOption('#jam-style-select', 'flamencobulerias');
@@ -438,7 +473,7 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         noErrors();
     });
 
-    test('Jam : Salsa — orchestre Cuba en rythme salsa (clave, cáscara, congas, bongos, güiro) ; le rythme ne fuit pas vers l'orchestre Brasil', async () => {
+    test('Jam : Salsa — orchestre Cuba en rythme salsa (clave, cáscara, congas, bongos, güiro) ; le rythme ne fuit pas vers l\'orchestre Brasil', async () => {
         await page.selectOption('#jam-style-select', 'salsa');
         assert.equal(await page.evaluate(() => app.jam.bandStyle), 'cuba');
         assert.equal(await page.evaluate(() => app.jam.getEffectiveGroove()), 'salsa');

@@ -19,8 +19,8 @@ const STYLES = Object.keys(STYLE_BUILDERS);
 const bars = (tpl) => tpl.reduce((s, x) => s + x.m, 0);
 
 describe('catalogue des styles', () => {
-    test('44 styles, dont les alias blues128, ballad128 et balkan98', () => {
-        assert.equal(STYLES.length, 44);
+    test('45 styles, dont les alias blues128, ballad128 et balkan98', () => {
+        assert.equal(STYLES.length, 45);
         assert.equal(STYLE_BUILDERS.blues128, STYLE_BUILDERS.blues);
         assert.equal(STYLE_BUILDERS.ballad128, STYLE_BUILDERS.ballad);
         assert.equal(STYLE_BUILDERS.balkan98, STYLE_BUILDERS.balkan);
@@ -166,5 +166,48 @@ describe('mode choisi', () => {
     });
     test('les propositions renouvelées des styles en degrés restent sur la forme de référence en mode non majeur', () => {
         assert.deepEqual(build('swing', 0, seeded(3), 'aeolian'), build('swing', 0, null, 'aeolian'));
+    });
+});
+
+describe('cumbia : grille de bal en triades et dominante', () => {
+    const CUMBIA_OK = new Set(['majTriad', 'minTriad', '7']);
+    test('forme de référence : 16 mesures en majeur, I - IV - V7 seulement', () => {
+        for (const key of [0, 2, 7, 10]) {
+            const t = build('cumbia', key);
+            assert.equal(bars(t), 16);
+            const degrees = new Set(t.map(x => ((x.r - key) % 12 + 12) % 12));
+            for (const d of degrees) assert.ok([0, 5, 7, 9].includes(d), `degré ${d} inattendu en référence`);
+            assert.equal(t[0].r, key);
+            assert.equal(t[0].c, 'majTriad');
+        }
+    });
+    test('accords : triades et V7 uniquement, un V7 est suivi de la tonique ou du IV', () => {
+        for (let seed = 1; seed <= 80; seed++) {
+            const key = seed % 12;
+            const t = build('cumbia', key, seeded(seed));
+            t.forEach(x => assert.ok(CUMBIA_OK.has(x.c), `accord ${x.c}`));
+            t.forEach((x, k) => {
+                if (x.c !== '7' || k === t.length - 1) return;
+                const d = ((t[k + 1].r - key) % 12 + 12) % 12;
+                assert.ok([0, 5, 7].includes(d) || (t[k + 1].c === 'minTriad' && d === 9), `après V7 : degré ${d}`);
+            });
+            // la grille se pose sur la tonique
+            const lastDeg = ((t[t.length - 1].r - key) % 12 + 12) % 12;
+            assert.ok(lastDeg === 0 || lastDeg === 7, `fin sur le degré ${lastDeg}`);
+        }
+    });
+    test('les propositions renouvelées sont parfois en mineur (tonique mineure, V7 sur la dominante)', () => {
+        let minor = 0, major = 0;
+        for (let seed = 1; seed <= 120; seed++) {
+            const t = build('cumbia', 0, seeded(seed));
+            if (t[0].c === 'minTriad') { minor++; assert.ok(t.some(x => x.c === '7' && x.r === 7)); } else major++;
+        }
+        assert.ok(minor > 15 && major > 40, `mineur ${minor}, majeur ${major}`);
+    });
+    test('deux sections A et B de huit mesures', () => {
+        const t = build('cumbia', 0, seeded(3));
+        const sum = (sec) => t.filter(x => x.section === sec).reduce((s, x) => s + x.m, 0);
+        assert.equal(sum('A'), 8);
+        assert.equal(sum('B'), 8);
     });
 });

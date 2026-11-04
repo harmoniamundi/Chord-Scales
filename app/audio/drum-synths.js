@@ -1,5 +1,5 @@
 // audio/drum-synths.js — synthèse des percussions du groupe (grosse caisse, caisse claire, charleston, cymbales, toms, percussions
-// latines, fanfare, Balkans, tango), en Web Audio pur : aucune dépendance au moteur ni au DOM.
+// latines, fanfare, Balkans, tango, cumbia), en Web Audio pur : aucune dépendance au moteur ni au DOM.
 // Chaque synthé reçoit un « rt » (runtime audio) décrivant l'environnement de synthèse :
 //   rt.ctx      contexte audio (AudioContext, ou OfflineAudioContext pour les percussions pré-calculées)
 //   rt.tier     niveau de qualité (0 complet, 1 allégé, 2 minimal)
@@ -37,7 +37,8 @@ function drumSpec(e) {
         tom1: 0.45, tom2: 0.45, tom3: 0.45, bell: 0.3, clave: 0.15, conga1: 0.2, conga2: 0.4, slap: 0.15, shaker: 0.12,
         bdrum: 0.75, golpe: 0.25, chich: 0.3, latigo: 0.3, dum: 0.7, tek: 0.7, ka: 0.7, tapan: 0.7, stick: 0.7, daire: 0.7,
         cajonb: 0.35, cajont: 0.25, palma: 0.22, sorda: 0.15, pito: 0.12,
-        shell: 0.1, guiro: 0.16, guirot: 0.06, bongoh: 0.14, bongol: 0.18 }; // cajonb/cajont : cajón flamenco (grave, claqué) ; palma/sorda : palmas claires/sourdes ; pito : claquement de doigts ; shell : cáscara (flanc du timbal) ; guiro/guirot : güiro, coup long / court ; bongoh/bongol : bongó aigu (hembra) / grave (macho)
+        shell: 0.1, guiro: 0.16, guirot: 0.06, bongoh: 0.14, bongol: 0.18,
+        guacd: 0.16, guacu: 0.1, llam: 0.12, llamo: 0.35, tamb: 0.55, palo: 0.1 }; // cumbia : guacharaca (guacd descendant, guacu ascendant), llamador (llam étouffé, llamo ouvert), tambora (tamb grave, palo baguette sur le bois) ; // cajonb/cajont : cajón flamenco (grave, claqué) ; palma/sorda : palmas claires/sourdes ; pito : claquement de doigts ; shell : cáscara (flanc du timbal) ; guiro/guirot : güiro, coup long / court ; bongoh/bongol : bongó aigu (hembra) / grave (macho)
     let maxDur = MAXDUR[drum], name = drum, freq, short;
     if (drum === 'timp') {
         freq = e.freq || 98; short = !!e.short;
@@ -45,7 +46,7 @@ function drumSpec(e) {
         name = 'timp' + freq + (short ? 's' : 'l');
     }
     if (!maxDur) return null;
-    const variants = (drum === 'snare' || drum === 'ghost' || drum === 'tom1' || drum === 'tom2' || drum === 'tom3' || drum === 'cajonb' || drum === 'cajont' || drum === 'palma' || drum === 'sorda') ? 2 : 1; // hauteur légèrement aléatoire à chaque coup
+    const variants = (drum === 'snare' || drum === 'ghost' || drum === 'tom1' || drum === 'tom2' || drum === 'tom3' || drum === 'cajonb' || drum === 'cajont' || drum === 'palma' || drum === 'sorda' || drum === 'guacd' || drum === 'guacu' || drum === 'llam' || drum === 'llamo' || drum === 'tamb' || drum === 'palo') ? 2 : 1; // hauteur légèrement aléatoire à chaque coup
     return { drum, mul, freq, short, name, variants, maxDur, long: maxDur >= 0.8 };
 }
 
@@ -86,6 +87,12 @@ function synthDrumLive(rt, e, time, dest, v) {
         case 'guirot': synthGuiro(rt, time, dest, v, false); break;
         case 'bongoh': synthConga(rt, time, dest, 700, 0.11, v); break;
         case 'bongol': synthConga(rt, time, dest, 520, 0.14, v); break;
+        case 'guacd': synthGuacharaca(rt, time, dest, false, v); break;
+        case 'guacu': synthGuacharaca(rt, time, dest, true, v); break;
+        case 'llam': synthLlamador(rt, time, dest, false, v); break;
+        case 'llamo': synthLlamador(rt, time, dest, true, v); break;
+        case 'tamb': synthTambora(rt, time, dest, v); break;
+        case 'palo': synthPalo(rt, time, dest, v); break;
         case 'dum': case 'tek': case 'ka': case 'tapan': case 'stick': case 'daire': synthDarbuka(rt, time, dest, e.drum, v); break;
     }
 }
@@ -894,8 +901,154 @@ function synthPito(rt, time, destination, vel = 1) {
     rt.nodes.push(s, o);
 }
 
+// ---------------------------------------------------------------------------------------------
+// Percussions de la cumbia : guacharaca, llamador, tambora, palos
+// ---------------------------------------------------------------------------------------------
+
+// Guacharaca : râpe en bois frottée par une baguette à dents. Le coup descendant (« chu ») est plus long et plus rugueux ;
+// le coup ascendant (« cu ») est bref et plus clair. Le grain vient d'un bruit filtré, haché à ~80 Hz (les dents de la râpe).
+function synthGuacharaca(rt, time, destination, up = false, vel = 1) {
+    const ctx = rt.ctx;
+    if (!ctx || !destination) return;
+    const dec = up ? 0.045 : 0.1;
+    const s = ctx.createBufferSource();
+    s.buffer = rt.noise();
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = (up ? 5000 : 3700) * (0.95 + Math.random() * 0.1); bp.Q.value = 1.4;
+    const am = ctx.createGain();
+    am.gain.value = 0.55;
+    const lfo = ctx.createOscillator();
+    lfo.type = 'square';
+    lfo.frequency.value = (up ? 105 : 78) * (0.92 + Math.random() * 0.16);
+    const lg = ctx.createGain();
+    lg.gain.value = 0.45;
+    lfo.connect(lg); lg.connect(am.gain);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.001, time);
+    g.gain.exponentialRampToValueAtTime((up ? 0.42 : 0.62) * vel, time + (up ? 0.003 : 0.006));
+    g.gain.exponentialRampToValueAtTime(0.0007, time + dec);
+    s.connect(bp); bp.connect(am); am.connect(g); g.connect(destination);
+    s.start(time, Math.random() * 0.4); s.stop(time + dec + 0.02);
+    lfo.start(time); lfo.stop(time + dec + 0.02);
+    // petit « tok » du bois au départ du coup descendant
+    if (!up) {
+        const o = ctx.createOscillator();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(900, time);
+        o.frequency.exponentialRampToValueAtTime(560, time + 0.025);
+        const go = ctx.createGain();
+        go.gain.setValueAtTime(0.001, time);
+        go.gain.exponentialRampToValueAtTime(0.12 * vel, time + 0.002);
+        go.gain.exponentialRampToValueAtTime(0.0007, time + 0.04);
+        o.connect(go); go.connect(destination);
+        o.start(time); o.stop(time + 0.05);
+        rt.nodes.push(o);
+    }
+    rt.nodes.push(s, lfo);
+}
+
+// Llamador : petit tambour à une peau, aigu. Étouffé par la main (« tup », sec) ou ouvert (« tuum », qui sonne).
+function synthLlamador(rt, time, destination, open = false, vel = 1) {
+    const ctx = rt.ctx;
+    if (!ctx || !destination) return;
+    const f = (open ? 330 : 300) * (0.97 + Math.random() * 0.06);
+    const dec = open ? 0.24 : 0.07;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(f * 1.22, time);
+    o.frequency.exponentialRampToValueAtTime(f, time + 0.04);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.001, time);
+    g.gain.exponentialRampToValueAtTime((open ? 0.62 : 0.5) * vel, time + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0007, time + dec);
+    o.connect(g); g.connect(destination);
+    o.start(time); o.stop(time + dec + 0.02);
+    rt.nodes.push(o);
+    if (open) {   // harmonique de la peau qui sonne
+        const o2 = ctx.createOscillator();
+        o2.type = 'triangle';
+        o2.frequency.setValueAtTime(f * 1.9, time);
+        o2.frequency.exponentialRampToValueAtTime(f * 1.7, time + 0.08);
+        const g2 = ctx.createGain();
+        g2.gain.setValueAtTime(0.001, time);
+        g2.gain.exponentialRampToValueAtTime(0.13 * vel, time + 0.003);
+        g2.gain.exponentialRampToValueAtTime(0.0007, time + 0.12);
+        o2.connect(g2); g2.connect(destination);
+        o2.start(time); o2.stop(time + 0.14);
+        rt.nodes.push(o2);
+    }
+    const n = ctx.createBufferSource();
+    n.buffer = rt.noise();
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = open ? 1900 : 1300; bp.Q.value = 1.1;
+    const gn = ctx.createGain();
+    gn.gain.setValueAtTime(0.001, time);
+    gn.gain.exponentialRampToValueAtTime((open ? 0.22 : 0.26) * vel, time + 0.002);
+    gn.gain.exponentialRampToValueAtTime(0.0007, time + 0.03);
+    n.connect(bp); bp.connect(gn); gn.connect(destination);
+    n.start(time, Math.random() * 0.4); n.stop(time + 0.04);
+    rt.nodes.push(n);
+}
+
+// Tambora : grosse caisse à deux peaux frappée à la mailloche ; grave, rond, avec un peu de souffle de la peau.
+function synthTambora(rt, time, destination, vel = 1) {
+    const ctx = rt.ctx;
+    if (!ctx || !destination) return;
+    const f = 112 * (0.97 + Math.random() * 0.06);
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(f * 1.5, time);
+    o.frequency.exponentialRampToValueAtTime(f * 0.62, time + 0.14);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.001, time);
+    g.gain.exponentialRampToValueAtTime(0.95 * vel, time + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0008, time + 0.42);
+    o.connect(g); g.connect(destination);
+    o.start(time); o.stop(time + 0.45);
+    const n = ctx.createBufferSource();
+    n.buffer = rt.noise();
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 600; lp.Q.value = 0.7;
+    const gn = ctx.createGain();
+    gn.gain.setValueAtTime(0.001, time);
+    gn.gain.exponentialRampToValueAtTime(0.2 * vel, time + 0.003);
+    gn.gain.exponentialRampToValueAtTime(0.0007, time + 0.08);
+    n.connect(lp); lp.connect(gn); gn.connect(destination);
+    n.start(time, Math.random() * 0.4); n.stop(time + 0.1);
+    rt.nodes.push(o, n);
+}
+
+// Palo : baguette frappée sur le bois (fût) de la tambora ; sec et boisé.
+function synthPalo(rt, time, destination, vel = 1) {
+    const ctx = rt.ctx;
+    if (!ctx || !destination) return;
+    const f = 1350 * (0.95 + Math.random() * 0.1);
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(f, time);
+    o.frequency.exponentialRampToValueAtTime(f * 0.7, time + 0.03);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.001, time);
+    g.gain.exponentialRampToValueAtTime(0.32 * vel, time + 0.001);
+    g.gain.exponentialRampToValueAtTime(0.0007, time + 0.055);
+    o.connect(g); g.connect(destination);
+    o.start(time); o.stop(time + 0.07);
+    const n = ctx.createBufferSource();
+    n.buffer = rt.noise();
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = 2600; bp.Q.value = 2;
+    const gn = ctx.createGain();
+    gn.gain.setValueAtTime(0.001, time);
+    gn.gain.exponentialRampToValueAtTime(0.36 * vel, time + 0.001);
+    gn.gain.exponentialRampToValueAtTime(0.0007, time + 0.035);
+    n.connect(bp); bp.connect(gn); gn.connect(destination);
+    n.start(time, Math.random() * 0.4); n.stop(time + 0.05);
+    rt.nodes.push(o, n);
+}
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { makeNoiseBuffer, makeSaturationCurve, drumSpec, synthDrumLive, synthKick, synthSnare, metalOscBank, synthHihat,
         synthCymbal, synthCowbell, synthClave, synthConga, synthSlap, synthShaker, synthRim, synthTom, synthBassDrum, synthTimp,
-        synthDarbuka, synthGolpe, synthChicharra, synthLatigo, synthCajonBass, synthCajonTap, synthPalma, synthPito, synthShell, synthGuiro };
+        synthDarbuka, synthGolpe, synthChicharra, synthLatigo, synthCajonBass, synthCajonTap, synthPalma, synthPito, synthShell, synthGuiro,
+        synthGuacharaca, synthLlamador, synthTambora, synthPalo };
 }

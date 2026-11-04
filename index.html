@@ -206,6 +206,7 @@
                                 <option value="afro68">Afro-cubain (6/8)</option>
                                 <option value="salsa">Salsa (4/4)</option>
                                 <option value="samba">Samba (2/4)</option>
+                                <option value="cumbia">Cumbia colombienne (4/4)</option>
                                 <option value="tango">Tango à danser (2/4)</option>
                                 <option value="piazzolla">Piazzolla (nuevo tango)</option>
                                 <option value="milongalyrique">Milonga lyrique (Oblivion, 4/4)</option>
@@ -459,6 +460,7 @@
     <script src="app/band/piazzolla-plan.js"></script>
     <script src="app/band/latin-plan.js"></script>
     <script src="app/band/balkan-plan.js"></script>
+    <script src="app/band/cumbia-plan.js"></script>
     <script src="app/band/cuban-plan.js"></script>
     <script src="app/band/salsa-plan.js"></script>
     <script src="app/band/meter-plan.js"></script>
@@ -523,7 +525,7 @@
                 this.gainNode = null;
                 this.instrumentKey = 'Bb';
 
-                // Style de la bande son de la jam : swing, pop, latin, cuba, classique (arpèges au piano), guitare (guitare classique seule), brass, balkan ou piazzolla.
+                // Style de la bande son de la jam : swing, pop, latin, cuba, classique (arpèges au piano), guitare (guitare classique seule), brass, balkan, cumbia ou piazzolla.
                 this.bandStyle = 'swing';
                 this.bandVolumes = { piano: 0.5, bass: 0.85, drums: 0.25, bandoneon: 0.7, violin: 0.6, guitar: 0.5 }; // les trois derniers : style Tango nuevo
                 this.bandReverb = 0.25;
@@ -869,7 +871,7 @@
 
             changeStyle(styleKey) {
                 if (styleKey === 'custom') return;
-                const BRASS_KEYS = { brasshymn: 5, brasscantique: 3, balkan: 2, balkan98: 9, milongalyrique: 2, flamencosolea: 9, flamencobulerias: 9, flamencotangos: 9 }; // + Balkans : ré mineur (kolo), la mineur (aksak) ; Milonga lyrique : ré mineur (Oblivion) ; Flamenco : la (cadence andalouse La m - Sol - Fa - Mi)
+                const BRASS_KEYS = { brasshymn: 5, brasscantique: 3, balkan: 2, balkan98: 9, cumbia: 7, milongalyrique: 2, flamencosolea: 9, flamencobulerias: 9, flamencotangos: 9 }; // + Balkans : ré mineur (kolo), la mineur (aksak) ; Milonga lyrique : ré mineur (Oblivion) ; Flamenco : la (cadence andalouse La m - Sol - Fa - Mi)
                 this.withUndo(() => {
                     if (styleKey === 'i-got-rythm') {
                         const prevKey = this.mainKey;
@@ -1116,6 +1118,7 @@
                 if (!this.app.pianoInstrument) return false;
                 if (s === 'brass') return !!(this.brassInst && this.brassInst.tuba);
                 if (s === 'balkan') return !!this.accordionInstrument;
+                if (s === 'cumbia') return !!this.accordionInstrument && !!this.bassInstrumentPop;
                 if (s === 'piazzolla') return !!(this.pzInst && Object.keys(this.pzInst).length > 1);
                 if (s === 'latin') return !!this.guitarInstrument && !!this.bassInstrument;
                 if (s === 'guitar') return !!this.guitarInstrument;
@@ -2062,7 +2065,7 @@
                 this._arpPrevStyle = null; // un choix explicite de style met fin au mode « arpèges » transitoire
                 this._setArpeggioUI(false);
                 const prevBand = this.bandStyle;
-                this.bandStyle = ['swing', 'pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'piazzolla'].includes(style) ? style : 'swing';
+                this.bandStyle = ['swing', 'pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'cumbia', 'piazzolla'].includes(style) ? style : 'swing';
                 if (prevBand !== this.bandStyle) {
                     // Chaque orchestre repart d'un état propre : phrase, plan et conduite des voix de l'orchestre précédent ne doivent pas
                     // se retrouver dans le suivant.
@@ -2078,7 +2081,7 @@
             // Le premier curseur de volume règle le piano, ou la guitare classique en style Brasil.
             updateBandInstrumentLabel() {
                 const brass = this.bandStyle === 'brass';
-                const balkan = this.bandStyle === 'balkan';
+                const balkan = this.bandStyle === 'balkan' || this.bandStyle === 'cumbia'; // même accordéon, mêmes « Percus. »
                 const pz = this.bandStyle === 'piazzolla';
                 const el = document.getElementById('band-vol-piano-label');
                 if (el) el.textContent = brass ? 'Cuivres' : (balkan ? 'Accordéon' : ((this.bandStyle === 'latin' || this.bandStyle === 'guitar') ? 'Guitare' : 'Piano'));
@@ -2097,7 +2100,7 @@
             updateBandButtonLabel() {
                 const label = document.getElementById('band-btn-label');
                 if (!label) return;
-                const names = { swing: 'Jazz', pop: 'Pop-Rock', latin: 'Brasil', cuba: (this.getEffectiveGroove('cuba') === 'salsa' ? 'Salsa' : 'Cuba'), classic: 'Classique', guitar: (this.getEffectiveGroove('guitar') ? 'Flamenco' : 'Guitare'), brass: 'Brass', balkan: 'Balkans', piazzolla: (this.getEffectiveGroove() === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
+                const names = { swing: 'Jazz', pop: 'Pop-Rock', latin: 'Brasil', cuba: (this.getEffectiveGroove('cuba') === 'salsa' ? 'Salsa' : 'Cuba'), classic: 'Classique', guitar: (this.getEffectiveGroove('guitar') ? 'Flamenco' : 'Guitare'), brass: 'Brass', balkan: 'Balkans', cumbia: 'Cumbia', piazzolla: (this.getEffectiveGroove() === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
                 label.textContent = 'Orchestre ' + (names[this.bandStyle] || 'Jazz');
             }
 
@@ -2282,10 +2285,10 @@
                 }
                 this.loadBandPiano();
                 if (this.bandStyle === 'brass') this.loadBrass();
-                if (this.bandStyle === 'balkan') this.loadAccordion();
+                if (this.bandStyle === 'balkan' || this.bandStyle === 'cumbia') this.loadAccordion();
                 if (this.bandStyle === 'piazzolla') this.loadPiazzolla();
                 if (this.bandStyle !== 'classic' && this.bandStyle !== 'guitar' && !this.bassInstrument) this.loadBass();
-                if (this.bandStyle === 'pop') this.loadBassPop();
+                if (this.bandStyle === 'pop' || this.bandStyle === 'cumbia') this.loadBassPop();   // basse électrique (doigts)
                 if (this.bandStyle === 'latin' || this.bandStyle === 'guitar') this.loadGuitarLatin();
             }
 
@@ -2457,7 +2460,7 @@
                 if (e.onGuitar && this.bandGains.piano) dest = this.bandGains.piano;
                 if (!dest) return;
                 // Niveau minimal : on laisse tomber les notes fantômes et percussions d'ornement
-                if (this.perfTier >= 2 && (e.drum === 'ghost' || e.drum === 'pedal' || e.drum === 'chich' || e.drum === 'latigo' || e.drum === 'pito' || e.drum === 'guirot' || e.drum === 'bongoh' || e.drum === 'bongol')) return;
+                if (this.perfTier >= 2 && (e.drum === 'ghost' || e.drum === 'pedal' || e.drum === 'chich' || e.drum === 'latigo' || e.drum === 'pito' || e.drum === 'guirot' || e.drum === 'bongoh' || e.drum === 'bongol' || e.drum === 'guacu' || (e.drum === 'shaker' && this.bandStyle === 'cumbia'))) return;
                 let v = e.vel * (0.92 + Math.random() * 0.16);
                 // Percussions du flamenco (cajón, palmas, pitos) : pas de batterie derrière, elles doivent tenir leur place face à la guitare
                 if (e.perc) v *= 1.7;
@@ -2591,7 +2594,7 @@
             // --- Basse ---
 
             playBassAbs(absSemi, time, duration, vel = 0.85, wide = false) {
-                const inst = (this.bandStyle === 'pop' && this.bassInstrumentPop) ? this.bassInstrumentPop : this.bassInstrument;
+                const inst = ((this.bandStyle === 'pop' || this.bandStyle === 'cumbia') && this.bassInstrumentPop) ? this.bassInstrumentPop : this.bassInstrument;
                 if (!inst) return;
                 // soundfont-player n'honore l'option "destination" qu'à la création de l'instrument, pas par note : le curseur
                 // de volume de la basse est donc appliqué directement au gain de la note (wide : dynamique élargie, style Pop).
@@ -2737,6 +2740,8 @@
                 if (style === 'brass') return this.buildBrassPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 // Balkans : accordéon, basse, percussions (tapan / darbuka), quelle que soit la signature
                 if (style === 'balkan') return this.buildBalkanPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
+                // Cumbia colombienne : accordéon, basse électrique, guacharaca / llamador / tambora / alegre, quelle que soit la signature
+                if (style === 'cumbia') return this.buildCumbiaPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 // Tango nuevo : bandonéon, violon, piano, guitare électrique, contrebasse, quelle que soit la signature
                 if (style === 'piazzolla') return this.buildPiazzollaPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 // Rythme afro-cubain : orchestre dédié (piano montuno, tumbao, cloche, congas), quelle que soit la signature
@@ -3044,6 +3049,12 @@
 
             buildBalkanPlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
                 return this._bandRun(['balkanVoice', 'balkanMel'], env => buildBalkanPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat(), bpm: this.bpm });
+            }
+
+            // ===================== Orchestration CUMBIA : le calcul est dans band/cumbia-plan.js =====================
+
+            buildCumbiaPlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
+                return this._bandRun(['cumbiaVoice', 'cumbiaMel'], env => buildCumbiaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat(), bpm: this.bpm });
             }
 
             // Bus de l'accordéon : anches un peu nasales (bosse vers 1,8 kHz), graves nettoyés, aigus adoucis, compresseur doux, puis
@@ -6868,6 +6879,7 @@
                         <option value="guitar">Guitare</option>
                         <option value="brass">Brass band</option>
                         <option value="balkan">Balkans</option>
+                        <option value="cumbia">Cumbia</option>
                         <option value="piazzolla">Tango nuevo (quinteto)</option>
                         <option value="milongalyrique">Milonga lyrique (quinteto)</option>
                     </select>

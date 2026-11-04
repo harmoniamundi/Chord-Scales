@@ -101,7 +101,7 @@ function sanitizeImportedSettings(data) {
     const o = data.orchestration;
     if (o && typeof o === 'object') {
         const orch = {};
-        if (['swing', 'pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'piazzolla'].includes(o.style)) orch.style = o.style;
+        if (['swing', 'pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'cumbia', 'piazzolla'].includes(o.style)) orch.style = o.style;
         // anciens fichiers : le mode « Arpèges » est devenu le style « Classique »
         if (o.mode === 'arpeges') orch.style = 'classic';
         if (IMPORT_GROOVES.includes(o.groove)) orch.groove = o.groove; // rythme imposé par le style

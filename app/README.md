@@ -26,7 +26,7 @@ Les commandes `npm` se lancent **depuis le dossier `app/`** (`cd app`). Dans `in
 | `theory.js` | Théorie musicale : noms de notes, orthographe, accords, gammes, notes à éviter / cibles |
 | `band-patterns.js` | Données des motifs rythmiques de l'orchestre |
 | `audio-config.js` | Constantes audio (octave de lecture, niveau master…) |
-| `band/` | Orchestre de la Jam : un fichier par famille de styles (`swing-plan`, `pop-plan`, `latin-plan`, `cuban-plan`, `salsa-plan` pour la salsa, `brass-plan`, `balkan-plan`, `piazzolla-plan`, `classic-plan`, `guitar-plan` pour la guitare classique seule, `flamenco-plan` pour le toque flamenco de cette même guitare, mesures 2/3 temps et ternaires), lignes de basse, choix par phrase (`phrase-plan`), états de départ (`band-state`), utilitaires (`band-helpers`) |
+| `band/` | Orchestre de la Jam : un fichier par famille de styles (`swing-plan`, `pop-plan`, `latin-plan`, `cuban-plan`, `salsa-plan` pour la salsa, `brass-plan`, `balkan-plan`, `cumbia-plan`, `piazzolla-plan`, `classic-plan`, `guitar-plan` pour la guitare classique seule, `flamenco-plan` pour le toque flamenco de cette même guitare, mesures 2/3 temps et ternaires), lignes de basse, choix par phrase (`phrase-plan`), états de départ (`band-state`), utilitaires (`band-helpers`) |
 | `grid/` | La grille d'accords : ordre de lecture et reprises (`play-order`), mécanique de lecture (`transport`), édition (`edit-ops`), génération (`generation`), lecture harmonique (`harmony`), sauvegarde/import (`grid-format`) |
 | `audio/` | Calcul des notes jouées (`note-events`, `practice-notes`), synthèse des percussions (`drum-synths`), fichier WAV de l'export du son (`wav-export`) et adresses locales des sons (`local-soundfonts`) |
 | `styles/` | Les styles musicaux : métadonnées (`style-meta`), outils (`toolkit`), un générateur de grille par style (`style-builders`) |
@@ -147,6 +147,19 @@ Le style de grille « Salsa (4/4) » (`salsa`, écrit dans `styles/style-builder
 - Choisir un autre orchestre ou une autre signature rythmique ramène l'orchestration habituelle : `salsa` n'est valable que pour l'orchestre Cuba en 4/4.
 ---
 
+## 5 ter. Le style Cumbia (orchestre Cumbia)
+
+Le style de grille **Cumbia colombienne (4/4)** du menu « Amérique Latine » (`cumbia`, écrit dans `styles/style-builders.js`) propose l'orchestre **Cumbia** (`band/cumbia-plan.js`, entrée factice `BAND_PATTERNS.cumbia` dans `band-patterns.js`). Même plomberie que les Balkans : l'accordéon prend la place du « piano » (curseur « Accordéon »), les percussions celle de la batterie (curseur « Percus. »).
+
+- **Harmonie** : 16 mesures, A (8) puis B, le refrain (8), en triades et dominante V7, un accord par mesure ou par deux mesures. Référence en majeur (I - IV - V7, Sol par défaut, voir `BRASS_KEYS`) ; « Générer » propose parfois (40 %) une version mineure (i - iv - V7, ou i - ♭VII - ♭VI - V7). Chaque cellule de quatre mesures part de l'accord appelé par la précédente. Aucune réharmonisation.
+- **Tempo** : 98 à la noire (la cumbia colombienne se danse entre 85 et 110) ; tout le plan est écrit en croches droites (swing 50 % par défaut, réglable comme les autres orchestres).
+- **Percussions** (sons `guacd`, `guacu`, `llam`, `llamo`, `tamb`, `palo` de `audio/drum-synths.js`) : guacharaca (un coup descendant sur chaque temps, deux petits coups ascendants sur le « et » et le « a » : le « chu-chucu-chu »), llamador (étouffé sur 1 et 3, ouvert sur 2 et 4), tambora (coup grave sur 1 et 3, baguettes sur le bois aux contretemps), tambor alegre (réponses syncopées sur les congas, plus denses quand l'énergie monte), maracas en croches. Fin de phrase : roulement d'alegre.
+- **Basse** (basse électrique aux doigts, comme le Pop) : fondamentale sur 1 et 3, quinte anticipée sur le « et » de 2 et 4 (tumbao), variantes avec tierce, octave et quinte grave ; une note d'approche annonce l'accord suivant en fin de phrase.
+- **Accordéon** : mélodie en phrases de deux mesures, reprises à l'identique une phrase sur deux (carrure de quatre mesures) ; la question se pose sur la tierce ou la quinte, la réponse retombe sur la fondamentale ; doublure à la tierce inférieure une fois sur deux ; accords en contretemps (« ta-ka »), allégés sous la mélodie ; petite gamme rapide vers l'accord suivant en fin de phrase.
+- Les autres signatures (2/4, 3/4 : cellules tronquées ; 6/8, 9/8, 12/8 : version simplifiée en tiers de temps) restent jouables.
+
+---
+
 ## 6. Mode hors ligne (service worker)
 
 **Principe.** À la première visite en ligne, `sw.js` garde dans le navigateur la page, le code, la police, les bibliothèques et les icônes (« cache appli », téléchargé d'un coup). Quatre secondes après le chargement, il télécharge aussi en arrière-plan les 13 instruments (« cache sons », ~33 Mo) ; une pastille en bas à gauche indique `Sons hors ligne : x/13`, puis `✓ Prêt hors ligne`. Ensuite l'appli s'ouvre et joue sans réseau. Les grilles sauvegardées restent dans l'appareil (`localStorage`).
@@ -168,7 +181,7 @@ Le style de grille « Salsa (4/4) » (`salsa`, écrit dans `styles/style-builder
 
 ## 7. Où en est le code
 
-- `index.html` est passé d'environ 16 000 à environ 6 100 lignes ; la logique pure est dans 38 modules testés.
+- `index.html` est passé d'environ 16 000 à environ 6 100 lignes ; la logique pure est dans 39 modules testés.
 - Il reste dans `index.html` des méthodes surtout liées à l'écran et au son : câblage des événements, Web Audio (réverbération, bus des cuivres et du tango), création des éléments.
 - Pistes possibles, par ordre d'intérêt :
   1. Découper `JamEngine` (une seule classe de plus de 4 000 lignes) en plusieurs fichiers par responsabilité (lecture, édition de grille, orchestre, rendu), sans changer la logique.

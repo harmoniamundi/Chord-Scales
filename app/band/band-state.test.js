@@ -11,6 +11,7 @@ describe('bandVoiceState', () => {
             _meterVoice: null, _popVoice: null, _popRunAt: -9,
             _brassVoice: null, _brassPrevKey: null, _brassLines: null,
             _balkanVoice: null, _balkanMel: null,
+            _cumbiaVoice: null, _cumbiaMel: null,
             _pzState: null,
             _gtrVoice: null,
         });

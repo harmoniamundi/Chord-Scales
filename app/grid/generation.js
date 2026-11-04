@@ -68,7 +68,9 @@ function styleProfile(styleKey) {
         brasshymn: { turn: false, w: { secDom: 2, subdom: 1.5 } },
         brasscantique: { turn: false, w: { secDom: 1.5, subdom: 1.5 } },
         // Balkans : triades et dominante V7(b9), aucune réharmonisation (la couleur est dans le mode, pas dans les accords)
-        balkan: { turn: false, w: {} }, balkan98: { turn: false, w: {} }
+        balkan: { turn: false, w: {} }, balkan98: { turn: false, w: {} },
+        // Cumbia : triades et dominante V7, boucles courtes, aucune réharmonisation
+        cumbia: { turn: false, w: {} }
     };
     return table[styleKey] || { turn: false, w: { colour: 3 } };
 }
@@ -762,7 +764,7 @@ function normalizeGeneratedGrid(template, styleKey) {
         'blues128': 12, 'gospel': 16, 'ballad128': 32,
         'samba': 32, 'tango': 32, 'piazzolla': 16, 'milongalyrique': 32,
         'brasshymn': 16, 'brasscantique': 16,
-        'balkan': 32, 'balkan98': 16
+        'balkan': 32, 'balkan98': 16, 'cumbia': 16
     }[styleKey] || 16;
     if (!template.length) return template;
 

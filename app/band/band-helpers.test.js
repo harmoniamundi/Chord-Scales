@@ -254,7 +254,7 @@ describe('rythme : bandSwing, swingPos, pickWeighted, meterKey, patternLib', () 
         assert.equal(H.bandSwing('inconnu', 120), 0.5);
     });
     test('BAND_SWING_DEFAULTS : un défaut pour chaque orchestre', () => {
-        assert.deepEqual(Object.keys(H.BAND_SWING_DEFAULTS).sort(), ['balkan', 'brass', 'classic', 'cuba', 'guitar', 'latin', 'piazzolla', 'pop', 'swing']);
+        assert.deepEqual(Object.keys(H.BAND_SWING_DEFAULTS).sort(), ['balkan', 'brass', 'classic', 'cuba', 'cumbia', 'guitar', 'latin', 'piazzolla', 'pop', 'swing']);
         assert.equal(H.defaultBandSwing('swing', 140), H.bandSwing('swing', 140));
     });
     test('bandSwing : réglage manuel pour tous les orchestres (borné 0.5 à 0.75)', () => {

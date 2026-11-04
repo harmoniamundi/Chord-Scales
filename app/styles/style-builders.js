@@ -915,6 +915,29 @@ const STYLE_BUILDERS = {
         }
         return template;
     },
+    // ============ Cumbia ============
+    cumbia: (t) => {
+        const { R, pick, join, cells } = t;
+        // Cumbia colombienne (4/4, un accord par mesure ou par deux mesures), 16 mesures : A (8) puis B, le refrain (8). Harmonie de
+        // la musique de bal : triades, dominante V7, quasiment jamais d'autres couleurs ; des boucles de deux ou quatre mesures qui
+        // reviennent. La forme de référence est en majeur (I - IV - V7) ; une grille renouvelée est parfois en mineur (i - iv - V7,
+        // ou la descente i - bVII - bVI - V7). Chaque cellule de quatre mesures part de l'accord que la précédente appelle : la
+        // 1re se pose sur V7 (la question), la 2e revient à la tonique (la réponse).
+        const minor = !!R && R() < 0.4;
+        let A1, A2, B1, B2;
+        if (!minor) {
+            A1 = [ [['M',0,2],['D',7,2]], [['M',0],['M',5],['D',7,2]], [['M',0,2],['M',5],['D',7]], [['M',0],['D',7],['M',0],['D',7]] ];                 // I..V7
+            A2 = [ [['M',0,2],['D',7],['M',0]], [['M',0],['M',5],['D',7],['M',0]], [['M',0,2],['M',5],['M',0]], [['M',0],['D',7],['M',0,2]] ];            // I..I
+            B1 = [ [['M',5,2],['M',0],['D',7]], [['M',5],['M',0],['M',5],['D',7]], [['M',0],['m',9],['M',5],['D',7]], [['m',9,2],['M',5],['D',7]] ];     // IV..V7
+            B2 = [ [['M',0,2],['D',7],['M',0]], [['M',5],['D',7],['M',0,2]], [['M',0],['M',5],['D',7],['M',0]] ];                                        // ..I
+        } else {
+            A1 = [ [['m',0,2],['Dm',7,2]], [['m',0],['m',5],['Dm',7,2]], [['m',0],['M',10],['M',8],['Dm',7]], [['m',0,2],['m',5],['Dm',7]] ];             // i..V7
+            A2 = [ [['m',0,2],['Dm',7],['m',0]], [['m',0],['m',5],['Dm',7],['m',0]], [['m',0],['M',10],['Dm',7],['m',0]] ];                              // i..i
+            B1 = [ [['m',5,2],['m',0],['Dm',7]], [['m',5],['m',0],['m',5],['Dm',7]], [['M',8],['M',10],['m',0],['Dm',7]], [['M',3,2],['M',10],['Dm',7]] ]; // iv..V7
+            B2 = [ [['m',0,2],['Dm',7],['m',0]], [['m',5],['Dm',7],['m',0,2]], [['m',0],['M',10],['Dm',7],['m',0]] ];                                    // ..i
+        }
+        return join(cells(pick(A1),'A','A1'), cells(pick(A2),'A','A2'), cells(pick(B1),'B','B1'), cells(pick(B2),'B','B2'));
+    },
     // ============ Flamenco ============
     flamencosolea: (t) => flamencoForm(t, 'solea'),
     flamencobulerias: (t) => flamencoForm(t, 'bulerias'),
