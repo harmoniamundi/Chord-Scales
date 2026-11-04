@@ -49,10 +49,16 @@ function chordSymbol(chord, rootLabels) {
     return symbol;
 }
 
-// Version HTML du symbole pour la grille : les caractères absents de la police Kalam (Δ, ♭)
-// sont isolés dans un <span> afin que le téléphone puisse leur imposer une police qui les contient.
+// Les caractères absents de la police Kalam (Δ, ♭, ♯ et le signe moins « − » du mineur) sont isolés dans un <span>
+// afin que le téléphone puisse leur imposer une police qui les contient (sinon il les tire d'une police « cursive »
+// de secours : tiret trop fin, Δ qui ressemble à un D…). Le texte reçu doit déjà être du HTML valide.
+function glyphHtml(text) {
+    return String(text).replace(/[Δ♭♯−]/g, (c) => `<span class="jam-glyph">${c}</span>`);
+}
+
+// Version HTML du symbole pour la grille (voir glyphHtml).
 function chordSymbolHtml(chord, rootLabels) {
-    return chordSymbol(chord, rootLabels).replace(/[Δ♭]/g, (c) => `<span class="jam-glyph">${c}</span>`);
+    return glyphHtml(chordSymbol(chord, rootLabels));
 }
 
 // Tonalité en vigueur à une mesure (et une moitié de mesure) : celle du dernier marqueur de modulation
@@ -295,5 +301,5 @@ function displayAlternatives(groups, convention, minor) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { jazzChordNotation, chordSymbol, chordSymbolHtml, localKey, localKeyInfo, localKeyMinor, localKeyScale, harmonicFunctionLabel, functionAlternatives, displayAlternatives };
+    module.exports = { jazzChordNotation, chordSymbol, chordSymbolHtml, glyphHtml, localKey, localKeyInfo, localKeyMinor, localKeyScale, harmonicFunctionLabel, functionAlternatives, displayAlternatives };
 }

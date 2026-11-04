@@ -610,10 +610,11 @@
 
 /* ===== Adaptation téléphone (aucun effet sur ordinateur) ===== */
 
-/* Δ et ♭ : absents de la police Kalam -> police système qui les contient.
+/* Δ, ♭, ♯ et le moins « − » du mineur : absents de la police Kalam -> police système qui les contient
+   (sans cela le téléphone les prend dans une police « cursive » : tiret trop fin, Δ en forme de D…).
    Limité aux écrans tactiles : le rendu sur ordinateur reste strictement identique. */
 @media (hover: none) and (pointer: coarse) {
-    .jam-glyph { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-weight: 700; font-style: normal; }
+    .jam-glyph { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Roboto, "Noto Sans", Arial, sans-serif; font-weight: 700; font-style: normal; }
     #jam-chord-sequence-display .jam-cell-bottom .jam-glyph,
     #jam-chord-sequence-display .jam-half-fn .jam-glyph { font-weight: 400; }
 }

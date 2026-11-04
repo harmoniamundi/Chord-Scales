@@ -3385,7 +3385,7 @@
                 return window.matchMedia('(pointer: coarse)').matches;
             }
 
-            // Version HTML du symbole pour la grille : les caractères absents de la police Kalam (Δ, ♭)
+            // Version HTML du symbole pour la grille : les caractères absents de la police Kalam (Δ, ♭, ♯, −)
             // sont isolés dans un <span> afin que le téléphone puisse leur imposer une police qui les contient.
             getChordSymbolHtml(chord) { return chordSymbolHtml(chord, rootLabels); }
 
@@ -4006,7 +4006,7 @@
                 const modeBtn = document.getElementById('jam-sel-mode-btn');
                 if (modeBtn) {
                     modeBtn.classList.toggle('is-on', !!this._selMode);
-                    modeBtn.textContent = this._selMode ? '☑ Sélection' : '☐ Sélection';
+                    modeBtn.textContent = this._selMode ? '☑\uFE0E Sélection' : '☐ Sélection';
                 }
             }
 
@@ -4949,7 +4949,7 @@
                     currentBeat: this.currentBeat, currentMeasureNum, showHarmonicFunctions: this.showHarmonicFunctions,
                     editBarOpen: this._editBarOpen, sel: this._sel,
                     symbolHtml: (c) => this.getChordSymbolHtml(c),
-                    fnLabel: (c, f, i, half) => this.getHarmonicFunctionLabel(c, f, i, half),
+                    fnLabel: (c, f, i, half) => glyphHtml(this.getHarmonicFunctionLabel(c, f, i, half)),
                     partLabelOf: (m) => this._partLabelOfMeasure(m), measureKey: (m) => this.getMeasureKey(m)
                 };
             }
@@ -5101,7 +5101,9 @@
 
                 printArea.querySelector('.jam-print-title').textContent = this.loadedGridName || "Grille d'accords";
                 printArea.querySelectorAll('.jam-print-chord[data-symbol]').forEach((el) => {
-                    el.textContent = decodeURIComponent(el.getAttribute('data-symbol'));
+                    // glyphHtml : sur téléphone, Δ ♭ ♯ − viennent d'une police qui les contient (comme dans la grille à l'écran)
+                    const txt = decodeURIComponent(el.getAttribute('data-symbol')).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+                    el.innerHTML = glyphHtml(txt);
                 });
 
                 window.print();

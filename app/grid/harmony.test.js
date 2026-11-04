@@ -37,10 +37,20 @@ describe('symbole d\'accord', () => {
         assert.equal(H.chordSymbol(ch(0, 'maj7', { bassRootIndex: 0 }), SHARP), 'CΔ');
         assert.equal(H.chordSymbol(ch(0, 'maj7', { bassRootIndex: undefined }), SHARP), 'CΔ');
     });
-    test('version HTML : Δ et ♭ isolés dans un span', () => {
+    test('version HTML : Δ, ♭ et le moins − isolés dans un span', () => {
         assert.equal(H.chordSymbolHtml(ch(0, 'maj7'), SHARP), 'C<span class="jam-glyph">Δ</span>');
         assert.equal(H.chordSymbolHtml(ch(1, '7b9'), FLAT), 'D<span class="jam-glyph">♭</span>7<span class="jam-glyph">♭</span>9');
         assert.equal(H.chordSymbolHtml(ch(7, '7'), SHARP), 'G7');
+        // le moins du mineur (U+2212) n'est pas dans Kalam non plus : même traitement que Δ et ♭
+        assert.equal(H.chordSymbolHtml(ch(2, 'm7'), SHARP), 'D<span class="jam-glyph">−</span>7');
+        assert.equal(H.chordSymbolHtml(ch(0, 'mmaj7'), SHARP), 'C<span class="jam-glyph">−</span><span class="jam-glyph">Δ</span>7');
+    });
+
+    test('glyphHtml isole Δ ♭ ♯ − (symboles et chiffrages de fonction), pas le reste', () => {
+        const g = (c) => `<span class="jam-glyph">${c}</span>`;
+        assert.equal(H.glyphHtml('♭VII7'), `${g('♭')}VII7`);
+        assert.equal(H.glyphHtml('♯iv'), `${g('♯')}iv`);
+        assert.equal(H.glyphHtml('V7/ii ø °'), 'V7/ii ø °');   // ø et ° existent dans Kalam
     });
 });
 
