@@ -271,6 +271,42 @@ describe('chiffrage jazz / classique en tonalité mineure', () => {
     });
 });
 
+describe('lectures : passage au mode parallèle (même tonique)', () => {
+    const SC = require('./generation.js').FN_MODE_SCALES;
+    const alt = (c, key, scale) => H.functionAlternatives(c, null, key, { mainKey: key, rootLabels: LABELS, scale });
+    const find = (g, label) => g.flatMap(x => x.items).find(i => i.label === label);
+    test('Cm en do majeur : « i » (emprunt) ET « i (Cm) » (modulation vers le mineur parallèle)', () => {
+        const g = alt(ch(0, 'minTriad'), 0, SC.ionian);
+        assert.equal(g.find(x => x.title === 'Degré').items[0].label, 'i');
+        assert.equal(g.find(x => x.title === 'Degré').items[0].mod, null, 'le degré seul ne change pas de tonalité');
+        const m = find(g, 'i (Cm)');
+        assert.ok(m, 'lecture proposée');
+        assert.deepEqual(m.mod, { root: 0, minor: true });
+    });
+    test('C en do mineur : « I de C » (majeur parallèle)', () => {
+        const m = find(alt(ch(0, 'majTriad'), 0, SC.aeolian), 'I de C');
+        assert.ok(m);
+        assert.deepEqual(m.mod, { root: 0, minor: false });
+    });
+    test('pas de doublon quand la tonalité a déjà cette tierce', () => {
+        assert.equal(find(alt(ch(0, 'minTriad'), 0, SC.aeolian), 'i (Cm)'), undefined);
+        assert.equal(find(alt(ch(0, 'majTriad'), 0, SC.ionian), 'I de C'), undefined);
+    });
+    test('gamme inconnue : on propose toujours le passage au mode parallèle', () => {
+        assert.ok(find(alt(ch(0, 'minTriad'), 0, undefined), 'i (Cm)'));
+        assert.ok(find(alt(ch(0, 'majTriad'), 0, undefined), 'I de C'));
+    });
+    test('ailleurs que sur la tonique : inchangé (modulation vers la tonalité de l\'accord)', () => {
+        assert.deepEqual(find(alt(ch(2, 'minTriad'), 0, SC.ionian), 'i (Dm)').mod, { root: 2, minor: true });
+    });
+    test('après le marqueur « i (Cm) », les accords suivants se lisent en do mineur', () => {
+        const f = flatOf([ch(0, 'maj7'), ch(0, 'min7', { fnLabel: 'i (Cm)', modKey: { root: 0, minor: true } }), ch(3, 'maj7'), ch(8, 'maj7')]);
+        const lb = (conv) => f.map((m, i) => H.harmonicFunctionLabel(m, f, i, 0, null, 0, { convention: conv, mainQuality: 'ionian' }));
+        assert.deepEqual(lb('classic'), ['I', 'i (Cm)', 'III', 'VI']);
+        assert.deepEqual(lb('jazz'), ['I', 'i (Cm)', '♭III', '♭VI']);
+    });
+});
+
 describe('lectures : accord diatonique ou emprunté selon la gamme de la tonalité', () => {
     const SC = require('./generation.js').FN_MODE_SCALES;
     const degreeDesc = (chord, key, scale) => {

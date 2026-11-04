@@ -168,6 +168,9 @@ function functionAlternatives(chord, next = null, keyOverride = null, env = {}) 
     const { mainKey, rootLabels } = env;
     // env.scale (facultatif) : gamme de la tonalité en vigueur ; un accord dont les notes y sont toutes est diatonique, pas « emprunté »
     const diatonicIn = (r, triad) => Array.isArray(env.scale) && triad.every(n => env.scale.includes((r + n) % 12));
+    // Tierce de la tonalité en vigueur, quand sa gamme est connue (sinon on propose toujours le passage au mode parallèle)
+    const keyHasMinorThird = Array.isArray(env.scale) && env.scale.includes(3) && !env.scale.includes(4);
+    const keyHasMajorThird = Array.isArray(env.scale) && env.scale.includes(4) && !env.scale.includes(3);
     const key = Number.isInteger(keyOverride) ? keyOverride : mainKey;
     const r = ((chord.rootIndex - key) % 12 + 12) % 12;
     const R = (t, lower) => romanDeg(t, lower);
@@ -236,7 +239,10 @@ function functionAlternatives(chord, next = null, keyOverride = null, env = {}) 
             [mod(r + 8), 'iii', `iii de ${K(r + 8)}`, 'tonique relative'],
             [mod(r + 3), 'vi', `vi de ${K(r + 3)}`, 'relatif mineur']
         ].filter(x => x[0] !== 0).map(x => it(x[2], `Modulation (accord pivot) : ${x[1]} de ${K(x[0])}, rôle de ${x[3]} dans la nouvelle tonalité`, mk(x[0])));
-        add('Modulation', [...pivots, r !== 0 ? it(`i (${K(r)}m)`, `Modulation en ${K(r)} mineur : cet accord en devient la tonique`, mk(r, true)) : null]);
+        // Sur la tonique en vigueur (r = 0), « i (Xm) » signifie : passage au mode parallèle mineur, la tonique restant la même.
+        // Inutile de le proposer si la tonalité en vigueur est déjà à tierce mineure.
+        const toParallelMinor = r === 0 && !keyHasMinorThird;
+        add('Modulation', [...pivots, (r !== 0 || toParallelMinor) ? it(`i (${K(r)}m)`, toParallelMinor ? `Passage en ${K(0)} mineur (tonalité parallèle) : même tonique, nouveau mode ; les accords suivants se lisent en ${K(0)} mineur` : `Modulation en ${K(r)} mineur : cet accord en devient la tonique`, mk(r, true)) : null]);
     } else if (fam === 'maj') {
         const degreeInfo = {
             0: ['I', 'Tonique'],
@@ -258,7 +264,9 @@ function functionAlternatives(chord, next = null, keyOverride = null, env = {}) 
         add('Degré', [it(degreeInfo[0], degreeInfo[1])]);
         const tIv = mod(r + 7), tV = mod(r + 5);
         add('Modulation', [
-            r !== 0 ? it(`I de ${K(r)}`, `Modulation : cet accord devient la tonique de ${K(r)} majeur`, mk(r)) : null,
+            // Sur la tonique en vigueur (r = 0) : passage au mode parallèle majeur, sauf si la tonalité en vigueur est déjà majeure.
+            r !== 0 ? it(`I de ${K(r)}`, `Modulation : cet accord devient la tonique de ${K(r)} majeur`, mk(r))
+                : (!keyHasMajorThird ? it(`I de ${K(0)}`, `Passage en ${K(0)} majeur (tonalité parallèle) : même tonique, nouveau mode ; les accords suivants se lisent en ${K(0)} majeur`, mk(0)) : null),
             tIv !== 0 ? it(`IV de ${K(tIv)}`, `Modulation (accord pivot) : sous-dominante de ${K(tIv)}`, mk(tIv)) : null,
             (chord.chordId === 'majTriad' && tV !== 0) ? it(`V de ${K(tV)}`, `Modulation : dominante (triade) de ${K(tV)}`, mk(tV)) : null
         ]);
