@@ -140,6 +140,39 @@ describe('lectures alternatives', () => {
         assert.ok(lab(g).some(l => l.startsWith('V7 de ')));
         g.find(x => x.title === 'Modulation').items.forEach(i => assert.ok(i.mod && Number.isInteger(i.mod.root)));
     });
+    // Pont de « I Got Rhythm » en Si♭ : D7 → G7 → C7 → F7 → B♭ (cycle des dominantes)
+    const BB = 10, D = 2, G = 7, C = 0, F = 5;
+    const bridge = (idx, key = BB) => {
+        const chain = [ch(D, '7'), ch(G, '7'), ch(C, '7'), ch(F, '7'), ch(BB, 'majTriad')];
+        return H.functionAlternatives(chain[idx], chain[idx + 1], key, { mainKey: key, rootLabels: LABELS, after: chain.slice(idx + 1, idx + 3) });
+    };
+    test('chaîne de dominantes : D7 → G7 → C7 se lit V7/V7/II (dominante de G7, lui-même V7/II)', () => {
+        const g = bridge(0);
+        const items = g.find(x => x.title === 'Dominantes').items;
+        assert.deepEqual(items.map(i => i.label), ['V7/VI', 'V7/V7/II']);
+        assert.match(items[1].desc, /G7/);
+        assert.match(items[1].desc, /C7/);
+    });
+    test('chaîne de dominantes : G7 → C7 → F7 se lit V7/V7/V', () => {
+        assert.ok(bridge(1).find(x => x.title === 'Dominantes').items.some(i => i.label === 'V7/V7/V'));
+    });
+    test('chaîne de dominantes : pas de lecture en chaîne quand la dominante suivante mène à la tonique (C7 → F7 → B♭ = V7/V)', () => {
+        assert.deepEqual(bridge(2).find(x => x.title === 'Dominantes').items.map(i => i.label), ['V7/V']);
+    });
+    test('chaîne de dominantes : sans accords suivants fournis, comportement inchangé', () => {
+        const g = H.functionAlternatives(ch(D, '7'), ch(G, '7'), BB, { mainKey: BB, rootLabels: LABELS });
+        assert.deepEqual(g.find(x => x.title === 'Dominantes').items.map(i => i.label), ['V7/VI']);
+    });
+    test('chaîne de dominantes : cible mineure en minuscules (A7 → D7 → Gm7 : V7/V7/ii)', () => {
+        const chain = [ch(9, '7'), ch(2, '7'), ch(7, 'm7')];
+        const g = H.functionAlternatives(chain[0], chain[1], 0, { mainKey: 0, rootLabels: LABELS, after: chain.slice(1) });
+        assert.ok(g.find(x => x.title === 'Dominantes').items.some(i => i.label === 'V7/V7/v'));
+    });
+    test('chaîne de dominantes : l\'étiquette passe l\'affichage classique en tonalité mineure sans erreur', () => {
+        const g = H.displayAlternatives(bridge(0), 'classic', true);
+        const it = g.find(x => x.title === 'Dominantes').items.find(i => i.label === 'V7/V7/II');
+        assert.ok(it && typeof it.shownLabel === 'string' && it.shownLabel.startsWith('V7/V7/'));
+    });
     test('mineur : degré, ii/x et pivots', () => {
         const g = alt(ch(2, 'm7'));
         assert.deepEqual(g.find(x => x.title === 'Degré').items[0].label, 'ii');
@@ -336,5 +369,26 @@ describe('lectures : accord diatonique ou emprunté selon la gamme de la tonalit
         assert.deepEqual(H.localKeyScale(f, 1, 0, false, 0, 'aeolian'), SC.ionian);
         assert.deepEqual(H.localKeyScale(f, 2, 0, false, 0, 'ionian'), SC.aeolian);
         assert.deepEqual(H.localKeyScale(f, 0, 0, false, 0, 'inconnu'), SC.ionian);
+    });
+});
+
+describe('followingChords : accords différents qui suivent', () => {
+    const f = (chords) => flatOf(chords);
+    test('saute les mesures où le même accord se répète', () => {
+        const flat = f([ch(2, '7'), ch(2, '7'), ch(7, '7'), ch(7, '7'), ch(0, '7'), ch(5, '7')]);
+        assert.deepEqual(H.followingChords(flat, 0, 0, 2), [{ rootIndex: 7, chordId: '7' }, { rootIndex: 0, chordId: '7' }]);
+        assert.deepEqual(H.followingChords(flat, 1, 0, 3).map(c => c.rootIndex), [7, 0, 5]);
+    });
+    test('mesure à deux accords : la 2e moitié compte, et on part d\'elle quand half = 1', () => {
+        const flat = f([ch(2, '7', { split: ch(7, '7') }), ch(0, '7')]);
+        assert.deepEqual(H.followingChords(flat, 0, 0, 2).map(c => c.rootIndex), [7, 0]);
+        assert.deepEqual(H.followingChords(flat, 0, 1, 2).map(c => c.rootIndex), [0]);
+    });
+    test('fin de grille et entrées invalides : liste vide', () => {
+        const flat = f([ch(2, '7')]);
+        assert.deepEqual(H.followingChords(flat, 0, 0, 2), []);
+        assert.deepEqual(H.followingChords([], 0), []);
+        assert.deepEqual(H.followingChords(null, 0), []);
+        assert.deepEqual(H.followingChords(flat, 5), []);
     });
 });

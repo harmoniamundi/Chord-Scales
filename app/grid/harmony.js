@@ -161,6 +161,29 @@ function harmonicFunctionLabel(measure, flatMeasures, index, half = 0, keyOverri
     return degreeLabel;
 }
 
+// Accords DIFFÉRENTS qui suivent l'accord d'une mesure (ou de sa 2e moitié, half = 1) dans la grille : au plus `count`
+// { rootIndex, chordId }. Une mesure à deux accords compte pour deux ; un accord répété (2 mesures de D7, par exemple)
+// n'est compté qu'une fois, et l'accord de départ lui-même est ignoré s'il se répète. Sert à lire les chaînes de dominantes.
+function followingChords(flatMeasures, index, half = 0, count = 2) {
+    const out = [];
+    if (!Array.isArray(flatMeasures) || !(index >= 0) || index >= flatMeasures.length) return out;
+    const start = flatMeasures[index];
+    const startChord = (half === 1 && start.split) ? start.split : start;
+    let last = { rootIndex: startChord.rootIndex, chordId: startChord.chordId };
+    const push = (c) => {
+        if (out.length >= count || !c) return;
+        if (c.rootIndex === last.rootIndex && c.chordId === last.chordId) return;
+        last = { rootIndex: c.rootIndex, chordId: c.chordId };
+        out.push({ ...last });
+    };
+    if (half === 0 && start.split) push(start.split);
+    for (let j = index + 1; j < flatMeasures.length && out.length < count; j++) {
+        push(flatMeasures[j]);
+        if (flatMeasures[j].split) push(flatMeasures[j].split);
+    }
+    return out;
+}
+
 // Lectures possibles d'un accord dans la tonalité de la grille : degré diatonique, dominantes secondaires,
 // substitutions, emprunts modaux, accords de passage / chromatisme et modulations.
 // next : accord de la mesure suivante (pour les accords d'approche chromatique), ou null.
@@ -198,9 +221,27 @@ function functionAlternatives(chord, next = null, keyOverride = null, env = {}) 
         const isSus4 = !!(HARM_THEORY.chordInfo(chord.chordId) || {}).sus4;
         const suf = isSus4 ? '7sus' : (fam === 'aug' ? '+' : '7');
         const tSec = mod(r + 5);
+        // Chaîne de dominantes (cycle des quintes) : quand l'accord qui suit est lui-même une dominante une quarte plus haut,
+        // cet accord est « la dominante de la dominante ». Y = accord suivant, Z = celui qui vient après Y.
+        // Ex. en Si♭ : D7 → G7 → C7 → F7 → B♭ ; G7 se lit V7/II (il mène à C7) et D7 se lit V7/V7/II (il mène à G7).
+        // Pas de lecture « en chaîne » si Y mène à la tonique (D7 → G7 → C : c'est déjà V7/V) ni si Y ne résout pas une quinte plus bas.
+        const after = Array.isArray(env.after) ? env.after : [];
+        const Y = after[0], Z = after[1];
+        const isDomFam = (id) => { const f = chordFamily(id); return f === 'dom' || f === 'aug'; };
+        let chainItem = null;
+        if (r !== 7 && Y && Z && isDomFam(Y.chordId) && mod(Y.rootIndex - chord.rootIndex) === 5 && mod(Z.rootIndex - Y.rootIndex) === 5) {
+            const tY = mod(Y.rootIndex - key), tZ = mod(Z.rootIndex - key);
+            const zMinor = chordFamily(Z.chordId) === 'min';
+            if (tZ !== 0) {
+                const zName = K(tZ) + (zMinor ? 'm' : (isDomFam(Z.chordId) ? '7' : ''));
+                chainItem = it(`V${suf}/V7/${R(tZ, zMinor)}`,
+                    `Chaîne de dominantes : dominante de ${K(tY)}7, lui-même V7/${R(tZ, zMinor)} ; cycle des quintes ${K(r)}7 → ${K(tY)}7 → ${zName}`);
+            }
+        }
         add('Dominantes', [
             r === 7 ? it('V' + suf, 'Dominante principale : tend vers la tonique I') : null,
-            r !== 7 ? it(`V${suf}/${R(tSec)}`, `Dominante secondaire (tonicisation) : résout sur ${R(tSec)} (${K(tSec)}), une quinte plus bas`) : null
+            r !== 7 ? it(`V${suf}/${R(tSec)}`, `Dominante secondaire (tonicisation) : résout sur ${R(tSec)} (${K(tSec)}), une quinte plus bas`) : null,
+            chainItem
         ]);
         const tTri = mod(r + 11);
         const tBd = mod(r + 2);
@@ -309,5 +350,5 @@ function displayAlternatives(groups, convention, minor) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { jazzChordNotation, chordSymbol, chordSymbolHtml, glyphHtml, localKey, localKeyInfo, localKeyMinor, localKeyScale, harmonicFunctionLabel, functionAlternatives, displayAlternatives };
+    module.exports = { jazzChordNotation, chordSymbol, chordSymbolHtml, glyphHtml, localKey, localKeyInfo, localKeyMinor, localKeyScale, harmonicFunctionLabel, functionAlternatives, displayAlternatives, followingChords };
 }

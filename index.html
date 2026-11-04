@@ -3663,8 +3663,9 @@
 
             // Lectures possibles d'un accord dans la tonalité de la grille (degré, dominantes secondaires, substitutions, emprunts, modulations).
             // scale (facultatif) : gamme de la tonalité en vigueur, pour distinguer un accord diatonique d'un accord emprunté.
-            getFunctionAlternatives(chord, next = null, keyOverride = null, scale = null) {
-                return functionAlternatives(chord, next, keyOverride, { mainKey: this.mainKey, rootLabels, scale });
+            // after (facultatif) : les accords différents qui suivent, pour lire les chaînes de dominantes (voir followingChords).
+            getFunctionAlternatives(chord, next = null, keyOverride = null, scale = null, after = []) {
+                return functionAlternatives(chord, next, keyOverride, { mainKey: this.mainKey, rootLabels, scale, after });
             }
 
             openFunctionEditor(measureNumber, half = 0) {
@@ -3682,7 +3683,7 @@
                 // Les lectures sont calculées et enregistrées en chiffrage jazz ; elles s'affichent dans la convention choisie (jazz / classique).
                 const conv = this.getFnConvention();
                 const ctxMinor = localKeyMinor(flat, measureNumber - 1, useHalf ? 1 : 0, true, this.mainKey, this.mainQuality);
-                const groups = displayAlternatives(this.getFunctionAlternatives(chord, useHalf ? nextM : (m.split ? m.split : nextM), ctxKey.root, localKeyScale(flat, measureNumber - 1, useHalf ? 1 : 0, true, this.mainKey, this.mainQuality)), conv, ctxMinor);
+                const groups = displayAlternatives(this.getFunctionAlternatives(chord, useHalf ? nextM : (m.split ? m.split : nextM), ctxKey.root, localKeyScale(flat, measureNumber - 1, useHalf ? 1 : 0, true, this.mainKey, this.mainQuality), followingChords(flat, measureNumber - 1, useHalf ? 1 : 0, 2)), conv, ctxMinor);
                 const symbol = `${chordRootName(chord.rootIndex, chord.chordId, rootLabels)}${this.getJazzChordNotation(chord.chordId)}`;
                 const auto = this.getHarmonicFunctionLabel({ rootIndex: chord.rootIndex, chordId: chord.chordId, harmonicFunction: useHalf ? null : m.harmonicFunction, fnLabel: null }, flat, measureNumber - 1, useHalf ? 1 : 0, ctxKey.root, { keyMinor: ctxMinor });
                 const cur = chord.fnLabel || null;
