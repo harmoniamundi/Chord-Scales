@@ -269,3 +269,17 @@ describe('tonalité réelle d\'un style', () => {
         assert.equal(M.styleTonality('modal', g('m7')).quality, 'dorian');
     });
 });
+
+describe('menu Orchestre : entrées Flamenco', () => {
+    test('chaque palo du menu a le rythme, la signature et l\'orchestre Guitare du style de grille du même nom', () => {
+        const keys = Object.keys(M.FLAMENCO_BAND_GROOVES);
+        assert.deepEqual(keys.sort(), ['flamencobulerias', 'flamencosolea', 'flamencotangos']);
+        keys.forEach(k => {
+            assert.equal(M.FLAMENCO_BAND_GROOVES[k], M.STYLE_GROOVE[k], k);
+            assert.equal(M.bandStyleFor(k), 'guitar', k);
+            assert.ok(M.tempoMeterFor(k), k);
+        });
+        assert.equal(M.tempoMeterFor('flamencosolea').meter, '12/8');
+        assert.equal(M.tempoMeterFor('flamencotangos').meter, '4/4');
+    });
+});

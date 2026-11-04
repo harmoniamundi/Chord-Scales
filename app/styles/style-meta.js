@@ -45,6 +45,9 @@ const STYLE_GROOVE = { samba: 'samba', tango: 'lyrique', piazzolla: 'piazzolla',
     flamencosolea: 'f-solea', flamencobulerias: 'f-bulerias', flamencotangos: 'f-tangos',
     balkansevdah: 'bk-sevdah', balkantsifte: 'bk-tsifte' };
 
+// Entrées « Flamenco » du menu Orchestre : orchestre Guitare + rythme du palo (même rythme que le style de grille du même nom).
+const FLAMENCO_BAND_GROOVES = { flamencosolea: 'f-solea', flamencobulerias: 'f-bulerias', flamencotangos: 'f-tangos' };
+
 // Tempo (noires par minute ; pulsations ♩. en mesure composée) et signature proposés pour chaque style.
 // Valeurs modifiables ensuite avec le curseur de tempo et le sélecteur « Mesure ».
 const STYLE_TEMPO_METER = {
@@ -300,7 +303,7 @@ function styleTonality(styleKey, generated) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { STYLE_SCALE_PROFILE, STYLE_BAND, STYLE_GROOVE, STYLE_TEMPO_METER, STYLES_FOLLOWING_KEY,
+    module.exports = { STYLE_SCALE_PROFILE, STYLE_BAND, STYLE_GROOVE, FLAMENCO_BAND_GROOVES, STYLE_TEMPO_METER, STYLES_FOLLOWING_KEY,
         bandStyleFor, grooveHintFor, tempoMeterFor, styleModulations, modReading, annotateModulations,
         styleScaleFor, applyStyleScaleProfile, styleTonality };
 }

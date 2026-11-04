@@ -1914,8 +1914,7 @@
                 });
 
                 const styleSelect = document.getElementById('band-style-select');
-                if (styleSelect) styleSelect.value =
-                    (this.bandStyle === 'piazzolla' && this.getEffectiveGroove() === 'lyrique') ? 'milongalyrique' : this.bandStyle;
+                if (styleSelect) styleSelect.value = this._bandSelectValue();
 
                 document.getElementById('band-vol-piano').value = Math.round(this.bandVolumes.piano * 100);
                 document.getElementById('band-vol-bass').value = Math.round(this.bandVolumes.bass * 100);
@@ -2054,13 +2053,40 @@
 
             // Choix dans le menu Orchestre : « Milonga lyrique » = quinteto piazzolla + écriture lyrique
             chooseBandStyle(v) {
+                const palo = FLAMENCO_BAND_GROOVES[v];
                 if (v === 'milongalyrique') {
                     this._bandGroove = 'lyrique';
                     this.setBandStyle('piazzolla');
+                } else if (palo) {
+                    // Orchestre Flamenco = guitare flamenca + cajón, palmas, pitos, avec le compás du palo choisi. Un compás de soleá ou de
+                    // bulerías se compte sur 12 temps (12/8) : on pose la signature du palo si la grille n'y est pas déjà, et son tempo
+                    // habituel quand on change de palo (comme le fait le chargement d'un style Flamenco). Choisir de nouveau le même palo
+                    // ne touche à rien.
+                    const tm = this._tempoMeterFor(v);
+                    const mt = tm && this.parseMeter(tm.meter);
+                    const samePalo = this.bandStyle === 'guitar' && this.getEffectiveGroove('guitar') === palo;
+                    if (mt && !samePalo) {
+                        if (mt.bpb !== this.beatsPerBar || mt.ternary !== !!this.ternary) this.setTimeSignature(tm.meter);
+                        this.setBpm(tm.bpm);
+                    }
+                    this._bandGroove = palo;
+                    this.setBandStyle('guitar');
                 } else {
-                    if (this._bandGroove === 'lyrique') this._bandGroove = null;
+                    // Un autre choix (y compris « Guitare » seule) ne garde ni le rythme lyrique ni celui d'un palo
+                    if (this._bandGroove === 'lyrique' || (this._bandGroove || '').startsWith('f-')) this._bandGroove = null;
                     this.setBandStyle(v);
                 }
+            }
+
+            // Valeur du menu « Style » de la fenêtre Orchestre pour l'orchestre et le rythme actifs
+            _bandSelectValue() {
+                if (this.bandStyle === 'piazzolla' && this.getEffectiveGroove() === 'lyrique') return 'milongalyrique';
+                if (this.bandStyle === 'guitar') {
+                    const g = this.getEffectiveGroove('guitar');
+                    const k = Object.keys(FLAMENCO_BAND_GROOVES).find(key => FLAMENCO_BAND_GROOVES[key] === g);
+                    if (k) return k;
+                }
+                return this.bandStyle;
             }
 
             setBandStyle(style) {
@@ -6883,6 +6909,9 @@
                         <option value="cuba">Cuba</option>
                         <option value="classic">Classique</option>
                         <option value="guitar">Guitare</option>
+                        <option value="flamencosolea">Flamenco : soleá (12 temps)</option>
+                        <option value="flamencobulerias">Flamenco : bulerías (12 temps)</option>
+                        <option value="flamencotangos">Flamenco : rumba / tangos (4/4)</option>
                         <option value="brass">Brass band</option>
                         <option value="balkan">Balkans</option>
                         <option value="cumbia">Cumbia</option>

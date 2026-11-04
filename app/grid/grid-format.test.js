@@ -156,6 +156,8 @@ describe('sanitizeImportedSettings', () => {
     });
     test('tous les rythmes imposés par un style sont acceptés', () => {
         assert.ok(F.IMPORT_GROOVES.includes('bk-sevdah') && F.IMPORT_GROOVES.includes('bk-tsifte'));
+        // les trois palos de l'orchestre Flamenco (choisis dans la fenêtre Orchestre) survivent à la sauvegarde et à l'import
+        ['f-solea', 'f-bulerias', 'f-tangos'].forEach(g => assert.ok(F.IMPORT_GROOVES.includes(g), g));
         for (const g of F.IMPORT_GROOVES) assert.equal(F.sanitizeImportedSettings({ orchestration: { style: 'brass', groove: g } }).orchestration.groove, g);
     });
 });
