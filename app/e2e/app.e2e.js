@@ -555,6 +555,21 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         noErrors();
     });
 
+    test('Jam : la fenêtre « Sauvegardes » se ferme au clic en dehors (pas au clic dedans ni sur son bouton)', async () => {
+        const open = () => page.evaluate(() => !document.getElementById('saved-grids-modal').classList.contains('hidden'));
+        await page.click('#jam-saved-grids-wrapper button');
+        assert.equal(await open(), true, 'le bouton ouvre la fenêtre');
+        await page.click('#saved-grids-modal-head');
+        assert.equal(await open(), true, 'un clic dans la fenêtre la laisse ouverte');
+        await page.click('#jam-chord-card', { position: { x: 300, y: 5 } });
+        assert.equal(await open(), false, 'un clic ailleurs la ferme');
+        await page.click('#jam-saved-grids-wrapper button');
+        assert.equal(await open(), true);
+        await page.click('#jam-saved-grids-wrapper button');
+        assert.equal(await open(), false, 'le bouton la referme (sans la rouvrir aussitôt)');
+        noErrors();
+    });
+
     test('Jam : disquette à côté du titre (visible avec un titre, bleue si modifié, sauvegarde au clic)', async () => {
         const btn = () => page.evaluate(() => {
             const b = document.getElementById('jam-save-grid-btn');

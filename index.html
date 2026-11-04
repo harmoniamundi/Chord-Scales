@@ -1446,6 +1446,13 @@
                     ev.preventDefault();
                 });
                 window.addEventListener('resize', () => { if (!el.classList.contains('hidden')) this._placeSavedGridsPopup(); });
+                // Un clic en dehors de la fenêtre la ferme (le bouton « Sauvegardes » l'ouvre / la ferme lui-même)
+                document.addEventListener('pointerdown', (ev) => {
+                    if (el.classList.contains('hidden')) return;
+                    const t = ev.target;
+                    if (t && t.closest && t.closest('#saved-grids-modal, #jam-saved-grids-wrapper')) return;
+                    this.closeSavedGridsMenu();
+                }, true);
                 document.addEventListener('keydown', (ev) => {
                     if (ev.key !== 'Escape' || el.classList.contains('hidden')) return;
                     // laisse les champs de saisie / autres fenêtres gérer leur propre Échap
