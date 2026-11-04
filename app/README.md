@@ -109,7 +109,7 @@ Exemples :
 
 | Commande | Contrôle |
 |---|---|
-| `npm test` | Tous les tests unitaires (plus de 1 100) + cohérence du projet. Quelques secondes. |
+| `npm test` | Tous les tests unitaires (plus de 1 280) + cohérence du projet. Quelques secondes. |
 | `npm run test:e2e` | L'appli entière dans un navigateur : chargement, Entraînement, portée, tous les styles de la Jam, lecture/arrêt, changement d'orchestre, plage sélectionnée. |
 | `npm run test:offline` | Le mode hors ligne pour de vrai : visite en ligne, puis réseau coupé ; la page se recharge, les 13 instruments se décodent, la portée et la police s'affichent, aucune requête ne part vers un autre site. |
 
@@ -159,6 +159,24 @@ Le style de grille **Cumbia colombienne (4/4)** du menu « Amérique Latine » (
 - Les autres signatures (2/4, 3/4 : cellules tronquées ; 6/8, 9/8, 12/8 : version simplifiée en tiers de temps) restent jouables.
 
 ---
+
+## 5 quater. Les styles Balkans (orchestre Balkans)
+
+L'orchestre **Balkans** (`band/balkan-plan.js`, entrée factice `BAND_PATTERNS.balkan`) joue accordéon, basse et percussions (tapan, daire, darbuka). Quatre styles de grille du menu « Balkans » l'utilisent ; trois « couleurs » de jeu se partagent le même fichier, choisies par le rythme imposé du style de grille (`STYLE_GROOVE` dans `styles/style-meta.js`, lu par `getEffectiveGroove('balkan')`) :
+
+| Style de grille | Rythme imposé | Couleur | Signature, tempo, tonalité |
+|---|---|---|---|
+| `balkan` : kolo / čoček | aucun | danse | 2/4, 128, ré mineur |
+| `balkan98` : aksak | aucun | danse | 9/8 (2+2+2+3), 100, la mineur |
+| `balkansevdah` : ballade lente | `bk-sevdah` | sevdah | 4/4, 60, la mineur |
+| `balkantsifte` : tsifteteli / čoček | `bk-tsifte` | tsifte | 4/4, 100, ré mineur |
+
+- **La ligne chantée de l'accordéon** (art `lin`) n'est plus tirée mesure par mesure : une phrase de 4 mesures est écrite **A B A C** (question, réponse, question, conclusion). Chaque rôle a son rythme (cellules par groupe de croches, ou mesures écrites à la main pour la ballade et le tsifteteli : `BK_BAR8`) et son contour (`balkanContour`), identiques à chaque retour du rôle, donc reconnaissables même quand l'accord change. La ligne est liée (jeu au soufflet), surtout conjointe, pose les notes longues des temps forts sur des notes de l'accord, prépare le changement d'accord par un degré conjoint, évite de répéter la note précédente et se pose en fin de phrase (fondamentale, ou quinte / tierce sur une dominante). `mel = 0` : la phrase commence par l'accompagnement seul (entrée).
+- **Ornements** (art `orn`, supprimés au niveau de performance « Minimal » et quand le tempo dépasse 5 croches/s) : petite note sur le temps (kvaka), mordant, mélisme avant une note longue.
+- **Fin de phrase** : la petite phrase rapide vers l'accord suivant part de la dernière note de la ligne.
+- **Sevdah** : notes longues et ornées, main gauche en nappe tenue ou en arpège doux (arts `pad` / `arp`), basse en notes longues, percussions presque absentes (aucune pendant la 1re phrase).
+- **Tsifteteli** : darbuka « maqsum » (dum tek . tek dum . tek .), basse calée sur les dum, contretemps de l'accordéon sur les tek, ligne syncopée et ornée.
+- Les autres signatures restent jouables avec toutes les couleurs (accompagnement de danse, ligne et ornements propres à la couleur).
 
 ## 6. Mode hors ligne (service worker)
 

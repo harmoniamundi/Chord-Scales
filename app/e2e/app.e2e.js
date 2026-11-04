@@ -449,6 +449,47 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         noErrors();
     });
 
+    test('Jam : Balkans — sevdah (ballade lente) et tsifteteli : tempo, signature, couleur imposée, ligne liée de l\'accordéon ; l\'orchestre ne fuit pas vers un autre orchestre', async () => {
+        const info = () => page.evaluate(() => ({ band: app.jam.bandStyle, bpm: app.jam.bpm, groove: app.jam.getEffectiveGroove('balkan'), other: app.jam.getEffectiveGroove('swing'),
+            bars: app.jam.grid.reduce((s, x) => s + (x.measures || 1), 0), meter: app.jam.getBeatsPerBar() + (app.jam.isTernary() ? 'T' : '') }));
+        await page.selectOption('#jam-style-select', 'balkansevdah');
+        assert.deepEqual(await info(), { band: 'balkan', bpm: 60, groove: 'bk-sevdah', other: null, bars: 16, meter: '4' });
+        await page.evaluate(() => {
+            app.jam.bpm = 200;
+            window.__acc = [];
+            const ra = app.jam.playAccordionHit.bind(app.jam);
+            app.jam.playAccordionHit = (e, t, b) => { window.__acc.push(e.art); return ra(e, t, b); };
+        });
+        await page.click('#jam-play-btn');
+        await waitFor(() => window.__acc.includes('lin'), null, 30000);   // la 1re phrase peut commencer par l'accompagnement seul
+        await page.click('#jam-play-btn');
+        const arts = await page.evaluate(() => [...new Set(window.__acc)].sort());
+        assert.ok(arts.includes('lin'), 'ligne chantée : ' + arts.join(' '));
+        // tsifteteli : darbuka maqsum
+        await page.selectOption('#jam-style-select', 'balkantsifte');
+        assert.deepEqual(await info(), { band: 'balkan', bpm: 100, groove: 'bk-tsifte', other: null, bars: 16, meter: '4' });
+        await page.evaluate(() => {
+            app.jam.bpm = 240;
+            window.__drums = [];
+            const real = app.jam.playBandDrum.bind(app.jam);
+            app.jam.playBandDrum = (e, t) => { window.__drums.push(e.drum); return real(e, t); };
+        });
+        await page.click('#jam-play-btn');
+        await waitFor(() => window.__drums.length >= 40, null, 20000);
+        await page.click('#jam-play-btn');
+        const heard = await page.evaluate(() => [...new Set(window.__drums)].sort());
+        for (const d of ['dum', 'tek']) assert.ok(heard.includes(d), `${d} jamais joué : ${heard.join(' ')}`);
+        // le kolo et l'aksak restent la danse (pas de couleur imposée)
+        await page.selectOption('#jam-style-select', 'balkan');
+        assert.equal((await info()).groove, null);
+        // changer d'orchestre ne garde pas la couleur
+        await page.selectOption('#jam-style-select', 'balkansevdah');
+        await page.evaluate(() => app.jam.setBandStyle('swing'));
+        assert.equal(await page.evaluate(() => app.jam.getEffectiveGroove('swing')), null);
+        await page.selectOption('#jam-style-select', 'swing');
+        noErrors();
+    });
+
     test('Jam : Flamenco — cajón, palmas et pitos jouent, le curseur « Percus. » les règle ; les autres orchestres Guitare gardent la batterie grisée', async () => {
         const sliders = () => page.evaluate(() => ({ label: document.getElementById('band-vol-drums-label').textContent, drumsOff: document.getElementById('band-vol-drums').disabled, bassOff: document.getElementById('band-vol-bass').disabled }));
         await page.selectOption('#jam-style-select', 'flamencobulerias');

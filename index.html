@@ -195,6 +195,8 @@
                             <optgroup label="Balkans">
                                 <option value="balkan">Balkans : kolo / čoček (2/4)</option>
                                 <option value="balkan98">Balkans : aksak (9/8)</option>
+                                <option value="balkansevdah">Balkans : sevdah, ballade lente (4/4)</option>
+                                <option value="balkantsifte">Balkans : tsifteteli / čoček (4/4)</option>
                             </optgroup>
                             <optgroup label="Flamenco">
                                 <option value="flamencosolea">Flamenco : soleá (12 temps)</option>
@@ -871,7 +873,7 @@
 
             changeStyle(styleKey) {
                 if (styleKey === 'custom') return;
-                const BRASS_KEYS = { brasshymn: 5, brasscantique: 3, balkan: 2, balkan98: 9, cumbia: 7, milongalyrique: 2, flamencosolea: 9, flamencobulerias: 9, flamencotangos: 9 }; // + Balkans : ré mineur (kolo), la mineur (aksak) ; Milonga lyrique : ré mineur (Oblivion) ; Flamenco : la (cadence andalouse La m - Sol - Fa - Mi)
+                const BRASS_KEYS = { brasshymn: 5, brasscantique: 3, balkan: 2, balkan98: 9, balkansevdah: 9, balkantsifte: 2, cumbia: 7, milongalyrique: 2, flamencosolea: 9, flamencobulerias: 9, flamencotangos: 9 }; // + Balkans : ré mineur (kolo), la mineur (aksak), la mineur (sevdah), ré mineur (tsifteteli) ; Milonga lyrique : ré mineur (Oblivion) ; Flamenco : la (cadence andalouse La m - Sol - Fa - Mi)
                 this.withUndo(() => {
                     if (styleKey === 'i-got-rythm') {
                         const prevKey = this.mainKey;
@@ -2046,7 +2048,7 @@
             // (samba, tango, Piazzolla, afro, brass chorale…) : il ne vaut que pour l'orchestre auquel il appartient, sinon il
             // « fuit » (ex. : rythme afro d'un style Afro-cubain qui ferait sonner Cuba sous l'orchestre Brasil).
             getEffectiveGroove(style) {
-                const ok = { latin: ['samba', 'tango', 'piazzolla'], cuba: ['afro', 'salsa'], brass: ['b-chorale'], piazzolla: ['lyrique'], guitar: ['f-solea', 'f-bulerias', 'f-tangos'] }[style || this.bandStyle];
+                const ok = { latin: ['samba', 'tango', 'piazzolla'], cuba: ['afro', 'salsa'], brass: ['b-chorale'], balkan: ['bk-sevdah', 'bk-tsifte'], piazzolla: ['lyrique'], guitar: ['f-solea', 'f-bulerias', 'f-tangos'] }[style || this.bandStyle];
                 return (this._bandGroove && ok && ok.includes(this._bandGroove)) ? this._bandGroove : null;
             }
 
@@ -3099,9 +3101,11 @@
                         .catch(() => { setTimeout(() => { this._accordionLoading = false; }, 5000); }));
             }
 
-            // Une frappe de l'accordéon : e.intervals = hauteurs écrites ; e.art = 'pah' (accord court), 'run' (note de phrase rapide).
+            // Une frappe de l'accordéon : e.intervals = hauteurs écrites ; e.art = 'pah' (accord court), 'run' (note de phrase rapide), 'lin' (ligne chantée liée),
+            // 'orn' (ornement), 'arp' / 'pad' (main gauche arpégée / tenue de la ballade).
             // Chaque note est jouée par deux jeux d'anches légèrement désaccordés (effet « musette »), avec un très léger décalage.
             playAccordionHit(e, time, beatSec) {
+                if (e.art === 'orn' && this.perfTier >= 2) return;   // niveau « Minimal » : on laisse tomber les petites notes d'ornement
                 const inst = this.accordionInstrument;
                 if (!inst || !this.app.audioCtx) { this.playPianoHit(e, time, beatSec); return; }
                 this._playNotes(inst, accordionNotes(this._noteEnv(), e, time, beatSec));

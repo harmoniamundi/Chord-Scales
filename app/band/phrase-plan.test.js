@@ -84,6 +84,13 @@ describe('buildBandPhrase : extras par style', () => {
             assert.ok(Object.keys(ph).length > COMMON.length, st);
         }
     });
+    test('balkan : le rythme imposé par le style de grille choisit la couleur de la phrase', () => {
+        const mk = (groove) => buildBandPhrase(ctxFor('balkan', '4/4', 3, { groove }), 0, 'balkan', null);
+        assert.equal(mk('bk-sevdah').flavor, 'sevdah');
+        assert.equal(mk('bk-tsifte').flavor, 'tsifte');
+        assert.equal(mk(undefined).flavor, 'dance');
+        assert.equal(mk('b-chorale').flavor, 'dance');
+    });
     test('le swing n\'ajoute aucun champ spécifique', () => {
         const ph = buildBandPhrase(ctxFor('swing'), 0, 'swing', null);
         assert.deepEqual(Object.keys(ph).sort(), COMMON.slice().sort());

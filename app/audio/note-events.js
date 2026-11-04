@@ -194,25 +194,31 @@ function tubaNote(env, abs, time, duration, vel = 0.85, art) {
     };
 }
 
-// Accordéon des Balkans : deux jeux d'anches désaccordés ; la ligne (art 'mel') peut être doublée à l'octave inférieure.
+// Accordéon des Balkans : deux jeux d'anches désaccordés ; la ligne (art 'mel' ou 'lin') peut être doublée à l'octave inférieure.
+// Articulations : 'pah' (accord court), 'run' / 'mel' (note vive), 'lin' (ligne chantée, liée au soufflet : attaque douce, relâchement
+// long qui recouvre la note suivante), 'orn' (petite note d'ornement : attaque et relâchement très courts), 'arp' et 'pad' (main gauche
+// arpégée ou tenue, très douce).
 function accordionNotes(env, e, time, beatSec) {
     const rand = randOf(env);
-    const run = e.art === 'run' || e.art === 'mel';
+    const lin = e.art === 'lin', grace = e.art === 'orn', soft = e.art === 'arp' || e.art === 'pad';
+    const run = e.art === 'run' || e.art === 'mel' || grace;
     const vel = e.vel * (0.94 + rand() * 0.12);
     const base = Math.min(1.15, 0.3 + 0.9 * vel);
     const dur = Math.max(0.05, e.dur * beatSec);
     const n = e.intervals.length;
-    const ivs = (e.art === 'mel' && e.oct) ? e.intervals.concat(e.intervals.map(x => x - 12)) : e.intervals;
+    const ivs = ((e.art === 'mel' || lin) && e.oct) ? e.intervals.concat(e.intervals.map(x => x - 12)) : e.intervals;
     const notes = [];
     [-9, 9].forEach((cents, k) => {
         ivs.forEach((iv, idx) => {
             const noteStr = playNoteName(env.instrumentKey, e.rootIndex || 0, iv, OCT);
-            const tilt = idx >= n ? 0.5 : ((n > 1 && idx === n - 1) ? 1.08 : (e.art === 'mel' ? 1.1 : 0.94));   // la voix aiguë chante un peu plus
+            const tilt = idx >= n ? 0.5 : ((n > 1 && idx === n - 1) ? 1.08 : ((e.art === 'mel' || lin) ? 1.1 : 0.94));   // la voix aiguë chante un peu plus
             const when = Math.max(env.currentTime, time + idx * 0.004 + k * 0.002 + rand() * 0.004);
             notes.push({
                 noteStr, when,
                 opts: {
-                    duration: dur, gain: base * tilt * 0.6, attack: run ? 0.006 : 0.012, release: run ? 0.05 : 0.07,
+                    duration: dur, gain: base * tilt * 0.6,
+                    attack: grace ? 0.003 : (lin ? 0.01 : (run ? 0.006 : (soft ? 0.02 : 0.012))),
+                    release: grace ? 0.03 : (lin ? 0.085 : (run ? 0.05 : (soft ? 0.12 : 0.07))),
                     cents: cents + (rand() - 0.5) * 3
                 }
             });

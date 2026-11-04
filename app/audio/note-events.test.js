@@ -227,6 +227,20 @@ describe('accordionNotes', () => {
         assert.equal(n.length, 12);
         assert.ok(n[3].opts.gain < n[0].opts.gain);
     });
+    test('ligne chantée (lin) : attaque douce, relâchement long qui recouvre la note suivante ; doublure à l\'octave', () => {
+        const lin = N.accordionNotes(env(), { ...e, art: 'lin', intervals: [7], oct: true }, 0, 1);
+        assert.equal(lin.length, 4);
+        assert.equal(lin[0].opts.attack, 0.01); assert.equal(lin[0].opts.release, 0.085);
+        assert.ok(lin[1].opts.gain < lin[0].opts.gain);
+    });
+    test('ornement (orn) : attaque et relâchement très courts ; main gauche (arp, pad) : très doux', () => {
+        const orn = N.accordionNotes(env(), { ...e, art: 'orn', intervals: [7] }, 0, 1)[0].opts;
+        assert.equal(orn.attack, 0.003); assert.equal(orn.release, 0.03);
+        for (const art of ['arp', 'pad']) {
+            const o = N.accordionNotes(env(), { ...e, art, intervals: [7] }, 0, 1)[0].opts;
+            assert.equal(o.attack, 0.02); assert.equal(o.release, 0.12);
+        }
+    });
     test('articulation run / mel : attaque plus vive', () => {
         assert.equal(N.accordionNotes(env(), { ...e, art: 'run' }, 0, 1)[0].opts.attack, 0.006);
         assert.equal(N.accordionNotes(env(), e, 0, 1)[0].opts.attack, 0.012);

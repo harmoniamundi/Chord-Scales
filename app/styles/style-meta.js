@@ -18,7 +18,7 @@ const STYLE_SCALE_PROFILE = {
     baroque:'classic', mozart:'classic', trad:'classic', chansonsimple:'classic', menuet:'classic', valseviennoise:'classic',
     valsemusette:'classic', barcarolle:'classic', tarentelle:'classic', dixieland:'classic', tango:'classic', brasshymn:'classic',
     brasscantique:'classic', pop:'classic', gospel:'classic', jig:'classic', slipjig:'classic', valsecountry:'classic',
-    balkan:'balkan', balkan98:'balkan',
+    balkan:'balkan', balkan98:'balkan', balkansevdah:'balkan', balkantsifte:'balkan',
     cumbia:'classic',
     flamencosolea:'flamenco', flamencobulerias:'flamenco', flamencotangos:'flamenco'
 };
@@ -35,14 +35,15 @@ const STYLE_BAND = {
     blues128: 'swing', gospel: 'pop', ballad128: 'swing',
     samba: 'latin', tango: 'piazzolla', piazzolla: 'piazzolla', milongalyrique: 'piazzolla',
     brasshymn: 'brass', brasscantique: 'brass',
-    balkan: 'balkan', balkan98: 'balkan',
+    balkan: 'balkan', balkan98: 'balkan', balkansevdah: 'balkan', balkantsifte: 'balkan',
     cumbia: 'cumbia',
     flamencosolea: 'guitar', flamencobulerias: 'guitar', flamencotangos: 'guitar'
 };
 
 // Rythme imposé à l'orchestre Latin par certains styles (sinon le moteur choisit bossa / samba / afro selon le tempo).
 const STYLE_GROOVE = { samba: 'samba', tango: 'lyrique', piazzolla: 'piazzolla', milongalyrique: 'lyrique', afro68: 'afro', salsa: 'salsa', brasshymn: 'b-chorale', brasscantique: 'b-chorale',
-    flamencosolea: 'f-solea', flamencobulerias: 'f-bulerias', flamencotangos: 'f-tangos' };
+    flamencosolea: 'f-solea', flamencobulerias: 'f-bulerias', flamencotangos: 'f-tangos',
+    balkansevdah: 'bk-sevdah', balkantsifte: 'bk-tsifte' };
 
 // Tempo (noires par minute ; pulsations ♩. en mesure composée) et signature proposés pour chaque style.
 // Valeurs modifiables ensuite avec le curseur de tempo et le sélecteur « Mesure ».
@@ -87,6 +88,8 @@ const STYLE_TEMPO_METER = {
     brasscantique: { bpm: 66,  meter: '3/4' },
     balkan:        { bpm: 128, meter: '2/4' },
     balkan98:      { bpm: 100, meter: '9/8' },
+    balkansevdah:  { bpm: 60,  meter: '4/4' },   // ballade lente : noire autour de 60
+    balkantsifte:  { bpm: 100, meter: '4/4' },   // tsifteteli / čoček de bal : noire autour de 100
     cumbia:        { bpm: 98,  meter: '4/4' },    // cumbia colombienne : 85-110 à la noire
     flamencosolea:    { bpm: 52,  meter: '12/8' }, // 12 temps : un compás = 4 pulsations ♩. (≈ 4,6 s)
     flamencobulerias: { bpm: 88,  meter: '12/8' }, // compás de ≈ 2,7 s
@@ -118,6 +121,7 @@ function styleModulations() {
         samba:          [{ at: sec('B'),  to: 3 }, { at: sec('A3'), to: 'home' }],
         tango:          [{ at: sec('B'),  to: 3 }, { at: phr('B4'), to: 'home' }],
         balkan:         [{ at: sec('B'),  to: 3 }, { at: phr('B4'), to: 'home' }],
+        balkansevdah:   [{ at: sec('B'),  to: 3 }, { at: phr('B2'), to: 'home' }],
         piazzolla:      [{ at: phr('B1'), to: 3 }, { at: phr('B2'), to: 'home' }],
         milongalyrique: [{ at: phr('B1'), to: 3 }, { at: phr('B2'), to: 'home' }, { at: sec('A3'), to: 'home' }],
         bossa:          [{ at: phr('B1'), to: 3 }, { at: sec('A3'), to: 'home' }]

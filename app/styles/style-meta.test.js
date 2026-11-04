@@ -25,6 +25,13 @@ describe('tables par style', () => {
     test('valeurs de référence', () => {
         assert.deepEqual(M.tempoMeterFor('swing'), { bpm: 140, meter: '4/4' });
         assert.deepEqual(M.tempoMeterFor('balkan98'), { bpm: 100, meter: '9/8' });
+        assert.deepEqual(M.tempoMeterFor('balkansevdah'), { bpm: 60, meter: '4/4' });
+        assert.deepEqual(M.tempoMeterFor('balkantsifte'), { bpm: 100, meter: '4/4' });
+        assert.equal(M.bandStyleFor('balkansevdah'), 'balkan');
+        assert.equal(M.bandStyleFor('balkantsifte'), 'balkan');
+        assert.equal(M.grooveHintFor('balkansevdah'), 'bk-sevdah');
+        assert.equal(M.grooveHintFor('balkantsifte'), 'bk-tsifte');
+        assert.equal(M.grooveHintFor('balkan'), null);
         assert.equal(M.bandStyleFor('bossa'), 'latin');
         assert.equal(M.bandStyleFor('piazzolla'), 'piazzolla');
         assert.equal(M.grooveHintFor('milongalyrique'), 'lyrique');
@@ -65,7 +72,7 @@ describe('tables par style', () => {
     test('orchestres et grooves : valeurs connues du moteur', () => {
         const bands = new Set(['swing', 'latin', 'pop', 'classic', 'cuba', 'piazzolla', 'brass', 'balkan', 'cumbia', 'guitar']);
         Object.values(M.STYLE_BAND).forEach(b => assert.ok(bands.has(b), b));
-        const grooves = new Set(['samba', 'tango', 'piazzolla', 'lyrique', 'afro', 'salsa', 'b-chorale', 'f-solea', 'f-bulerias', 'f-tangos']);
+        const grooves = new Set(['samba', 'tango', 'piazzolla', 'lyrique', 'afro', 'salsa', 'b-chorale', 'f-solea', 'f-bulerias', 'f-tangos', 'bk-sevdah', 'bk-tsifte']);
         Object.values(M.STYLE_GROOVE).forEach(g => assert.ok(grooves.has(g), g));
     });
 });
@@ -95,9 +102,9 @@ describe('lecture d\'un accord dans une tonalité cible', () => {
 });
 
 describe('règles de modulation', () => {
-    test('neuf styles modulants', () => {
+    test('dix styles modulants', () => {
         assert.deepEqual(Object.keys(M.styleModulations()).sort(),
-            ['balkan', 'bossa', 'milongalyrique', 'piazzolla', 'samba', 'tango', 'tarentelle', 'valsemusette', 'valseviennoise']);
+            ['balkan', 'balkansevdah', 'bossa', 'milongalyrique', 'piazzolla', 'samba', 'tango', 'tarentelle', 'valsemusette', 'valseviennoise']);
     });
     test('chaque règle a un prédicat et une cible numérique ou \'home\'', () => {
         for (const rules of Object.values(M.styleModulations())) rules.forEach(r => {

@@ -47,6 +47,35 @@ function flamencoForm(t, palo) {
     return template;
 }
 
+// ============ Balkans : ballade et tsifteteli (4/4) ============
+// Deux variantes jouées par l'orchestre Balkans (rythmes imposés bk-sevdah / bk-tsifte, voir band/balkan-plan.js), écrites avec les
+// mêmes couleurs que le kolo : mineur harmonique sur la tonique, dorien sur iv, phrygien dominant (hijaz) sur V7(b9), seconde bémol.
+// Triades, un accord par mesure ou deux (moitiés de mesure). Chaque cellule de quatre mesures part de l'accord que la précédente appelle.
+function balkanKit(t) {
+    const { keyRoot, abs } = t;
+    const sp = {
+        i: [0, 'minTriad', 'harmonicMinor'], iv: [5, 'minTriad', 'dorian'], V: [7, '7b9', 'phrygianDominant'], bII: [1, 'majTriad', 'lydian']
+    };
+    const row = (rows, sec, phr) => rows.map(([off, c, sc, fn, m = 1, spl]) => {
+        const it = abs(off, c, m, sc, sec, phr, fn);
+        if (spl) it.split = { r: (keyRoot + spl[0] + 12) % 12, c: spl[1], s: spl[2] };
+        return it;
+    });
+    return {
+        sp, row,
+        i: (m = 1, x) => [0, 'minTriad', 'harmonicMinor', 'tonic', m, x],
+        iv: (m = 1, x) => [5, 'minTriad', 'dorian', 'predominant', m, x],
+        V: (m = 1, x) => [7, '7b9', 'phrygianDominant', 'dominant', m, x],
+        bII: (m = 1, x) => [1, 'majTriad', 'lydian', 'color', m, x],
+        bVII: (m = 1, x) => [10, 'majTriad', 'mixolydian', 'predominant', m, x],
+        bVI: (m = 1, x) => [8, 'majTriad', 'lydian', 'predominant', m, x],
+        III: (m = 1, x) => [3, 'majTriad', 'ionian', 'color', m, x],
+        iio: (m = 1, x) => [2, 'm7b5', 'locrianSharp2', 'predominant', m, x],
+        V7III: (m = 1, x) => [10, '7', 'mixolydian', 'secondaryDominant', m, x],
+        HJ: (m = 1, x) => [0, 'majTriad', 'phrygianDominant', 'color', m, x]   // tonique majeure « hijaz »
+    };
+}
+
 const STYLE_BUILDERS = {
     // ============ 3/4 ============
     valsejazz: (t) => {
@@ -914,6 +943,32 @@ const STYLE_BUILDERS = {
             template = join(row(pick(T),'A','A1'), row(pick(U),'A','A2'), row(pick(H1),'B','B1'), row(pick(H2),'B','B2'));
         }
         return template;
+    },
+    // ============ Balkans : sevdah (ballade lente) ============
+    balkansevdah: (t) => {
+        const { pick, join } = t;
+        const k = balkanKit(t);
+        const { i, iv, V, bII, bVII, bVI, III, iio, V7III, sp, row } = k;
+        // Ballade bosniaque (sevdalinka) en 4/4 lent, 16 mesures : A (8) en mineur, B (8) qui s'éclaire dans le relatif majeur (III) puis
+        // revient à i. Cadence par la dominante V7(b9) (hijaz), iv ou bII pour la couleur, des mesures coupées en deux accords de temps en temps.
+        const T = [ [i(2), iv(1), V(1)], [i(1), bVII(1), bVI(1), V(1)], [i(1, sp.iv), V(1), i(1, sp.iv), V(1)], [i(1), iv(1), V(2)], [i(2), bII(1), V(1)] ];                    // part de i, finit sur V
+        const U = [ [i(1), iv(1), V(1), i(1)], [i(2), V(1), i(1)], [i(1), iv(1, sp.V), V(1), i(1)], [i(1), bII(1), V(1), i(1)], [i(1), bVII(1), V(1), i(1)] ];              // part de i, finit sur i
+        const W = [ [III(2), V7III(2)], [III(1), bVI(1), V7III(2)], [III(1), iv(1), V7III(2)], [III(1, sp.iv), bVI(1), V7III(2)] ];                                          // part de III, finit sur V7 de III
+        const Z = [ [III(1), iv(1), V(1), i(1)], [III(1), bII(1), V(1), i(1)], [III(1), iio(1), V(1), i(1)], [III(2), V(1), i(1)] ];                                         // revient à i
+        return join(row(pick(T), 'A', 'A1'), row(pick(U), 'A', 'A2'), row(pick(W), 'B', 'B1'), row(pick(Z), 'B', 'B2'));
+    },
+    // ============ Balkans : tsifteteli / čoček (4/4) ============
+    balkantsifte: (t) => {
+        const { pick, join } = t;
+        const k = balkanKit(t);
+        const { i, iv, V, bII, bVII, bVI, HJ, sp, row } = k;
+        // Tsifteteli / čoček de bal en 4/4 (darbuka « maqsum »), 16 mesures : A (8) en mineur (le va-et-vient i - bII - i, la cadence
+        // andalouse, la dominante V7(b9) hijaz), B (8) sur la tonique majeure hijaz (même tonique, seconde mineure) qui retombe sur i.
+        const T = [ [i(2), bII(1), V(1)], [i(1), bII(1), i(1), V(1)], [i(2), iv(1), V(1)], [i(1), bVII(1), bVI(1), V(1)], [i(1, sp.bII), i(1, sp.bII), iv(1), V(1)] ];       // part de i, finit sur V
+        const U = [ [i(2), V(1), i(1)], [i(1), bII(1), V(1), i(1)], [i(1), iv(1), V(1), i(1)], [i(1, sp.bII), V(1), bII(1), i(1)] ];                                         // part de i, finit sur i
+        const H1 = [ [HJ(1), bII(1), HJ(1), V(1)], [HJ(2), iv(1), V(1)], [HJ(1), bII(1), V(2)] ];                                                                            // part de HJ, finit sur V
+        const H2 = [ [HJ(1), bII(1), V(1), i(1)], [HJ(1), iv(1), V(1), i(1)], [HJ(2), V(1), i(1)] ];                                                                          // part de HJ, revient à i
+        return join(row(pick(T), 'A', 'A1'), row(pick(U), 'A', 'A2'), row(pick(H1), 'B', 'B1'), row(pick(H2), 'B', 'B2'));
     },
     // ============ Cumbia ============
     cumbia: (t) => {
