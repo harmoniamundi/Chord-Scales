@@ -554,4 +554,65 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         await page.evaluate(() => { app.jam._sel = null; app.jam._editBarOpen = false; app.jam.renderSequenceUI(); });
         noErrors();
     });
+
+    test('Jam : disquette à côté du titre (visible avec un titre, bleue si modifié, sauvegarde au clic)', async () => {
+        const btn = () => page.evaluate(() => {
+            const b = document.getElementById('jam-save-grid-btn');
+            return { hidden: b.classList.contains('hidden'), dirty: b.classList.contains('is-dirty'), flash: b.classList.contains('just-saved') };
+        });
+        const stored = () => page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('jamSavedGrids') || '{}')));
+        await page.evaluate(() => { localStorage.removeItem('jamSavedGrids'); app.jam._savedSigs = {}; });
+        await page.selectOption('#jam-style-select', 'blues');
+        assert.equal((await btn()).hidden, true, 'sans titre : pas de disquette');
+
+        // le titre se saisit en mode édition ; l'icône apparaît dès qu'il est rempli, avant même de valider
+        await page.evaluate(() => app.jam.toggleEditBar());
+        await page.fill('#jam-grid-title-input', 'e2e-disquette');
+        assert.deepEqual(await btn(), { hidden: false, dirty: true, flash: false });
+
+        // clic : sauvegarde (le champ garde le focus), signe visuel, puis retour au blanc sur gris
+        await page.click('#jam-save-grid-btn');
+        assert.deepEqual(await stored(), ['e2e-disquette']);
+        let b = await btn();
+        assert.equal(b.dirty, false); assert.equal(b.flash, true, 'coche de confirmation');
+        await page.waitForTimeout(1500);
+        assert.deepEqual(await btn(), { hidden: false, dirty: false, flash: false });
+        await page.waitForTimeout(1300); // aucune dérive : la grille sauvegardée reste « propre »
+        assert.equal((await btn()).dirty, false);
+
+        // modification de la grille -> bleue ; annuler -> grise ; rétablir -> bleue ; clic -> grise
+        await page.evaluate(() => { app.jam.withUndo(() => { app.jam.grid[0].rootIndex = (app.jam.grid[0].rootIndex + 1) % 12; }); app.jam.renderGridUI(); });
+        assert.equal((await btn()).dirty, true);
+        await page.evaluate(() => app.jam.undo());
+        assert.equal((await btn()).dirty, false, 'annuler ramène à la version sauvegardée');
+        await page.evaluate(() => app.jam.redo());
+        assert.equal((await btn()).dirty, true);
+        await page.click('#jam-save-grid-btn');
+        assert.equal((await btn()).dirty, false);
+        const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('jamSavedGrids'))['e2e-disquette'].grid[0].rootIndex);
+        assert.equal(saved, await page.evaluate(() => app.jam.grid[0].rootIndex), 'la modification est bien enregistrée');
+
+        // un réglage enregistré avec la grille (tempo) compte aussi
+        await page.evaluate(() => app.jam.setBpm(app.jam.bpm + 7));
+        await waitFor(() => document.getElementById('jam-save-grid-btn').classList.contains('is-dirty'), null, 3000);
+        await page.click('#jam-save-grid-btn');
+        assert.equal((await btn()).dirty, false);
+
+        // renommer pendant la saisie puis cliquer : la sauvegarde est renommée et à jour
+        await page.fill('#jam-grid-title-input', 'e2e-disquette-2');
+        assert.equal((await btn()).dirty, true);
+        await page.click('#jam-save-grid-btn');
+        assert.deepEqual(await stored(), ['e2e-disquette-2']);
+        assert.equal((await btn()).dirty, false);
+
+        // charger une sauvegarde : propre ; effacer la grille : plus d'icône
+        await page.evaluate(() => { app.jam.loadSavedGrid('e2e-disquette-2'); });
+        await page.waitForTimeout(1300);
+        assert.equal((await btn()).dirty, false, 'grille tout juste chargée : propre');
+        await page.evaluate(() => { document.activeElement && document.activeElement.blur(); app.jam.clearGrid(); });
+        assert.equal((await btn()).hidden, true);
+        await page.evaluate(() => { localStorage.removeItem('jamSavedGrids'); app.jam._savedSigs = {}; app.jam.undoStack = []; app.jam.redoStack = []; app.jam.updateUndoButtons(); app.jam.toggleEditBar(); });
+        await page.selectOption('#jam-style-select', 'swing');
+        noErrors();
+    });
 });

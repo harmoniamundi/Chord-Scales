@@ -320,8 +320,13 @@
                             <span id="jam-loaded-grid-name" class="text-sm font-bold text-slate-300 uppercase tracking-wide text-center"></span>
                             <input id="jam-grid-title-input" type="text" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Titre de la grille" aria-label="Titre de la grille" title="Titre de la grille (Entrée pour valider, Échap pour annuler)"
                                    class="hidden jam-grid-title-input"
-                                   onblur="app.jam.commitGridTitle(this.value)"
+                                   oninput="app.jam.refreshSaveButton()"
+                                   onblur="app.jam.commitGridTitle(this.value); app.jam.refreshSaveButton()"
                                    onkeydown="if(event.key==='Enter'){this.blur();}else if(event.key==='Escape'){this.value=app.jam.loadedGridName||'';this.blur();}">
+                            <button type="button" id="jam-save-grid-btn" class="jam-save-grid-btn hidden" onmousedown="event.preventDefault()" onclick="app.jam.saveCurrentGrid()" title="Sauvegarder la grille" aria-label="Sauvegarder la grille">
+                                <svg class="jam-save-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                <svg class="jam-save-ok" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                            </button>
                         </div>
                         <div class="text-right justify-self-end flex items-center justify-end gap-2 whitespace-nowrap min-w-0">
                             <span id="jam-current-scale-label" class="text-xs font-semibold text-slate-400 uppercase tracking-wider whitespace-nowrap shrink-0">Gamme active : </span>
@@ -602,6 +607,9 @@
                 this.initDefaultGrid();
                 this.bindUndoShortcuts();
                 this.bindGridEditShortcuts();
+                // Icône disquette du titre : empreinte (grille + réglages) de chaque grille au moment de sa dernière sauvegarde
+                this._savedSigs = {};
+                setInterval(() => { if (!document.hidden) this.refreshSaveButton(); }, 600); // filet de sécurité : réglages modifiés par un curseur, etc.
             }
 
             resetGrid() {
@@ -979,8 +987,60 @@
                 };
                 localStorage.setItem('jamSavedGrids', JSON.stringify(saved));
                 this.loadedGridName = name;
+                this._markSaved(name);
                 this.renderSavedGridsMenu();
                 this.updateLoadedGridNameDisplay();
+            }
+
+            // --- Icône disquette à côté du titre : visible dès qu'il y a un titre ; bleue = modifications non sauvegardées ---
+            _stateSignature() {
+                try { return JSON.stringify({ g: this.grid, s: this.collectSettings() }); } catch (e) { return ''; }
+            }
+
+            _markSaved(name) {
+                if (!name) return;
+                if (!this._savedSigs) this._savedSigs = {};
+                this._savedSigs[name] = this._stateSignature();
+            }
+
+            refreshSaveButton() {
+                const btn = document.getElementById('jam-save-grid-btn');
+                if (!btn) return;
+                const inp = document.getElementById('jam-grid-title-input');
+                const typing = !!(inp && !inp.classList.contains('hidden') && document.activeElement === inp);
+                const shown = typing ? inp.value.trim() : (this.loadedGridName || '');
+                btn.classList.toggle('hidden', !shown);
+                if (!shown) return;
+                const name = this.loadedGridName;
+                const titleChanged = typing && inp.value.trim() !== (name || '');
+                const clean = !!name && !titleChanged && !!this._savedSigs && this._savedSigs[name] === this._stateSignature();
+                btn.classList.toggle('is-dirty', !clean);
+                const tip = clean ? `Grille « ${name} » sauvegardée` : 'Sauvegarder la grille (modifications non enregistrées)';
+                if (btn.title !== tip) { btn.title = tip; btn.setAttribute('aria-label', tip); }
+            }
+
+            // Un clic sur la disquette enregistre la grille et ses réglages sous le titre affiché.
+            saveCurrentGrid() {
+                const inp = document.getElementById('jam-grid-title-input');
+                if (inp && !inp.classList.contains('hidden') && inp.value.trim() !== (this.loadedGridName || '')) this.commitGridTitle(inp.value);
+                const name = this.loadedGridName;
+                if (!name) { this.refreshSaveButton(); return; }
+                if (this.grid.length === 0) { alert('La grille est vide : rien à sauvegarder.'); return; }
+                const saved = this.getSavedGrids();
+                if (saved[name] && !(this._savedSigs && name in this._savedSigs) &&
+                    !confirm(`Une grille « ${name} » existe déjà dans les sauvegardes : la remplacer ?`)) return;
+                saved[name] = { grid: JSON.parse(JSON.stringify(this.grid)), settings: this.collectSettings() };
+                try { localStorage.setItem('jamSavedGrids', JSON.stringify(saved)); }
+                catch (e) { alert("Impossible d'enregistrer la grille."); return; }
+                this._markSaved(name);
+                this.renderSavedGridsMenu();
+                this.refreshSaveButton();
+                const btn = document.getElementById('jam-save-grid-btn');
+                if (btn) {
+                    btn.classList.add('just-saved'); // coche verte un court instant, puis retour au blanc sur gris
+                    clearTimeout(this._saveFlashT);
+                    this._saveFlashT = setTimeout(() => btn.classList.remove('just-saved'), 1300);
+                }
             }
 
             // Écrase la sauvegarde actuellement chargée avec la grille et les paramètres en cours.
@@ -995,7 +1055,9 @@
                 };
                 try { localStorage.setItem('jamSavedGrids', JSON.stringify(saved)); }
                 catch (e) { alert("Impossible d'enregistrer la grille."); return; }
+                this._markSaved(name);
                 this.renderSavedGridsMenu();
+                this.refreshSaveButton();
             }
 
             // --- Export / import d'une grille au format .json (partage entre utilisateurs) ---
@@ -1446,6 +1508,7 @@
                 if (entry.settings) this.applyImportedSettings(this.sanitizeImportedSettings(entry.settings));
                 else this.setTimeSignature('4/4'); // grille enregistrée avant l'existence des signatures : 4/4
                 this.loadedGridName = name;
+                this._markSaved(name);
                 this.renderGridUI();
                 this.updateLoadedGridNameDisplay();
                 this.renderSavedGridsMenu();
@@ -1485,6 +1548,7 @@
                     });
                     try { localStorage.setItem('jamSavedGrids', JSON.stringify(out)); }
                     catch (e) { alert('Impossible de renommer la sauvegarde.'); revert(); return; }
+                    if (this._savedSigs && old in this._savedSigs) { this._savedSigs[name] = this._savedSigs[old]; delete this._savedSigs[old]; }
                     this.loadedGridName = name;
                 } else {
                     this.loadedGridName = name;
@@ -1518,6 +1582,7 @@
                 this.updateGridTitleInput();
                 const menuLabel = document.getElementById('jam-saved-grids-label');
                 if (menuLabel) menuLabel.textContent = this.loadedGridName || 'Sauvegardes';
+                this.refreshSaveButton();
             }
 
             deleteSavedGrid(name) {
@@ -1526,7 +1591,9 @@
                 const saved = this.getSavedGrids();
                 delete saved[name];
                 localStorage.setItem('jamSavedGrids', JSON.stringify(saved));
+                if (this._savedSigs) delete this._savedSigs[name];
                 this.renderSavedGridsMenu();
+                this.refreshSaveButton();
             }
 
             initGainNode() {
@@ -5146,6 +5213,7 @@
                 if (!this.isPlaying && this.grid.length > 0) {
                     this.updateNextJamChordDisplay(null, 0);
                 }
+                this.refreshSaveButton();
             }
 
             setVisMode(mode) {
