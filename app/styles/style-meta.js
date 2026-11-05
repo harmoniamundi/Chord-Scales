@@ -103,7 +103,7 @@ const STYLE_TEMPO_METER = {
     rockroll:      { bpm: 160, meter: '4/4' },    // rock'n'roll des années 50 (swingué à 62 %)
     rockclassic:   { bpm: 118, meter: '4/4' },
     hardrock:      { bpm: 132, meter: '4/4' },
-    punk:          { bpm: 176, meter: '4/4' },
+    punk:          { bpm: 145, meter: '4/4' },
     rockballad:    { bpm: 68,  meter: '4/4' },
     bluesrock:     { bpm: 100, meter: '4/4' },    // shuffle (swing à 67 %)
     indierock:     { bpm: 124, meter: '4/4' },

@@ -383,38 +383,61 @@ describe('hard rock : des accords de longueurs différentes', () => {
     });
 });
 
-describe('punk : une rythmique simple, qui sonne, sans effet mitraillette', () => {
-    test('les mesures ne se répètent pas à l\'identique (motifs, accents, coups manquants, accords tenus)', () => {
-        let total = 0, distinct = 0, same = 0; const vels = new Set();
-        for (let seed = 1; seed <= 8; seed++) {
-            const ms = run('r-punk', seed);
-            total += ms.length; distinct += new Set(ms.map(({ plan }) => gtrSig(plan))).size;
-            ms.forEach((x, k) => { if (k && gtrSig(x.plan) === gtrSig(ms[k - 1].plan)) same++; gtrOf(x.plan).forEach(e => vels.add(e.vel.toFixed(2))); });
-        }
-        assert.ok(distinct / total > 0.2, 'motifs distincts / mesures : ' + distinct / total);
-        assert.ok(same / total < 0.15, 'mesures consécutives identiques : ' + same);
-        assert.ok(vels.size > 12, 'nuances : ' + vels.size);
+describe('punk « Antisocial » : contretemps systématique, chug étouffé, batterie binaire droite', () => {
+    const punkBars = () => { const all = []; for (let seed = 1; seed <= 8; seed++) all.push(...run('r-punk', seed)); return all; };
+    test('tempo vers 145, croches droites', () => {
+        assert.equal(R.ROCK['r-punk'].tempo, 145);
+        assert.equal(R.ROCK['r-punk'].swing, 0.5);
     });
-    test('pas de notes sèches : que des accords qui sonnent (au moins la moitié d\'un temps, la plupart près d\'un temps), au plus 6 coups par mesure', () => {
-        let n = 0, k = 0, short = 0, sum = 0;
-        for (let seed = 1; seed <= 8; seed++) run('r-punk', seed).forEach(({ plan }) => gtrOf(plan).forEach((e, _, g) => {
-            n++; sum += e.dur; assert.equal(e.art, 'strum');
-            assert.ok(e.dur >= 0.5 - 1e-9, 'durée ' + e.dur);
-            if (e.dur < 0.9 && e.pos < 3.5) short++;
-        }));
-        for (let seed = 1; seed <= 8; seed++) run('r-punk', seed).forEach(({ plan }) => { k++; assert.ok(gtrOf(plan).length <= 8); });
-        assert.ok(sum / n >= 0.9, 'durée moyenne ' + sum / n);
-        assert.ok(short / n < 0.02, 'coups trop courts : ' + short);
-        assert.ok(n / k <= 6, 'coups par mesure : ' + n / k);
+    test('à chaque mesure, un accord de puissance ouvert (3 cordes) claque sur le contretemps du premier temps, plus fort que le chug', () => {
+        punkBars().forEach(({ plan }) => {
+            const g = gtrOf(plan);
+            const hit = g.find(e => Math.abs(e.pos - 0.5) < 1e-9);
+            assert.ok(hit, 'accord sur le « et » du 1');
+            assert.equal(hit.art, 'strum'); assert.equal(hit.intervals.length, 3); assert.equal(hit.dir, 1);
+            assert.ok(hit.dur >= 0.4 && hit.dur <= 0.6, 'durée ' + hit.dur);
+            g.filter(e => e.art === 'mute').forEach(m => assert.ok(hit.vel > m.vel, 'accent'));
+        });
     });
-    test('le punk reste du punk : accords de puissance (trois cordes), coups descendants uniquement, huitièmes droites', () => {
-        for (let seed = 1; seed <= 6; seed++) run('r-punk', seed).forEach(({ plan }) => gtrOf(plan).forEach(e => { assert.equal(e.dir, 1); assert.equal(e.intervals.length, 3); }));
-        assert.ok(R.ROCK['r-punk'].swing === 0.5);
+    test('le reste est un tapis de croches étouffées à la paume sur la fondamentale, courtes, une seule note', () => {
+        punkBars().forEach(({ plan }) => {
+            const g = gtrOf(plan);
+            const mutes = g.filter(e => e.art === 'mute');
+            [0, 1, 2].forEach(p => assert.ok(mutes.some(e => Math.abs(e.pos - p) < 1e-9), 'croche étouffée à ' + p));
+            mutes.forEach(e => { assert.equal(e.intervals.length, 1); assert.ok(e.dur <= 0.21); });
+            g.forEach(e => assert.ok(e.art === 'mute' || e.art === 'strum'));
+        });
     });
-    test('la guitare joue des durées différentes (noires, croches, accords tenus)', () => {
-        const d = new Set();
-        for (let seed = 1; seed <= 12; seed++) run('r-punk', seed).forEach(({ plan }) => gtrOf(plan).forEach(e => d.add(e.dur.toFixed(1))));
-        assert.ok(d.size >= 4, [...d].join());
+    test('le refrain claque davantage de contretemps que le couplet', () => {
+        const count = (hi) => { let n = 0, k = 0; punkBars().forEach(({ plan, ph }) => { if (!!ph.rockHi === hi) { k++; n += gtrOf(plan).filter(e => e.art === 'strum').length; } }); return n / k; };
+        assert.ok(count(true) > count(false), count(true) + ' vs ' + count(false));
+    });
+    test('batterie : grosse caisse sur 1 et 3, caisse claire sur 2 et 4, charleston en croches droites', () => {
+        let plain = 0;
+        punkBars().forEach(({ plan, i }) => {
+            const hasFill = plan.drums.some(d => d.drum.startsWith('rtom') || d.pos >= 2 && d.drum === 'rghost');
+            const kicks = plan.drums.filter(d => d.drum === 'rkick').map(d => d.pos);
+            const snares = plan.drums.filter(d => d.drum === 'rsnare').map(d => d.pos);
+            if (hasFill || i === 3) return;   // roulements et anticipations de fin de phrase : hors règle
+            plain++;
+            assert.deepEqual(kicks, [0, 2]);
+            assert.deepEqual(snares, [1, 3]);
+            const hats = plan.drums.filter(d => d.drum === 'hat' || d.drum === 'ohat').map(d => d.pos);
+            hats.forEach(p => assert.equal(p % 0.5, 0));
+            assert.ok(hats.length >= 6);
+        });
+        assert.ok(plain > 20, 'mesures contrôlées : ' + plain);
+    });
+    test('le charleston s\'entrouvre sur des contretemps, pas sur les temps', () => {
+        let open = 0;
+        punkBars().forEach(({ plan }) => plan.drums.filter(d => d.drum === 'ohat').forEach(d => { open++; assert.equal(d.pos % 1, 0.5); }));
+        assert.ok(open > 5, 'charlestons ouverts : ' + open);
+    });
+    test('la basse double les croches du chug sur la fondamentale', () => {
+        punkBars().forEach(({ plan }) => {
+            const roots = plan.bass.filter(b => b.tok === 'R').length;
+            assert.ok(roots >= 6, 'croches de fondamentale : ' + roots);
+        });
     });
 });
 

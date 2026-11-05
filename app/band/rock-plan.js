@@ -80,20 +80,24 @@ const ROCK = {
                         pats: ['P-----P-----P---', 'P-------P---P---', 'P---------------', 'P-----P-P-------', 'P---P---P-------', 'P-------P-----P-', 'P---P-----P-----', 'P-------P-------'] } },
         keys: { lo: null, hi: null }, organ: { lo: 'pad', hi: 'swell' }, strings: { lo: null, hi: null }, tmb: { lo: null, hi: null }, organFull: true
     },
+    // Punk d'après « Antisocial » (Trust, repris par Anthrax) : binaire, syncopé, incisif, vers 145 à la noire.
+    //  · batterie : grosse caisse sur 1 et 3 seulement, caisse claire sur 2 et 4 (frappée à fond, pile sur le temps), charleston en croches
+    //    droites, souvent entrouvert sur les contretemps ;
+    //  · guitare : croches étouffées à la paume sur la fondamentale (le « chug »), et à chaque mesure l'accord de puissance ouvert qui claque
+    //    sur le contretemps du premier temps (le « et » du 1) ; le refrain en claque davantage ; la basse double les croches de la guitare
+    //    et glisse vers l'accord suivant au quatrième temps.
     'r-punk': {
-        tempo: 176, swing: 0.5, arc: [0.8, 0.85, 0.92, 1], upright: false,
+        tempo: 145, swing: 0.5, arc: [0.55, 0.56, 0.9, 1], upright: false,   // couplet = le riff de base (un seul accord ouvert par mesure), refrain = plus de contretemps
         drums: {
-            lo: { time: ['hat', ['8.6.8.6.8.6.8.6.']], kick: ['9.......9.......', '9.....9.9.......', '9...9...9...9...'], snare: '....9.......9...', ghost: [] },
-            hi: { time: ['hat', ['9.7.9.7.9.7.9.7.']], kick: ['9.......9.9.....', '9.....9.9.....9.', '9...9...9.9.9...'], snare: '....9.......9...', ghost: [], open: [14] }
+            lo: { time: ['hat', ['8.6.8.6.8.6.8.6.']], kick: ['9.......9.......'], snare: '....9.......9...', snareLay: 0.002, ghost: [], open: [6, 14] },
+            hi: { time: ['hat', ['9.7.9.7.9.7.9.7.']], kick: ['9.......9.......'], snare: '....9.......9...', snareLay: 0.002, ghost: [], open: [2, 6, 10, 14] }
         },
-        bass: { lo: ['R.R.R.R.R.R.R.R.', 'R.R.R.R.R.R.R.F.'], hi: ['R.R.R.R.R.R.R.R.', 'R.R.R.R.R.R.R.A.'] },
-        // Guitare punk : accords de puissance en coups descendants, mais simples et qui sonnent (noires et croches, chaque coup rend la
-        // main au suivant sans trou : pas d'effet mitraillette). Ça varie par le choix des motifs d'une phrase, les accents déplacés,
-        // les coups qui manquent et les accords tenus, jamais par des petites notes sèches.
+        bass: { lo: ['R.R.R.R.R.R.R.R.', 'R.R.R.R.R.R.R.A.'], hi: ['R.R.R.R.R.R.R.R.', 'R.R.R.R.R.R.R.A.'] },
+        // Symboles de guitare : m = croche étouffée sur la fondamentale ; C = accord de puissance ouvert qui claque (une croche, jusqu'au chug suivant).
         guitar: { lo: { mode: 'strum', shape: 'power', tone: 'drive', vary: 'punk',
-                        pats: ['D---D---D---D---', 'D---D---D-D-D---', 'D---D-D-D---D-D-', 'D-----D-D---D---', 'D---D---D-----D-', 'D-D-D---D-D-D---'] },
+                        pats: ['m.C-m.m.m.m.m.m.', 'm.C-m.m.m.m.m.m.', 'm.C-m.m.m.C-m.m.', 'm.C-m.m.m.m.m.C-', 'm.C-m.m.m.m.mmm.'] },
                   hi: { mode: 'strum', shape: 'power', tone: 'drive', vary: 'punk',
-                        pats: ['D---D---D---D---', 'D---D-D-D---D-D-', 'D-D-D-D-D-D-D-D-', 'D-----D-D---D---', 'D---D---D-D-D---', 'D-D-D---D-D-D---', 'D---D---D-----D-'] } },
+                        pats: ['m.C-m.C-m.C-m.C-', 'm.C-m.C-m.C-m.m.', 'm.C-m.m.m.C-m.C-', 'm.C-m.C-m.m.m.C-'] } },
         keys: { lo: null, hi: null }, organ: { lo: null, hi: null }, strings: { lo: null, hi: null }, tmb: { lo: null, hi: null }
     },
     'r-ballad': {
@@ -328,7 +332,7 @@ function rockDrums(c, ph, G, lvl, groove, i, L, isTurn, bass, rng, env) {
 
     // caisse claire : temps arrière (un peu en retard sur le temps : le jeu « posé » d'un vrai batteur), notes fantômes
     const snareDrum = D.rim ? 'rim' : 'rsnare';
-    rkVel(D.snare).forEach(([p, v]) => { if (p < fillFrom - 1e-6) add(p, snareDrum, (p === 3 ? v : v * 0.96) + (rng() - 0.5) * 0.08, 0.008); });
+    rkVel(D.snare).forEach(([p, v]) => { if (p < fillFrom - 1e-6) add(p, snareDrum, (p === 3 ? v : v * 0.96) + (rng() - 0.5) * 0.08, D.snareLay !== undefined ? D.snareLay : 0.008); });
     if (D.clap) rkVel(D.snare).forEach(([p, v]) => { if (p < fillFrom - 1e-6 && rng() < 0.7) add(p, 'clap', v * 0.55, 0.01); });
     if (ph.ghostOn && D.ghost && D.ghost.length && I > 0.45) {
         rkVel(D.ghost[(ph.kickPat + i) % D.ghost.length]).forEach(([p, v]) => { if (p < fillFrom - 1e-6 && rng() < 0.75) add(p, 'rghost', v * 0.9, 0.006); });
@@ -387,7 +391,7 @@ function gtrShape(env, cs, kind) {
 //  · classic : coups montants manqués ou remplacés par un gratté sourd, relances en double croche, accords tenus jusqu'au coup suivant,
 //    retombée sus4 → tierce sur le premier accord du couplet ;
 //  · hard    : les accords s'allongent jusqu'au coup suivant ou, au contraire, se raccourcissent ; le dernier peut sonner jusqu'à la fin ;
-//  · punk    : grattés sourds et paumes étouffées sur quelques contretemps (couplet), relance en doubles croches, accords de refrain tenus ;
+//  · punk    : chug régulier (le riff d'« Antisocial » ne se démonte pas) ; seul un roulement de batterie coupe le tapis dès le troisième temps ;
 //  · avec un roulement (fin de phrase), la guitare laisse sonner le dernier accord au lieu de continuer à jouer sous la batterie.
 function varyGuitar(evs0, kind, k) {
     const { rng, i, isTurn, fill, hi } = k;
@@ -429,14 +433,9 @@ function varyGuitar(evs0, kind, k) {
         if (lastP && lastP.dur < 4 - lastP.pos - 0.2 && rng() < 0.5) lastP.dur = 4 - lastP.pos;
         if (isTurn && fill && rng() < 0.6) fillBreak(e => e.sym === 'P');
     } else if (kind === 'punk') {
-        evs.forEach(e => {
-            if (e.pos === 0 || e.sym !== 'D') return;
-            if (e.pos % 1 !== 0 && rng() < 0.15) e.sym = '.';                // un contretemps qui ne sonne pas : la rythmique respire
-            else if (e.pos % 1 === 0 && rng() < 0.35) e.acc = 1.08;          // accent déplacé
-        });
-        evs = evs.filter(e => e.sym !== '.');
-        stretch(e => e.sym === 'D' && e.pos > 0, 0.99, 0.35);
-        if (isTurn && fill && rng() < 0.5) fillBreak(e => e.sym === 'D');
+        // le tapis de croches étouffées est régulier (c'est le principe du riff) : seul le roulement de fin de phrase l'interrompt,
+        // à partir du troisième temps ; les accords qui claquent sur les contretemps du début de mesure restent en place
+        if (isTurn && fill && rng() < 0.5) evs = evs.filter(e => e.pos < 2.9);
     }
     return evs;
 }
@@ -551,6 +550,8 @@ function rockGuitar(c, ph, cfg, i, isTurn, rng, lvlTone, m) {
             case 'u': push(ev.pos, 0.2, top, 0.45 * v, 'strum', -1, rl(0.003), lay); break;
             case 'P': push(ev.pos, Math.max(vary === 'hard' ? 0.95 : 0.5, ev.dur * 0.97), gtrShape(env, cs, 'power4'), 1 * v, 'strum', 1, rl(0.006), lay); break;
             case 'M': push(ev.pos, 0.2, [R, R + 7], 0.8 * v, 'mute', 1, rl(0.003), lay); break;
+            case 'm': push(ev.pos, 0.2, [R], 0.78 * v, 'mute', 1, 0, lay); break;   // croche étouffée à la paume sur la fondamentale seule (chug punk)
+            case 'C': push(ev.pos, Math.max(0.4, ev.dur * 0.97), full, 1.06 * v, 'strum', 1, rl(0.005), lay); break;   // accord ouvert accentué sur un contretemps
             case 'X': push(ev.pos, 0.06, full.slice(0, 3), 0.5 * v, 'dead', 1, rl(0.003), lay); break;
             case 'x': push(ev.pos, 0.07, top, 0.42 * v, 'dead', -1, rl(0.003), lay); break;
             case 'S': {
