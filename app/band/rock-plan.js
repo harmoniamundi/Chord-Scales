@@ -71,12 +71,13 @@ const ROCK = {
             hi: { time: ['ride', ['9.6.7.6.9.6.7.6.']], kick: ['9.9.9.9.9.9.9.9.', '9.9...9.9.9...9.', '9.9.9...9.9.9.9.'], snare: '....9.......9...', ghost: [], open: [] }
         },
         bass: { lo: ['R.R.R.R.R.R.R.R.', 'R.R.R.O.R.R.R.F.', 'R.RRR.RRR.RRR.R.'], hi: ['R.R.R.R.R.R.R.R.', 'R.R.R.R.R.R.R.A.', 'R.RRR.RRR.RRR.RA'] },
-        // Guitare hard rock : accords de longueurs très différentes (nappes de deux temps, accord de tout le temps de la mesure, notes
-        // courtes étouffées entre les deux) ; `hold` : l'accord peut durer six temps, au-delà de la barre de mesure (voir rockGuitar).
-        guitar: { lo: { mode: 'chug', shape: 'power', tone: 'heavy', vary: 'hard', hold: 0.18,
-                        pats: ['M.MMM.MMM.MMM.M.', 'P-------M.MM.MMM', 'M.MM.M.MP-------', 'P-----M.P---M.M.', 'MMM.MMM.P-------', 'P---M.M.P-----M.', 'P---------M.M.MM', 'P.MM..M.P.MM..M.'] },
-                  hi: { mode: 'strum', shape: 'power4', tone: 'heavy', vary: 'hard', hold: 0.4,
-                        pats: ['P---P.P.P---P.P.', 'P-------P---P-P.', 'P-----P.P-------', 'P---------------', 'P---P---P-----P.', 'P-------P-----P-', 'P-----P.P.P.P---', 'P--P--P.P--P--P.'] } },
+        // Guitare hard rock : peu de notes, longues. Accords de puissance tenus (un temps, deux temps, la mesure), quelques croches étouffées
+        // seulement pour lancer un accord (riffs à la Deep Purple, AC/DC, Black Sabbath : « 3 + 3 + 2 » de Smoke on the Water, accord de
+        // deux temps après un tronçonnage…). `hold` : l'accord peut durer six temps, au-delà de la barre de mesure (voir rockGuitar).
+        guitar: { lo: { mode: 'chug', shape: 'power', tone: 'heavy', vary: 'hard', hold: 0.3,
+                        pats: ['P-------P-------', 'P-----P-----P---', 'M.M.M.M.P-------', 'P---P---P-------', 'P-------M.M.P---', 'P---M.M.P-------', 'P---------------', 'P---P-----P-----'] },
+                  hi: { mode: 'strum', shape: 'power4', tone: 'heavy', vary: 'hard', hold: 0.5,
+                        pats: ['P-----P-----P---', 'P-------P---P---', 'P---------------', 'P-----P-P-------', 'P---P---P-------', 'P-------P-----P-', 'P---P-----P-----', 'P-------P-------'] } },
         keys: { lo: null, hi: null }, organ: { lo: 'pad', hi: 'swell' }, strings: { lo: null, hi: null }, tmb: { lo: null, hi: null }, organFull: true
     },
     'r-punk': {
@@ -86,12 +87,13 @@ const ROCK = {
             hi: { time: ['hat', ['9.7.9.7.9.7.9.7.']], kick: ['9.......9.9.....', '9.....9.9.....9.', '9...9...9.9.9...'], snare: '....9.......9...', ghost: [], open: [14] }
         },
         bass: { lo: ['R.R.R.R.R.R.R.R.', 'R.R.R.R.R.R.R.F.'], hi: ['R.R.R.R.R.R.R.R.', 'R.R.R.R.R.R.R.A.'] },
-        // Guitare punk : toujours des accords de puissance en coups descendants, mais pas une mesure identique à l'autre : couplets
-        // étouffés qui s'ouvrent, accents qui se déplacent, relances en doubles croches, grattés sourds, arrêts avant le changement d'accord.
+        // Guitare punk : accords de puissance en coups descendants, mais simples et qui sonnent (noires et croches, chaque coup rend la
+        // main au suivant sans trou : pas d'effet mitraillette). Ça varie par le choix des motifs d'une phrase, les accents déplacés,
+        // les coups qui manquent et les accords tenus, jamais par des petites notes sèches.
         guitar: { lo: { mode: 'strum', shape: 'power', tone: 'drive', vary: 'punk',
-                        pats: ['D.D.D.D.D.D.D.D.', 'M.M.M.M.M.M.M.D.', 'D.M.D.M.D.M.D.M.', 'D.D.D.D.D.D.D.DD', 'D.D.D.D.M.M.M.D.', 'D.D.D.D.D.D.D---', 'D.D.M.D.D.D.M.D.'] },
+                        pats: ['D---D---D---D---', 'D---D---D-D-D---', 'D---D-D-D---D-D-', 'D-----D-D---D---', 'D---D---D-----D-', 'D-D-D---D-D-D---'] },
                   hi: { mode: 'strum', shape: 'power', tone: 'drive', vary: 'punk',
-                        pats: ['D.D.D.D.D.D.D.D.', 'D-D.D-D.D-D.D.D.', 'D.D.D.D.D.D.D.DD', 'D---D.D.D---D.D.', 'D.D.D.D.D---D.D.', 'D...D...D...D...', 'D.D.D.D.D.D.D...', 'M.M.M.M.M.M.M.D.', 'D.D.M.D.D.D.M.D.'] } },
+                        pats: ['D---D---D---D---', 'D---D-D-D---D-D-', 'D-D-D-D-D-D-D-D-', 'D-----D-D---D---', 'D---D---D-D-D---', 'D-D-D---D-D-D---', 'D---D---D-----D-'] } },
         keys: { lo: null, hi: null }, organ: { lo: null, hi: null }, strings: { lo: null, hi: null }, tmb: { lo: null, hi: null }
     },
     'r-ballad': {
@@ -112,23 +114,24 @@ const ROCK = {
             hi: { time: ['ride', ['8.5.7.5.8.5.7.5.', '8...7.5.8...7.5.']], kick: ['9.....5.8.......', '9.......8.7...5.'], snare: '....9.......9...', ghost: ['......3.......3.', '......3.....3...'] }
         },
         bass: { lo: ['R...T...F...6...', 'R...F...6...7...', 'R.R.F.F.6.6.F.F.'], hi: ['R.R.F.F.6.6.F.F.', 'R...T...F...6...', 'R.R.T.T.F.F.6.A.'] },
-        guitar: { lo: { mode: 'boogie', shape: 'dyad', tone: 'crunch', pats: ['5 5 6 6 7 7 6 6', '5 6 5 6 5 6 5 6', '5 6 7 6 5 6 7 6'] },
-                  hi: { mode: 'boogie', shape: 'dyad', tone: 'drive', pats: ['5 5 6 6 7 7 6 6', '5 6 7 6 5 6 7 6'] } },
+        // Dyades de boogie + de temps en temps une phrase de guitare solo sur les deux derniers temps (licks : voir BLUES_LICKS)
+        guitar: { lo: { mode: 'boogie', shape: 'dyad', tone: 'crunch', licks: 0.4, pats: ['5 5 6 6 7 7 6 6', '5 6 5 6 5 6 5 6', '5 6 7 6 5 6 7 6'] },
+                  hi: { mode: 'boogie', shape: 'dyad', tone: 'drive', licks: 0.55, pats: ['5 5 6 6 7 7 6 6', '5 6 7 6 5 6 7 6'] } },
         keys: { lo: 'stab', hi: 'stab' }, organ: { lo: 'pad', hi: 'pad' }, strings: { lo: null, hi: null }, tmb: { lo: null, hi: null }, leslieFast: true
     },
     // Rock'n'roll des années 50 : pas de guitare électrique (piano, contrebasse, batterie). La contrebasse mène : lignes qui marchent
     // (fondamentale, tierce, quinte, sixte, septième…), accents sur les temps 2 et 4 comme en slap, course vers l'accord suivant en fin
-    // de phrase, un peu plus de niveau (gainMul) ; le piano et la batterie se mettent légèrement en retrait (mix).
+    // de phrase, un peu plus de niveau (gainMul) ; la batterie se met légèrement en retrait (mix). Le piano garde son jeu d'origine (boogie).
     'r-roll': {
         tempo: 160, swing: 0.62, arc: [0.55, 0.62, 0.78, 0.88], upright: true, bassLead: true, guitar: null,
-        mix: { drums: 0.84, keys: 0.86 },
+        mix: { drums: 0.84 },
         drums: {
             lo: { time: ['hat', ['8.6.8.6.8.6.8.6.']], kick: ['9.......9.......', '9.......9.....5.'], snare: '....9.......9...', ghost: [] },
             hi: { time: ['hat', ['9.7.9.7.9.7.9.7.']], kick: ['9.......9.....6.', '9.....5.9.......'], snare: '....9.......9...', ghost: [], clap: true }
         },
         bass: { lo: ['R...T...F...6.A.', 'R.T.F.6.7.6.F.T.', 'R.R.F.F.6.6.F.F.', 'R---..T.F---..6.', 'R...F...6...7.A.'],
                 hi: ['R.T.F.6.7.6.F.T.', 'R.R.F.F.6.6.F.F.', 'R.T.F.6.O.6.F.A.', 'R.R.T.F.6.7.6.A.'] },
-        keys: { lo: 'boogie', hi: 'pound' }, organ: { lo: null, hi: null }, strings: { lo: null, hi: null }, tmb: { lo: null, hi: null }
+        keys: { lo: 'boogie', hi: 'boogie' }, organ: { lo: null, hi: null }, strings: { lo: null, hi: null }, tmb: { lo: null, hi: null }
     },
     'r-indie': {
         tempo: 124, swing: 0.5, arc: [0.45, 0.52, 0.8, 0.9], upright: false,
@@ -416,25 +419,23 @@ function varyGuitar(evs0, kind, k) {
         }
         if (isTurn && fill && rng() < 0.55) fillBreak(e => e.sym === 'D' || e.sym === 'S');
     } else if (kind === 'hard') {
+        // les accords ne font que s'allonger (jusqu'au coup suivant), jamais se raccourcir
         evs.forEach((e, idx) => {
-            if (e.sym !== 'P') return;
-            const g = gapAfter(idx), r = rng();
-            if (e.pos > 0 && r < 0.3 && g > e.dur + 0.2) e.dur = g * (0.92 + rng() * 0.08);
-            else if (e.dur >= 1 && r > 0.85) e.dur = Math.max(0.5, e.dur * 0.5);
+            if (e.sym !== 'P' || e.pos === 0) return;
+            const g = gapAfter(idx);
+            if (rng() < 0.35 && g > e.dur + 0.2) e.dur = g * (0.94 + rng() * 0.06);
         });
         const lastP = evs.filter(e => e.sym === 'P').pop();
-        if (lastP && lastP.dur < 4 - lastP.pos - 0.2 && rng() < 0.4) lastP.dur = 4 - lastP.pos;
+        if (lastP && lastP.dur < 4 - lastP.pos - 0.2 && rng() < 0.5) lastP.dur = 4 - lastP.pos;
         if (isTurn && fill && rng() < 0.6) fillBreak(e => e.sym === 'P');
     } else if (kind === 'punk') {
         evs.forEach(e => {
             if (e.pos === 0 || e.sym !== 'D') return;
-            const r = rng();
-            if (e.pos % 1 !== 0 && r < 0.1) e.sym = 'X';                   // gratté sourd à la place d'un coup
-            else if (e.pos % 1 !== 0 && r < 0.26) e.sym = 'M';              // paume étouffée
-            else if (e.pos % 1 === 0 && r < 0.4) e.acc = 1.08;              // accent déplacé
+            if (e.pos % 1 !== 0 && rng() < 0.15) e.sym = '.';                // un contretemps qui ne sonne pas : la rythmique respire
+            else if (e.pos % 1 === 0 && rng() < 0.35) e.acc = 1.08;          // accent déplacé
         });
-        if (rng() < 0.22 && free(3.75) && !free(3.5)) insert({ pos: 3.75, sym: 'D', dur: 0.2, acc: 0.85 });
-        if (hi) stretch(e => e.sym === 'D' && e.pos > 0 && e.pos % 1 === 0, 1, 0.25);
+        evs = evs.filter(e => e.sym !== '.');
+        stretch(e => e.sym === 'D' && e.pos > 0, 0.99, 0.35);
         if (isTurn && fill && rng() < 0.5) fillBreak(e => e.sym === 'D');
     }
     return evs;
@@ -447,6 +448,17 @@ function strokeAccent(kind, pos) {
     if (kind === 'hard') return onBeat ? (pos === 0 ? 1.04 : 1) : 0.9;
     return pos === 0 ? 1.06 : (onBeat ? 0.98 : 0.9);
 }
+
+// Phrases de blues rock (gamme pentatonique mineure et « note bleue » sur l'accord) : [temps, demi-tons au-dessus de la fondamentale, durée].
+// Elles tombent sur les deux derniers temps et laissent la place aux dyades qui précèdent ; la dernière note appelle l'accord suivant.
+const BLUES_LICKS = [
+    [[2, 22, 0.5], [2.5, 19, 0.5], [3, 17, 0.5], [3.5, 15, 0.5]],   // descente septième - quinte - quarte - tierce mineure
+    [[2, 15, 0.5], [2.5, 16, 0.5], [3, 19, 1]],                     // tierce mineure qui monte à la majeure, puis la quinte tenue
+    [[2.5, 19, 0.5], [3, 22, 0.5], [3.5, 24, 0.5]],                 // montée quinte - septième - octave
+    [[2, 17, 0.5], [2.5, 18, 0.5], [3, 19, 1]],                     // quarte - note bleue - quinte
+    [[3, 19, 0.5], [3.5, 22, 0.5]],                                 // petite relance en fin de mesure
+    [[2, 24, 1], [3, 22, 0.5], [3.5, 19, 0.5]]                      // octave tenue qui redescend
+];
 
 function rockGuitar(c, ph, cfg, i, isTurn, rng, lvlTone, m) {
     const I = ph.intensity;
@@ -491,6 +503,14 @@ function rockGuitar(c, ph, cfg, i, isTurn, rng, lvlTone, m) {
             const acc = k % 2 === 0 ? 1 : 0.8;
             push(pos, 0.44, [R, R + add[tk]], 0.78 * acc * (0.94 + rng() * 0.1), 'mute', 1, 0.004);
         });
+        if (cfg.licks && c.segs.length === 1 && rng() < (isTurn || i % 2 === 1 ? cfg.licks : 0.12)) {
+            const lick = BLUES_LICKS[Math.floor(rng() * BLUES_LICKS.length)].filter(n => !(c.anticip && n[0] >= 3.5));
+            if (lick.length) {
+                const from = lick[0][0];
+                for (let k = out.length - 1; k >= 0; k--) if (out[k].pos >= from - 1e-6) out.splice(k, 1);   // la phrase prend la place des dyades
+                lick.forEach(([pos, st, d]) => push(pos, Math.max(0.3, d * 0.97), [gtrRoot(env, c.csAt(pos)) + st], 0.74 * (0.94 + rng() * 0.12), 'strum', 1, 0, 0.004 + rng() * 0.008));
+            }
+        }
         return out;
     }
     if (cfg.mode === 'arp') return arpBar(patSet[pi]);
@@ -525,11 +545,11 @@ function rockGuitar(c, ph, cfg, i, isTurn, rng, lvlTone, m) {
         const full = gtrShape(env, cs, cfg.shape);
         const top = full.slice(-3);
         switch (ev.sym) {
-            case 'D': push(ev.pos, Math.max(0.5, ev.dur * 0.97), full, 0.9 * v, 'strum', 1, rl(0.006), lay); break;
+            case 'D': push(ev.pos, Math.max(vary === 'punk' ? 0.95 : 0.5, ev.dur * 0.97), full, 0.9 * v, 'strum', 1, rl(0.006), lay); break;
             case 'd': push(ev.pos, Math.max(0.4, ev.dur * 0.97), full, 0.7 * v, 'strum', 1, rl(0.005), lay); break;
             case 'U': push(ev.pos, 0.4, top, 0.55 * v, 'strum', -1, rl(0.004), lay); break;
             case 'u': push(ev.pos, 0.2, top, 0.45 * v, 'strum', -1, rl(0.003), lay); break;
-            case 'P': push(ev.pos, Math.max(0.5, ev.dur * 0.97), gtrShape(env, cs, 'power4'), 1 * v, 'strum', 1, rl(0.006), lay); break;
+            case 'P': push(ev.pos, Math.max(vary === 'hard' ? 0.95 : 0.5, ev.dur * 0.97), gtrShape(env, cs, 'power4'), 1 * v, 'strum', 1, rl(0.006), lay); break;
             case 'M': push(ev.pos, 0.2, [R, R + 7], 0.8 * v, 'mute', 1, rl(0.003), lay); break;
             case 'X': push(ev.pos, 0.06, full.slice(0, 3), 0.5 * v, 'dead', 1, rl(0.003), lay); break;
             case 'x': push(ev.pos, 0.07, top, 0.42 * v, 'dead', -1, rl(0.003), lay); break;
@@ -572,16 +592,15 @@ function rockKeys(c, ph, G, i, isTurn, rng, base) {
                 [[0.5, 0.55], [1.5, 0.5], [2.5, 0.55], [3.5, 0.5]].forEach(([p, v]) => { if (p >= sg.s && p < sg.e && rng() < 0.8) mk(p, 0.35, V.slice(1), v * 0.9, 'piano', 'hit', 0.003); });
                 if (rng() < 0.6 && sg.s === 0) mk(0, 0.8, V, 0.62, 'piano', 'hit', 0.006);
             } else {
-                // boogie-woogie : la main gauche marche sur la fondamentale (1-3-5-6-b7-6-5-3), la main droite place des accords sur les contretemps.
-                // Quand la contrebasse mène (G.bassLead), la main gauche lui laisse la marche : octaves et quintes sur les temps seulement.
+                // boogie-woogie : la main gauche marche sur la fondamentale (1-3-5-6-b7-6-5-3), la main droite place des accords sur les contretemps
                 let lh = gtrRoot(env, sg.cs);
                 while (lh + env.transOffset > -1) lh -= 12;
                 while (lh + env.transOffset < -13) lh += 12;
                 const nn = env.findChordObj(sg.cs.chordId).notes;
                 const t = ((((nn[1] !== undefined ? nn[1] : 4) - (nn[0] || 0)) % 12) + 12) % 12;
-                (G.bassLead ? [0, null, 7, null, 0, null, 7, null] : [0, t, 7, 9, 10, 9, 7, t]).forEach((ivl, k) => {
+                [0, t, 7, 9, 10, 9, 7, t].forEach((ivl, k) => {
                     const p = sg.s + k * 0.5;
-                    if (ivl === null || p >= sg.e - 0.01) return;
+                    if (p >= sg.e - 0.01) return;
                     mk(p, 0.48, k % 4 === 0 ? [lh + ivl, lh + ivl + 12] : [lh + ivl], k % 2 === 0 ? 0.62 : 0.5, 'piano', 'hit', 0.002);
                 });
                 [1, 3].forEach(p => { if (p >= sg.s && p < sg.e) mk(p + 0.5, 0.4, V.slice(1), 0.56 + rng() * 0.08, 'piano', 'hit', 0.004); });
@@ -591,7 +610,6 @@ function rockKeys(c, ph, G, i, isTurn, rng, base) {
         // piano de base (ballade, nappe, comping syncopé) un peu en retrait derrière la guitare
         piano = piano.map(e => ({ ...e, vel: e.vel * 0.88 }));
     }
-    if (G.mix) piano.forEach(e => { if (!e.inst || e.inst === 'piano') e.vel = Math.max(0.1, e.vel * G.mix.keys); });   // en retrait derrière la basse
     out.push(...piano);
     return out;
 }

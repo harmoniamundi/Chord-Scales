@@ -244,7 +244,7 @@ describe('rock\'n\'roll des années 50 : la basse mène, sans guitare électriqu
         const nOff = [...Array(6)].reduce((n, _, k) => n + run('r-roll', k + 1).reduce((m, { plan }) => m + plan.bass.filter(b => b.pos % 1 !== 0).length, 0), 0);
         assert.ok(accent / n24 > soft / nOff, 'les temps 2 et 4 sont plus appuyés que les contretemps');
     });
-    test('la basse est plus forte que le piano et la batterie (vélocité moyenne), et le piano n\'a pas de marche de basse en main gauche', () => {
+    test('la basse est plus forte que le piano et la batterie (niveau moyen)', () => {
         const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
         const bass = [], piano = [], drums = [];
         for (let seed = 1; seed <= 4; seed++) run('r-roll', seed).forEach(({ plan }) => {
@@ -262,10 +262,15 @@ describe('rock\'n\'roll des années 50 : la basse mène, sans guitare électriqu
         });
         assert.ok(runs >= 8, 'courses : ' + runs);
     });
-    test('le rock\'n\'roll garde son piano (boogie au couplet, accords martelés au refrain)', () => {
-        const ms = run('r-roll', 3);
-        assert.ok(ms.some(({ plan, ph }) => !ph.rockHi && plan.piano.length > 0));
-        assert.ok(ms.some(({ plan, ph }) => ph.rockHi && plan.piano.filter(e => !e.inst || e.inst === 'piano').length >= 6));
+    test('le piano garde son jeu d\'origine, couplet comme refrain : boogie, main gauche qui marche sur chaque croche + accords de main droite sur les contretemps', () => {
+        assert.deepEqual([R.ROCK['r-roll'].keys.lo, R.ROCK['r-roll'].keys.hi], ['boogie', 'boogie']);
+        assert.equal(R.ROCK['r-roll'].mix.keys, undefined);
+        run('r-roll', 3).forEach(({ plan }) => {
+            const lh = plan.piano.filter(e => e.vel > 0 && e.intervals.length <= 2 && e.pos % 0.5 === 0);
+            assert.ok(plan.piano.length >= 8, 'événements de piano : ' + plan.piano.length);
+            assert.ok(plan.piano.filter(e => e.pos % 0.5 === 0 && e.pos % 1 === 0).length >= 4);
+            assert.ok(lh.length >= 8);
+        });
     });
 });
 
@@ -316,18 +321,24 @@ describe('hard rock : des accords de longueurs différentes', () => {
         for (let seed = 1; seed <= seeds; seed++) run(g, seed, 0, { phrases: 4 }).forEach(({ plan }) => gtrOf(plan).filter(e => e.art === 'strum').forEach(e => out.push(+e.dur.toFixed(2))));
         return out;
     };
-    test('les accords de puissance ne durent pas tous pareil : coups brefs, accords d\'un temps, de deux temps et de toute la mesure', () => {
+    test('peu de notes et longues : au plus 4 coups par mesure en moyenne, 90 % des accords d\'au moins un temps, durée moyenne de plus d\'un temps et demi', () => {
         const d = lens('r-hard');
-        assert.ok(new Set(d).size >= 8, 'durées distinctes : ' + new Set(d).size);
-        assert.ok(d.some(x => x <= 0.6) && d.some(x => x >= 0.9 && x <= 1.1) && d.some(x => x >= 1.9) && d.some(x => x >= 3.9), d.join());
+        const mean = d.reduce((a, b) => a + b, 0) / d.length;
+        assert.ok(d.filter(x => x >= 0.9).length / d.length >= 0.9, 'accords courts : ' + d.filter(x => x < 0.9).length + '/' + d.length);
+        assert.ok(mean > 1.5, 'durée moyenne ' + mean);
+        let n = 0, k = 0;
+        for (let seed = 1; seed <= 6; seed++) run('r-hard', seed).forEach(({ plan }) => { n += gtrOf(plan).length; k++; });
+        assert.ok(n / k <= 4, 'coups par mesure : ' + n / k);
     });
-    test('par mesure, la guitare mêle des durées différentes (au moins deux longueurs dans la plupart des mesures qui comptent plusieurs accords)', () => {
-        let multi = 0, varied = 0;
-        for (let seed = 1; seed <= 10; seed++) run('r-hard', seed).forEach(({ plan }) => {
-            const ch = gtrOf(plan).filter(e => e.art === 'strum');
-            if (ch.length >= 3) { multi++; if (new Set(ch.map(e => e.dur.toFixed(1))).size >= 2) varied++; }
-        });
-        assert.ok(multi > 20 && varied / multi > 0.8, varied + '/' + multi);
+    test('mais les accords ne durent pas tous pareil : un temps, deux temps, trois temps, toute la mesure', () => {
+        const d = lens('r-hard');
+        assert.ok(new Set(d).size >= 6, 'durées distinctes : ' + new Set(d).size);
+        assert.ok(d.some(x => x >= 0.9 && x <= 1.1) && d.some(x => x >= 1.9 && x <= 2.1) && d.some(x => x >= 1.4 && x <= 1.6) && d.some(x => x >= 3.9), [...new Set(d)].join());
+    });
+    test('les croches étouffées sont rares et ne servent qu\'à lancer un accord', () => {
+        let mutes = 0, all = 0;
+        for (let seed = 1; seed <= 10; seed++) run('r-hard', seed).forEach(({ plan }) => gtrOf(plan).forEach(e => { all++; if (e.art === 'mute') mutes++; }));
+        assert.ok(mutes / all < 0.25, mutes + '/' + all);
     });
     // Comme dans le moteur : un bloc de la grille garde le même accord pendant ses quatre mesures, le suivant n'est annoncé qu'à la dernière.
     const runSteps = (groove, seed) => {
@@ -372,31 +383,60 @@ describe('hard rock : des accords de longueurs différentes', () => {
     });
 });
 
-describe('punk : des accords moins mécaniques', () => {
-    test('les mesures ne se répètent pas à l\'identique : motifs, accents, grattés sourds, paumes étouffées', () => {
-        let total = 0, distinct = 0, same = 0; const arts = new Set(), vels = new Set();
+describe('punk : une rythmique simple, qui sonne, sans effet mitraillette', () => {
+    test('les mesures ne se répètent pas à l\'identique (motifs, accents, coups manquants, accords tenus)', () => {
+        let total = 0, distinct = 0, same = 0; const vels = new Set();
         for (let seed = 1; seed <= 8; seed++) {
             const ms = run('r-punk', seed);
             total += ms.length; distinct += new Set(ms.map(({ plan }) => gtrSig(plan))).size;
-            ms.forEach((x, k) => { if (k && gtrSig(x.plan) === gtrSig(ms[k - 1].plan)) same++; gtrOf(x.plan).forEach(e => { arts.add(e.art); vels.add(e.vel.toFixed(2)); }); });
+            ms.forEach((x, k) => { if (k && gtrSig(x.plan) === gtrSig(ms[k - 1].plan)) same++; gtrOf(x.plan).forEach(e => vels.add(e.vel.toFixed(2))); });
         }
-        assert.ok(distinct / total > 0.45, 'motifs distincts / mesures : ' + distinct / total);
-        assert.ok(same / total < 0.1, 'mesures consécutives identiques : ' + same);
-        ['strum', 'mute', 'dead'].forEach(a => assert.ok(arts.has(a), a));
-        assert.ok(vels.size > 15, 'nuances : ' + vels.size);
+        assert.ok(distinct / total > 0.2, 'motifs distincts / mesures : ' + distinct / total);
+        assert.ok(same / total < 0.15, 'mesures consécutives identiques : ' + same);
+        assert.ok(vels.size > 12, 'nuances : ' + vels.size);
     });
-    test('le punk reste du punk : accords de puissance (trois cordes), coups descendants en majorité, huitièmes droites', () => {
-        let down = 0, total = 0;
-        for (let seed = 1; seed <= 6; seed++) run('r-punk', seed).forEach(({ plan }) => gtrOf(plan).forEach(e => {
-            if (e.art === 'strum') { total++; if (e.dir === 1) down++; assert.ok(e.intervals.length === 3, 'power chord'); }
+    test('pas de notes sèches : que des accords qui sonnent (au moins la moitié d\'un temps, la plupart près d\'un temps), au plus 6 coups par mesure', () => {
+        let n = 0, k = 0, short = 0, sum = 0;
+        for (let seed = 1; seed <= 8; seed++) run('r-punk', seed).forEach(({ plan }) => gtrOf(plan).forEach((e, _, g) => {
+            n++; sum += e.dur; assert.equal(e.art, 'strum');
+            assert.ok(e.dur >= 0.5 - 1e-9, 'durée ' + e.dur);
+            if (e.dur < 0.9 && e.pos < 3.5) short++;
         }));
-        assert.ok(down / total > 0.95);
+        for (let seed = 1; seed <= 8; seed++) run('r-punk', seed).forEach(({ plan }) => { k++; assert.ok(gtrOf(plan).length <= 8); });
+        assert.ok(sum / n >= 0.9, 'durée moyenne ' + sum / n);
+        assert.ok(short / n < 0.02, 'coups trop courts : ' + short);
+        assert.ok(n / k <= 6, 'coups par mesure : ' + n / k);
+    });
+    test('le punk reste du punk : accords de puissance (trois cordes), coups descendants uniquement, huitièmes droites', () => {
+        for (let seed = 1; seed <= 6; seed++) run('r-punk', seed).forEach(({ plan }) => gtrOf(plan).forEach(e => { assert.equal(e.dir, 1); assert.equal(e.intervals.length, 3); }));
         assert.ok(R.ROCK['r-punk'].swing === 0.5);
     });
-    test('la guitare joue des durées différentes (accords tenus, relances en doubles croches)', () => {
+    test('la guitare joue des durées différentes (noires, croches, accords tenus)', () => {
         const d = new Set();
         for (let seed = 1; seed <= 12; seed++) run('r-punk', seed).forEach(({ plan }) => gtrOf(plan).forEach(e => d.add(e.dur.toFixed(1))));
-        assert.ok(d.size >= 5, [...d].join());
+        assert.ok(d.size >= 4, [...d].join());
+    });
+});
+
+describe('blues rock : quelques notes de guitare solo en plus des accords', () => {
+    test('des phrases à une note (pentatonique) apparaissent sur les deux derniers temps de certaines mesures, les dyades restent là', () => {
+        let licks = 0, dyadBars = 0, bars = 0;
+        for (let seed = 1; seed <= 10; seed++) run('r-blues', seed).forEach(({ plan }) => {
+            const g = gtrOf(plan); bars++;
+            const single = g.filter(e => e.intervals.length === 1);
+            if (single.length) { licks++; assert.ok(single.length >= 2); assert.ok(single.every(e => e.pos >= 2 && e.art === 'strum' && e.dur >= 0.3)); assert.ok(g.filter(e => e.intervals.length === 2).every(e => e.pos < single[0].pos), 'dyades avant la phrase'); }
+            if (g.some(e => e.intervals.length === 2)) dyadBars++;
+        });
+        assert.ok(licks / bars > 0.2 && licks / bars < 0.7, 'mesures avec phrase : ' + licks + '/' + bars);
+        assert.ok(dyadBars / bars > 0.9);
+    });
+    test('quelle que soit la transposition ou la coupure de la mesure, les notes restent dans la mesure et le registre de la guitare', () => {
+        [0, -2, -9].forEach(off => run('r-blues', 3, off, { halves: true }).forEach(({ plan }) => gtrOf(plan).forEach(e => {
+            assert.ok(e.pos >= 0 && e.pos < 4); assert.ok(e.intervals.every(n => n + off > -12 && n + off < 30), JSON.stringify(e.intervals));
+        })));
+    });
+    test('les autres rythmes n\'ont pas ces phrases à une note', () => {
+        run('r-indie', 2).forEach(({ plan }) => assert.ok(!gtrOf(plan).some(e => e.intervals.length === 1 && e.art === 'strum')));
     });
 });
 
