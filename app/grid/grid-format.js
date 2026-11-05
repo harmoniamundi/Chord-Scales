@@ -117,6 +117,8 @@ function sanitizeImportedSettings(data) {
         }
         const rev = Number(o.reverb);
         if (o.reverb !== null && o.reverb !== undefined && Number.isFinite(rev)) orch.reverb = Math.max(0, Math.min(1, rev));
+        const gd = Number(o.guitarDensity);
+        if (o.guitarDensity !== null && o.guitarDensity !== undefined && o.guitarDensity !== '' && Number.isFinite(gd)) orch.guitarDensity = Math.max(0, Math.min(1, gd)); // densité de l'orchestre Guitare ; absent = valeur par défaut
         const sw = Number(o.swing);
         if (o.swing !== null && o.swing !== undefined && o.swing !== '' && Number.isFinite(sw)) orch.swing = Math.max(0.5, Math.min(0.75, sw)); // absent = « Auto »
         out.orchestration = orch;

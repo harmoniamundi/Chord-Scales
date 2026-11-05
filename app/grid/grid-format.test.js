@@ -198,3 +198,12 @@ describe('import : orchestre Rock', () => {
         assert.deepEqual(o.volumes, { piano: 0.5, rguitar: 0.7, organ: 1, strings: 0 });
     });
 });
+
+describe('sanitizeImportedSettings : densité de la guitare', () => {
+    test('la densité est conservée et bornée à 0-1 ; absente ou invalide = valeur par défaut', () => {
+        assert.equal(F.sanitizeImportedSettings({ orchestration: { style: 'guitar', guitarDensity: 0.8 } }).orchestration.guitarDensity, 0.8);
+        assert.equal(F.sanitizeImportedSettings({ orchestration: { guitarDensity: -2 } }).orchestration.guitarDensity, 0);
+        assert.equal(F.sanitizeImportedSettings({ orchestration: { guitarDensity: 7 } }).orchestration.guitarDensity, 1);
+        for (const bad of [undefined, null, '', 'x']) assert.ok(!('guitarDensity' in F.sanitizeImportedSettings({ orchestration: { guitarDensity: bad } }).orchestration));
+    });
+});

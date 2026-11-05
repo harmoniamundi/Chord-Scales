@@ -339,3 +339,81 @@ describe('buildGuitarPlan', () => {
         });
     });
 });
+
+// ---------- Curseur « Densité » ----------
+describe('densité de notes (curseur du pop-up Orchestre)', () => {
+    const run = (density, { bpm = 100, seed = 1, meter = '4/4' } = {}) => {
+        const [bpb, ternary] = METERS[meter];
+        const env = { transOffset: 0, bpm, splitBeat: bpb === 2 ? 1 : 2, findChordObj, state: { gtrVoice: null }, density };
+        let phrase = null, total = 0, plans = [];
+        for (let mi = 0; mi < 8; mi++) {
+            const g = GRID[mi % GRID.length], nx = GRID[(mi + 1) % GRID.length];
+            const pi = Math.floor(mi / 4), i = mi % 4;
+            if (!phrase || phrase.index !== pi) {
+                phrase = buildBandPhrase({ lib: H.patternLib(H.meterKey(bpb, ternary), 'guitar'), bpb, ternary, bpm, isCuba: false, groove: null, rng: seeded(seed + pi * 7919 + 1) }, pi, 'guitar', phrase);
+            }
+            const plan = G.buildGuitarPlan(env, bpb, ternary, g, nx, true, null, phrase, i, 4, i === 3, mi);
+            total += plan.piano.length; plans.push(plan);
+        }
+        return { total, plans };
+    };
+    const avg = (d, o) => { let t = 0; for (let s = 1; s <= 30; s++) t += run(d, { ...o, seed: s }).total; return t / 30; };
+
+    test('sans densité (env.density absent) : écriture inchangée', () => {
+        for (let s = 1; s <= 10; s++) assert.deepEqual(run(undefined, { seed: s }).plans.length, 8);
+        assert.equal(avg(undefined), avg(undefined));
+    });
+    test('plus la densité monte, plus la guitare joue de notes', () => {
+        const levels = [0, 0.3, 0.6, 0.85, 1].map(d => avg(d));
+        for (let k = 1; k < levels.length; k++) assert.ok(levels[k] > levels[k - 1], levels.join(' < '));
+        assert.ok(levels[4] > levels[1] * 1.8, `${levels[1]} → ${levels[4]}`);
+    });
+    test('la valeur par défaut (60 %) joue sensiblement plus que l\'écriture d\'origine', () => {
+        assert.ok(avg(0.6) > avg(undefined) * 1.2, `${avg(0.6)} vs ${avg(undefined)}`);
+    });
+    test('événements valides à toutes les densités et signatures : positions dans la mesure, hauteurs jouables, durées positives', () => {
+        for (const meter of Object.keys(METERS)) {
+            for (const d of [0, 0.5, 1]) {
+                for (let s = 1; s <= 8; s++) {
+                    const bpb = METERS[meter][0];
+                    run(d, { meter, seed: s }).plans.forEach(pl => pl.piano.forEach(e => {
+                        assert.ok(e.pos >= 0 && e.pos < bpb, `${meter} d=${d} pos ${e.pos}`);
+                        assert.ok(e.dur > 0 && e.vel > 0 && e.vel <= 1);
+                        realNotes(e, 0).forEach(n => assert.ok(n >= G.GTR_BASS_LO && n <= G.GTR_UP_HI, `${n}`));
+                    }));
+                }
+            }
+        }
+    });
+    test('doubles-croches : seulement en binaire et jusqu\'à 150 BPM', () => {
+        const frac = (pl, spb) => pl.piano.some(e => Math.abs(e.pos * spb * 2 - Math.round(e.pos * spb * 2)) < 1e-9 && Math.abs(e.pos * spb - Math.round(e.pos * spb)) > 1e-9);
+        let found = false;
+        for (let s = 1; s <= 10; s++) run(1, { seed: s, bpm: 100 }).plans.forEach(pl => { if (frac(pl, 2)) found = true; });
+        assert.ok(found, 'des doubles-croches à 100 BPM');
+        for (let s = 1; s <= 10; s++) run(1, { seed: s, bpm: 170 }).plans.forEach(pl => assert.ok(!frac(pl, 2), 'pas de doubles-croches à 170 BPM'));
+        for (let s = 1; s <= 10; s++) run(1, { seed: s, meter: '6/8' }).plans.forEach(pl => assert.ok(!pl.piano.some(e => Math.abs(e.pos * 6 - Math.round(e.pos * 6)) > 1e-9), 'pas de doubles-croches en 6/8'));
+    });
+    test('gtrDensify : densité faible retire des notes, jamais la première case ; densité forte ne laisse plus de silence (tempo lent)', () => {
+        const cell = ['B', '1', '2', '3', '2', '1', '2', '3'];
+        let removed = 0;
+        for (let s = 1; s <= 50; s++) {
+            const out = G.gtrDensify(cell, { d: 0, spb: 2, ternary: false, tooFast: false, bpm: 100, maxRank: 3, rng: seeded(s) });
+            assert.equal(out.cell[0], 'B');
+            removed += out.cell.filter(t => t === '.').length;
+        }
+        assert.ok(removed > 50 * 1.5, `${removed}`);
+        const sparse = ['C', '.', '.', '.', 'c', '.', '.', '.'];
+        for (let s = 1; s <= 20; s++) {
+            const out = G.gtrDensify(sparse, { d: 1, spb: 2, ternary: false, tooFast: false, bpm: 100, maxRank: 3, rng: seeded(s) });
+            assert.ok(out.cell.every(t => t !== '.'), out.cell.join(' '));
+            out.cell.forEach(t => assert.ok(TOKENS.has(t)));
+        }
+    });
+    test('gtrDensify : trop rapide → aucun silence rempli ; la cellule d\'entrée n\'est pas modifiée', () => {
+        const sparse = ['C', '.', '.', '.', 'c', '.', '.', '.'];
+        const copy = sparse.slice();
+        const out = G.gtrDensify(sparse, { d: 1, spb: 2, ternary: false, tooFast: true, bpm: 100, maxRank: 3, rng: seeded(2) });
+        assert.deepEqual(out.cell, sparse);
+        assert.deepEqual(sparse, copy);
+    });
+});
