@@ -2399,11 +2399,11 @@
             }
 
             // Le curseur n'a de sens que là où l'orchestre a une voix libre à étoffer : Guitare seule (pas un palo de flamenco, écrit à part)
-            // et Classique en 2, 3 ou 4 temps binaires (les mesures composées et les autres signatures ont leur propre écriture) ; pas pendant le bouton « Arpèges ».
+            // et Classique (toutes signatures) ; pas pendant le bouton « Arpèges ».
             isBandDensityAvailable() {
                 if (this._arpPrevStyle) return false;
                 if (this.bandStyle === 'guitar') return !this.getEffectiveGroove('guitar');
-                if (this.bandStyle === 'classic') return !this.isTernary() && this.getBeatsPerBar() === 4;
+                if (this.bandStyle === 'classic') return true;
                 return false;
             }
 
@@ -3097,7 +3097,7 @@
             // Choix propres au 3/4 et au 2/4, faits une fois par phrase et gardés pendant toute la phrase.
 
             buildMeterPlan(bpb, style, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                const extra = { splitBeat: this.getSplitBeat(), meterKey: this.getMeterKey(), swing: style === 'swing' ? this.getBandSwing() : 0.5 }; // hors Jazz : swing appliqué après coup (buildBandPlan)
+                const extra = { splitBeat: this.getSplitBeat(), meterKey: this.getMeterKey(), swing: style === 'swing' ? this.getBandSwing() : 0.5, bpm: this.bpm, density: this.getBandDensity(style) }; // hors Jazz : swing appliqué après coup (buildBandPlan)
                 return this._bandRun(['meterVoice', 'bandLastFill'], env => buildMeterPlan(env, bpb, style, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), extra);
             }
 
@@ -3111,7 +3111,7 @@
             // Choix propres aux mesures composées, faits une fois par phrase.
 
             buildTernaryPlan(bpb, style, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                const extra = { splitBeat: this.getSplitBeat(), meterKey: this.getMeterKey() };
+                const extra = { splitBeat: this.getSplitBeat(), meterKey: this.getMeterKey(), bpm: this.bpm, density: this.getBandDensity(style) };
                 return this._bandRun(['meterVoice', 'bandLastFill'], env => buildTernaryPlan(env, bpb, style, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), extra);
             }
 

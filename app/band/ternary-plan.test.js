@@ -137,3 +137,34 @@ describe('mémoire entre les mesures (env.state)', () => {
         }
     });
 });
+
+// ---------- Curseur « Densité » du style Classique (6/8, 9/8, 12/8) ----------
+describe('Classique : curseur « Densité »', () => {
+    const { classicPhraseExtras } = require('./classic-plan.js');
+    const run = (bpb, d, seed, bpm = 60) => {
+        const env = { ...mkEnv(bpb), bpm, density: d };
+        const ph = { ...mkPhrase(bpb, 'classic', seed), ...classicPhraseExtras(bpm, seeded(seed + 3), null, 0) };
+        let n = 0; const plans = [];
+        for (let i = 0; i < 4; i++) { const p = buildTernaryPlan(env, bpb, 'classic', Dm7, G7, i === 3, null, ph, i, 4, i === 3, i); n += p.piano.length; plans.push(p); }
+        return { n: n / 4, plans };
+    };
+    const avg = (bpb, d) => { let t = 0; for (let s = 1; s <= 30; s++) t += run(bpb, d, s).n; return t / 30; };
+    test('0,5 ou absent : écriture d\'origine identique', () => {
+        for (const bpb of [2, 3, 4]) for (let s = 1; s <= 10; s++) assert.deepEqual(run(bpb, undefined, s).plans, run(bpb, 0.5, s).plans);
+    });
+    test('plus la densité monte, plus le piano joue de notes (écart ≥ 4 entre 0 et 1)', () => {
+        for (const bpb of [2, 3, 4]) {
+            const lv = [0, 0.25, 0.5, 0.75, 1].map(d => avg(bpb, d));
+            for (let k = 1; k < lv.length; k++) assert.ok(lv[k] > lv[k - 1], `${KEYS[bpb]} : ${lv.join(' < ')}`);
+            assert.ok(lv[4] >= lv[0] * 4, `${KEYS[bpb]} : ${lv.join(' / ')}`);
+        }
+    });
+    test('les notes ajoutées tombent sur des croches ternaires (tiers de pulsation) ; tempo vif : rien n\'est ajouté', () => {
+        for (let s = 1; s <= 10; s++) run(2, 1, s).plans.forEach(pl => pl.piano.forEach(e => {
+            const sub = e.pos * 6; // croche = 1/3 de temps ; double-croche = 1/6
+            assert.ok(Math.abs(sub - Math.round(sub)) < 1e-6, `pos ${e.pos}`);
+            assert.ok(e.pos >= 0 && e.pos < 2 && e.dur > 0);
+        }));
+        for (let s = 1; s <= 10; s++) assert.deepEqual(run(2, 1, s, 140).plans, run(2, 0.5, s, 140).plans);
+    });
+});

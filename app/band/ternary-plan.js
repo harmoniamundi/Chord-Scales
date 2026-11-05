@@ -11,6 +11,7 @@
 if (typeof popBassApproach === 'undefined' && typeof require === 'function') {
     var { popBassApproach, popBassTones, popVoicing, latBassTones, latThumb, latDetach, bassNear,
         swingPos, pickWeighted, patternLib, pianoHitIntervals, clsVoicing, clsLowNote } = require('./band-helpers.js');
+    var { clsDensify } = require('./classic-plan.js'); // curseur « Densité » du style Classique
 }
 // Tables : globales en navigateur (theory.js, band-patterns.js), à charger sous Node.
 const TERN_PAT = (typeof LAT_VOICE_RANGE !== 'undefined') ? { LAT_VOICE_RANGE } : require('../band-patterns.js');
@@ -584,6 +585,11 @@ function buildTernaryPlan(env, bpb, style, step, nextStep, isLastMeasureOfStep, 
             lay: rng() * 0.008, wide: true, gainMul: 1.2
         });
     });
+    if (Number.isFinite(env.density)) {
+        const segData = segs.map((sg, si) => ({ s: sg.s, e: sg.e, V: clsV(sg.cs), low: clsLowNote(env, sg.cs, off), endPos: sg.e + ((si === segs.length - 1 && holdOn) ? 1.2 : 0.05) }));
+        clsDensify(ev, segData, { d: Math.max(0, Math.min(1, env.density)), rng, gv: gvc, bpm: env.bpm || 60, unit: 1 / 3 });
+        ev.sort((a, b) => a.pos - b.pos);
+    }
     return { piano: ev, bass: [], drums: [] };
 }
 

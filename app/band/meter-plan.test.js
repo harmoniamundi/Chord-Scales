@@ -138,3 +138,32 @@ describe('mémoire entre les mesures (env.state)', () => {
         }
     });
 });
+
+// ---------- Curseur « Densité » du style Classique (2/4 et 3/4) ----------
+describe('Classique : curseur « Densité »', () => {
+    const { classicPhraseExtras } = require('./classic-plan.js');
+    const run = (bpb, d, seed, bpm = 110) => {
+        const env = { ...mkEnv(bpb, 'classic'), bpm, density: d };
+        const ph = { ...mkPhrase(bpb, 'classic', seed), ...classicPhraseExtras(bpm, seeded(seed + 3), null, 0) };
+        let n = 0; const plans = [];
+        for (let i = 0; i < 4; i++) { const p = buildMeterPlan(env, bpb, 'classic', Dm7, G7, i === 3, null, ph, i, 4, i === 3, i); n += p.piano.length; plans.push(p); }
+        return { n: n / 4, plans };
+    };
+    const avg = (bpb, d) => { let t = 0; for (let s = 1; s <= 30; s++) t += run(bpb, d, s).n; return t / 30; };
+    test('0,5 ou absent : écriture d\'origine identique', () => {
+        for (const bpb of [2, 3]) for (let s = 1; s <= 10; s++) assert.deepEqual(run(bpb, undefined, s).plans, run(bpb, 0.5, s).plans);
+    });
+    test('plus la densité monte, plus le piano joue de notes (écart ≥ 4 entre 0 et 1)', () => {
+        for (const bpb of [2, 3]) {
+            const lv = [0, 0.25, 0.5, 0.75, 1].map(d => avg(bpb, d));
+            for (let k = 1; k < lv.length; k++) assert.ok(lv[k] > lv[k - 1], `${bpb} : ${lv.join(' < ')}`);
+            assert.ok(lv[4] >= lv[0] * 4, `${bpb} : ${lv.join(' / ')}`);
+        }
+    });
+    test('événements valides à toutes les densités (positions dans la mesure, durées positives)', () => {
+        for (const bpb of [2, 3]) for (const d of [0, 0.3, 0.7, 1]) for (let s = 1; s <= 10; s++) run(bpb, d, s).plans.forEach(pl => {
+            assert.ok(pl.piano.length >= 1);
+            pl.piano.forEach(e => { assert.ok(e.pos >= 0 && e.pos < bpb && e.dur > 0 && e.vel > 0 && e.vel <= 1); });
+        });
+    });
+});

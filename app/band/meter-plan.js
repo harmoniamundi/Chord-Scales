@@ -12,6 +12,7 @@
 if (typeof popBassApproach === 'undefined' && typeof require === 'function') {
     var { popBassApproach, popBassTones, popVoicing, latBassTones, latThumb, latDetach, bassNear,
         swingPos, pickWeighted, patternLib, pianoHitIntervals, clsVoicing, clsLowNote } = require('./band-helpers.js');
+    var { clsDensify } = require('./classic-plan.js'); // curseur « Densité » du style Classique
 }
 // Tables : globales en navigateur (theory.js, band-patterns.js), à charger sous Node.
 const METER_PAT = (typeof LAT_VOICE_RANGE !== 'undefined') ? { LAT_VOICE_RANGE } : require('../band-patterns.js');
@@ -459,6 +460,7 @@ function buildMeterPlan(env, bpb, style, step, nextStep, isLastMeasureOfStep, ha
         return o;
     };
     const ev = [];
+    const segData = []; // pour le curseur « Densité »
     segs.forEach((sg, si) => {
         const len = sg.e - sg.s;
         const V = clsVoicing(env, sg.cs, off);
@@ -469,6 +471,7 @@ function buildMeterPlan(env, bpb, style, step, nextStep, isLastMeasureOfStep, ha
         const slash = Number.isInteger(sg.cs.bassRootIndex);
         const lastOne = si === segs.length - 1;
         const endPos = sg.e + ((lastOne && holdOn) ? 1.2 : 0.05);
+        segData.push({ s: sg.s, e: sg.e, V, low, endPos });
         const ring = (pos, max) => Math.max(0.2, Math.min(endPos - pos, max));
         const rel = (p) => sg.s + p;
         const push = (pos, max, notes, vel, roll) => {
@@ -526,6 +529,7 @@ function buildMeterPlan(env, bpb, style, step, nextStep, isLastMeasureOfStep, ha
             else push(rel(it.pos), it.max, [note(it.v)], it.vel);
         });
     });
+    if (Number.isFinite(env.density)) clsDensify(ev, segData, { d: Math.max(0, Math.min(1, env.density)), rng, gv: gvc, bpm: env.bpm || 100, unit: 0.5 });
     ev.sort((a, b) => a.pos - b.pos);
     return { piano: ev, bass: [], drums: [] };
 }

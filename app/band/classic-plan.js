@@ -390,8 +390,13 @@ function buildClassicPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, 
 //  - de 0,5 à 0,9 : les croches vides se remplissent (le motif poursuit l'accord en zigzag) ;
 //  - au-dessus de 0,6 (jusqu'à 132 BPM) : des doubles-croches s'intercalent entre deux croches jouées, jusqu'à un flot continu à 1.
 // Au-delà de 165 BPM on ne remplit pas (déjà trop vite). Modifie `ev` en place.
+// o.unit : durée de la croche en temps (0,5 en binaire ; 1/3 en mesure composée, où le BPM compte les noires pointées) ;
+// les doubles-croches s'intercalent à mi-croche.
 function clsDensify(ev, segData, o) {
     const { d, rng, gv, bpm } = o;
+    const unit = o.unit || 0.5;
+    const rate = bpm / 60 / unit;                     // croches par seconde
+    const canFill = rate <= 5.5, canSplit = rate <= 4.4;
     const EPS = 1e-6;
     const clamp = (v) => Math.max(0.12, Math.min(1, v));
     segData.forEach(sd => {
@@ -423,24 +428,24 @@ function clsDensify(ev, segData, o) {
             last = Math.max(0, Math.min(n, r));
             return last;
         };
-        const slots = Math.round((sd.e - sd.s) * 2);
+        const slots = Math.round((sd.e - sd.s) / unit);
         const pf = Math.min(1, u * 1.6);
-        if (bpm <= 165) {
+        if (canFill) {
             for (let k = 0; k < slots; k++) {
-                const p = sd.s + k / 2;
+                const p = sd.s + k * unit;
                 if (occupied(p) || rng() >= pf) continue;
-                ev.push(mk(p, nextRank(), Number.isInteger(p) ? 0.5 : 0.44, 1.3));
+                ev.push(mk(p, nextRank(), Math.abs(p - Math.round(p)) < EPS ? 0.5 : 0.44, 1.3));
             }
         }
         const ps = Math.max(0, Math.min(1, (u - 0.2) / 0.8));
-        if (ps > 0 && bpm <= 132) {
+        if (ps > 0 && canSplit) {
             for (let k = 0; k < slots - 1; k++) {
-                const p = sd.s + k / 2;
-                if (!occupied(p) || !occupied(p + 0.5) || occupied(p + 0.25)) continue;
-                if (rng() < ps) ev.push(mk(p + 0.25, nextRank(), 0.4, 0.9));
+                const p = sd.s + k * unit;
+                if (!occupied(p) || !occupied(p + unit) || occupied(p + unit / 2)) continue;
+                if (rng() < ps) ev.push(mk(p + unit / 2, nextRank(), 0.4, 0.9));
             }
         }
-        if (d > 0.65) { // flot de notes : elles ne doivent plus se superposer en longues résonances
+        if (d > 0.65 && canFill) { // flot de notes : elles ne doivent plus se superposer en longues résonances
             ev.forEach(e => { if (inSeg(e) && e.intervals.length === 1 && !isLow(e) && e.dur > 1.0) e.dur = 1.0; });
         }
     });
