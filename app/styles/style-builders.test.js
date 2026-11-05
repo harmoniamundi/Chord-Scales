@@ -19,8 +19,8 @@ const STYLES = Object.keys(STYLE_BUILDERS);
 const bars = (tpl) => tpl.reduce((s, x) => s + x.m, 0);
 
 describe('catalogue des styles', () => {
-    test('47 styles, dont les alias blues128, ballad128 et balkan98', () => {
-        assert.equal(STYLES.length, 47);
+    test('54 styles (dont sept styles rock), dont les alias blues128, ballad128 et balkan98', () => {
+        assert.equal(STYLES.length, 54);
         assert.equal(STYLE_BUILDERS.blues128, STYLE_BUILDERS.blues);
         assert.equal(STYLE_BUILDERS.ballad128, STYLE_BUILDERS.ballad);
         assert.equal(STYLE_BUILDERS.balkan98, STYLE_BUILDERS.balkan);
@@ -209,5 +209,34 @@ describe('cumbia : grille de bal en triades et dominante', () => {
         const sum = (sec) => t.filter(x => x.section === sec).reduce((s, x) => s + x.m, 0);
         assert.equal(sum('A'), 8);
         assert.equal(sum('B'), 8);
+    });
+});
+
+describe('styles rock', () => {
+    const ROCK = ['rockroll', 'rockclassic', 'hardrock', 'punk', 'rockballad', 'bluesrock', 'indierock'];
+    const TWELVE = ['rockroll', 'bluesrock'];
+    test('formes de 12 mesures (blues) ou de 16 mesures, de référence et renouvelées', () => {
+        ROCK.forEach(st => {
+            const n = TWELVE.includes(st) ? 12 : 16;
+            assert.equal(bars(build(st)), n, st);
+            for (let seed = 1; seed <= 40; seed++) assert.equal(bars(build(st, 0, seeded(seed))), n, st + ' ' + seed);
+        });
+    });
+    test('triades et dominantes septièmes seulement (aucune couleur de jazz)', () => {
+        ROCK.forEach(st => {
+            for (let seed = 1; seed <= 40; seed++) build(st, 0, seeded(seed)).forEach(x => assert.ok(['majTriad', 'minTriad', '7'].includes(x.c), st + ' ' + x.c));
+        });
+    });
+    test('chaque style commence et finit sur sa tonique', () => {
+        ROCK.forEach(st => {
+            const t = build(st);
+            assert.equal(t[0].r, 0, st);
+            assert.ok([0, 5, 7, 9, 10].includes(t[t.length - 1].r), st); // dernière mesure : tonique ou dominante qui reboucle
+        });
+    });
+    test('le blues rock renouvelé peut être mineur', () => {
+        let minor = false;
+        for (let seed = 1; seed <= 80; seed++) if (build('bluesrock', 0, seeded(seed)).some(x => x.c === 'minTriad')) minor = true;
+        assert.ok(minor);
     });
 });

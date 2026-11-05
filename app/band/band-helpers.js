@@ -315,17 +315,21 @@ const BAND_SWING_DEFAULTS = {
     piazzolla: 0.5
 };
 
-// Valeur par défaut (« Auto ») du swing d'un orchestre au tempo donné.
-function defaultBandSwing(style, bpm) {
+// Swing propre à certains rythmes imposés de l'orchestre Pop-Rock (rock'n'roll des années 50, shuffle du blues rock).
+const GROOVE_SWING_DEFAULTS = { 'r-roll': 0.62, 'r-blues': 0.667 };
+
+// Valeur par défaut (« Auto ») du swing d'un orchestre au tempo donné (et au rythme imposé, s'il y en a un).
+function defaultBandSwing(style, bpm, groove) {
+    if (style === 'pop' && groove && typeof GROOVE_SWING_DEFAULTS[groove] === 'number') return GROOVE_SWING_DEFAULTS[groove];
     const d = BAND_SWING_DEFAULTS[style];
     if (typeof d === 'number') return d;
     if (d === 'auto') return Math.max(0.58, Math.min(0.667, 0.667 - (bpm - 140) * 0.001));
     return 0.5;
 }
 
-function bandSwing(style, bpm, manual) {
+function bandSwing(style, bpm, manual, groove) {
     if (typeof manual === 'number' && Number.isFinite(manual)) return Math.max(0.5, Math.min(0.75, manual));
-    return defaultBandSwing(style, bpm);
+    return defaultBandSwing(style, bpm, groove);
 }
 
 // Déformation du temps pour un swing réglable sur un plan déjà écrit en croches droites (tous les orchestres sauf Jazz) : dans chaque temps, la
@@ -454,6 +458,6 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = { popFoldBass, bassPc, bassNear, popBassTones, popBassApproach, popScaleNotes, popLineNote, popRun, latBassTones,
         jamChordPlaybackNotes, popVoicing, popSusVoicing, latThumb, latVary, latDetach,
         brassParts, isSplit, isSplitEffective, getStepHalves,
-        bandSwing, defaultBandSwing, BAND_SWING_DEFAULTS, swingWarp, swingPlan, swingPos, pickWeighted, meterKey, patternLib, pianoGuideInterval, pianoHitIntervals,
+        bandSwing, defaultBandSwing, BAND_SWING_DEFAULTS, GROOVE_SWING_DEFAULTS, swingWarp, swingPlan, swingPos, pickWeighted, meterKey, patternLib, pianoGuideInterval, pianoHitIntervals,
         clsVoicing, clsLowNote, clsMutate };
 }

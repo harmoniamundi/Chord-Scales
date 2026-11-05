@@ -70,7 +70,10 @@ function styleProfile(styleKey) {
         // Balkans : triades et dominante V7(b9), aucune réharmonisation (la couleur est dans le mode, pas dans les accords)
         balkan: { turn: false, w: {} }, balkan98: { turn: false, w: {} }, balkansevdah: { turn: false, w: {} }, balkantsifte: { turn: false, w: {} },
         // Cumbia : triades et dominante V7, boucles courtes, aucune réharmonisation
-        cumbia: { turn: false, w: {} }
+        cumbia: { turn: false, w: {} },
+        // Rock : triades (la guitare joue des accords de puissance) et dominantes septièmes, aucune réharmonisation
+        rockroll: { turn: false, w: {} }, rockclassic: { turn: false, w: {} }, hardrock: { turn: false, w: {} }, punk: { turn: false, w: {} },
+        rockballad: { turn: false, w: {} }, bluesrock: { turn: false, w: {} }, indierock: { turn: false, w: {} }
     };
     return table[styleKey] || { turn: false, w: { colour: 3 } };
 }
@@ -447,6 +450,11 @@ function renewTemplate(ctx, styleKey, buildTemplate, keyRoot, canonical) {
 
 function isBrassStyle(styleKey) { return styleKey === 'brasshymn' || styleKey === 'brasscantique'; }
 
+// Styles rock : leur harmonie (triades, dominantes septièmes) ne reçoit aucune réharmonisation de jazz ; « Générer » renouvelle la forme
+// elle-même (les modèles de style-builders.js), jamais les accords un à un.
+const ROCK_STYLES = ['rockroll', 'rockclassic', 'hardrock', 'punk', 'rockballad', 'bluesrock', 'indierock'];
+function isRockStyle(styleKey) { return ROCK_STYLES.includes(styleKey); }
+
 // Brass band : harmonie de triades et de dominantes septièmes. Les réharmonisations du bouton « Générer » (neuvièmes,
 // septièmes majeures, accords altérés) sont ramenées à ce vocabulaire, sans changer fondamentales ni fonctions.
 function simplifyBrass(S) {
@@ -473,7 +481,7 @@ function rememberGenerated(recent, styleKey, generated) {
 }
 
 function createStyleVariation(ctx, template, styleKey, keyRoot) {
-    if (styleKey === 'i-got-rythm' || ctx.triadsOnly || isBrassStyle(styleKey)) return template.map(x => ({ ...x }));
+    if (styleKey === 'i-got-rythm' || ctx.triadsOnly || isBrassStyle(styleKey) || isRockStyle(styleKey)) return template.map(x => ({ ...x }));
     if (!template.length || ctx.generationVariant <= 0) return template.map(item => ({ ...item }));
     const rand = makeVariationRng(ctx.generationVariant, styleKey, ctx.seedBase);
     const out = template.map(item => ({ ...item }));
@@ -764,7 +772,8 @@ function normalizeGeneratedGrid(template, styleKey) {
         'blues128': 12, 'gospel': 16, 'ballad128': 32,
         'samba': 32, 'tango': 32, 'piazzolla': 16, 'milongalyrique': 32,
         'brasshymn': 16, 'brasscantique': 16,
-        'balkan': 32, 'balkan98': 16, 'balkansevdah': 16, 'balkantsifte': 16, 'cumbia': 16
+        'balkan': 32, 'balkan98': 16, 'balkansevdah': 16, 'balkantsifte': 16, 'cumbia': 16,
+        'rockroll': 12, 'rockclassic': 16, 'hardrock': 16, 'punk': 16, 'rockballad': 16, 'bluesrock': 12, 'indierock': 16
     }[styleKey] || 16;
     if (!template.length) return template;
 
@@ -885,7 +894,7 @@ function convertRomanLabel(label, convention, minor) { return convertRomanText(l
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { makeVariationRng, gridSignature, styleProfile, resolveEnding, withResolvedEnding, slotsFromTemplate, templateFromSlots,
-        tagTwinSlots, copyTwinSlots, validateSlots, reharmonize, renewTemplate, isBrassStyle, simplifyBrass, isTriadStyle, simplifyTriads, rememberGenerated,
+        tagTwinSlots, copyTwinSlots, validateSlots, reharmonize, renewTemplate, isBrassStyle, ROCK_STYLES, isRockStyle, simplifyBrass, isTriadStyle, simplifyTriads, rememberGenerated,
         createStyleVariation, findTwinSections, applyTwinCopies, compactGridRepeats, normalizeGeneratedGrid, enforceChordRepeatLimits,
         chordFamily, romanDeg, romanDegByRank, convertRomanText, convertRomanLabel, fnConventionForStyle, fnMinorRef, FN_MINOR_MODES, FN_MODE_SCALES };
 }

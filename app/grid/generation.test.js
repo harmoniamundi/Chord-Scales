@@ -437,3 +437,29 @@ describe('styles classiques et traditionnels : triades (hors dominantes)', () =>
         ['swing', 'pop', 'chansonsimple', 'brasshymn'].forEach(s => assert.ok(!G.isTriadStyle(s), s));
     });
 });
+
+describe('styles rock : pas de réharmonisation de jazz', () => {
+    test('ROCK_STYLES : les sept styles, reconnus par isRockStyle', () => {
+        assert.deepEqual(G.ROCK_STYLES.slice().sort(), ['bluesrock', 'hardrock', 'indierock', 'punk', 'rockballad', 'rockclassic', 'rockroll']);
+        G.ROCK_STYLES.forEach(st => assert.ok(G.isRockStyle(st), st));
+        ['blues', 'pop', 'funk', 'samba', undefined].forEach(st => assert.ok(!G.isRockStyle(st), String(st)));
+    });
+    test('la variation d\'un modèle rock le laisse tel quel, quel que soit le numéro de variante', () => {
+        G.ROCK_STYLES.forEach(st => {
+            const tpl = build(st, 3);
+            for (const v of [1, 2, 5, 9]) {
+                const out = G.createStyleVariation(ctx({ generationVariant: v }), tpl.map(x => ({ ...x })), st, 3);
+                assert.deepEqual(keysOf(out), keysOf(tpl), st + ' ' + v);
+            }
+        });
+    });
+    test('longueur cible : 12 mesures pour le rock\'n\'roll et le blues rock, 16 pour les autres', () => {
+        G.ROCK_STYLES.forEach(st => {
+            const out = G.normalizeGeneratedGrid(build(st, 0).map(x => ({ ...x })), st);
+            assert.equal(bars(out), (st === 'rockroll' || st === 'bluesrock') ? 12 : 16, st);
+        });
+    });
+    test('profil de réharmonisation vide : ni ii-V, ni substitution, ni couleur', () => {
+        G.ROCK_STYLES.forEach(st => { const p = G.styleProfile(st); assert.equal(p.turn, false, st); assert.deepEqual(p.w, {}, st); });
+    });
+});

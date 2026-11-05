@@ -993,6 +993,84 @@ const STYLE_BUILDERS = {
         }
         return join(cells(pick(A1),'A','A1'), cells(pick(A2),'A','A2'), cells(pick(B1),'B','B1'), cells(pick(B2),'B','B2'));
     },
+    // ============ Rock ============
+    // Sept styles rock, tous en triades et dominantes septièmes (les accords de puissance sont joués par la guitare ; aucune couleur de jazz).
+    // Chaque forme est écrite en degrés absolus depuis la tonique : [nom d'accord du toolkit (M majeur, m mineur, D dominante 7, Dm dominante mineure), décalage en demi-tons, mesures].
+    rockroll: (t) => {
+        const { pick, join, cells } = t;
+        // Rock'n'roll des années 50 : blues de 12 mesures aux dominantes septièmes (I7 - IV7 - V7), boogie de la guitare et du piano.
+        const forms = [
+            [[['D',0,4]], [['D',5,2],['D',0,2]], [['D',7],['D',5],['D',0],['D',7]]],                                // blues de 12 mesures
+            [[['D',0],['D',5],['D',0,2]], [['D',5,2],['D',0,2]], [['D',7],['D',5],['D',0],['D',7]]],                 // avec « quick change » au IV
+            [[['D',0,4]], [['D',5,2],['D',0,2]], [['D',7],['D',5],['D',0,2]]]                                       // fin posée sur I
+        ];
+        const f = pick(forms);
+        return join(cells(f[0],'A','A1'), cells(f[1],'B','B1'), cells(f[2],'C','C1'));
+    },
+    rockclassic: (t) => {
+        const { pick, join, cells } = t;
+        // Rock classique (années 70) : couplet sur une boucle modale (I - bVII - IV, I - V - vi - IV…), refrain qui monte au IV puis au V.
+        const A1 = [ [['M',0],['M',10],['M',5,2]], [['M',0,2],['M',10],['M',5]], [['M',0],['M',7],['m',9],['M',5]], [['M',0,2],['M',3],['M',5]] ];
+        const A2 = [ [['M',0],['M',10],['M',5],['M',0]], [['M',0,2],['M',5],['M',0]], [['M',0],['M',7],['m',9],['M',5]], [['M',0],['M',5],['M',10],['M',5]] ];
+        const B1 = [ [['M',5,2],['M',0,2]], [['M',5],['M',7],['M',0,2]], [['M',5],['M',0],['M',5],['M',7]], [['m',9],['M',5],['M',0],['M',7]] ];
+        const B2 = [ [['M',5],['M',7],['M',0,2]], [['M',10],['M',5],['M',0,2]], [['M',5],['M',10],['M',7],['M',0]], [['M',5,2],['M',7],['M',0]] ];
+        return join(cells(pick(A1),'A','A1'), cells(pick(A2),'A','A2'), cells(pick(B1),'B','B1'), cells(pick(B2),'B','B2'));
+    },
+    hardrock: (t) => {
+        const { pick, join, cells } = t;
+        // Hard rock / heavy : tonalité mineure (aeolien), riffs sur la tonique et descentes i - bVII - bVI - V, refrain bVI - bVII - i.
+        const A1 = [ [['m',0,2],['M',10],['M',8]], [['m',0],['M',10],['M',8],['D',7]], [['m',0,2],['M',3],['M',10]], [['m',0],['M',8],['M',10],['m',0]] ];
+        const A2 = [ [['m',0],['M',10],['M',8],['m',0]], [['m',0,2],['m',5],['M',10]], [['m',0],['M',3],['M',10],['m',0]], [['m',0,2],['M',8],['M',7]] ];
+        const B1 = [ [['M',8],['M',10],['m',0,2]], [['M',8,2],['M',10,2]], [['M',3],['M',10],['M',8],['M',10]], [['m',5],['M',8],['M',10],['m',0]] ];
+        const B2 = [ [['M',8],['M',10],['m',0],['D',7]], [['M',8],['M',10],['m',0,2]], [['m',5],['M',10],['m',0,2]], [['M',3],['M',8],['M',10],['m',0]] ];
+        return join(cells(pick(A1),'A','A1'), cells(pick(A2),'A','A2'), cells(pick(B1),'B','B1'), cells(pick(B2),'B','B2'));
+    },
+    punk: (t) => {
+        const { pick, join, cells } = t;
+        // Punk / pop punk : boucles d'une mesure par accord, trois ou quatre accords en tout (I - V - vi - IV, I - IV - V), très rapides.
+        const loops = [
+            [['M',0],['M',7],['m',9],['M',5]], [['M',0],['M',5],['M',7],['M',5]], [['m',9],['M',5],['M',0],['M',7]],
+            [['M',0],['M',5],['M',0],['M',7]], [['M',0],['m',9],['M',5],['M',7]], [['M',0],['M',0],['M',5],['M',7]]
+        ];
+        const ends = [ [['M',5],['M',7],['M',0,2]], [['M',7],['M',5],['M',0,2]], [['M',5],['M',5],['M',7],['M',0]] ];
+        const a = pick(loops);
+        const okB = loops.filter(l => l.join() !== a.join());
+        const b = pick(okB.length ? okB : loops);
+        return join(cells(a,'A','A1'), cells(a,'A','A2'), cells(b,'B','B1'), cells(pick(ends),'B','B2'));
+    },
+    rockballad: (t) => {
+        const { pick, join, cells } = t;
+        // Power ballad : deux mesures par accord au couplet (I - V - vi - IV), pré-refrain qui monte, refrain à l'unisson de tout le groupe.
+        const A1 = [ [['M',0,2],['M',7,2]], [['M',0,2],['M',7,2]], [['M',0,2],['M',2,2]], [['M',0,2],['m',4,2]] ];
+        const A2 = [ [['m',9,2],['M',5,2]], [['m',9,2],['M',5,2]], [['M',5,2],['M',0,2]], [['m',9,2],['m',2,2]] ];
+        const B1 = [ [['M',5,2],['M',0,2]], [['M',5],['M',7],['m',9],['M',5]], [['m',9],['M',5],['M',0],['M',7]], [['M',5,2],['M',7,2]] ];
+        const B2 = [ [['m',9],['M',5],['M',0],['M',7]], [['M',5],['M',7],['M',0,2]], [['m',9,2],['M',5],['M',7]], [['M',5],['M',0],['M',7,2]] ];
+        return join(cells(pick(A1),'A','A1'), cells(pick(A2),'A','A2'), cells(pick(B1),'B','B1'), cells(pick(B2),'B','B2'));
+    },
+    bluesrock: (t) => {
+        const { R, pick, join, cells } = t;
+        // Blues rock : 12 mesures en shuffle, dominantes septièmes ; une grille renouvelée est parfois en mineur (i - iv - V7).
+        const minor = !!R && R() < 0.35;
+        const forms = minor ? [
+            [[['m',0,4]], [['m',5,2],['m',0,2]], [['Dm',7],['m',5],['m',0],['Dm',7]]],
+            [[['m',0],['m',5],['m',0,2]], [['m',5,2],['m',0,2]], [['M',8],['Dm',7],['m',0,2]]]
+        ] : [
+            [[['D',0,4]], [['D',5,2],['D',0,2]], [['D',7],['D',5],['D',0],['D',7]]],
+            [[['D',0],['D',5],['D',0,2]], [['D',5,2],['D',0,2]], [['D',7],['D',5],['D',0,2]]],
+            [[['D',0],['D',5],['D',0],['D',0]], [['D',5,2],['D',0,2]], [['D',7],['D',5],['D',0],['D',7]]]
+        ];
+        const f = pick(forms);
+        return join(cells(f[0],'A','A1'), cells(f[1],'B','B1'), cells(f[2],'C','C1'));
+    },
+    indierock: (t) => {
+        const { pick, join, cells } = t;
+        // Indie / britpop : accords ouverts qui sonnent (I - iii - IV - iv, vi - I - V - IV, I - V - IV), refrain en arpèges puis ouvert.
+        const A1 = [ [['M',0],['m',4],['M',5],['m',5]], [['m',9],['M',0],['M',7],['M',5]], [['M',0],['M',7],['M',5,2]], [['M',0,2],['M',5,2]] ];
+        const A2 = [ [['M',0],['m',4],['M',5],['M',7]], [['m',9],['M',0],['M',7],['M',5]], [['M',0],['m',9],['M',5],['M',5]], [['M',0,2],['M',7],['M',5]] ];
+        const B1 = [ [['M',5],['M',0],['M',7],['m',9]], [['M',5,2],['M',0,2]], [['m',9],['M',5],['M',0],['M',7]], [['M',5],['M',7],['m',9],['M',5]] ];
+        const B2 = [ [['M',5],['M',7],['M',0,2]], [['M',5],['m',5],['M',0,2]], [['m',9],['M',5],['M',7],['M',0]], [['M',5,2],['M',7],['M',0]] ];
+        return join(cells(pick(A1),'A','A1'), cells(pick(A2),'A','A2'), cells(pick(B1),'B','B1'), cells(pick(B2),'B','B2'));
+    },
     // ============ Flamenco ============
     flamencosolea: (t) => flamencoForm(t, 'solea'),
     flamencobulerias: (t) => flamencoForm(t, 'bulerias'),

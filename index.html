@@ -169,6 +169,15 @@
                                 <option value="funk">Funk / Soul</option>
                                 <option value="gospel">Gospel / doo-wop (12/8)</option>
                             </optgroup>
+                            <optgroup label="Rock">
+                                <option value="rockroll">Rock'n'roll années 50 (12 mesures)</option>
+                                <option value="rockclassic">Rock classique (années 70)</option>
+                                <option value="hardrock">Hard rock (mineur)</option>
+                                <option value="punk">Punk / pop punk</option>
+                                <option value="rockballad">Power ballad</option>
+                                <option value="bluesrock">Blues rock (shuffle, 12 mesures)</option>
+                                <option value="indierock">Indie / britpop</option>
+                            </optgroup>
                             <optgroup label="Classique &amp; traditionnel">
                                 <option value="trad">Chanson</option>
                                 <option value="chansonsimple">Chanson simple</option>
@@ -463,6 +472,7 @@
     <script src="app/band-patterns.js"></script>
     <script src="app/audio-config.js"></script>
     <script src="app/band/band-helpers.js"></script>
+    <script src="app/band/rock-plan.js"></script>
     <script src="app/band/pop-plan.js"></script>
     <script src="app/band/brass-plan.js"></script>
     <script src="app/band/piazzolla-plan.js"></script>
@@ -487,6 +497,7 @@
     <script src="app/grid/edit-ops.js"></script>
     <script src="app/grid/transport.js"></script>
     <script src="app/audio/drum-synths.js"></script>
+    <script src="app/audio/rock-synths.js"></script>
     <script src="app/audio/note-events.js"></script>
     <script src="app/audio/practice-notes.js"></script>
     <script src="app/audio/wav-export.js"></script>
@@ -535,7 +546,7 @@
 
                 // Style de la bande son de la jam : swing, pop, latin, cuba, classique (arpèges au piano), guitare (guitare classique seule), brass, balkan, cumbia ou piazzolla.
                 this.bandStyle = 'swing';
-                this.bandVolumes = { piano: 0.5, bass: 0.85, drums: 0.25, bandoneon: 0.7, violin: 0.6, guitar: 0.5 }; // les trois derniers : style Tango nuevo
+                this.bandVolumes = { piano: 0.5, bass: 0.85, drums: 0.25, bandoneon: 0.7, violin: 0.6, guitar: 0.5, rguitar: 0.6, organ: 0.35, strings: 0.4 }; // bandoneon, violin, guitar : style Tango nuevo ; rguitar, organ, strings : couches du Pop-Rock et des styles Rock
                 this.bandReverb = 0.25;
                 this.bandSwingSettings = {}; // swing choisi (0.5 à 0.75), par orchestre ; absent = « Auto » (valeur par défaut du style : Jazz = triolet qui se resserre avec le tempo, les autres = croches droites 50 %)
                 this._degreeTriads = (() => { try { return localStorage.getItem('csm-degree-triads') === '1'; } catch (e) { return false; } })(); // degrés de l'éditeur : triades ou septièmes
@@ -562,7 +573,7 @@
                 // Signature rythmique de la jam : nombre de temps par mesure (2, 3 ou 4 ; la noire est toujours le temps).
                 this.beatsPerBar = 4;
                 this.ternary = false;            // mesure composée (6/8, 9/8, 12/8) : la pulsation est la noire pointée
-                this.bandGains = { piano: null, bass: null, drums: null, bandoneon: null, violin: null, guitar: null };
+                this.bandGains = { piano: null, bass: null, drums: null, bandoneon: null, violin: null, guitar: null, rguitar: null, organ: null, strings: null };
                 this.bandReverbInput = null;
                 this.bandReverbWet = null;
                 this._bandConvolver = null;      // réverbération de l'orchestre (déconnectée aux niveaux de performance allégés)
@@ -587,6 +598,7 @@
                 this.accordionInstrument = null; this._accordionLoading = false; this._accordionBus = null; // style Balkans
                 this.pzInst = {}; this._pzLoading = {}; this._pzFail = {}; this._pzBuses = null; // style Tango nuevo
                 this._guitarLoading = false;
+                this.rockGtr = null; this._rockGtrLoading = false; this._rockBuses = null; this._organInsts = {}; this._stringsInst = null; // guitare électrique, orgue, cordes (Pop-Rock et Rock)
 
                 this.showTargetNotes = false;
                 this.showAvoidNotes = false;
@@ -882,7 +894,7 @@
 
             changeStyle(styleKey) {
                 if (styleKey === 'custom') return;
-                const BRASS_KEYS = { brasshymn: 5, brasscantique: 3, balkan: 2, balkan98: 9, balkansevdah: 9, balkantsifte: 2, cumbia: 7, milongalyrique: 2, flamencosolea: 9, flamencobulerias: 9, flamencotangos: 9 }; // + Balkans : ré mineur (kolo), la mineur (aksak), la mineur (sevdah), ré mineur (tsifteteli) ; Milonga lyrique : ré mineur (Oblivion) ; Flamenco : la (cadence andalouse La m - Sol - Fa - Mi)
+                const BRASS_KEYS = { brasshymn: 5, brasscantique: 3, balkan: 2, balkan98: 9, balkansevdah: 9, balkantsifte: 2, cumbia: 7, milongalyrique: 2, flamencosolea: 9, flamencobulerias: 9, flamencotangos: 9, rockroll: 9, rockclassic: 2, hardrock: 4, punk: 7, rockballad: 7, bluesrock: 9, indierock: 0 }; // + Rock : la (rock'n'roll, blues rock), ré (classique), mi mineur (hard rock), sol (punk, ballade), do (indie) ; + Balkans : ré mineur (kolo), la mineur (aksak), la mineur (sevdah), ré mineur (tsifteteli) ; Milonga lyrique : ré mineur (Oblivion) ; Flamenco : la (cadence andalouse La m - Sol - Fa - Mi)
                 this.withUndo(() => {
                     if (styleKey === 'i-got-rythm') {
                         const prevKey = this.mainKey;
@@ -966,7 +978,10 @@
                             drums: this.bandVolumes.drums,
                             bandoneon: this.bandVolumes.bandoneon,
                             violin: this.bandVolumes.violin,
-                            guitar: this.bandVolumes.guitar
+                            guitar: this.bandVolumes.guitar,
+                            rguitar: this.bandVolumes.rguitar,
+                            organ: this.bandVolumes.organ,
+                            strings: this.bandVolumes.strings
                         },
                         reverb: this.bandReverb,
                         swing: this._swingSettingFor(this._arpPrevStyle || this.bandStyle) ?? undefined, // réglage du style enregistré ; absent = « Auto »
@@ -1188,6 +1203,7 @@
                 if (s === 'latin') return !!this.guitarInstrument && !!this.bassInstrument;
                 if (s === 'guitar') return !!this.guitarInstrument;
                 if (s === 'classic') return !!this.bandPianoInstrument;
+                if (s === 'pop') return !!this.bandPianoInstrument && !!this.bassInstrument && !!this.rockGtr;
                 return !!this.bandPianoInstrument && !!this.bassInstrument;
             }
 
@@ -1994,7 +2010,7 @@
                 document.getElementById('band-vol-piano').value = Math.round(this.bandVolumes.piano * 100);
                 document.getElementById('band-vol-bass').value = Math.round(this.bandVolumes.bass * 100);
                 document.getElementById('band-vol-drums').value = Math.round(this.bandVolumes.drums * 100);
-                ['bandoneon', 'violin', 'guitar'].forEach(k => {
+                ['bandoneon', 'violin', 'guitar', 'rguitar', 'organ', 'strings'].forEach(k => {
                     const sl = document.getElementById('band-vol-' + k);
                     if (sl) sl.value = Math.round(this.bandVolumes[k] * 100);
                 });
@@ -2122,7 +2138,7 @@
             // (samba, tango, Piazzolla, afro, brass chorale…) : il ne vaut que pour l'orchestre auquel il appartient, sinon il
             // « fuit » (ex. : rythme afro d'un style Afro-cubain qui ferait sonner Cuba sous l'orchestre Brasil).
             getEffectiveGroove(style) {
-                const ok = { latin: ['samba', 'tango', 'piazzolla'], cuba: ['afro', 'salsa'], brass: ['b-chorale'], balkan: ['bk-sevdah', 'bk-tsifte'], piazzolla: ['lyrique'], guitar: ['f-solea', 'f-bulerias', 'f-tangos'] }[style || this.bandStyle];
+                const ok = { latin: ['samba', 'tango', 'piazzolla'], cuba: ['afro', 'salsa'], brass: ['b-chorale'], balkan: ['bk-sevdah', 'bk-tsifte'], piazzolla: ['lyrique'], guitar: ['f-solea', 'f-bulerias', 'f-tangos'], pop: ROCK_GROOVES }[style || this.bandStyle];
                 return (this._bandGroove && ok && ok.includes(this._bandGroove)) ? this._bandGroove : null;
             }
 
@@ -2146,9 +2162,21 @@
                     }
                     this._bandGroove = palo;
                     this.setBandStyle('guitar');
+                } else if (ROCK_BAND_GROOVES[v]) {
+                    // Orchestre Rock = Pop-Rock avec le rythme rock choisi (batterie, basse, guitare, claviers). Comme pour le Flamenco :
+                    // tempo habituel du style quand on change de rythme, pas quand on choisit de nouveau le même.
+                    const tm = this._tempoMeterFor(v);
+                    const mt = tm && this.parseMeter(tm.meter);
+                    const same = this.bandStyle === 'pop' && this.getEffectiveGroove('pop') === ROCK_BAND_GROOVES[v];
+                    if (mt && !same) {
+                        if (mt.bpb !== this.beatsPerBar || mt.ternary !== !!this.ternary) this.setTimeSignature(tm.meter);
+                        this.setBpm(tm.bpm);
+                    }
+                    this._bandGroove = ROCK_BAND_GROOVES[v];
+                    this.setBandStyle('pop');
                 } else {
-                    // Un autre choix (y compris « Guitare » seule) ne garde ni le rythme lyrique ni celui d'un palo
-                    if (this._bandGroove === 'lyrique' || (this._bandGroove || '').startsWith('f-')) this._bandGroove = null;
+                    // Un autre choix (y compris « Guitare » seule) ne garde ni le rythme lyrique ni celui d'un palo ni celui d'un style rock
+                    if (this._bandGroove === 'lyrique' || (this._bandGroove || '').startsWith('f-') || (this._bandGroove || '').startsWith('r-')) this._bandGroove = null;
                     this.setBandStyle(v);
                 }
             }
@@ -2159,6 +2187,11 @@
                 if (this.bandStyle === 'guitar') {
                     const g = this.getEffectiveGroove('guitar');
                     const k = Object.keys(FLAMENCO_BAND_GROOVES).find(key => FLAMENCO_BAND_GROOVES[key] === g);
+                    if (k) return k;
+                }
+                if (this.bandStyle === 'pop') {
+                    const g = this.getEffectiveGroove('pop');
+                    const k = Object.keys(ROCK_BAND_GROOVES).find(key => ROCK_BAND_GROOVES[key] === g);
                     if (k) return k;
                 }
                 return this.bandStyle;
@@ -2197,13 +2230,25 @@
                     const row = document.getElementById('band-row-pz-' + k);
                     if (row) row.classList.toggle('hidden', !pz);
                 });
+                // curseurs propres au Pop-Rock et aux styles Rock (guitare électrique, orgue, cordes)
+                ['rguitar', 'organ', 'strings'].forEach(k => {
+                    const row = document.getElementById('band-row-rk-' + k);
+                    if (row) row.classList.toggle('hidden', this.bandStyle !== 'pop');
+                });
+            }
+
+            // Nom de l'orchestre Rock actif (rythme rock imposé par le style ou le menu), ou null pour le Pop-Rock ordinaire.
+            _rockBandName() {
+                const g = this.getEffectiveGroove('pop');
+                const names = { 'r-roll': "Rock'n'roll", 'r-classic': 'Rock classique', 'r-hard': 'Hard rock', 'r-punk': 'Punk', 'r-ballad': 'Power ballad', 'r-blues': 'Blues rock', 'r-indie': 'Indie' };
+                return g ? (names[g] || null) : null;
             }
 
             // Le bouton affiche « Orchestre » suivi du style actif (Jazz / Pop-Rock / Brasil / Cuba / Classique / Guitare…).
             updateBandButtonLabel() {
                 const label = document.getElementById('band-btn-label');
                 if (!label) return;
-                const names = { swing: 'Jazz', pop: 'Pop-Rock', latin: 'Brasil', cuba: (this.getEffectiveGroove('cuba') === 'salsa' ? 'Salsa' : 'Cuba'), classic: 'Classique', guitar: (this.getEffectiveGroove('guitar') ? 'Flamenco' : 'Guitare'), brass: 'Brass', balkan: 'Balkans', cumbia: 'Cumbia', piazzolla: (this.getEffectiveGroove() === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
+                const names = { swing: 'Jazz', pop: this._rockBandName() || 'Pop-Rock', latin: 'Brasil', cuba: (this.getEffectiveGroove('cuba') === 'salsa' ? 'Salsa' : 'Cuba'), classic: 'Classique', guitar: (this.getEffectiveGroove('guitar') ? 'Flamenco' : 'Guitare'), brass: 'Brass', balkan: 'Balkans', cumbia: 'Cumbia', piazzolla: (this.getEffectiveGroove() === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
                 label.textContent = 'Orchestre ' + (names[this.bandStyle] || 'Jazz');
             }
 
@@ -2392,6 +2437,7 @@
                 if (this.bandStyle === 'piazzolla') this.loadPiazzolla();
                 if (this.bandStyle !== 'classic' && this.bandStyle !== 'guitar' && !this.bassInstrument) this.loadBass();
                 if (this.bandStyle === 'pop' || this.bandStyle === 'cumbia') this.loadBassPop();   // basse électrique (doigts)
+                if (this.bandStyle === 'pop') this.loadRock();   // guitare électrique, orgue, cordes
                 if (this.bandStyle === 'latin' || this.bandStyle === 'guitar') this.loadGuitarLatin();
             }
 
@@ -2447,6 +2493,65 @@
                 })
                     .then(instr => { this.bassInstrumentPop = instr; })
                     .catch(() => { setTimeout(() => { this._bassPopLoading = false; }, 5000); });
+            }
+
+            // ===================== Pop-Rock et Rock : guitare électrique, orgue, cordes =====================
+            // Trois bus (volume propre, réverbération de l'orchestre) : la guitare passe par un ampli (audio/rock-synths.js : propre,
+            // crunch, saturé, lourd), l'orgue par une cabine Leslie, les cordes par un chœur d'ensemble. L'orgue et les cordes sont
+            // synthétisés ; la guitare joue l'échantillon « electric_guitar_clean » (déjà dans l'application) dans l'ampli.
+            _getRockBuses() {
+                if (this._rockBuses) return this._rockBuses;
+                const ctx = this.app.audioCtx;
+                const dest = this.bandReverbInput || ctx.destination;
+                const tier = this.perfTier;
+                const vol = (key) => {
+                    const g = ctx.createGain();
+                    g.gain.value = this.bandVolumes[key];
+                    g.connect(dest);
+                    this.bandGains[key] = g;
+                    return g;
+                };
+                this._rockBuses = {
+                    amp: createGuitarAmp(ctx, vol('rguitar'), { tier, tone: 'clean' }),
+                    organ: createOrganBus(ctx, vol('organ'), { tier, drive: true }),
+                    strings: createStringsBus(ctx, vol('strings'), { tier })
+                };
+                return this._rockBuses;
+            }
+
+            loadRock() {
+                if (!this.app.audioCtx || !this.bandReverbInput) return;
+                const buses = this._getRockBuses();
+                if (!this.rockGtr && !this._rockGtrLoading) {
+                    this._rockGtrLoading = true;
+                    Soundfont.instrument(this.app.audioCtx, 'electric_guitar_clean', { soundfont: 'MusyngKite', destination: buses.amp.input })
+                        .then(instr => { this.rockGtr = instr; })
+                        .catch(() => { setTimeout(() => { this._rockGtrLoading = false; }, 5000); });
+                }
+            }
+
+            // Réglages d'une mesure rock au premier temps : son de l'ampli de la guitare, vitesse du Leslie de l'orgue.
+            _applyRockPlan(plan) {
+                if (!plan || !plan.rock || !this._rockBuses) return;
+                if (plan.tone) this._rockBuses.amp.setTone(plan.tone);
+                this._rockBuses.organ.setSpeed(plan.leslie === 'fast' ? 'fast' : 'slow');
+            }
+
+            // Une frappe d'un instrument du plan rock. e.inst : 'piano' (ou absent) | 'gtr' | 'organ' | 'strings'.
+            playRockHit(e, time, beatSec) {
+                if (!e.inst || e.inst === 'piano') { this.playPianoHit(e, time, beatSec); return; }
+                if (!this.app.audioCtx) return;
+                const b = this._getRockBuses();
+                let inst = null;
+                if (e.inst === 'gtr') inst = this.rockGtr;
+                else if (e.inst === 'organ') {
+                    const reg = e.reg || 'rock';
+                    inst = this._organInsts[reg] || (this._organInsts[reg] = createOrganInstrument(this.app.audioCtx, b.organ, { tier: this.perfTier, registration: reg }));
+                } else if (e.inst === 'strings') {
+                    inst = this._stringsInst || (this._stringsInst = createStringsInstrument(this.app.audioCtx, b.strings, { tier: this.perfTier }));
+                }
+                if (!inst) return;
+                this._playNotes(inst, rockNotes(this._noteEnv(), e, time, beatSec));
             }
 
             // Guitare classique (nylon) du style Latin ; elle passe par le bus « piano » (curseur de volume du premier
@@ -2563,7 +2668,7 @@
                 if (e.onGuitar && this.bandGains.piano) dest = this.bandGains.piano;
                 if (!dest) return;
                 // Niveau minimal : on laisse tomber les notes fantômes et percussions d'ornement
-                if (this.perfTier >= 2 && (e.drum === 'ghost' || e.drum === 'pedal' || e.drum === 'chich' || e.drum === 'latigo' || e.drum === 'pito' || e.drum === 'guirot' || e.drum === 'bongoh' || e.drum === 'bongol' || e.drum === 'guacu' || (e.drum === 'shaker' && this.bandStyle === 'cumbia'))) return;
+                if (this.perfTier >= 2 && (e.drum === 'ghost' || e.drum === 'rghost' || e.drum === 'tmbs' || e.drum === 'pedal' || e.drum === 'chich' || e.drum === 'latigo' || e.drum === 'pito' || e.drum === 'guirot' || e.drum === 'bongoh' || e.drum === 'bongol' || e.drum === 'guacu' || (e.drum === 'shaker' && this.bandStyle === 'cumbia'))) return;
                 let v = e.vel * (0.92 + Math.random() * 0.16);
                 // Percussions du flamenco (cajón, palmas, pitos) : pas de batterie derrière, elles doivent tenir leur place face à la guitare
                 if (e.perc) v *= 1.7;
@@ -2726,7 +2831,7 @@
             // puis mesure de « turnaround » qui anticipe l'accord suivant et peut se terminer par un fill.
 
             // Rapport de swing de l'orchestre actif : réglage choisi, sinon valeur par défaut du style (voir BAND_SWING_DEFAULTS).
-            getBandSwing() { return bandSwing(this.bandStyle, this.bpm, this._swingSettingFor(this.bandStyle)); }
+            getBandSwing() { return bandSwing(this.bandStyle, this.bpm, this._swingSettingFor(this.bandStyle), this.getEffectiveGroove()); }
 
             // Réglage manuel du swing d'un orchestre ; null = « Auto » (valeur par défaut du style).
             _swingSettingFor(style) {
@@ -2886,7 +2991,7 @@
 
             // ===================== Orchestration POP : le calcul est dans band/pop-plan.js =====================
             buildPopPlan(step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                return this._bandRun(['popVoice', 'popRunAt', 'bandLastFill'], env => buildPopPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m));
+                return this._bandRun(['popVoice', 'popRunAt', 'bandLastFill', 'rockStrV', 'rockPad'], env => buildPopPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m));
             }
 
             // ===================== Orchestration LATIN =====================
@@ -3355,6 +3460,7 @@
                     const nx2Idx = nxIdx >= 0 ? this._peekNextIndex(nxIdx) : -1;
                     this._bandCtx = { measureInStep, next2: nx2Idx >= 0 ? this.grid[nx2Idx] : null };
                     this._bandPlan = this.buildBandPlan(step, nextStep, measureInStep, measureInStep === step.measures - 1);
+                    this._applyRockPlan(this._bandPlan);
                 }
                 const plan = this._bandPlan;
                 if (!plan) return;
@@ -3364,7 +3470,7 @@
                 const at = (e) => Math.max(now, now + (e.pos - beatInMeasure) * beatSec + (e.lay || 0) + (Math.random() - 0.5) * 0.012);
                 plan.drums.filter(inBeat).forEach(e => this.playBandDrum(e, at(e)));
                 plan.bass.filter(inBeat).forEach(e => plan.piazzolla ? this.playPiazzollaBass(e, at(e), beatSec) : plan.brass ? this.playTubaAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), e.art) : this.playBassAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), !!e.wide));
-                plan.piano.filter(inBeat).forEach(e => plan.classicalGuitar ? this.playClassicalGuitarHit(e, at(e), beatSec) : plan.piazzolla ? this.playPiazzollaHit(e, at(e), beatSec) : plan.brass ? this.playBrassHit(e, at(e), beatSec) : (plan.accordion ? this.playAccordionHit(e, at(e), beatSec) : (plan.guitar ? this.playGuitarHit(e, at(e), beatSec) : this.playPianoHit(e, at(e), beatSec))));
+                plan.piano.filter(inBeat).forEach(e => plan.rock ? this.playRockHit(e, at(e), beatSec) : plan.classicalGuitar ? this.playClassicalGuitarHit(e, at(e), beatSec) : plan.piazzolla ? this.playPiazzollaHit(e, at(e), beatSec) : plan.brass ? this.playBrassHit(e, at(e), beatSec) : (plan.accordion ? this.playAccordionHit(e, at(e), beatSec) : (plan.guitar ? this.playGuitarHit(e, at(e), beatSec) : this.playPianoHit(e, at(e), beatSec))));
             }
 
 
@@ -7003,6 +7109,13 @@
                     <select id="band-style-select" onchange="app.jam.chooseBandStyle(this.value)" class="w-full bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-1.5 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
                         <option value="swing">Jazz</option>
                         <option value="pop">Pop-Rock</option>
+                        <option value="rockroll">Rock : rock'n'roll années 50</option>
+                        <option value="rockclassic">Rock : classique (années 70)</option>
+                        <option value="hardrock">Rock : hard rock</option>
+                        <option value="punk">Rock : punk / pop punk</option>
+                        <option value="rockballad">Rock : power ballad</option>
+                        <option value="bluesrock">Rock : blues rock (shuffle)</option>
+                        <option value="indierock">Rock : indie / britpop</option>
                         <option value="latin">Brasil</option>
                         <option value="cuba">Cuba</option>
                         <option value="classic">Classique</option>
@@ -7066,6 +7179,18 @@
                     <div id="band-row-pz-guitar" class="hidden flex items-center gap-2">
                         <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Guit. élec.</span>
                         <input type="range" id="band-vol-guitar" min="0" max="100" value="50" oninput="app.jam.setBandVolume('guitar', this.value)" class="w-full accent-emerald-500">
+                    </div>
+                    <div id="band-row-rk-rguitar" class="hidden flex items-center gap-2" title="Guitare électrique du Pop-Rock et des styles Rock">
+                        <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Guit. élec.</span>
+                        <input type="range" id="band-vol-rguitar" min="0" max="100" value="60" oninput="app.jam.setBandVolume('rguitar', this.value)" class="w-full accent-emerald-500">
+                    </div>
+                    <div id="band-row-rk-organ" class="hidden flex items-center gap-2" title="Orgue (type Hammond) du Pop-Rock et des styles Rock">
+                        <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Orgue</span>
+                        <input type="range" id="band-vol-organ" min="0" max="100" value="35" oninput="app.jam.setBandVolume('organ', this.value)" class="w-full accent-emerald-500">
+                    </div>
+                    <div id="band-row-rk-strings" class="hidden flex items-center gap-2" title="Cordes (type string machine) du Pop-Rock et des styles Rock">
+                        <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Cordes</span>
+                        <input type="range" id="band-vol-strings" min="0" max="100" value="40" oninput="app.jam.setBandVolume('strings', this.value)" class="w-full accent-emerald-500">
                     </div>
                 </div>
             </div>

@@ -38,7 +38,9 @@ function drumSpec(e) {
         bdrum: 0.75, golpe: 0.25, chich: 0.3, latigo: 0.3, dum: 0.7, tek: 0.7, ka: 0.7, tapan: 0.7, stick: 0.7, daire: 0.7,
         cajonb: 0.35, cajont: 0.25, palma: 0.22, sorda: 0.15, pito: 0.12,
         shell: 0.1, guiro: 0.16, guirot: 0.06, bongoh: 0.14, bongol: 0.18,
-        guacd: 0.16, guacu: 0.1, llam: 0.12, llamo: 0.35, tamb: 0.55, palo: 0.1 }; // cumbia : guacharaca (guacd descendant, guacu ascendant), llamador (llam étouffé, llamo ouvert), tambora (tamb grave, palo baguette sur le bois) ; // cajonb/cajont : cajón flamenco (grave, claqué) ; palma/sorda : palmas claires/sourdes ; pito : claquement de doigts ; shell : cáscara (flanc du timbal) ; guiro/guirot : güiro, coup long / court ; bongoh/bongol : bongó aigu (hembra) / grave (macho)
+        guacd: 0.16, guacu: 0.1, llam: 0.12, llamo: 0.35, tamb: 0.55, palo: 0.1,
+        rkick: 0.42, rsnare: 0.34, rghost: 0.16, rtom1: 0.45, rtom2: 0.5, rtom3: 0.55, rtom4: 0.6, tmb: 0.24, tmbs: 0.12, clap: 0.34 }; // kit rock : rkick/rsnare/rghost (grosse caisse, caisse claire, note fantôme), rtom1 à rtom4 (toms du plus aigu au plus grave), tmb/tmbs (tambourin : coup, petite secousse), clap (claquement de mains)
+    // cumbia : guacharaca (guacd descendant, guacu ascendant), llamador (llam étouffé, llamo ouvert), tambora (tamb grave, palo baguette sur le bois) ; // cajonb/cajont : cajón flamenco (grave, claqué) ; palma/sorda : palmas claires/sourdes ; pito : claquement de doigts ; shell : cáscara (flanc du timbal) ; guiro/guirot : güiro, coup long / court ; bongoh/bongol : bongó aigu (hembra) / grave (macho)
     let maxDur = MAXDUR[drum], name = drum, freq, short;
     if (drum === 'timp') {
         freq = e.freq || 98; short = !!e.short;
@@ -46,7 +48,8 @@ function drumSpec(e) {
         name = 'timp' + freq + (short ? 's' : 'l');
     }
     if (!maxDur) return null;
-    const variants = (drum === 'snare' || drum === 'ghost' || drum === 'tom1' || drum === 'tom2' || drum === 'tom3' || drum === 'cajonb' || drum === 'cajont' || drum === 'palma' || drum === 'sorda' || drum === 'guacd' || drum === 'guacu' || drum === 'llam' || drum === 'llamo' || drum === 'tamb' || drum === 'palo') ? 2 : 1; // hauteur légèrement aléatoire à chaque coup
+    const variants = (drum === 'snare' || drum === 'ghost' || drum === 'tom1' || drum === 'tom2' || drum === 'tom3' || drum === 'cajonb' || drum === 'cajont' || drum === 'palma' || drum === 'sorda' || drum === 'guacd' || drum === 'guacu' || drum === 'llam' || drum === 'llamo' || drum === 'tamb' || drum === 'palo' || drum === 'rsnare' || drum === 'rghost' || drum === 'tmb' || drum === 'tmbs' || drum === 'clap') ? 2
+        : ((drum === 'rtom1' || drum === 'rtom2' || drum === 'rtom3' || drum === 'rtom4') ? 3 : 1); // hauteur légèrement aléatoire à chaque coup
     return { drum, mul, freq, short, name, variants, maxDur, long: maxDur >= 0.8 };
 }
 
@@ -93,6 +96,16 @@ function synthDrumLive(rt, e, time, dest, v) {
         case 'llamo': synthLlamador(rt, time, dest, true, v); break;
         case 'tamb': synthTambora(rt, time, dest, v); break;
         case 'palo': synthPalo(rt, time, dest, v); break;
+        case 'rkick': synthRockKick(rt, time, dest, v); break;
+        case 'rsnare': synthRockSnare(rt, time, dest, false, v); break;
+        case 'rghost': synthRockSnare(rt, time, dest, true, v); break;
+        case 'rtom1': synthRockTom(rt, time, dest, 188, v); break;
+        case 'rtom2': synthRockTom(rt, time, dest, 150, v); break;
+        case 'rtom3': synthRockTom(rt, time, dest, 112, v); break;
+        case 'rtom4': synthRockTom(rt, time, dest, 84, v); break;
+        case 'tmb': synthTambourine(rt, time, dest, false, v); break;
+        case 'tmbs': synthTambourine(rt, time, dest, true, v); break;
+        case 'clap': synthClap(rt, time, dest, v); break;
         case 'dum': case 'tek': case 'ka': case 'tapan': case 'stick': case 'daire': synthDarbuka(rt, time, dest, e.drum, v); break;
     }
 }
@@ -1046,9 +1059,163 @@ function synthPalo(rt, time, destination, vel = 1) {
     rt.nodes.push(o, n);
 }
 
+// ===========================================================================================================
+// Kit rock : grosse caisse, caisse claire, quatre toms, tambourin, claquement de mains.
+// Écrits pour sonner comme une vraie batterie plutôt que comme une boîte à rythmes : les peaux ne produisent pas un
+// sinus unique mais plusieurs modes de vibration (rapports 1 ; 1,59 ; 2,14 d'une membrane circulaire) qui s'éteignent
+// chacun à leur rythme, la hauteur retombe à l'attaque (la peau est tendue par la baguette), la baguette claque sur la
+// peau, la peau de résonance répond un peu à côté de la peau de frappe, et les timbres de la caisse claire vibrent par
+// sympathie quand on frappe un tom. La force règle aussi la brillance : un coup léger est plus mat qu'un coup fort.
+// ===========================================================================================================
+
+// Source de bruit filtrée et enveloppée : renvoie le gain de sortie. spec = { type, freq, q, peak, dec, att, hp }.
+function rockNoiseHit(rt, time, destination, spec, vel) {
+    const ctx = rt.ctx;
+    const src = ctx.createBufferSource();
+    src.buffer = rt.noise();
+    const f = ctx.createBiquadFilter();
+    f.type = spec.type || 'bandpass'; f.frequency.value = spec.freq; f.Q.value = spec.q === undefined ? 0.8 : spec.q;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0008, time);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.001, spec.peak * vel), time + (spec.att || 0.001));
+    g.gain.exponentialRampToValueAtTime(0.0006, time + spec.dec);
+    src.connect(f);
+    if (spec.hp) { const h = ctx.createBiquadFilter(); h.type = 'highpass'; h.frequency.value = spec.hp; f.connect(h); h.connect(g); } else f.connect(g);
+    g.connect(destination);
+    src.start(time, Math.random() * 0.45); src.stop(time + spec.dec + 0.03);
+    rt.nodes.push(src);
+    return g;
+}
+
+// Mode de vibration d'une peau : sinus dont la hauteur retombe (rapport drop) puis reste, enveloppe exponentielle.
+function rockMode(rt, time, destination, freq, drop, dropT, peak, dec) {
+    const ctx = rt.ctx;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(freq * drop, time);
+    o.frequency.exponentialRampToValueAtTime(freq, time + dropT);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0008, time);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.001, peak), time + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0006, time + dec);
+    o.connect(g); g.connect(destination);
+    o.start(time); o.stop(time + dec + 0.03);
+    rt.nodes.push(o);
+    return g;
+}
+
+// Grosse caisse rock : coup de pédale (clic du battant), corps qui retombe vite de ~135 à ~55 Hz puis résonne un peu,
+// « poum » de la peau de résonance et un souffle grave de la caisse. Pas de saturation dure : le corps reste rond.
+function synthRockKick(rt, time, destination, vel = 1) {
+    const ctx = rt.ctx;
+    if (!ctx || !destination) return;
+    const hard = 0.55 + 0.45 * Math.min(1, vel);
+    const base = 56 * (0.985 + Math.random() * 0.03);
+    // corps
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 520 + 520 * hard;
+    lp.connect(destination);
+    const bodyGain = ctx.createGain();
+    bodyGain.gain.setValueAtTime(1, time);
+    bodyGain.connect(lp);
+    rockMode(rt, time, bodyGain, base, 2.45, 0.05, 0.78 * vel, 0.3);
+    if (rt.tier >= 2) { rockNoiseHit(rt, time, destination, { freq: 2200, q: 0.8, peak: 0.22, dec: 0.012 }, vel); return; }
+    // peau de résonance : un peu plus haut, plus courte
+    rockMode(rt, time, bodyGain, base * 1.62, 1.5, 0.03, 0.22 * vel, 0.14);
+    // clic du battant sur la peau (plus présent quand on joue fort)
+    rockNoiseHit(rt, time, destination, { freq: 3000, q: 0.9, peak: 0.34 * hard, dec: 0.014 }, vel);
+    // souffle de la caisse
+    rockNoiseHit(rt, time, destination, { freq: 130, q: 0.9, peak: 0.2, dec: 0.09 }, vel);
+}
+
+// Caisse claire rock : deux modes de la peau (≈ 185 et 330 Hz), timbres qui vibrent ~0,2 s (bruit autour de 5 kHz, filtré
+// au-dessus de 1,6 kHz), claquement de baguette, corps de la caisse. `soft` = note fantôme (peau à peine touchée, timbres seuls).
+function synthRockSnare(rt, time, destination, soft = false, vel = 1) {
+    const ctx = rt.ctx;
+    if (!ctx || !destination) return;
+    const hard = 0.5 + 0.5 * Math.min(1, vel);
+    const dec = soft ? 0.1 : 0.2 + 0.05 * hard;
+    const tune = 183 * (0.985 + Math.random() * 0.03);
+    const bodyGain = ctx.createGain();
+    bodyGain.gain.value = soft ? 0.5 : 1;
+    bodyGain.connect(destination);
+    rockMode(rt, time, bodyGain, tune, 1.28, 0.03, 0.36 * vel, soft ? 0.07 : 0.13);
+    // timbres
+    rockNoiseHit(rt, time, destination, { freq: 5200, q: 0.55, peak: (soft ? 0.3 : 0.52) * (0.7 + 0.3 * hard), dec, att: 0.0015, hp: 1600 }, vel);
+    if (rt.tier >= 2) return;
+    rockMode(rt, time, bodyGain, tune * 1.8, 1.2, 0.025, 0.2 * vel, soft ? 0.05 : 0.09);
+    // claquement de baguette
+    if (!soft) rockNoiseHit(rt, time, destination, { type: 'highpass', freq: 6800, q: 0.7, peak: 0.26 * hard, dec: 0.016 }, vel);
+    // corps de la caisse
+    rockNoiseHit(rt, time, destination, { freq: 330, q: 2.2, peak: soft ? 0.07 : 0.15, dec: 0.07 }, vel);
+}
+
+// Tom rock : trois modes de la peau, hauteur qui retombe à l'attaque, peau de résonance un peu désaccordée, claquement de
+// baguette (plus net quand on joue fort), souffle du fût et timbres de la caisse claire qui vibrent par sympathie.
+// freq = fondamentale (≈ 188, 150, 112, 84 Hz pour les quatre toms). Plus le tom est grave, plus il résonne longtemps.
+function synthRockTom(rt, time, destination, freq = 150, vel = 1) {
+    const ctx = rt.ctx;
+    if (!ctx || !destination) return;
+    const hard = 0.5 + 0.5 * Math.min(1, vel);
+    const ring = 0.2 + (200 - Math.min(200, freq)) / 200 * 0.26;      // 0,22 s (aigu) à 0,42 s (grave)
+    const f0 = freq * (0.985 + Math.random() * 0.03);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = f0 * (3.2 + 3.4 * hard); lp.Q.value = 0.5;
+    lp.connect(destination);
+    // modes principaux de la peau de frappe
+    rockMode(rt, time, lp, f0, 1.22, 0.045, 0.6 * vel, ring);
+    if (rt.tier >= 2) { rockNoiseHit(rt, time, destination, { freq: f0 * 2.4, q: 0.9, peak: 0.12, dec: 0.02 }, vel); return; }
+    rockMode(rt, time, lp, f0 * 1.593, 1.15, 0.04, 0.24 * vel, ring * 0.62);
+    rockMode(rt, time, lp, f0 * 2.136, 1.1, 0.035, 0.11 * vel, ring * 0.4);
+    // peau de résonance (désaccordée de ~3 %) : donne le léger « battement » d'un vrai tom
+    rockMode(rt, time + 0.002, lp, f0 * 0.97, 1.08, 0.05, 0.26 * vel, ring * 1.15);
+    // baguette sur la peau
+    rockNoiseHit(rt, time, destination, { freq: 3400, q: 0.8, peak: 0.2 * hard, dec: 0.012 }, vel);
+    rockNoiseHit(rt, time, destination, { freq: f0 * 2.2, q: 1.1, peak: 0.12, dec: 0.045 }, vel);
+    // souffle du fût
+    rockNoiseHit(rt, time + 0.004, destination, { freq: f0 * 1.3, q: 1.4, peak: 0.07, dec: ring * 0.8 }, vel);
+    // timbres de la caisse claire qui vibrent par sympathie
+    rockNoiseHit(rt, time + 0.006, destination, { freq: 4200, q: 0.6, peak: 0.022 + 0.03 * hard, dec: 0.1 + ring * 0.2, att: 0.01, hp: 2000 }, vel);
+}
+
+// Tambourin : les cymbalettes (oscillateurs métalliques non harmoniques, filtrés au-dessus de 5 kHz) et un souffle d'air ;
+// `shake` = petite secousse (plus courte et plus douce) pour les croches ou doubles croches en roulement.
+function synthTambourine(rt, time, destination, shake = false, vel = 1) {
+    const ctx = rt.ctx;
+    if (!ctx || !destination) return;
+    const dur = shake ? 0.1 : 0.2;
+    const freqs = rt.tier >= 2 ? [] : (rt.tier === 1 ? [4300, 6100] : [3900, 4900, 6100, 7400, 8800]);
+    if (freqs.length) {
+        const bank = metalOscBank(rt, time, dur, freqs.map(f => f * (0.97 + Math.random() * 0.06)));
+        const hp = ctx.createBiquadFilter();
+        hp.type = 'highpass'; hp.frequency.value = 5200;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0008, time);
+        g.gain.exponentialRampToValueAtTime(0.1 * vel, time + 0.002);
+        g.gain.exponentialRampToValueAtTime(0.03 * vel, time + dur * 0.35);
+        g.gain.exponentialRampToValueAtTime(0.0006, time + dur);
+        bank.connect(hp); hp.connect(g); g.connect(destination);
+    }
+    // souffle d'air et coup de peau (le pouce frappe la peau du tambourin)
+    rockNoiseHit(rt, time, destination, { type: 'highpass', freq: 7000, q: 0.6, peak: 0.3, dec: dur * 0.7 }, vel);
+    if (!shake && rt.tier < 2) rockNoiseHit(rt, time, destination, { freq: 900, q: 1.2, peak: 0.12, dec: 0.03 }, vel);
+}
+
+// Claquement de mains : quelques rafales de bruit très proches (les mains ne claquent jamais ensemble), puis une courte résonance de salle.
+function synthClap(rt, time, destination, vel = 1) {
+    const ctx = rt.ctx;
+    if (!ctx || !destination) return;
+    const bursts = rt.tier >= 2 ? [0] : [0, 0.011, 0.021, 0.034];
+    bursts.forEach((dt, k) => {
+        rockNoiseHit(rt, time + dt, destination, { freq: 1250 + 120 * k, q: 1.4, peak: 0.34 * (k === bursts.length - 1 ? 1 : 0.75), dec: 0.02 }, vel);
+    });
+    rockNoiseHit(rt, time + 0.03, destination, { freq: 1050, q: 1.1, peak: 0.16, dec: 0.2, att: 0.004 }, vel);
+}
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { makeNoiseBuffer, makeSaturationCurve, drumSpec, synthDrumLive, synthKick, synthSnare, metalOscBank, synthHihat,
         synthCymbal, synthCowbell, synthClave, synthConga, synthSlap, synthShaker, synthRim, synthTom, synthBassDrum, synthTimp,
         synthDarbuka, synthGolpe, synthChicharra, synthLatigo, synthCajonBass, synthCajonTap, synthPalma, synthPito, synthShell, synthGuiro,
-        synthGuacharaca, synthLlamador, synthTambora, synthPalo };
+        synthGuacharaca, synthLlamador, synthTambora, synthPalo,
+        synthRockKick, synthRockSnare, synthRockTom, synthTambourine, synthClap };
 }

@@ -65,6 +65,48 @@ function pianoNotes(env, e, time, beatSec) {
     });
 }
 
+// Instruments rock (guitare électrique, orgue, cordes) : e.inst = 'gtr' | 'organ' | 'strings'. Les notes vont à des synthés (audio/rock-synths.js)
+// ou à l'échantillon de guitare électrique, déjà branchés sur leur bus : le volume vient du bus, pas d'ici.
+//   guitare   e.art : 'strum' (accord gratté, qui sonne), 'mute' (sourdine de paume, court), 'dead' (corde étouffée, quasi muette),
+//             'arp' (arpège laissé vibrer) ; e.dir < 0 = vers le bas → le haut (coup remonté) ;
+//   orgue     e.art 'pad' (nappe) | 'swell' (attaque lente) ; e.att = attaque en secondes ;
+//   cordes    nappe à attaque lente (e.att), relâchement long.
+function rockNotes(env, e, time, beatSec) {
+    const rand = randOf(env);
+    const vel = e.vel * (0.94 + rand() * 0.12);
+    const dur = Math.max(0.05, e.dur * beatSec);
+    const off = env.transOffset || 0;
+    let idxs = e.intervals.map((_, i) => i);
+    if (env.perfTier >= 2 && idxs.length > 3) idxs = [idxs[0]].concat(idxs.slice(-2));
+    const n = idxs.length;
+    const art = e.art || 'strum';
+    let base;
+    if (e.inst === 'organ') {
+        base = { gain: Math.min(1, 0.4 + 0.6 * vel), duration: dur, attack: e.att !== undefined ? e.att : 0.006, release: art === 'swell' ? 0.3 : 0.09 };
+    } else if (e.inst === 'strings') {
+        base = { gain: Math.min(1, 0.4 + 0.6 * vel), duration: dur, attack: e.att !== undefined ? e.att : 0.3, release: 0.55 };
+    } else if (art === 'mute') {
+        base = { gain: Math.min(1.2, 0.34 + 0.8 * vel), duration: Math.min(dur, 0.16), attack: 0.002, release: 0.05 };
+    } else if (art === 'dead') {
+        base = { gain: Math.min(1.2, 0.18 + 0.45 * vel), duration: 0.05, attack: 0.002, release: 0.03 };
+    } else if (art === 'arp') {
+        base = { gain: Math.min(1.2, 0.3 + 0.8 * vel), duration: dur, attack: 0.003, release: 0.5 };
+    } else {
+        base = { gain: Math.min(1.2, 0.32 + 0.85 * vel), duration: dur, attack: 0.003, release: 0.14 + 0.22 * Math.min(1, dur) };
+    }
+    const roll = e.roll !== undefined ? e.roll : 0.006;
+    return idxs.map((idx, k) => {
+        const interval = e.intervals[idx];
+        const order = e.dir < 0 ? (n - 1 - k) : k;
+        const tilt = e.inst === 'gtr' ? 1 - 0.02 * Math.min(14, Math.max(0, interval + off - 7)) : 1;   // cordes aiguës un peu plus douces
+        return {
+            noteStr: playNoteName(env.instrumentKey, e.rootIndex, interval, OCT),
+            when: Math.max(env.currentTime, time + order * roll * (0.85 + rand() * 0.3)),
+            opts: { ...base, gain: base.gain * tilt, cents: (rand() - 0.5) * (e.inst === 'gtr' ? 4 : 2) }
+        };
+    });
+}
+
 // Guitare classique (style Brasil) : cordes grattées du grave à l'aigu (ou l'inverse si e.dir < 0), notes aiguës adoucies.
 // Comme pour la guitare seule, deux cordes ne sont jamais pincées exactement à la même vitesse ni accordées pareil :
 // léger retard aléatoire entre cordes (±15 % de e.roll) et léger désaccord par note (±1,5 cent), ce qui évite l'effet
@@ -271,5 +313,5 @@ function arcoNote(env, abs, time, dur, vel) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { playNoteName, bassNote, pianoNotes, guitarNotes, classicalGuitarNotes, brassNotes, tubaNote, accordionNotes, piazzollaNotes, arcoNote };
+    module.exports = { playNoteName, bassNote, pianoNotes, rockNotes, guitarNotes, classicalGuitarNotes, brassNotes, tubaNote, accordionNotes, piazzollaNotes, arcoNote };
 }

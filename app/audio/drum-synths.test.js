@@ -40,7 +40,8 @@ const withSeed = (n, fn) => { const r = Math.random; Math.random = seeded(n); tr
 const DRUMS = ['kick', 'snare', 'ghost', 'hat', 'pedal', 'ohat', 'ride', 'crash', 'clash', 'rim', 'tom1', 'tom2', 'tom3', 'bell', 'clave', 'conga1', 'conga2', 'slap', 'shaker',
     'bdrum', 'timp', 'golpe', 'chich', 'latigo', 'dum', 'tek', 'ka', 'tapan', 'stick', 'daire', 'cajonb', 'cajont', 'palma', 'sorda', 'pito',
     'shell', 'guiro', 'guirot', 'bongoh', 'bongol',
-    'guacd', 'guacu', 'llam', 'llamo', 'tamb', 'palo'];
+    'guacd', 'guacu', 'llam', 'llamo', 'tamb', 'palo',
+    'rkick', 'rsnare', 'rghost', 'rtom1', 'rtom2', 'rtom3', 'rtom4', 'tmb', 'tmbs', 'clap'];
 
 describe('tampons partagés', () => {
     test('bruit blanc d\'une seconde dans [-1, 1]', () => {
@@ -82,6 +83,11 @@ describe('description d\'un coup', () => {
         assert.equal(D.drumSpec({ drum: 'kick' }).variants, 1);
         assert.equal(D.drumSpec({ drum: 'crash' }).long, true);
         assert.equal(D.drumSpec({ drum: 'kick' }).long, false);
+    });
+    test('kit rock : variantes (caisse claire, toms) et durées courtes', () => {
+        assert.equal(D.drumSpec({ drum: 'rsnare' }).variants, 2);
+        for (const t of ['rtom1', 'rtom2', 'rtom3', 'rtom4']) { const s = D.drumSpec({ drum: t }); assert.equal(s.variants, 3, t); assert.equal(s.long, false, t); }
+        assert.equal(D.drumSpec({ drum: 'rkick' }).variants, 1);
     });
 });
 
@@ -167,5 +173,48 @@ describe('synthèse', () => {
             const end = Math.max(...rt.nodes.map(n => n.stopped || 0));
             assert.ok(end <= spec.maxDur + 0.35, `${d} : fin ${end.toFixed(2)} s pour ${spec.maxDur} s`);
         }
+    });
+});
+
+describe('kit rock', () => {
+    const peakOf = (rt) => Math.max(...rt.ctx.nodes.filter(n => n.kind === 'Gain').flatMap(n => n.gain.calls.filter(c => c[0] === 'exp').map(c => c[1])));
+    test('un tom rock a plusieurs modes de peau ; le niveau minimal en garde un seul', () => {
+        const full = makeRt({ tier: 0 }), min = makeRt({ tier: 2 });
+        withSeed(2, () => D.synthRockTom(full, 0, full.ctx.createGain(), 150, 1));
+        withSeed(2, () => D.synthRockTom(min, 0, min.ctx.createGain(), 150, 1));
+        const osc = (rt) => rt.ctx.nodes.filter(n => n.kind === 'Oscillator').length;
+        assert.ok(osc(full) >= 4, 'modes + peau de résonance');
+        assert.equal(osc(min), 1);
+        assert.ok(min.ctx.nodes.length < full.ctx.nodes.length);
+    });
+    test('un tom plus grave résonne plus longtemps', () => {
+        const end = (f) => { const rt = makeRt(); withSeed(2, () => D.synthRockTom(rt, 0, rt.ctx.createGain(), f, 1)); return Math.max(...rt.nodes.map(n => n.stopped || 0)); };
+        assert.ok(end(84) > end(188));
+    });
+    test('la hauteur du tom retombe à l\'attaque (chute d\'un rapport > 1 vers la fondamentale)', () => {
+        const rt = makeRt(); withSeed(2, () => D.synthRockTom(rt, 0, rt.ctx.createGain(), 150, 1));
+        const o = rt.ctx.nodes.find(n => n.kind === 'Oscillator');
+        const set = o.frequency.calls.find(c => c[0] === 'set')[1], end = o.frequency.calls.find(c => c[0] === 'exp')[1];
+        assert.ok(set > end);
+    });
+    test('la force règle le niveau : coup fort > coup léger', () => {
+        for (const d of ['rkick', 'rsnare', 'rtom2', 'tmb']) {
+            const loud = makeRt(), soft = makeRt();
+            withSeed(2, () => D.synthDrumLive(loud, { drum: d }, 0, loud.ctx.createGain(), 1));
+            withSeed(2, () => D.synthDrumLive(soft, { drum: d }, 0, soft.ctx.createGain(), 0.3));
+            assert.ok(peakOf(loud) > peakOf(soft), d);
+        }
+    });
+    test('note fantôme : plus douce et plus courte qu\'un coup de caisse claire', () => {
+        const stop = (d) => { const rt = makeRt(); withSeed(2, () => D.synthDrumLive(rt, { drum: d }, 0, rt.ctx.createGain(), 1)); return Math.max(...rt.nodes.map(n => n.stopped || 0)); };
+        assert.ok(stop('rghost') < stop('rsnare'));
+    });
+    test('tambourin : la secousse est plus courte que le coup', () => {
+        const stop = (d) => { const rt = makeRt(); withSeed(2, () => D.synthDrumLive(rt, { drum: d }, 0, rt.ctx.createGain(), 1)); return Math.max(...rt.nodes.map(n => n.stopped || 0)); };
+        assert.ok(stop('tmbs') < stop('tmb'));
+    });
+    test('claquement de mains : plusieurs rafales décalées en niveau complet, une seule au minimum', () => {
+        const count = (tier) => { const rt = makeRt({ tier }); withSeed(2, () => D.synthClap(rt, 0, rt.ctx.createGain(), 1)); return rt.nodes.filter(n => n.kind === 'BufferSource').length; };
+        assert.ok(count(0) > count(2));
     });
 });

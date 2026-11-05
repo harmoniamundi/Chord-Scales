@@ -20,6 +20,7 @@ const STYLE_SCALE_PROFILE = {
     brasscantique:'classic', pop:'classic', gospel:'classic', jig:'classic', slipjig:'classic', valsecountry:'classic',
     balkan:'balkan', balkan98:'balkan', balkansevdah:'balkan', balkantsifte:'balkan',
     cumbia:'classic',
+    rockroll:'blues', rockclassic:'classic', hardrock:'classic', punk:'classic', rockballad:'classic', bluesrock:'blues', indierock:'classic',
     flamencosolea:'flamenco', flamencobulerias:'flamenco', flamencotangos:'flamenco'
 };
 
@@ -37,16 +38,21 @@ const STYLE_BAND = {
     brasshymn: 'brass', brasscantique: 'brass',
     balkan: 'balkan', balkan98: 'balkan', balkansevdah: 'balkan', balkantsifte: 'balkan',
     cumbia: 'cumbia',
+    rockroll: 'pop', rockclassic: 'pop', hardrock: 'pop', punk: 'pop', rockballad: 'pop', bluesrock: 'pop', indierock: 'pop',
     flamencosolea: 'guitar', flamencobulerias: 'guitar', flamencotangos: 'guitar'
 };
 
 // Rythme imposé à l'orchestre Latin par certains styles (sinon le moteur choisit bossa / samba / afro selon le tempo).
 const STYLE_GROOVE = { samba: 'samba', tango: 'lyrique', piazzolla: 'piazzolla', milongalyrique: 'lyrique', afro68: 'afro', salsa: 'salsa', brasshymn: 'b-chorale', brasscantique: 'b-chorale',
     flamencosolea: 'f-solea', flamencobulerias: 'f-bulerias', flamencotangos: 'f-tangos',
-    balkansevdah: 'bk-sevdah', balkantsifte: 'bk-tsifte' };
+    balkansevdah: 'bk-sevdah', balkantsifte: 'bk-tsifte',
+    rockroll: 'r-roll', rockclassic: 'r-classic', hardrock: 'r-hard', punk: 'r-punk', rockballad: 'r-ballad', bluesrock: 'r-blues', indierock: 'r-indie' };
 
 // Entrées « Flamenco » du menu Orchestre : orchestre Guitare + rythme du palo (même rythme que le style de grille du même nom).
 const FLAMENCO_BAND_GROOVES = { flamencosolea: 'f-solea', flamencobulerias: 'f-bulerias', flamencotangos: 'f-tangos' };
+
+// Entrées « Rock » du menu Orchestre : orchestre Pop-Rock + rythme rock choisi (même rythme que le style de grille du même nom).
+const ROCK_BAND_GROOVES = { rockroll: 'r-roll', rockclassic: 'r-classic', hardrock: 'r-hard', punk: 'r-punk', rockballad: 'r-ballad', bluesrock: 'r-blues', indierock: 'r-indie' };
 
 // Tempo (noires par minute ; pulsations ♩. en mesure composée) et signature proposés pour chaque style.
 // Valeurs modifiables ensuite avec le curseur de tempo et le sélecteur « Mesure ».
@@ -94,6 +100,13 @@ const STYLE_TEMPO_METER = {
     balkansevdah:  { bpm: 60,  meter: '4/4' },   // ballade lente : noire autour de 60
     balkantsifte:  { bpm: 100, meter: '4/4' },   // tsifteteli / čoček de bal : noire autour de 100
     cumbia:        { bpm: 98,  meter: '4/4' },    // cumbia colombienne : 85-110 à la noire
+    rockroll:      { bpm: 160, meter: '4/4' },    // rock'n'roll des années 50 (swingué à 62 %)
+    rockclassic:   { bpm: 118, meter: '4/4' },
+    hardrock:      { bpm: 132, meter: '4/4' },
+    punk:          { bpm: 176, meter: '4/4' },
+    rockballad:    { bpm: 68,  meter: '4/4' },
+    bluesrock:     { bpm: 100, meter: '4/4' },    // shuffle (swing à 67 %)
+    indierock:     { bpm: 124, meter: '4/4' },
     flamencosolea:    { bpm: 52,  meter: '12/8' }, // 12 temps : un compás = 4 pulsations ♩. (≈ 4,6 s)
     flamencobulerias: { bpm: 88,  meter: '12/8' }, // compás de ≈ 2,7 s
     flamencotangos:   { bpm: 108, meter: '4/4' },
@@ -303,7 +316,7 @@ function styleTonality(styleKey, generated) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { STYLE_SCALE_PROFILE, STYLE_BAND, STYLE_GROOVE, FLAMENCO_BAND_GROOVES, STYLE_TEMPO_METER, STYLES_FOLLOWING_KEY,
+    module.exports = { STYLE_SCALE_PROFILE, STYLE_BAND, STYLE_GROOVE, FLAMENCO_BAND_GROOVES, ROCK_BAND_GROOVES, STYLE_TEMPO_METER, STYLES_FOLLOWING_KEY,
         bandStyleFor, grooveHintFor, tempoMeterFor, styleModulations, modReading, annotateModulations,
         styleScaleFor, applyStyleScaleProfile, styleTonality };
 }

@@ -16,6 +16,7 @@ function bandVoiceState() {
         _cumbiaVoice: null, _cumbiaMel: null,
         _pzState: null,
         _gtrVoice: null,
+        _rockStrV: null, _rockPad: null,   // cordes et nappes du Pop-Rock / Rock (band/rock-plan.js)
     };
 }
 

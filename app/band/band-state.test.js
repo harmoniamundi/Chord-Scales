@@ -14,6 +14,7 @@ describe('bandVoiceState', () => {
             _cumbiaVoice: null, _cumbiaMel: null,
             _pzState: null,
             _gtrVoice: null,
+            _rockStrV: null, _rockPad: null,
         });
     });
     test('un nouvel objet à chaque appel', () => {

@@ -72,7 +72,7 @@ describe('tables par style', () => {
     test('orchestres et grooves : valeurs connues du moteur', () => {
         const bands = new Set(['swing', 'latin', 'pop', 'classic', 'cuba', 'piazzolla', 'brass', 'balkan', 'cumbia', 'guitar']);
         Object.values(M.STYLE_BAND).forEach(b => assert.ok(bands.has(b), b));
-        const grooves = new Set(['samba', 'tango', 'piazzolla', 'lyrique', 'afro', 'salsa', 'b-chorale', 'f-solea', 'f-bulerias', 'f-tangos', 'bk-sevdah', 'bk-tsifte']);
+        const grooves = new Set(['samba', 'tango', 'piazzolla', 'lyrique', 'afro', 'salsa', 'b-chorale', 'f-solea', 'f-bulerias', 'f-tangos', 'bk-sevdah', 'bk-tsifte', 'r-roll', 'r-classic', 'r-hard', 'r-punk', 'r-ballad', 'r-blues', 'r-indie']);
         Object.values(M.STYLE_GROOVE).forEach(g => assert.ok(grooves.has(g), g));
     });
 });
@@ -281,5 +281,26 @@ describe('menu Orchestre : entrées Flamenco', () => {
         });
         assert.equal(M.tempoMeterFor('flamencosolea').meter, '12/8');
         assert.equal(M.tempoMeterFor('flamencotangos').meter, '4/4');
+    });
+});
+
+describe('menu Orchestre : entrées Rock', () => {
+    test('chaque entrée a le rythme, l\'orchestre Pop-Rock et un tempo en 4/4 du style de grille du même nom', () => {
+        const keys = Object.keys(M.ROCK_BAND_GROOVES);
+        assert.deepEqual(keys.sort(), ['bluesrock', 'hardrock', 'indierock', 'punk', 'rockballad', 'rockclassic', 'rockroll']);
+        keys.forEach(k => {
+            assert.equal(M.ROCK_BAND_GROOVES[k], M.STYLE_GROOVE[k], k);
+            assert.equal(M.bandStyleFor(k), 'pop', k);
+            assert.equal(M.tempoMeterFor(k).meter, '4/4', k);
+        });
+    });
+    test('le rythme de chaque style est un rythme connu de rock-plan.js', () => {
+        const R = require('../band/rock-plan.js');
+        Object.values(M.ROCK_BAND_GROOVES).forEach(g => assert.ok(R.ROCK_GROOVES.includes(g), g));
+        assert.deepEqual(Object.values(M.ROCK_BAND_GROOVES).sort(), R.ROCK_GROOVES.slice().sort());
+    });
+    test('le tempo de référence de chaque style est celui de son rythme', () => {
+        const R = require('../band/rock-plan.js');
+        Object.entries(M.ROCK_BAND_GROOVES).forEach(([k, g]) => assert.equal(M.tempoMeterFor(k).bpm, R.ROCK[g].tempo, k));
     });
 });

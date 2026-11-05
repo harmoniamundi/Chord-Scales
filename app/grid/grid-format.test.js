@@ -187,3 +187,14 @@ describe('sanitizeImportedSettings : chiffrage des degrés', () => {
         for (const bad of [undefined, null, '', 'Jazz', 'classique', 1, {}]) assert.ok(!('fnConvention' in F.sanitizeImportedSettings({ fnConvention: bad })), String(bad));
     });
 });
+
+describe('import : orchestre Rock', () => {
+    test('rythmes rock reconnus, volumes de la guitare électrique, de l\'orgue et des cordes bornés', () => {
+        for (const g of ['r-roll', 'r-classic', 'r-hard', 'r-punk', 'r-ballad', 'r-blues', 'r-indie']) {
+            assert.equal(F.sanitizeImportedSettings({ orchestration: { style: 'pop', groove: g } }).orchestration.groove, g, g);
+        }
+        assert.ok(!('groove' in F.sanitizeImportedSettings({ orchestration: { style: 'pop', groove: 'r-inconnu' } }).orchestration));
+        const { orchestration: o } = F.sanitizeImportedSettings({ orchestration: { style: 'pop', volumes: { rguitar: 0.7, organ: 3, strings: -2, piano: 0.5 } } });
+        assert.deepEqual(o.volumes, { piano: 0.5, rguitar: 0.7, organ: 1, strings: 0 });
+    });
+});

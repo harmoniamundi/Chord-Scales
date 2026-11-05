@@ -538,6 +538,54 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         noErrors();
     });
 
+    test('Jam : styles Rock — orchestre Pop-Rock avec rythme rock, tempo, curseurs guitare / orgue / cordes, kit rock, nappes ; le rythme ne fuit pas', async () => {
+        const rows = () => page.evaluate(() => ['rguitar', 'organ', 'strings'].map(k => !document.getElementById('band-row-rk-' + k).classList.contains('hidden')));
+        await page.selectOption('#jam-style-select', 'hardrock');
+        assert.equal(await page.evaluate(() => app.jam.bandStyle), 'pop');
+        assert.equal(await page.evaluate(() => app.jam.getEffectiveGroove()), 'r-hard');
+        assert.equal(await page.evaluate(() => app.jam.bpm), 132);
+        assert.equal(await page.evaluate(() => app.jam.mainKey), 4);
+        assert.equal(await page.evaluate(() => document.getElementById('band-btn-label').textContent), 'Orchestre Hard rock');
+        assert.equal(await page.evaluate(() => document.getElementById('band-style-select').value), 'hardrock');
+        assert.deepEqual(await rows(), [true, true, true]);
+        await page.evaluate(() => {
+            app.jam.bpm = 240;
+            window.__drums = []; window.__insts = [];
+            const rd = app.jam.playBandDrum.bind(app.jam);
+            app.jam.playBandDrum = (e, t) => { window.__drums.push(e.drum); return rd(e, t); };
+            const rr = app.jam.playRockHit.bind(app.jam);
+            app.jam.playRockHit = (e, t, b) => { window.__insts.push(e.inst || 'piano'); return rr(e, t, b); };
+        });
+        await page.click('#jam-play-btn');
+        await waitFor(() => window.__drums.length >= 120, null, 25000);
+        await page.click('#jam-play-btn');
+        const heard = await page.evaluate(() => ({ d: [...new Set(window.__drums)].sort(), i: [...new Set(window.__insts)].sort() }));
+        for (const d of ['rkick', 'rsnare']) assert.ok(heard.d.includes(d), `${d} jamais joué : ${heard.d.join(' ')}`);
+        assert.ok(!heard.d.includes('tom1') && !heard.d.includes('snare'), 'anciens sons de boîte à rythmes : ' + heard.d.join(' '));
+        assert.ok(heard.i.includes('gtr'), 'guitare jamais jouée : ' + heard.i.join(' '));
+        // le menu Orchestre : un autre rythme rock change le tempo, « Pop-Rock » efface le rythme, un autre orchestre ne le garde pas
+        await page.evaluate(() => app.jam.chooseBandStyle('bluesrock'));
+        assert.equal(await page.evaluate(() => app.jam.getEffectiveGroove()), 'r-blues');
+        assert.equal(await page.evaluate(() => app.jam.bpm), 100);
+        assert.equal(await page.evaluate(() => Math.round(app.jam.getBandSwing() * 1000)), 667);   // shuffle : le swing du rythme
+        await page.evaluate(() => app.jam.chooseBandStyle('rockroll'));
+        assert.equal(await page.evaluate(() => Math.round(app.jam.getBandSwing() * 100)), 62);
+        await page.evaluate(() => app.jam.chooseBandStyle('pop'));
+        assert.equal(await page.evaluate(() => app.jam.getEffectiveGroove()), null);
+        assert.equal(await page.evaluate(() => app.jam.getBandSwing()), 0.5);
+        assert.equal(await page.evaluate(() => document.getElementById('band-btn-label').textContent), 'Orchestre Pop-Rock');
+        assert.deepEqual(await rows(), [true, true, true]);
+        await page.evaluate(() => app.jam.chooseBandStyle('punk'));
+        await page.evaluate(() => app.jam.setBandStyle('latin'));
+        assert.equal(await page.evaluate(() => app.jam.getEffectiveGroove()), null);
+        assert.deepEqual(await rows(), [false, false, false]);
+        // les curseurs règlent les bus
+        await page.evaluate(() => { app.jam.chooseBandStyle('rockclassic'); app.jam.ensureBandAudio(); app.jam.setBandVolume('organ', 20); });
+        assert.equal(await page.evaluate(() => Math.round(app.jam.bandVolumes.organ * 100)), 20);
+        await page.selectOption('#jam-style-select', 'swing');
+        noErrors();
+    });
+
     test('Jam : mode édition, sélection d\'une plage et lecture de cette plage', async () => {
         await page.selectOption('#jam-style-select', 'blues');
         await page.evaluate(() => {

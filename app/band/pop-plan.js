@@ -9,13 +9,17 @@
 if (typeof popBassTones === 'undefined' && typeof require === 'function') {
     var { popBassTones, popBassApproach, popLineNote, popRun, popVoicing, popSusVoicing } = require('./band-helpers.js');
 }
+// Couches rock (guitare électrique, orgue, cordes, tambourin) et grooves rock : band/rock-plan.js.
+if (typeof rockPhraseExtras === 'undefined' && typeof require === 'function') {
+    var { rockPhraseExtras, popLayerExtras, buildRockPlan, popLayers, isRockGroove } = require('./rock-plan.js');
+}
 // Tables rythmiques : globales en navigateur (band-patterns.js), à charger sous Node.
 const POP_PAT = (typeof POP_BASS !== 'undefined')
     ? { POP_ARP, POP_BASS, POP_COMP }
     : require('../band-patterns.js');
 
 // Caractère d'une phrase pop : énergie, instrumentation du piano / de la basse, feeling de batterie.
-function popPhraseExtras(rng, prev, index) {
+function popPhraseExtras(rng, prev, index, groove) {
     const prevI = (prev && prev.style === 'pop' && typeof prev.intensity === 'number') ? prev.intensity : 0.5;
     let I = index === 0 ? 0.38 + rng() * 0.2 : prevI + (0.62 - prevI) * 0.25 + (rng() - 0.5) * 0.55;
     I = Math.max(0.25, Math.min(1, I));
@@ -25,7 +29,7 @@ function popPhraseExtras(rng, prev, index) {
         for (const o of opts) { r -= o[1]; if (r <= 0) return o[0]; }
         return opts[opts.length - 1][0];
     };
-    return {
+    const base = {
         intensity: I,
         lift: index > 0 && I - prevI > 0.18,
         pianoStyle: pickW([['pad', I < 0.45 ? 3 : 0.6], ['ballad', I < 0.75 ? 3 : 1.5], ['comp', 1 + 3 * I]]),
@@ -39,6 +43,10 @@ function popPhraseExtras(rng, prev, index) {
         fill: rng() < 0.55,
         fillKind: Math.floor(rng() * 4)
     };
+    // Rythme rock imposé (r-classic, r-hard…) : l'arrangement rock remplace la basse et la batterie ; sinon, des couches
+    // (guitare électrique, orgue, cordes, tambourin) s'ajoutent selon l'énergie de la phrase.
+    if (groove && isRockGroove(groove)) return { ...base, ...rockPhraseExtras(rng, prev, index, groove, base) };
+    return { ...base, ...popLayerExtras(rng, I, index, prev) };
 }
 
 function buildPopPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
@@ -248,7 +256,14 @@ function buildPopPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i, L
 
     const drums = buildPopDrums(env, ph, i, L, isTurn, bass, rng, I);
     env.state.popVoice = lastKey ? { key: lastKey, v: lastV } : null;
-    return { piano, bass, drums };
+    if (ph.rockGroove) return buildRockPlan(env, { piano, bass, drums, anticip, voiceFor }, ph.rockGroove, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
+    const plan = { piano, bass, drums };
+    if (ph.layGtr !== undefined) {   // couches du Pop-Rock ordinaire : guitare électrique, orgue, cordes, tambourin (modifient le plan en place)
+        plan.anticip = anticip;
+        popLayers(env, plan, ph, step, nextStep, isLastMeasureOfStep, halves, i, isTurn, m, voiceFor);
+        delete plan.anticip;
+    }
+    return plan;
 }
 
 // Batterie pop : feeling choisi par phrase (noires douces + cross-stick / croches / drive), dynamique qui

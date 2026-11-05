@@ -293,3 +293,38 @@ describe('ordre de consommation du hasard (déterminisme)', () => {
         assert.equal(calls, 1);
     });
 });
+
+describe('rockNotes', () => {
+    const env = { instrumentKey: 'C', currentTime: 0, transOffset: 0, perfTier: 0, rand: () => 0.5 };
+    const hit = (o) => ({ inst: 'gtr', art: 'strum', rootIndex: 0, intervals: [4, 11, 16], vel: 0.8, dur: 1, roll: 0.01, dir: 1, ...o });
+    test('une note par intervalle, de la plus grave à la plus aiguë (ou l\'inverse si dir < 0)', () => {
+        const down = N.rockNotes(env, hit({}), 1, 0.5);
+        assert.equal(down.length, 3);
+        assert.ok(down[0].when < down[2].when);
+        const up = N.rockNotes(env, hit({ dir: -1 }), 1, 0.5);
+        assert.ok(up[0].when > up[2].when);
+    });
+    test('niveau minimal : au plus trois voix', () => {
+        assert.equal(N.rockNotes({ ...env, perfTier: 2 }, hit({ intervals: [0, 7, 12, 16, 19] }), 1, 0.5).length, 3);
+    });
+    test('guitare : sourdine très courte, corde étouffée quasi muette, arpège qui sonne longtemps', () => {
+        const dur = (art) => N.rockNotes(env, hit({ art, intervals: [4], dur: 2 }), 1, 0.5)[0].opts;
+        assert.ok(dur('mute').duration <= 0.16);
+        assert.ok(dur('dead').duration <= 0.05);
+        assert.ok(dur('dead').gain < dur('strum').gain);
+        assert.ok(dur('arp').release > dur('mute').release * 4);
+    });
+    test('orgue et cordes : attaque indiquée par l\'événement, cordes plus lentes par défaut', () => {
+        const o = N.rockNotes(env, hit({ inst: 'organ', art: 'swell', att: 0.35 }), 1, 0.5)[0].opts;
+        assert.equal(o.attack, 0.35);
+        const s = N.rockNotes(env, hit({ inst: 'strings', art: 'pad' }), 1, 0.5)[0].opts;
+        assert.ok(s.attack >= 0.25);
+        assert.ok(N.rockNotes(env, hit({ inst: 'organ', art: 'pad' }), 1, 0.5)[0].opts.attack < 0.05);
+    });
+    test('jamais dans le passé, gains bornés, hauteurs transposées', () => {
+        const ns = N.rockNotes({ ...env, currentTime: 5 }, hit({}), 1, 0.5);
+        ns.forEach(n => { assert.ok(n.when >= 5); assert.ok(n.opts.gain > 0 && n.opts.gain <= 1.2); assert.match(n.noteStr, /^[A-G][#b]?\d$/); });
+        const bb = N.rockNotes({ ...env, instrumentKey: 'Bb' }, hit({ intervals: [0] }), 1, 0.5)[0].noteStr;
+        assert.notEqual(bb, N.rockNotes(env, hit({ intervals: [0] }), 1, 0.5)[0].noteStr);
+    });
+});

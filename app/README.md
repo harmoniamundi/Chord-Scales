@@ -26,9 +26,9 @@ Les commandes `npm` se lancent **depuis le dossier `app/`** (`cd app`). Dans `in
 | `theory.js` | Théorie musicale : noms de notes, orthographe, accords, gammes, notes à éviter / cibles |
 | `band-patterns.js` | Données des motifs rythmiques de l'orchestre |
 | `audio-config.js` | Constantes audio (octave de lecture, niveau master…) |
-| `band/` | Orchestre de la Jam : un fichier par famille de styles (`swing-plan`, `pop-plan`, `latin-plan`, `cuban-plan`, `salsa-plan` pour la salsa, `brass-plan`, `balkan-plan`, `cumbia-plan`, `piazzolla-plan`, `classic-plan`, `guitar-plan` pour la guitare classique seule, `flamenco-plan` pour le toque flamenco de cette même guitare, mesures 2/3 temps et ternaires), lignes de basse, choix par phrase (`phrase-plan`), états de départ (`band-state`), utilitaires (`band-helpers`) |
+| `band/` | Orchestre de la Jam : un fichier par famille de styles (`swing-plan`, `pop-plan`, `rock-plan` pour les couches et styles rock, `latin-plan`, `cuban-plan`, `salsa-plan` pour la salsa, `brass-plan`, `balkan-plan`, `cumbia-plan`, `piazzolla-plan`, `classic-plan`, `guitar-plan` pour la guitare classique seule, `flamenco-plan` pour le toque flamenco de cette même guitare, mesures 2/3 temps et ternaires), lignes de basse, choix par phrase (`phrase-plan`), états de départ (`band-state`), utilitaires (`band-helpers`) |
 | `grid/` | La grille d'accords : ordre de lecture et reprises (`play-order`), mécanique de lecture (`transport`), édition (`edit-ops`), génération (`generation`), lecture harmonique (`harmony`), sauvegarde/import (`grid-format`) |
-| `audio/` | Calcul des notes jouées (`note-events`, `practice-notes`), synthèse des percussions (`drum-synths`), fichier WAV de l'export du son (`wav-export`), adresses locales des sons (`local-soundfonts`) et lecteur des cuivres Virtual Playing Orchestra (`vpo-brass`) |
+| `audio/` | Calcul des notes jouées (`note-events`, `practice-notes`), synthèse des percussions (`drum-synths`, dont le kit rock), synthèse de l'ampli de guitare, de l'orgue et des cordes (`rock-synths`), fichier WAV de l'export du son (`wav-export`), adresses locales des sons (`local-soundfonts`) et lecteur des cuivres Virtual Playing Orchestra (`vpo-brass`) |
 | `styles/` | Les styles musicaux : métadonnées (`style-meta`), outils (`toolkit`), un générateur de grille par style (`style-builders`) |
 | `ui/` | Ce qu'il faut afficher, sans DOM : grille (`grid-view`), cartes de gammes (`scale-cards`), éditeur de mesure (`measure-editor`), pastilles (`pastilles`), portée (`staff-model`), accords affichés (`chord-display`), écran Entraînement (`training-view`) |
 | `tools/` | Contrôles de cohérence du projet (`project-check.test.js`) et du mode hors ligne (`sw-check.test.js`) |
@@ -109,7 +109,7 @@ Exemples :
 
 | Commande | Contrôle |
 |---|---|
-| `npm test` | Tous les tests unitaires (plus de 1 280) + cohérence du projet. Quelques secondes. |
+| `npm test` | Tous les tests unitaires (plus de 1 400) + cohérence du projet. Quelques secondes. |
 | `npm run test:e2e` | L'appli entière dans un navigateur : chargement, Entraînement, portée, tous les styles de la Jam, lecture/arrêt, changement d'orchestre, plage sélectionnée. |
 | `npm run test:offline` | Le mode hors ligne pour de vrai : visite en ligne, puis réseau coupé ; la page se recharge, les 13 instruments se décodent, la portée et la police s'affichent, aucune requête ne part vers un autre site. |
 
@@ -157,6 +157,19 @@ Le style de grille **Cumbia colombienne (4/4)** du menu « Amérique Latine » (
 - **Basse** (basse électrique aux doigts, comme le Pop) : fondamentale sur 1 et 3, quinte anticipée sur le « et » de 2 et 4 (tumbao), variantes avec tierce, octave et quinte grave ; une note d'approche annonce l'accord suivant en fin de phrase.
 - **Accordéon** : mélodie en phrases de deux mesures, reprises à l'identique une phrase sur deux (carrure de quatre mesures) ; la question se pose sur la tierce ou la quinte, la réponse retombe sur la fondamentale ; doublure à la tierce inférieure une fois sur deux ; accords en contretemps (« ta-ka »), allégés sous la mélodie ; petite gamme rapide vers l'accord suivant en fin de phrase.
 - Les autres signatures (2/4, 3/4 : cellules tronquées ; 6/8, 9/8, 12/8 : version simplifiée en tiers de temps) restent jouables.
+
+---
+
+## 5 quinquies. Pop-Rock enrichi et styles Rock (orchestre Pop-Rock)
+
+L'orchestre **Pop-Rock** ne se limite plus à piano, basse et batterie. `band/rock-plan.js` (appelé par `band/pop-plan.js`) ajoute des **couches** et sept **rythmes rock** ; `audio/rock-synths.js` fournit les sons.
+
+- **Couches du Pop-Rock ordinaire** (aucun rythme imposé, `popLayerExtras`, selon l'énergie de la phrase) : guitare électrique (arpèges clairs, accords grattés, contretemps étouffés, tronçonnage), orgue (nappe ou crescendo), cordes (nappe), tambourin. Les événements des instruments mélodiques sont rangés dans `plan.piano` avec un champ `inst` (`piano`, `gtr`, `organ`, `strings`) ; `plan.rock = true` les signale, `plan.tone` règle l'ampli, `plan.leslie` la vitesse du haut-parleur tournant. Le moteur les aiguille dans `playRockHit` (index.html) vers trois bus (curseurs « Guit. élec. », « Orgue », « Cordes » du pop-up Orchestre, visibles en Pop-Rock) ; le calcul des notes est `rockNotes` dans `audio/note-events.js`.
+- **Sept styles de grille** (jukebox, groupe « Rock » ; formes dans `styles/style-builders.js`) qui imposent chacun un rythme : `rockroll` → `r-roll` (12 mesures, 160, swing 62 %), `rockclassic` → `r-classic` (118), `hardrock` → `r-hard` (132, mi mineur), `punk` → `r-punk` (176), `rockballad` → `r-ballad` (68), `bluesrock` → `r-blues` (12 mesures, 100, shuffle 67 %), `indierock` → `r-indie` (124). Les mêmes rythmes sont dans le menu Orchestre (« Rock : … », table `ROCK_BAND_GROOVES` de `styles/style-meta.js`) ; choisir « Pop-Rock » efface le rythme. Le swing propre à un rythme est `GROOVE_SWING_DEFAULTS` (`band/band-helpers.js`) : le réglage manuel l'emporte.
+- **Chaque rythme** (table `ROCK` de `rock-plan.js`) décrit en motifs de 16 doubles croches : charleston ou ride, grosse caisse, caisse claire (légèrement en retard sur le temps), notes fantômes, charleston ouvert, basse, guitare (accords de puissance, boogie, étouffé, arpèges, jangle), claviers, et l'**arc d'énergie** de quatre phrases (couplet, couplet, refrain, refrain) qui choisit les motifs « bas » ou « haut ». Roulements et breaks de fin de phrase : sept formules sur les toms rock.
+- **Kit rock** (`audio/drum-synths.js`) : `rkick`, `rsnare`, `rghost`, `rtom1` à `rtom4`, `tmb` et `tmbs` (tambourin), `clap`. Les toms sont des membranes à plusieurs modes avec attaque, résonance et petite chute de hauteur (plus de sinus pur de boîte à rythmes) ; l'ancien kit (`kick`, `snare`, `tom1` à `tom3`) reste utilisé par les autres orchestres.
+- **Sons** : tout est synthétisé ou réutilise des échantillons déjà dans l'application (aucune nouvelle banque). La guitare joue l'échantillon `electric_guitar_clean` dans un ampli simulé (propre, crunch, saturé, lourd, surf : préampli, saturation à lampes, haut-parleur, écho). L'orgue est additif (neuf tirettes, claquement de touche, percussion, Leslie lent ou rapide), les cordes sont une « string machine » (scies désaccordées, chœur d'ensemble). Aux niveaux de performance allégés, ces synthés simplifient leur chaîne.
+- Si le volume d'un instrument rock paraît déséquilibré, régler d'abord `AMP_TONES[...].level` (guitare), puis les valeurs par défaut de `bandVolumes` dans `index.html`.
 
 ---
 

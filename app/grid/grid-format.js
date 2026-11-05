@@ -12,7 +12,8 @@ const PART_LABELS = ['in', 'A', 'B', 'C', 'D', 'E', 'F', 'G', "A'", "B'", "C'", 
 const isPartLabel = (v) => typeof v === 'string' && (PART_LABELS.includes(v) || /^[A-Z]$/.test(v));
 
 // Rythmes imposés par un style (samba, tango…), valables dans un fichier importé.
-const IMPORT_GROOVES = ['samba', 'tango', 'piazzolla', 'lyrique', 'afro', 'b-chorale', 'bk-sevdah', 'bk-tsifte', 'f-solea', 'f-bulerias', 'f-tangos'];
+const IMPORT_GROOVES = ['samba', 'tango', 'piazzolla', 'lyrique', 'afro', 'b-chorale', 'bk-sevdah', 'bk-tsifte', 'f-solea', 'f-bulerias', 'f-tangos',
+    'r-roll', 'r-classic', 'r-hard', 'r-punk', 'r-ballad', 'r-blues', 'r-indie'];
 
 // Lit une signature (nombre 2, 3, 4 des anciennes versions, ou texte « 6/8 »).
 function parseMeter(val) {
@@ -109,7 +110,7 @@ function sanitizeImportedSettings(data) {
         if (orch.style === 'latin' && orch.groove === 'afro') orch.style = 'cuba';
         if (o.volumes && typeof o.volumes === 'object') {
             orch.volumes = {};
-            ['piano', 'bass', 'drums', 'bandoneon', 'violin', 'guitar'].forEach(k => {
+            ['piano', 'bass', 'drums', 'bandoneon', 'violin', 'guitar', 'rguitar', 'organ', 'strings'].forEach(k => {
                 const v = Number(o.volumes[k]);
                 if (o.volumes[k] !== null && o.volumes[k] !== undefined && Number.isFinite(v)) orch.volumes[k] = Math.max(0, Math.min(1, v));
             });
