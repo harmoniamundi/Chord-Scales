@@ -1,4 +1,4 @@
-// Tests des cuivres Virtual Playing Orchestra (vpo-brass.js). Lancer : node --test
+// Tests des cuivres et cordes Virtual Playing Orchestra (vpo-brass.js). Lancer : node --test
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -67,9 +67,11 @@ describe('vpoEnvelope', () => {
 describe('fichiers de sons', () => {
     test('adresses relatives, une par instrument', () => {
         assert.deepEqual(V.VPO_BRASS_NAMES, ['trumpet', 'french_horn', 'trombone', 'tuba', 'tuba_stc']);
-        V.VPO_BRASS_FILES.forEach(f => assert.ok(/^app\/sounds\/VPO\/[a-z_]+\.js$/.test(f), f));
+        assert.deepEqual(V.VPO_STRING_NAMES, ['violin', 'violin_stc', 'contrabass']);
+        V.VPO_ALL_FILES.forEach(f => assert.ok(/^app\/sounds\/VPO\/[a-z_]+\.js$/.test(f), f));
+        assert.deepEqual(V.VPO_ALL_FILES, V.VPO_BRASS_FILES.concat(V.VPO_STRING_NAMES.map(n => V.VPO_BRASS_DIR + '/' + n + '.js')));
     });
-    V.VPO_BRASS_NAMES.forEach(name => {
+    V.VPO_BRASS_NAMES.concat(V.VPO_STRING_NAMES).forEach(name => {
         test(`${name} : fichier présent, échantillons mp3 cohérents`, () => {
             const code = fs.readFileSync(path.join(ROOT, V.VPO_BRASS_DIR, name + '.js'), 'utf8');
             const win = {};
@@ -83,7 +85,7 @@ describe('fichiers de sons', () => {
                 assert.equal(String(e.k), k);
                 assert.ok(e.k >= 24 && e.k <= 96);
                 assert.match(e.d, /^data:audio\/mpeg;base64,/);
-                if (name === 'tuba_stc') assert.equal(e.ls, undefined, 'notes courtes : pas de boucle');
+                if (name === 'tuba_stc' || name === 'violin_stc') assert.equal(e.ls, undefined, 'notes courtes : pas de boucle');
                 else assert.ok(e.ls > 0 && e.le > e.ls + 0.1, `${name} ${k} : boucle ${e.ls}–${e.le}`);
             });
         });
@@ -193,6 +195,7 @@ describe('instrument (play)', () => {
     });
     test('les fréquences de coupure sont des nombres raisonnables, jamais sous 1 kHz (son étouffé) ni au-dessus de 4 kHz', () => {
         Object.entries(V.VPO_TONE_LOWPASS).forEach(([n, fc]) => { if (fc) assert.ok(fc >= 1000 && fc <= 4000, n + ' ' + fc); });
+        V.VPO_STRING_NAMES.forEach(n => assert.equal(V.VPO_TONE_LOWPASS[n], null, n + ' : timbre proche des anciens sons, pas de filtre'));
         assert.ok(V.VPO_TONE_LOWPASS.trombone < V.VPO_TONE_LOWPASS.french_horn, 'le trombone ff est le plus brillant : il est le plus filtré');
     });
     test('fichier introuvable : promesse rejetée (l\'appli retombe sur les anciens sons)', async () => {

@@ -34,7 +34,7 @@ Les commandes `npm` se lancent **depuis le dossier `app/`** (`cd app`). Dans `in
 | `tools/` | Contrôles de cohérence du projet (`project-check.test.js`) et du mode hors ligne (`sw-check.test.js`) |
 | `e2e/` | Tests dans un vrai navigateur : appli complète (`app.e2e.js`) et mode hors ligne (`offline.e2e.js`) |
 | `vendor/` | Bibliothèques tierces, copiées telles quelles : `soundfont-player.min.js` 0.12.0, `vexflow-petaluma.js` 4.2.2 |
-| `sounds/` | Échantillons d'instruments (~35 Mo) : banques FluidR3_GM et MusyngKite, lues par `audio/local-soundfonts.js` ; dossier `sounds/VPO/` : cuivres du Brass band (trompette, cor, trombone, tuba, ~1,8 Mo), lus par `audio/vpo-brass.js` (voir `sounds/VPO/LISEZMOI.txt`) |
+| `sounds/` | Échantillons d'instruments (~35 Mo) : banques FluidR3_GM et MusyngKite, lues par `audio/local-soundfonts.js` ; dossier `sounds/VPO/` : cuivres du Brass band (trompette, cor, trombone, tuba) et cordes frottées du quinteto de tango (violon tenu et spiccato, contrebasse à l'archet) (~2,6 Mo), lus par `audio/vpo-brass.js` (voir `sounds/VPO/LISEZMOI.txt`) |
 | `fonts/`, `icons/`, `licenses/` | Police Kalam (sous-ensemble latin), icônes de l'appli installée, licences des éléments tiers |
 | `offline.js` | Enregistre le service worker et affiche la petite pastille « Sons hors ligne : x/13 » |
 | `style.css`, `tailwind-built.css` | Styles de la page |
@@ -180,14 +180,14 @@ L'orchestre **Balkans** (`band/balkan-plan.js`, entrée factice `BAND_PATTERNS.b
 
 ## 6. Mode hors ligne (service worker)
 
-**Principe.** À la première visite en ligne, `sw.js` garde dans le navigateur la page, le code, la police, les bibliothèques et les icônes (« cache appli », téléchargé d'un coup). Quatre secondes après le chargement, il télécharge aussi en arrière-plan les 18 fichiers de sons (« cache sons », ~35 Mo) ; une pastille en bas à gauche indique `Sons hors ligne : x/18`, puis `✓ Prêt hors ligne`. Ensuite l'appli s'ouvre et joue sans réseau. Les grilles sauvegardées restent dans l'appareil (`localStorage`).
+**Principe.** À la première visite en ligne, `sw.js` garde dans le navigateur la page, le code, la police, les bibliothèques et les icônes (« cache appli », téléchargé d'un coup). Quatre secondes après le chargement, il télécharge aussi en arrière-plan les 21 fichiers de sons (« cache sons », ~35 Mo) ; une pastille en bas à gauche indique `Sons hors ligne : x/21`, puis `✓ Prêt hors ligne`. Ensuite l'appli s'ouvre et joue sans réseau. Les grilles sauvegardées restent dans l'appareil (`localStorage`).
 
 **Mises à jour.** En ligne, `sw.js` va toujours chercher la dernière version des fichiers de l'appli (réseau d'abord, 3 secondes maximum) et met la copie à jour ; hors ligne ou réseau trop lent, il sert la copie gardée. Il n'y a **pas de numéro de version à changer** : un `git push` suffit, la nouvelle version apparaît à l'ouverture suivante avec du réseau. Les sons, eux, ne changent jamais : ils restent en cache.
 
 **Quand modifier `sw.js`.**
 - Ajout ou suppression d'un fichier chargé par `index.html` (module `.js`, feuille de style, police, icône) → ajouter ou retirer la ligne dans `SHELL_FILES`. Le test `tools/sw-check.test.js` échoue tant que la liste n'est pas à jour.
 - Ajout d'un instrument → ajouter `[banque, nom]` dans `LOCAL_SOUNDFONT_INSTRUMENTS` (`audio/local-soundfonts.js`) et copier son fichier `<nom>-mp3.js` dans `sounds/<banque>/`. Les fichiers viennent de https://github.com/gleitz/midi-js-soundfonts (branche `gh-pages`). Le test `audio/local-soundfonts.test.js` vérifie que tout instrument demandé par `index.html` est dans la liste et que son fichier existe.
-- Cuivres du Brass band (Virtual Playing Orchestra) → les cinq fichiers de `sounds/VPO/` sont déjà dans la liste des sons à garder (`VPO_BRASS_FILES`, `audio/vpo-brass.js`). Si un de ces fichiers manque, l'appli retombe toute seule sur les anciens sons MusyngKite (qui restent dans `sounds/MusyngKite/` pour cela).
+- Cuivres du Brass band et cordes frottées de l'orchestre Piazzolla (Virtual Playing Orchestra) → les huit fichiers de `sounds/VPO/` sont déjà dans la liste des sons à garder (`VPO_ALL_FILES`, `audio/vpo-brass.js`). Si un de ces fichiers manque, l'appli retombe toute seule sur les anciens sons MusyngKite (qui restent dans `sounds/MusyngKite/` pour cela).
 - Forcer tous les appareils à repartir de zéro (rare) → changer `SHELL_CACHE` / `SOUNDS_CACHE` (`-v1` → `-v2`) dans `sw.js`.
 
 **À savoir.**
@@ -221,4 +221,4 @@ Demandez-lui aussi de lancer `npm test` (et `npm run test:e2e`) avant de vous re
 
 ## Crédits des sons
 
-Les cuivres de l'orchestre Brass band (trompette, cor, trombone, tuba) utilisent des échantillons de la bibliothèque libre **Virtual Playing Orchestra** de Paul Battersby (https://virtualplaying.com), elle-même assemblée à partir d'enregistrements de l'Université d'Iowa (Electronic Music Studios) et de Sonatina Symphonic Orchestra (Mattias Westlund). Détails et licences : `licenses/VPO-LICENSE.txt`.
+Les cuivres de l'orchestre Brass band (trompette, cor, trombone, tuba), ainsi que le violon (tenu et spiccato) et la contrebasse à l'archet de l'orchestre Piazzolla, utilisent des échantillons de la bibliothèque libre **Virtual Playing Orchestra** de Paul Battersby (https://virtualplaying.com), elle-même assemblée à partir d'enregistrements de l'Université d'Iowa (Electronic Music Studios) et de Sonatina Symphonic Orchestra (Mattias Westlund) pour les cuivres, de **No Budget Orchestra** (CC BY-SA 4.0) pour le violon et de **VSCO 2 Community Edition** (CC0) pour la contrebasse. Détails et licences : `licenses/VPO-LICENSE.txt`.

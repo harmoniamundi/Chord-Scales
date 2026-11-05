@@ -1184,7 +1184,7 @@
                 if (s === 'brass') return !!(this.brassInst && this.brassInst.tuba);
                 if (s === 'balkan') return !!this.accordionInstrument;
                 if (s === 'cumbia') return !!this.accordionInstrument && !!this.bassInstrumentPop;
-                if (s === 'piazzolla') return !!(this.pzInst && Object.keys(this.pzInst).length > 1);
+                if (s === 'piazzolla') return !!(this.pzInst && Object.keys(this.pzInst).filter(k => k !== 'violin_stc').length > 1);
                 if (s === 'latin') return !!this.guitarInstrument && !!this.bassInstrument;
                 if (s === 'guitar') return !!this.guitarInstrument;
                 if (s === 'classic') return !!this.bandPianoInstrument;
@@ -3277,14 +3277,16 @@
                 return this._pzBuses;
             }
 
-            // Charge bandonéon (accordéon « tango »), violon, guitare électrique claire et contrebasse à l'archet. Banque « MusyngKite »,
-            // repli sur « FluidR3_GM » ; tant qu'un instrument n'est pas chargé, le piano joue sa partie.
+            // Charge bandonéon (accordéon « tango »), violon, guitare électrique claire et contrebasse à l'archet. Violon (tenu et spiccato)
+            // et contrebasse : échantillons « Virtual Playing Orchestra » (audio/vpo-brass.js, dossier sounds/VPO/) ; si un fichier manque,
+            // repli sur « MusyngKite » puis « FluidR3_GM » (le spiccato n'a pas de repli : le violon tenu joue alors ses notes courtes).
+            // Bandonéon et guitare : « MusyngKite », repli « FluidR3_GM ». Tant qu'un instrument n'est pas chargé, le piano joue sa partie.
             loadPiazzolla() {
                 if (!this.app.audioCtx || !this.bandGains.piano) return;
                 const ctx = this.app.audioCtx;
                 const buses = this._getPzBuses();
                 const banks = ['MusyngKite', 'FluidR3_GM'];
-                const load = (key, name, dest) => {
+                const load = (key, name, dest, vpoName) => {
                     if (this.pzInst[key] || this._pzLoading[key] || (this._pzFail[key] || 0) >= 3) return;
                     this._pzLoading[key] = true;
                     const attempt = (k) => Soundfont.instrument(ctx, name, { soundfont: banks[k], destination: dest })
@@ -3294,12 +3296,23 @@
                             this._pzFail[key] = (this._pzFail[key] || 0) + 1;
                             this._pzLoading[key] = false;
                         });
-                    attempt(0);
+                    if (vpoName && typeof vpoLoadBrass === 'function') {
+                        vpoLoadBrass(ctx, vpoName, { destination: dest })
+                            .then(instr => { this.pzInst[key] = instr; this._pzLoading[key] = false; })
+                            .catch(() => attempt(0));
+                    } else attempt(0);
                 };
                 load('bandoneon', 'tango_accordion', buses.bandoneon);
-                load('violin', 'violin', buses.violin);
+                load('violin', 'violin', buses.violin, 'violin');
                 load('guitar', 'electric_guitar_clean', buses.guitar);
-                load('arco', 'contrabass', this.bandGains.bass || ctx.destination);
+                load('arco', 'contrabass', this.bandGains.bass || ctx.destination, 'contrabass');
+                // Notes courtes du violon (spiccato) : sans repli, voir plus haut
+                if (typeof vpoLoadBrass === 'function' && !this.pzInst.violin_stc && !this._pzLoading.violin_stc && !(this._pzFail.violin_stc >= 3)) {
+                    this._pzLoading.violin_stc = true;
+                    vpoLoadBrass(ctx, 'violin_stc', { destination: buses.violin })
+                        .then(instr => { this.pzInst.violin_stc = instr; this._pzLoading.violin_stc = false; })
+                        .catch(() => { this._pzFail.violin_stc = (this._pzFail.violin_stc || 0) + 1; this._pzLoading.violin_stc = false; });
+                }
             }
 
             // Une frappe d'un instrument du quinteto. e.inst : 'piano' | 'bandoneon' | 'violin' | 'guitar' ; e.intervals = hauteurs écrites ;
@@ -3309,7 +3322,9 @@
                 if (!ctx) return;
                 const who = e.inst || 'piano';
                 if (who === 'piano') { this.playPianoHit(e, time, beatSec); return; }
-                const inst = this.pzInst && this.pzInst[who];
+                // Violon : frappes courtes (accord « stab », petite note d'appui) au spiccato quand l'échantillon est chargé
+                const short = who === 'violin' && (e.art === 'stab' || e.art === 'grace') && this.pzInst && this.pzInst.violin_stc;
+                const inst = short || (this.pzInst && this.pzInst[who]);
                 if (!inst) { this.playPianoHit(Object.assign({}, e, { gainMul: 0.85 }), time, beatSec); return; }
                 this._playNotes(inst, piazzollaNotes(this._noteEnv(), e, time, beatSec, who));
             }

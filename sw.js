@@ -12,7 +12,7 @@
 // Si la liste des fichiers change, la vérification de cohérence (app/tools/sw-check.test.js, via `npm test`) le signale.
 
 importScripts('app/audio/local-soundfonts.js'); // définit LOCAL_SOUNDFONT_FILES
-importScripts('app/audio/vpo-brass.js'); // définit VPO_BRASS_FILES (cuivres Virtual Playing Orchestra)
+importScripts('app/audio/vpo-brass.js'); // définit VPO_ALL_FILES (cuivres et cordes Virtual Playing Orchestra)
 
 const SHELL_CACHE = 'chord-scales-shell-v1';
 const SOUNDS_CACHE = 'chord-scales-sounds-v1';
@@ -165,7 +165,7 @@ function precacheSounds() {
     if (precaching) return precaching;
     precaching = (async () => {
         const cache = await caches.open(SOUNDS_CACHE);
-        const files = LOCAL_SOUNDFONT_FILES.concat(VPO_BRASS_FILES);
+        const files = LOCAL_SOUNDFONT_FILES.concat(VPO_ALL_FILES);
         const total = files.length;
         let done = 0, failed = 0, downloaded = 0;
         for (const file of files) {

@@ -1,7 +1,7 @@
-Virtual Playing Orchestra (VPO) — cuivres du Brass band
-=======================================================
+Virtual Playing Orchestra (VPO) — cuivres du Brass band, violon et contrebasse du quinteto de tango
+=================================================================================================
 
-Les fichiers de app/sounds/VPO/ (trompette, cor, trombone, tuba) sont dérivés de la bibliothèque libre
+Les fichiers de app/sounds/VPO/ (trompette, cor, trombone, tuba, violon, contrebasse) sont dérivés de la bibliothèque libre
 « Virtual Playing Orchestra » 3.2.4 de Paul Battersby, https://virtualplaying.com
 (scripts de répartition des échantillons : Attribution-ShareAlike 4.0 International, CC BY-SA 4.0,
 https://creativecommons.org/licenses/by-sa/4.0/).
@@ -11,9 +11,16 @@ Origine des enregistrements utilisés ici :
     enregistrements « librement utilisables, sans restriction ».
   - Tuba (notes tenues et notes courtes) : Sonatina Symphonic Orchestra, Mattias Westlund et Peter Eastman,
     licence Creative Commons Sampling Plus 1.0.
+  - Violon solo (notes tenues avec vibrato, et spiccato) : No Budget Orchestra, https://github.com/ssj71/No-Budget-Orchestra,
+    Attribution-ShareAlike 4.0 International (CC BY-SA 4.0) — les fichiers violin.js et violin_stc.js sont donc eux aussi
+    sous CC BY-SA 4.0 (mêmes conditions : mention des crédits, partage dans les mêmes conditions).
+  - Contrebasse solo (archet, vibrato) : VSCO 2 Community Edition, http://vis.versilstudios.net/vsco-2.html,
+    CC0 1.0 (domaine public).
 
-Modifications apportées : une note sur trois demi-tons environ conservée, une seule nuance (ff), échantillons coupés à la
-fin de leur boucle, mixés en mono, gain ajusté, compressés en mp3 et encodés en texte (base64) pour être chargés par la page.
+Modifications apportées : une note sur trois demi-tons environ conservée, une seule nuance (ff pour les cuivres), échantillons
+coupés à la fin de leur boucle (notes tenues), mixés en mono, réglages d'égaliseur et de volume des fichiers .sfz appliqués
+(violon, contrebasse), niveau égalisé d'une note à l'autre, gain ajusté, compressés en mp3 et encodés en texte (base64)
+pour être chargés par la page.
 
 Ces sons dérivés sont distribués gratuitement, avec cette mention de crédits. L'auteur de VPO demande qu'ils ne soient pas
 vendus, en tout ou en partie. Voir aussi la page des licences de VPO : https://virtualplaying.com

@@ -1,4 +1,4 @@
-Cuivres du Brass band — échantillons Virtual Playing Orchestra (voir ../../licenses/VPO-LICENSE.txt)
+Cuivres du Brass band et cordes frottées du quinteto de tango — échantillons Virtual Playing Orchestra (voir ../../licenses/VPO-LICENSE.txt)
 
 Un fichier par instrument : trumpet.js, french_horn.js, trombone.js, tuba.js (notes tenues, bouclées) et tuba_stc.js (notes
 courtes du tuba). Lus par app/audio/vpo-brass.js. Chaque fichier dépose {g, s} dans window.VPO_SAMPLES[nom] :
@@ -15,3 +15,11 @@ Timbre : les échantillons ff de VPO sont bien plus brillants que les anciens so
 +24 dB entre 2 et 4 kHz et +40 dB au-dessus de 4 kHz ; cor : +11 et +21 dB). audio/vpo-brass.js applique donc à chaque instrument un
 passe-bas de 24 dB par octave (VPO_TONE_LOWPASS : trombone 1250 Hz, cor 2200 Hz, tuba 3000 Hz, trompette aucun). Les gains « g » ont été
 réglés après filtrage pour que chaque instrument ait le niveau des anciens sons. Pour assombrir ou éclaircir : changer ces fréquences.
+
+Cordes (orchestre Piazzolla) : violin.js (violon solo, notes tenues avec vibrato, bouclées ; une note tous les 3 demi-tons de sol3 à do#6),
+violin_stc.js (violon spiccato, notes courtes non bouclées, utilisées pour les frappes « stab » et les petites notes d'appui) et
+contrabass.js (contrebasse solo à l'archet, notes tenues bouclées). Même format que les cuivres. Pour les cordes, les réglages
+d'égaliseur (eq1/eq2 des .sfz du violon aigu) et de volume sont appliqués dans les fichiers, le niveau est égalisé d'une note à l'autre
+(jusqu'à 6 dB d'écart à la contrebasse) et un facteur commun évite l'écrêtage ; leur spectre est à moins de 3 dB (violon) et 5 dB
+(contrebasse) des anciens sons : aucun filtre de timbre (VPO_TONE_LOWPASS à null). Sources : No Budget Orchestra (violon, CC BY-SA 4.0)
+et VSCO 2 Community Edition (contrebasse, CC0).

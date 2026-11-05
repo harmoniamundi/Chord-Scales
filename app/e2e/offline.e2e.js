@@ -45,10 +45,10 @@ const srv = http.createServer((req, res) => {
     await page.waitForFunction(() => window.__swMsgs.some(m => m.type === 'sounds-done'), null, { timeout: 90000 });
     const done = await page.evaluate(() => window.__swMsgs.filter(m => m.type === 'sounds-done').pop());
     log('  message final :', JSON.stringify(done));
-    check(done.done === 18 && done.failed === 0 && done.downloaded >= 1, 'les 18 instruments sont téléchargés sans échec');
+    check(done.done === 21 && done.failed === 0 && done.downloaded >= 1, 'les 21 instruments sont téléchargés sans échec');
     const caches1 = await page.evaluate(async () => { const o = {}; for (const k of await caches.keys()) o[k] = (await (await caches.open(k)).keys()).length; return o; });
     log('  caches :', JSON.stringify(caches1));
-    check(caches1['chord-scales-sounds-v1'] === 18, 'cache sons : 18 fichiers');
+    check(caches1['chord-scales-sounds-v1'] === 21, 'cache sons : 21 fichiers');
     const swSrc = fs.readFileSync(ROOT + '/sw.js', 'utf8');
     const nShell = [...(/const SHELL_FILES = \[([\s\S]*?)\];/.exec(swSrc)[1]).matchAll(/'([^']+)'/g)].length;
     check(caches1['chord-scales-shell-v1'] >= nShell, `cache appli : ${caches1['chord-scales-shell-v1']} fichiers (liste : ${nShell})`);

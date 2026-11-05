@@ -9,6 +9,9 @@
 //    boucle tant que la note dure — la durée d'une note n'est donc plus limitée à celle de l'enregistrement ;
 //  - tuba_stc : notes courtes du tuba (non bouclées) ;
 //  - g = gain qui ramène l'instrument au niveau des anciens sons (MusyngKite), pour garder l'équilibre du mixage.
+// Cordes : violon.js (notes tenues avec vibrato, bouclées), violon_stc → violin_stc.js (spiccato, notes courtes non bouclées, une
+// note tous les 3 demi-tons) et contrabass.js (notes tenues bouclées). Les réglages d'égaliseur et de volume des .sfz sont déjà
+// appliqués dans les fichiers, et le niveau de chaque note est égalisé. Leur timbre est proche de celui des anciens sons : aucun filtre.
 // Les articulations « staccato » de la trompette, du cor et du trombone n'ont pas d'enregistrement à part dans VPO : ce sont
 // les mêmes notes, jouées plus courtes (c'est la durée et l'enveloppe de chaque frappe qui font la différence).
 //
@@ -18,7 +21,11 @@
 
 const VPO_BRASS_DIR = 'app/sounds/VPO';
 const VPO_BRASS_NAMES = ['trumpet', 'french_horn', 'trombone', 'tuba', 'tuba_stc'];
+// Cordes frottées du quinteto de tango (orchestre Piazzolla) : violon tenu, violon spiccato (notes courtes) et contrebasse à l'archet.
+const VPO_STRING_NAMES = ['violin', 'violin_stc', 'contrabass'];
 const VPO_BRASS_FILES = VPO_BRASS_NAMES.map((n) => VPO_BRASS_DIR + '/' + n + '.js');
+// Tous les fichiers de sons VPO (cuivres + cordes) : c'est la liste que le service worker garde en cache pour le hors-ligne.
+const VPO_ALL_FILES = VPO_BRASS_NAMES.concat(VPO_STRING_NAMES).map((n) => VPO_BRASS_DIR + '/' + n + '.js');
 
 // Timbre : les échantillons VPO de la nuance ff sont des cuivres joués à pleine puissance, très riches dans l'aigu. Le trombone
 // avait environ 24 dB d'énergie de plus entre 2 et 4 kHz, et 40 dB de plus au-dessus de 4 kHz, que les anciens sons sur lesquels
@@ -26,7 +33,7 @@ const VPO_BRASS_FILES = VPO_BRASS_NAMES.map((n) => VPO_BRASS_DIR + '/' + n + '.j
 // de trop. Un filtre passe-bas de pente 24 dB par octave (deux filtres de Butterworth en série), propre à chaque instrument,
 // ramène le spectre à celui de l'orchestre. Valeurs trouvées en comparant le spectre moyen de chaque instrument à l'ancien
 // (voir sounds/VPO/LISEZMOI.txt). Pour assombrir ou éclaircir un instrument, c'est cette fréquence (en Hz) qu'il faut changer.
-const VPO_TONE_LOWPASS = { trumpet: null, french_horn: 2200, trombone: 1250, tuba: 3000, tuba_stc: 3000 };
+const VPO_TONE_LOWPASS = { trumpet: null, french_horn: 2200, trombone: 1250, tuba: 3000, tuba_stc: 3000, violin: null, violin_stc: null, contrabass: null };
 const VPO_TONE_STAGES = 2;
 const VPO_TONE_Q_DB = -3.0103;   // le « Q » d'un passe-bas Web Audio s'exprime en dB : −3 dB = Butterworth (aucune bosse)
 
@@ -122,7 +129,7 @@ function vpoDecodeSet(ctx, name) {
     return p;
 }
 
-// Charge un instrument (« trumpet », « french_horn », « trombone », « tuba », « tuba_stc ») dont la sortie va vers
+// Charge un instrument (« trumpet », « french_horn », « trombone », « tuba », « tuba_stc », « violin », « violin_stc », « contrabass ») dont la sortie va vers
 // opts.destination (sinon la sortie du contexte audio).
 function vpoLoadBrass(ctx, name, opts) {
     let destination = (opts && opts.destination) || ctx.destination;
@@ -197,5 +204,5 @@ function vpoLoadBrass(ctx, name, opts) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { VPO_BRASS_DIR, VPO_BRASS_NAMES, VPO_BRASS_FILES, VPO_TONE_LOWPASS, vpoNoteToMidi, vpoNearestKey, vpoEnvelope, vpoLoadBrass, vpoLoadScript };
+    module.exports = { VPO_BRASS_DIR, VPO_BRASS_NAMES, VPO_STRING_NAMES, VPO_ALL_FILES, VPO_BRASS_FILES, VPO_TONE_LOWPASS, vpoNoteToMidi, vpoNearestKey, vpoEnvelope, vpoLoadBrass, vpoLoadScript };
 }
