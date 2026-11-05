@@ -1,0 +1,12 @@
+Cuivres du Brass band — échantillons Virtual Playing Orchestra (voir ../../licenses/VPO-LICENSE.txt)
+
+Un fichier par instrument : trumpet.js, french_horn.js, trombone.js, tuba.js (notes tenues, bouclées) et tuba_stc.js (notes
+courtes du tuba). Lus par app/audio/vpo-brass.js. Chaque fichier dépose {g, s} dans window.VPO_SAMPLES[nom] :
+  g = gain qui ramène l'instrument au niveau des anciens sons MusyngKite
+  s = { numéroMIDI : { k: numéro MIDI de la note enregistrée, c: accord en cents, d: mp3 en base64, ls/le: boucle en secondes } }
+
+Origine : zips « Virtual-Playing-Orchestra3-3-standard-scripts » (répartition des échantillons) et « Wave Files » de VPO 3.2.4.
+Échantillons gardés : nuance ff (trompette, cor, trombone), une note tous les 3 demi-tons environ ; tuba : tout.
+Pour regénérer ces fichiers, reprendre le principe suivant : lire dans les .sfz de Brass/ la note de référence (pitch_keycenter),
+le volume et le réglage fin (tune) de chaque échantillon ; lire dans le WAV (bloc « smpl ») le début et la fin de boucle ;
+couper le WAV à la fin de boucle, appliquer le volume, encoder en mp3 mono, et écrire le tout au format ci-dessus.

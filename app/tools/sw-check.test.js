@@ -40,6 +40,12 @@ describe('sw.js', () => {
         assert.match(sw, /importScripts\('app\/audio\/local-soundfonts\.js'\)/);
         assert.match(sw, /LOCAL_SOUNDFONT_FILES/);
     });
+    test('importe aussi la liste des cuivres Virtual Playing Orchestra et la garde en cache', () => {
+        assert.match(sw, /importScripts\('app\/audio\/vpo-brass\.js'\)/);
+        assert.match(sw, /VPO_BRASS_FILES/);
+        const V = require('../audio/vpo-brass.js');
+        V.VPO_BRASS_FILES.forEach(f => assert.ok(fs.existsSync(path.join(ROOT, f)), `fichier manquant : ${f}`));
+    });
     test('tous les chemins de sw.js sont relatifs (l\'appli est publiée dans un sous-dossier)', () => {
         SHELL.forEach(f => assert.ok(!f.startsWith('/') && !/^[a-z]+:/.test(f), f));
     });

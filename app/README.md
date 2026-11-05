@@ -28,13 +28,13 @@ Les commandes `npm` se lancent **depuis le dossier `app/`** (`cd app`). Dans `in
 | `audio-config.js` | Constantes audio (octave de lecture, niveau master…) |
 | `band/` | Orchestre de la Jam : un fichier par famille de styles (`swing-plan`, `pop-plan`, `latin-plan`, `cuban-plan`, `salsa-plan` pour la salsa, `brass-plan`, `balkan-plan`, `cumbia-plan`, `piazzolla-plan`, `classic-plan`, `guitar-plan` pour la guitare classique seule, `flamenco-plan` pour le toque flamenco de cette même guitare, mesures 2/3 temps et ternaires), lignes de basse, choix par phrase (`phrase-plan`), états de départ (`band-state`), utilitaires (`band-helpers`) |
 | `grid/` | La grille d'accords : ordre de lecture et reprises (`play-order`), mécanique de lecture (`transport`), édition (`edit-ops`), génération (`generation`), lecture harmonique (`harmony`), sauvegarde/import (`grid-format`) |
-| `audio/` | Calcul des notes jouées (`note-events`, `practice-notes`), synthèse des percussions (`drum-synths`), fichier WAV de l'export du son (`wav-export`) et adresses locales des sons (`local-soundfonts`) |
+| `audio/` | Calcul des notes jouées (`note-events`, `practice-notes`), synthèse des percussions (`drum-synths`), fichier WAV de l'export du son (`wav-export`), adresses locales des sons (`local-soundfonts`) et lecteur des cuivres Virtual Playing Orchestra (`vpo-brass`) |
 | `styles/` | Les styles musicaux : métadonnées (`style-meta`), outils (`toolkit`), un générateur de grille par style (`style-builders`) |
 | `ui/` | Ce qu'il faut afficher, sans DOM : grille (`grid-view`), cartes de gammes (`scale-cards`), éditeur de mesure (`measure-editor`), pastilles (`pastilles`), portée (`staff-model`), accords affichés (`chord-display`), écran Entraînement (`training-view`) |
 | `tools/` | Contrôles de cohérence du projet (`project-check.test.js`) et du mode hors ligne (`sw-check.test.js`) |
 | `e2e/` | Tests dans un vrai navigateur : appli complète (`app.e2e.js`) et mode hors ligne (`offline.e2e.js`) |
 | `vendor/` | Bibliothèques tierces, copiées telles quelles : `soundfont-player.min.js` 0.12.0, `vexflow-petaluma.js` 4.2.2 |
-| `sounds/` | Échantillons d'instruments (~33 Mo, banques FluidR3_GM et MusyngKite), lus par `audio/local-soundfonts.js` |
+| `sounds/` | Échantillons d'instruments (~35 Mo) : banques FluidR3_GM et MusyngKite, lues par `audio/local-soundfonts.js` ; dossier `sounds/VPO/` : cuivres du Brass band (trompette, cor, trombone, tuba, ~1,8 Mo), lus par `audio/vpo-brass.js` (voir `sounds/VPO/LISEZMOI.txt`) |
 | `fonts/`, `icons/`, `licenses/` | Police Kalam (sous-ensemble latin), icônes de l'appli installée, licences des éléments tiers |
 | `offline.js` | Enregistre le service worker et affiche la petite pastille « Sons hors ligne : x/13 » |
 | `style.css`, `tailwind-built.css` | Styles de la page |
@@ -180,13 +180,14 @@ L'orchestre **Balkans** (`band/balkan-plan.js`, entrée factice `BAND_PATTERNS.b
 
 ## 6. Mode hors ligne (service worker)
 
-**Principe.** À la première visite en ligne, `sw.js` garde dans le navigateur la page, le code, la police, les bibliothèques et les icônes (« cache appli », téléchargé d'un coup). Quatre secondes après le chargement, il télécharge aussi en arrière-plan les 13 instruments (« cache sons », ~33 Mo) ; une pastille en bas à gauche indique `Sons hors ligne : x/13`, puis `✓ Prêt hors ligne`. Ensuite l'appli s'ouvre et joue sans réseau. Les grilles sauvegardées restent dans l'appareil (`localStorage`).
+**Principe.** À la première visite en ligne, `sw.js` garde dans le navigateur la page, le code, la police, les bibliothèques et les icônes (« cache appli », téléchargé d'un coup). Quatre secondes après le chargement, il télécharge aussi en arrière-plan les 18 fichiers de sons (« cache sons », ~35 Mo) ; une pastille en bas à gauche indique `Sons hors ligne : x/18`, puis `✓ Prêt hors ligne`. Ensuite l'appli s'ouvre et joue sans réseau. Les grilles sauvegardées restent dans l'appareil (`localStorage`).
 
 **Mises à jour.** En ligne, `sw.js` va toujours chercher la dernière version des fichiers de l'appli (réseau d'abord, 3 secondes maximum) et met la copie à jour ; hors ligne ou réseau trop lent, il sert la copie gardée. Il n'y a **pas de numéro de version à changer** : un `git push` suffit, la nouvelle version apparaît à l'ouverture suivante avec du réseau. Les sons, eux, ne changent jamais : ils restent en cache.
 
 **Quand modifier `sw.js`.**
 - Ajout ou suppression d'un fichier chargé par `index.html` (module `.js`, feuille de style, police, icône) → ajouter ou retirer la ligne dans `SHELL_FILES`. Le test `tools/sw-check.test.js` échoue tant que la liste n'est pas à jour.
 - Ajout d'un instrument → ajouter `[banque, nom]` dans `LOCAL_SOUNDFONT_INSTRUMENTS` (`audio/local-soundfonts.js`) et copier son fichier `<nom>-mp3.js` dans `sounds/<banque>/`. Les fichiers viennent de https://github.com/gleitz/midi-js-soundfonts (branche `gh-pages`). Le test `audio/local-soundfonts.test.js` vérifie que tout instrument demandé par `index.html` est dans la liste et que son fichier existe.
+- Cuivres du Brass band (Virtual Playing Orchestra) → les cinq fichiers de `sounds/VPO/` sont déjà dans la liste des sons à garder (`VPO_BRASS_FILES`, `audio/vpo-brass.js`). Si un de ces fichiers manque, l'appli retombe toute seule sur les anciens sons MusyngKite (qui restent dans `sounds/MusyngKite/` pour cela).
 - Forcer tous les appareils à repartir de zéro (rare) → changer `SHELL_CACHE` / `SOUNDS_CACHE` (`-v1` → `-v2`) dans `sw.js`.
 
 **À savoir.**
@@ -215,3 +216,9 @@ Pour une modification, donnez-lui :
 - les fichiers concernés (`index.html` et le module touché, avec son dossier `app/…`), ou le projet entier : zip de la racine, `zip -r projet.zip . -x "*/node_modules/*" "node_modules/*" ".git/*" "*.DS_Store" "*.zip"`.
 
 Demandez-lui aussi de lancer `npm test` (et `npm run test:e2e`) avant de vous renvoyer des fichiers, et de vous dire ce qu'il faut tester à l'oreille.
+
+---
+
+## Crédits des sons
+
+Les cuivres de l'orchestre Brass band (trompette, cor, trombone, tuba) utilisent des échantillons de la bibliothèque libre **Virtual Playing Orchestra** de Paul Battersby (https://virtualplaying.com), elle-même assemblée à partir d'enregistrements de l'Université d'Iowa (Electronic Music Studios) et de Sonatina Symphonic Orchestra (Mattias Westlund). Détails et licences : `licenses/VPO-LICENSE.txt`.

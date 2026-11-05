@@ -458,6 +458,7 @@
     <script src="app/vendor/soundfont-player.min.js"></script>
     <script src="app/vendor/vexflow-petaluma.js"></script>
     <script src="app/audio/local-soundfonts.js"></script>
+    <script src="app/audio/vpo-brass.js"></script>
     <script src="app/theory.js"></script>
     <script src="app/band-patterns.js"></script>
     <script src="app/audio-config.js"></script>
@@ -3073,28 +3074,32 @@
                 return g;
             }
 
-            // Charge les pupitres (banque « MusyngKite », plus réaliste ; repli sur « FluidR3_GM »). Chaque pupitre est un
-            // instrument à part, avec sa propre chaîne de filtres et sa place dans l'espace : deux cornets, deux cors, deux
-            // trombones (ténor et basse), et le tuba. Tant que les cuivres ne sont pas tous chargés, le piano et la contrebasse
-            // prennent le relais.
+            // Charge les pupitres. Sons : échantillons « Virtual Playing Orchestra » (audio/vpo-brass.js, dossier sounds/VPO/) ; si un
+            // fichier manque, repli sur la banque « MusyngKite », puis sur « FluidR3_GM ». Chaque pupitre est un instrument à part,
+            // avec sa propre chaîne de filtres et sa place dans l'espace : deux cornets, deux cors, deux trombones (ténor et basse),
+            // et le tuba (plus ses notes courtes, « tuba_stc »). Tant que les cuivres ne sont pas tous chargés, le piano et la
+            // contrebasse prennent le relais.
             loadBrass() {
                 const ctx = this.app.audioCtx;
                 if (!ctx || !this.bandGains.piano || !this.bandGains.bass) return;
                 const buses = this._getBrassBuses();
-                [['trumpet', 'trumpet'], ['french_horn', 'french_horn'], ['trombone', 'trombone'], ['tuba', 'tuba'],
+                [['trumpet', 'trumpet'], ['french_horn', 'french_horn'], ['trombone', 'trombone'], ['tuba', 'tuba'], ['tuba_stc', 'tuba_stc'],
                  ['trumpet2', 'trumpet'], ['french_horn2', 'french_horn'], ['trombone2', 'trombone']].forEach(([key, name]) => {
                     if (this.brassInst[key] || this._brassLoading[key]) return;
                     this._brassLoading[key] = true;
-                    const destination = buses[key];
+                    const destination = buses[key === 'tuba_stc' ? 'tuba' : key];
                     const done = (instr) => { this.brassInst[key] = instr; };
                     // Les pupitres « 2 » (deuxième cornet, cor, trombone) réutilisent les échantillons du premier
                     const isDup = key !== name;
                     const donor = !isDup ? null : (this.brassInst[name] ? Promise.resolve(this.brassInst[name]) : ((this._brassBase && this._brassBase[name]) || null));
-                    const p = this._loadInstrumentShared(ctx, name, { soundfont: 'MusyngKite', destination }, donor)
+                    // Plan B : les anciens sons (soundfont-player). Les notes courtes du tuba n'en ont pas : le tuba tenu les remplace.
+                    const fallback = () => name === 'tuba_stc' ? Promise.resolve() : this._loadInstrumentShared(ctx, name, { soundfont: 'MusyngKite', destination }, donor)
                         .then(done)
                         .catch(() => this._loadInstrumentShared(ctx, name, { soundfont: 'FluidR3_GM', destination }, donor)
                             .then(done)
                             .catch(() => { setTimeout(() => { this._brassLoading[key] = false; }, 5000); }));
+                    const p = (typeof vpoLoadBrass === 'function' ? vpoLoadBrass(ctx, name, { destination }).then(done) : Promise.reject(new Error('vpo-brass.js absent')))
+                        .catch(() => fallback());
                     if (!isDup) { if (!this._brassBase) this._brassBase = {}; this._brassBase[name] = p.then(() => this.brassInst[key] || null); }
                 });
             }
@@ -3137,7 +3142,9 @@
             playTubaAbs(abs, time, duration, vel = 0.85, art) {
                 const inst = this.brassInst.tuba;
                 if (!inst || !this.app.audioCtx) { this.playBassAbs(abs, time, duration, vel, true); return; }
-                this._playNotes(inst, [tubaNote(this._noteEnv(), abs, time, duration, vel, art)]);
+                // note courte : l'échantillon de tuba enregistré court (attaque et chute naturelles) quand il est chargé
+                const note = tubaNote(this._noteEnv(), abs, time, duration, vel, art);
+                this._playNotes(art === 'stac' && this.brassInst.tuba_stc ? this.brassInst.tuba_stc : inst, [note]);
             }
 
             // ===================== Orchestration BRASS BAND : le calcul est dans band/brass-plan.js =====================

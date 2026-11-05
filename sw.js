@@ -7,11 +7,12 @@
 //    l'installation (si un seul fichier manque, l'installation échoue et l'ancienne version reste en place).
 //    Servi « réseau d'abord » (3 s maximum) : en ligne, on a toujours la dernière version publiée ; hors ligne
 //    ou réseau trop lent, on prend la copie gardée. Aucun numéro de version à penser à changer.
-//  - « sounds » : les ~30 Mo d'échantillons d'instruments. Servi « cache d'abord » (ils ne changent jamais) et
+//  - « sounds » : les ~35 Mo d'échantillons d'instruments. Servi « cache d'abord » (ils ne changent jamais) et
 //    téléchargé en arrière-plan, un par un, quand la page le demande (message « precache-sounds »).
 // Si la liste des fichiers change, la vérification de cohérence (app/tools/sw-check.test.js, via `npm test`) le signale.
 
 importScripts('app/audio/local-soundfonts.js'); // définit LOCAL_SOUNDFONT_FILES
+importScripts('app/audio/vpo-brass.js'); // définit VPO_BRASS_FILES (cuivres Virtual Playing Orchestra)
 
 const SHELL_CACHE = 'chord-scales-shell-v1';
 const SOUNDS_CACHE = 'chord-scales-sounds-v1';
@@ -32,6 +33,7 @@ const SHELL_FILES = [
     'app/vendor/soundfont-player.min.js',
     'app/vendor/vexflow-petaluma.js',
     'app/audio/local-soundfonts.js',
+    'app/audio/vpo-brass.js',
     'app/offline.js',
     'app/theory.js',
     'app/band-patterns.js',
@@ -163,9 +165,10 @@ function precacheSounds() {
     if (precaching) return precaching;
     precaching = (async () => {
         const cache = await caches.open(SOUNDS_CACHE);
-        const total = LOCAL_SOUNDFONT_FILES.length;
+        const files = LOCAL_SOUNDFONT_FILES.concat(VPO_BRASS_FILES);
+        const total = files.length;
         let done = 0, failed = 0, downloaded = 0;
-        for (const file of LOCAL_SOUNDFONT_FILES) {
+        for (const file of files) {
             const url = scopeUrl(file);
             try {
                 if (!(await cache.match(url))) {
