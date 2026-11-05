@@ -3,6 +3,7 @@
 //   env.transOffset, env.findChordObj(id)   comme dans band/band-helpers.js
 //   env.bpm        tempo (au-delà de 165, pas de croches continues)
 //   env.ternary    mesure composée (mode Arpèges) ;  env.splitBeat  temps où change l'accord d'une mesure à deux accords
+//   env.density    densité de notes réglée par le curseur « Densité » (0 à 1 ; 0,5 = écriture d'origine) ; absent = écriture d'origine
 // Chargé par index.html via <script src="band/classic-plan.js"> (après band-patterns.js et band/band-helpers.js)
 // et testé par band/classic-plan.test.js.
 
@@ -99,6 +100,7 @@ function buildBaroquePlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, 
     const lastSeg = segs[segs.length - 1];
     const changes = isLastMeasureOfStep && !!nextStep && !sameChord(lastSeg.cs, nextStep);
     const holdOn = !changes && !!nextStep;
+    const dens = Number.isFinite(env.density) ? Math.max(0, Math.min(1, env.density)) : null;
     const clamp = (v) => Math.max(0.12, Math.min(1, v));
     const fold = (p) => { while (p + off > 19) p -= 12; while (p + off < -12) p += 12; return p; };
     const ev = [];
@@ -144,7 +146,13 @@ function buildBaroquePlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, 
         const T = bassTones(V, low);
         const tone = (k) => { const q = Math.floor(k / T.length); return T[k - q * T.length] + 12 * q; };
         const app = toCs ? approach(low, toCs) : null;
-        const kind = len < 4 && ph.bBass === 'eights' ? 'walk' : ph.bBass;
+        let kind = len < 4 && ph.bBass === 'eights' ? 'walk' : ph.bBass;
+        // Curseur « Densité » : au-dessus de 0,5, la main gauche s'anime (basse tenue → qui marche → en croches)
+        if (dens !== null && dens > 0.5) {
+            const u = (dens - 0.5) / 0.5;
+            if (kind === 'held' && rng() < Math.min(1, u * 1.4)) kind = 'walk';
+            else if (kind === 'walk' && len >= 4 && rng() < u) kind = 'eights';
+        }
         if (kind === 'held') {
             put(0, len >= 4 ? 2.4 : len, low, 0.72);
             if (len >= 4) put(2, 2.2, rng() < 0.55 ? low : tone(2), 0.56);
@@ -225,6 +233,14 @@ function buildBaroquePlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, 
             if (run.length === 3) { fig[lastBeat + 1] = run[0]; fig[lastBeat + 2] = run[1]; fig[lastBeat + 3] = run[2]; }
         }
 
+        // Curseur « Densité » sous 0,5 : la main droite s'éclaircit (doubles-croches, puis temps, retirés ; la première note reste)
+        if (dens !== null && dens < 0.5) {
+            const t = (0.5 - dens) / 0.5;
+            for (let k = 1; k < slots; k++) {
+                if (fig[k] !== null && rng() < (k % div === 0 ? 0.8 : 0.97) * t) fig[k] = null;
+            }
+        }
+
         fig.forEach((p, k) => {
             if (p === null) return;
             const beatStart = k % div === 0;
@@ -256,6 +272,7 @@ function buildClassicPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, 
     const holdOn = !(isLastMeasureOfStep && nextStep && !sameChord(lastSeg.cs, nextStep)) && !!nextStep; // même accord ensuite : ça résonne
     const ev = [];
     const clamp = (v) => Math.max(0.12, Math.min(1, v));
+    const segData = []; // pour le curseur « Densité » : voicing, basse et fin de résonance de chaque moitié de mesure
 
     segs.forEach((sg, si) => {
         const len = sg.e - sg.s;
@@ -267,6 +284,7 @@ function buildClassicPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, 
         const slash = Number.isInteger(sg.cs.bassRootIndex);
         const lastOne = si === segs.length - 1;
         const endPos = sg.e + ((lastOne && holdOn) ? 1.2 : 0.05); // fin de résonance
+        segData.push({ s: sg.s, e: sg.e, V, low, endPos });
         const ring = (pos, max) => Math.max(0.2, Math.min(endPos - pos, max));
         const rel = (pos) => sg.s + pos;
         const push = (pos, max, notes, vel, roll) => {
@@ -362,12 +380,72 @@ function buildClassicPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, 
         });
     });
 
+    if (Number.isFinite(env.density)) clsDensify(ev, segData, { d: Math.max(0, Math.min(1, env.density)), rng, gv, bpm: env.bpm });
     ev.sort((a, b) => a.pos - b.pos);
     return { piano: ev, bass: [], drums: [] };
 }
 
-// Mode « Arpèges » (bouton harpe) : à chaque accord, un arpège simple qui commence toujours par la basse
-// de l'accord puis monte dans les notes de l'accord. La vitesse s'adapte à la durée de l'accord et au nombre de notes.
+// Curseur « Densité » (0 à 1) appliqué aux notes déjà écrites d'une mesure du style Classique ; 0,5 = écriture d'origine :
+//  - sous 0,5 : des notes disparaissent (la première note de chaque accord et la basse restent) ; à 0, presque rien d'autre ;
+//  - de 0,5 à 0,9 : les croches vides se remplissent (le motif poursuit l'accord en zigzag) ;
+//  - au-dessus de 0,6 (jusqu'à 132 BPM) : des doubles-croches s'intercalent entre deux croches jouées, jusqu'à un flot continu à 1.
+// Au-delà de 165 BPM on ne remplit pas (déjà trop vite). Modifie `ev` en place.
+function clsDensify(ev, segData, o) {
+    const { d, rng, gv, bpm } = o;
+    const EPS = 1e-6;
+    const clamp = (v) => Math.max(0.12, Math.min(1, v));
+    segData.forEach(sd => {
+        const inSeg = (e) => e.pos >= sd.s - EPS && e.pos < sd.e - EPS;
+        const isLow = (e) => e.intervals.length === 1 && e.intervals[0] === sd.low;
+        if (d < 0.5) {
+            const t = (0.5 - d) / 0.5;
+            for (let k = ev.length - 1; k >= 0; k--) {
+                const e = ev[k];
+                if (!inSeg(e) || isLow(e) || Math.abs(e.pos - sd.s) < EPS) continue;
+                if (rng() < (e.intervals.length > 1 ? 0.55 : 0.92) * t) ev.splice(k, 1);
+            }
+            return;
+        }
+        if (d === 0.5) return;
+        const u = (d - 0.5) / 0.5;
+        const n = sd.V.length;
+        const pitchOf = (k) => k < n ? sd.V[k] : sd.V[k - n] + 12;
+        const occupied = (p) => ev.some(e => Math.abs(e.pos - p) < EPS);
+        const mk = (p, rank, vel, max) => ({
+            pos: p, dur: Math.max(0.2, Math.min(sd.endPos - p, max)), vel: clamp(vel * gv),
+            rootIndex: 0, intervals: [pitchOf(rank)], noteVels: [1], roll: 0,
+            lay: rng() * 0.008, wide: true, gainMul: 1.2
+        });
+        let last = 1, dir = 1;
+        const nextRank = () => {
+            let r = last + dir;
+            if (r > n || r < 0) { dir = -dir; r = last + dir; }
+            last = Math.max(0, Math.min(n, r));
+            return last;
+        };
+        const slots = Math.round((sd.e - sd.s) * 2);
+        const pf = Math.min(1, u * 1.6);
+        if (bpm <= 165) {
+            for (let k = 0; k < slots; k++) {
+                const p = sd.s + k / 2;
+                if (occupied(p) || rng() >= pf) continue;
+                ev.push(mk(p, nextRank(), Number.isInteger(p) ? 0.5 : 0.44, 1.3));
+            }
+        }
+        const ps = Math.max(0, Math.min(1, (u - 0.2) / 0.8));
+        if (ps > 0 && bpm <= 132) {
+            for (let k = 0; k < slots - 1; k++) {
+                const p = sd.s + k / 2;
+                if (!occupied(p) || !occupied(p + 0.5) || occupied(p + 0.25)) continue;
+                if (rng() < ps) ev.push(mk(p + 0.25, nextRank(), 0.4, 0.9));
+            }
+        }
+        if (d > 0.65) { // flot de notes : elles ne doivent plus se superposer en longues résonances
+            ev.forEach(e => { if (inSeg(e) && e.intervals.length === 1 && !isLow(e) && e.dur > 1.0) e.dur = 1.0; });
+        }
+    });
+}
+
 // Mode « Arpèges » (bouton harpe) : à chaque accord, un arpège simple qui commence toujours par la basse
 // de l'accord puis monte dans les notes de l'accord. La vitesse s'adapte à la durée de l'accord et au nombre de notes.
 function buildArpPlan(env, bpb, step, nextStep, isLastMeasureOfStep, halves) {
@@ -422,5 +500,5 @@ function buildArpPlan(env, bpb, step, nextStep, isLastMeasureOfStep, halves) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { classicPhraseExtras, buildClassicPlan, buildArpPlan, buildBaroquePlan, BAROQUE_GROOVE };
+    module.exports = { classicPhraseExtras, buildClassicPlan, buildArpPlan, buildBaroquePlan, clsDensify, BAROQUE_GROOVE };
 }

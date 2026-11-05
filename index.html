@@ -548,7 +548,7 @@
                 this.bandStyle = 'swing';
                 this.bandVolumes = { piano: 0.5, bass: 0.85, drums: 0.25, bandoneon: 0.7, violin: 0.6, guitar: 0.5, rguitar: 0.6, organ: 0.35, strings: 0.4 }; // bandoneon, violin, guitar : style Tango nuevo ; rguitar, organ, strings : couches du Pop-Rock et des styles Rock
                 this.bandReverb = 0.25;
-                this.guitarDensity = 0.6; // densité de notes de l'orchestre Guitare (0 à 1) : silences remplis, doubles-croches intercalées ; enregistrée avec la grille
+                this.bandDensity = { ...BAND_DENSITY_DEFAULTS }; // densité de notes par orchestre (0 à 1), réglée par le curseur « Densité » du pop-up Orchestre ; enregistrée avec la grille
                 this.bandSwingSettings = {}; // swing choisi (0.5 à 0.75), par orchestre ; absent = « Auto » (valeur par défaut du style : Jazz = triolet qui se resserre avec le tempo, les autres = croches droites 50 %)
                 this._degreeTriads = (() => { try { return localStorage.getItem('csm-degree-triads') === '1'; } catch (e) { return false; } })(); // degrés de l'éditeur : triades ou septièmes
                 this.bandMaster = MASTER_UNITY; // position du curseur Master (0-1), hors sauvegardes / export / import ; le métronome a son propre volume
@@ -985,7 +985,7 @@
                             strings: this.bandVolumes.strings
                         },
                         reverb: this.bandReverb,
-                        guitarDensity: this.guitarDensity,
+                        densities: { ...this.bandDensity },
                         swing: this._swingSettingFor(this._arpPrevStyle || this.bandStyle) ?? undefined, // réglage du style enregistré ; absent = « Auto »
                         groove: this.getEffectiveGroove(this._arpPrevStyle || this.bandStyle) || undefined // rythme imposé (samba, tango, piazzolla, afro…) valable pour l'orchestre actuel ; absent = choix automatique
                     }
@@ -1351,7 +1351,9 @@
                         Object.keys(o.volumes).forEach(k => this.setBandVolume(k, Math.round(o.volumes[k] * 100)));
                     }
                     if (o.reverb !== undefined) this.setBandReverb(Math.round(o.reverb * 100));
-                    this.setGuitarDensity(o.guitarDensity !== undefined ? Math.round(o.guitarDensity * 100) : 60); // les fichiers sans densité reviennent à la valeur par défaut
+                    this.bandDensity = { ...BAND_DENSITY_DEFAULTS }; // les fichiers sans densité reviennent aux valeurs par défaut
+                    if (o.densities) Object.keys(BAND_DENSITY_DEFAULTS).forEach(k => { if (typeof o.densities[k] === 'number') this.bandDensity[k] = o.densities[k]; });
+                    this.updateBandDensityUI();
                     this.bandSwingSettings = {}; // les fichiers sans swing reviennent à « Auto »
                     if (o.swing !== undefined) this.setBandSwing(o.swing);
                     this.updateBandModalUI();
@@ -1995,7 +1997,7 @@
             updateBandModalUI() {
                 this.updateMetronomeUI();
                 this.updateBandSwingUI();
-                this.updateGuitarDensityUI();
+                this.updateBandDensityUI();
                 this.updateBandInstrumentLabel();
                 // En « Classique » (piano seul) et en « Guitare » (guitare seule) : la basse et la batterie de l'orchestre ne servent pas.
                 // Exception : en Flamenco (orchestre Guitare + rythme d'un palo) le curseur « Percus. » règle cajón, palmas et pitos.
@@ -2381,24 +2383,43 @@
                 if (display) display.textContent = `${Math.round(this.bandReverb * 100)}%`;
             }
 
-            // Densité de notes de l'orchestre Guitare (curseur du pop-up Orchestre) : val = 0 à 100 ; agit dès la mesure suivante.
-            setGuitarDensity(val) {
+            // Densité de notes de l'orchestre actif (curseur du pop-up Orchestre) : val = 0 à 100 ; agit dès la mesure suivante.
+            // Orchestres concernés : Guitare (60 % par défaut) et Classique (50 % = l'écriture d'origine).
+            setBandDensity(val) {
+                if (!(this.bandStyle in BAND_DENSITY_DEFAULTS)) return;
                 const n = parseInt(val, 10);
-                this.guitarDensity = Math.max(0, Math.min(1, (Number.isFinite(n) ? n : 60) / 100));
-                this.updateGuitarDensityUI();
+                this.bandDensity[this.bandStyle] = Math.max(0, Math.min(1, (Number.isFinite(n) ? n : BAND_DENSITY_DEFAULTS[this.bandStyle] * 100) / 100));
+                this.updateBandDensityUI();
             }
 
-            // Le curseur n'a de sens que pour l'orchestre Guitare seul (pas pour un palo de flamenco, écrit à part, ni pendant le bouton « Arpèges »).
-            isGuitarDensityAvailable() { return this.bandStyle === 'guitar' && !this.getEffectiveGroove('guitar') && !this._arpPrevStyle; }
+            // Densité transmise aux plans de l'orchestre actif (null = pas de curseur : écriture inchangée)
+            getBandDensity(style) {
+                const k = style || this.bandStyle;
+                return (k in BAND_DENSITY_DEFAULTS) ? this.bandDensity[k] : null;
+            }
 
-            updateGuitarDensityUI() {
+            // Le curseur n'a de sens que là où l'orchestre a une voix libre à étoffer : Guitare seule (pas un palo de flamenco, écrit à part)
+            // et Classique en 2, 3 ou 4 temps binaires (les mesures composées et les autres signatures ont leur propre écriture) ; pas pendant le bouton « Arpèges ».
+            isBandDensityAvailable() {
+                if (this._arpPrevStyle) return false;
+                if (this.bandStyle === 'guitar') return !this.getEffectiveGroove('guitar');
+                if (this.bandStyle === 'classic') return !this.isTernary() && this.getBeatsPerBar() === 4;
+                return false;
+            }
+
+            updateBandDensityUI() {
                 const row = document.getElementById('band-row-density');
-                if (row) row.classList.toggle('hidden', !this.isGuitarDensityAvailable());
-                const pct = Math.round(this.guitarDensity * 100);
+                if (row) row.classList.toggle('hidden', !this.isBandDensityAvailable());
+                const v = this.getBandDensity();
+                const pct = Math.round((v === null ? 0.5 : v) * 100);
                 const slider = document.getElementById('band-density-slider');
                 const display = document.getElementById('band-density-display');
                 if (slider) slider.value = pct;
                 if (display) display.textContent = pct + '%';
+                const tip = this.bandStyle === 'classic'
+                    ? "Densité de notes du piano : à 0, presque seulement la basse et une note par mesure ; 50 % = l'écriture d'origine ; au-dessus, les silences se remplissent puis des doubles-croches s'intercalent jusqu'à un flot continu (Baroque : la main gauche s'anime)."
+                    : "Densité de notes de la guitare : à 0, presque seulement la basse et un accord ; vers 35 %, l'écriture d'origine ; ensuite les silences se remplissent, puis des doubles-croches s'intercalent jusqu'à un flot continu à 100 %.";
+                if (row) row.title = tip;
             }
 
             // --- Bande son "Orchestre" : piano (comping), basse et batterie synthétisées ---
@@ -3043,7 +3064,7 @@
             // ===================== Orchestration GUITARE : le calcul est dans band/guitar-plan.js =====================
             // Guitare classique seule : le pouce tient les basses, les doigts arpègent les cordes aiguës, les accords sont roulés.
             buildGuitarPlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                return this._bandRun(['gtrVoice'], env => buildGuitarPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat(), bpm: this.bpm, density: this.guitarDensity });
+                return this._bandRun(['gtrVoice'], env => buildGuitarPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat(), bpm: this.bpm, density: this.getBandDensity('guitar') });
             }
 
             // Une frappe de la guitare seule (pouce, doigts, accord roulé) sur les cordes de nylon. Sans guitare chargée, le piano prend le relais.
@@ -3104,7 +3125,7 @@
 
 
             buildClassicPlan(step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                return buildClassicPlan({ ...this._bandEnv(), bpm: this.bpm }, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
+                return buildClassicPlan({ ...this._bandEnv(), bpm: this.bpm, density: this.getBandDensity('classic') }, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
             }
 
             buildArpPlan(bpb, step, nextStep, isLastMeasureOfStep, halves) {
@@ -7167,7 +7188,7 @@
 
                 <div id="band-row-density" class="flex items-center gap-2 hidden" title="Densité de notes de la guitare : à 0, presque seulement la basse et un accord ; vers 35 %, l'écriture d'origine ; ensuite les silences se remplissent, puis des doubles-croches s'intercalent jusqu'à un flot continu à 100 %.">
                     <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Densité</span>
-                    <input type="range" id="band-density-slider" min="0" max="100" step="1" value="60" oninput="app.jam.setGuitarDensity(this.value)" class="w-full accent-emerald-500">
+                    <input type="range" id="band-density-slider" min="0" max="100" step="1" value="60" oninput="app.jam.setBandDensity(this.value)" class="w-full accent-emerald-500">
                     <span id="band-density-display" class="text-xs font-mono font-bold text-slate-200 min-w-[32px] text-right">60%</span>
                 </div>
 

@@ -262,3 +262,69 @@ describe('style Baroque', () => {
         assert.deepEqual(a, b);
     });
 });
+
+// ---------- Curseur « Densité » (orchestre Classique) ----------
+describe('densité de notes (curseur du pop-up Orchestre)', () => {
+    const C = { rootIndex: 0, chordId: 'maj', scaleId: 'ionian' };
+    const G7b = { rootIndex: 7, chordId: '7', scaleId: 'mixolydian' };
+    const avg = (d, { bpm = 100, groove, halves = null } = {}) => {
+        let tot = 0, N = 0;
+        for (let s = 1; s <= 40; s++) {
+            const env = mkEnv({ bpm, density: d });
+            const ph = { ...classicPhraseExtras(bpm, seeded(s), null, 0, groove), rng: seeded(s + 9) };
+            for (let i = 0; i < 4; i++) { tot += buildClassicPlan(env, C, G7b, i === 3, halves, ph, i, 4, i === 3, i).piano.length; N++; }
+        }
+        return tot / N;
+    };
+
+    test('sans densité, et à 0,5 : écriture d\'origine strictement identique', () => {
+        for (let s = 1; s <= 20; s++) {
+            const ph = () => ({ ...classicPhraseExtras(100, seeded(s), null, 0), rng: seeded(s + 9) });
+            const a = buildClassicPlan(mkEnv(), C, G7b, false, null, ph(), 1, 4, false, 1);
+            const b = buildClassicPlan(mkEnv({ density: 0.5 }), C, G7b, false, null, ph(), 1, 4, false, 1);
+            assert.deepEqual(a, b);
+        }
+    });
+    test('Classique : plus la densité monte, plus le piano joue de notes, avec un écart d\'au moins 5 entre 0 et 1', () => {
+        const lv = [0, 0.25, 0.5, 0.75, 1].map(d => avg(d));
+        for (let k = 1; k < lv.length; k++) assert.ok(lv[k] > lv[k - 1], lv.join(' < '));
+        assert.ok(lv[4] >= lv[0] * 5, lv.join(' / '));
+    });
+    test('Baroque : l\'allègement est net (≥ 2 fois moins de notes à 0) et la main gauche s\'anime au-dessus de 0,5', () => {
+        const g = 'c-baroque';
+        assert.ok(avg(0, { bpm: 84, groove: g }) * 2 <= avg(0.5, { bpm: 84, groove: g }));
+        assert.ok(avg(1, { bpm: 84, groove: g }) > avg(0.5, { bpm: 84, groove: g }));
+    });
+    test('événements valides à toutes les densités (mesure pleine et mesure à deux accords)', () => {
+        for (const groove of [undefined, 'c-baroque']) {
+            for (const d of [0, 0.3, 0.7, 1]) {
+                for (const halves of [null, [C, G7b]]) {
+                    for (let s = 1; s <= 15; s++) {
+                        const env = mkEnv({ bpm: 90, density: d });
+                        const ph = { ...classicPhraseExtras(90, seeded(s), null, 0, groove), rng: seeded(s + 9) };
+                        for (let i = 0; i < 4; i++) {
+                            const { piano } = buildClassicPlan(env, C, G7b, i === 3, halves, ph, i, 4, i === 3, i);
+                            assert.ok(piano.length >= 1);
+                            let prev = -1;
+                            piano.forEach(e => {
+                                assert.ok(e.pos >= 0 && e.pos < 4 && e.pos >= prev); prev = e.pos;
+                                assert.ok(e.dur > 0 && e.vel > 0 && e.vel <= 1);
+                                e.intervals.forEach(p => assert.ok(Number.isFinite(p) && p >= -30 && p <= 30));
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    });
+    test('tempo vif : pas de doubles-croches au-delà de 132 BPM, pas de remplissage au-delà de 165', () => {
+        const sixteenths = (pl) => pl.piano.some(e => Math.abs(e.pos * 4 - Math.round(e.pos * 4)) < 1e-9 && Math.abs(e.pos * 2 - Math.round(e.pos * 2)) > 1e-9);
+        for (let s = 1; s <= 20; s++) {
+            const mk = (bpm) => ({ env: mkEnv({ bpm, density: 1 }), ph: { ...classicPhraseExtras(bpm, seeded(s), null, 0), rng: seeded(s + 9) } });
+            const a = mk(150), b = mk(120);
+            assert.ok(!sixteenths(buildClassicPlan(a.env, C, G7b, false, null, a.ph, 1, 4, false, 1)));
+            if (s === 1) assert.ok([1, 2, 3, 4, 5, 6].some(i => sixteenths(buildClassicPlan(b.env, C, G7b, false, null, b.ph, i % 4, 4, false, i))));
+        }
+        assert.equal(avg(1, { bpm: 190 }) <= avg(0.5, { bpm: 190 }) + 0.01, true);
+    });
+});

@@ -199,11 +199,20 @@ describe('import : orchestre Rock', () => {
     });
 });
 
-describe('sanitizeImportedSettings : densité de la guitare', () => {
-    test('la densité est conservée et bornée à 0-1 ; absente ou invalide = valeur par défaut', () => {
-        assert.equal(F.sanitizeImportedSettings({ orchestration: { style: 'guitar', guitarDensity: 0.8 } }).orchestration.guitarDensity, 0.8);
-        assert.equal(F.sanitizeImportedSettings({ orchestration: { guitarDensity: -2 } }).orchestration.guitarDensity, 0);
-        assert.equal(F.sanitizeImportedSettings({ orchestration: { guitarDensity: 7 } }).orchestration.guitarDensity, 1);
-        for (const bad of [undefined, null, '', 'x']) assert.ok(!('guitarDensity' in F.sanitizeImportedSettings({ orchestration: { guitarDensity: bad } }).orchestration));
+describe('sanitizeImportedSettings : densités par orchestre', () => {
+    const san = (orch) => F.sanitizeImportedSettings({ orchestration: orch }).orchestration;
+    test('les densités sont conservées et bornées à 0-1 ; absentes ou invalides = valeurs par défaut', () => {
+        assert.deepEqual(san({ style: 'guitar', densities: { guitar: 0.8, classic: 0.2 } }).densities, { guitar: 0.8, classic: 0.2 });
+        assert.equal(san({ densities: { guitar: -2 } }).densities.guitar, 0);
+        assert.equal(san({ densities: { classic: 7 } }).densities.classic, 1);
+        for (const bad of [undefined, null, '', 'x']) assert.ok(!('densities' in san({ densities: { guitar: bad, classic: bad } })));
+        assert.ok(!('densities' in san({ style: 'guitar' })));
+    });
+    test('anciens fichiers : guitarDensity devient la densité de la guitare', () => {
+        assert.deepEqual(san({ style: 'guitar', guitarDensity: 0.8 }).densities, { guitar: 0.8 });
+        assert.deepEqual(san({ guitarDensity: 0.3, densities: { guitar: 0.9 } }).densities, { guitar: 0.9 });
+    });
+    test('valeurs par défaut : Guitare 60 %, Classique 50 %', () => {
+        assert.deepEqual(F.BAND_DENSITY_DEFAULTS, { guitar: 0.6, classic: 0.5 });
     });
 });

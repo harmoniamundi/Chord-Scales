@@ -15,6 +15,10 @@ const isPartLabel = (v) => typeof v === 'string' && (PART_LABELS.includes(v) || 
 const IMPORT_GROOVES = ['samba', 'tango', 'piazzolla', 'lyrique', 'afro', 'b-chorale', 'bk-sevdah', 'bk-tsifte', 'f-solea', 'f-bulerias', 'f-tangos',
     'r-roll', 'r-classic', 'r-hard', 'r-punk', 'r-ballad', 'r-blues', 'r-indie', 'c-baroque'];
 
+// Densité de notes par orchestre (curseur « Densité » du pop-up Orchestre, 0 à 1) et valeur par défaut :
+// Guitare 60 % (un peu plus fourni que l'écriture d'origine, vers 35 %) ; Classique 50 % = l'écriture d'origine.
+const BAND_DENSITY_DEFAULTS = { guitar: 0.6, classic: 0.5 };
+
 // Lit une signature (nombre 2, 3, 4 des anciennes versions, ou texte « 6/8 »).
 function parseMeter(val) {
     const k = String(val === undefined || val === null ? '' : val).trim();
@@ -117,8 +121,15 @@ function sanitizeImportedSettings(data) {
         }
         const rev = Number(o.reverb);
         if (o.reverb !== null && o.reverb !== undefined && Number.isFinite(rev)) orch.reverb = Math.max(0, Math.min(1, rev));
-        const gd = Number(o.guitarDensity);
-        if (o.guitarDensity !== null && o.guitarDensity !== undefined && o.guitarDensity !== '' && Number.isFinite(gd)) orch.guitarDensity = Math.max(0, Math.min(1, gd)); // densité de l'orchestre Guitare ; absent = valeur par défaut
+        // densités par orchestre ; les anciens fichiers n'avaient que « guitarDensity »
+        const dens = {};
+        const src = (o.densities && typeof o.densities === 'object') ? o.densities : {};
+        Object.keys(BAND_DENSITY_DEFAULTS).forEach(k => {
+            const raw = (src[k] !== undefined) ? src[k] : (k === 'guitar' ? o.guitarDensity : undefined);
+            const v = Number(raw);
+            if (raw !== null && raw !== undefined && raw !== '' && Number.isFinite(v)) dens[k] = Math.max(0, Math.min(1, v));
+        });
+        if (Object.keys(dens).length) orch.densities = dens; // absent = valeurs par défaut
         const sw = Number(o.swing);
         if (o.swing !== null && o.swing !== undefined && o.swing !== '' && Number.isFinite(sw)) orch.swing = Math.max(0.5, Math.min(0.75, sw)); // absent = « Auto »
         out.orchestration = orch;
@@ -127,5 +138,5 @@ function sanitizeImportedSettings(data) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { PART_LABELS, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings };
+    module.exports = { BAND_DENSITY_DEFAULTS, PART_LABELS, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings };
 }
