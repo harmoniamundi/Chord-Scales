@@ -128,3 +128,46 @@ describe('transposition', () => {
         }
     });
 });
+
+
+describe('Brass band : curseur « Densité »', () => {
+    const withRand = (fn) => { const old = Math.random; const r = seeded(777); Math.random = r; try { return fn(); } finally { Math.random = old; } };
+    const mk = (d, bpm) => mkEnv({ ...(bpm ? { bpm } : {}), ...(d === undefined ? {} : { density: d }) });
+    const planOf = (d, s, i, bpm) => withRand(() => plan({ env: mk(d, bpm), seed: s, i, isTurn: i === 3, last: i === 3 }));
+    const avg = (d, bpm) => { let t = 0, n = 0; for (let s = 1; s <= 40; s++) for (let i = 0; i < 4; i++) { t += planOf(d, s, i, bpm).piano.length; n++; } return t / n; };
+
+    test('0,5 ou absent : écriture d\'origine strictement inchangée', () => {
+        for (let s = 1; s <= 20; s++) for (let i = 0; i < 4; i++) {
+            assert.deepEqual(planOf(0.5, s, i), planOf(undefined, s, i), `graine ${s} mesure ${i}`);
+        }
+    });
+    test('plus de notes à mesure que le curseur monte, avec un grand écart entre 0 et 1', () => {
+        const a = avg(0), b = avg(0.5), c = avg(1);
+        assert.ok(a < b && b < c, `${a} < ${b} < ${c}`);
+        assert.ok(c / a >= 2.5, `rapport ${c / a}`);
+    });
+    test('valeurs intermédiaires : progression régulière', () => {
+        const v = [0, 0.25, 0.5, 0.75, 1].map(d => avg(d));
+        for (let k = 1; k < v.length; k++) assert.ok(v[k] >= v[k - 1] - 0.05, `d#${k} : ${v}`);
+    });
+    test('événements valides à toutes les densités (positions, durées, vélocités, intervalles)', () => {
+        for (const d of [0, 0.3, 0.7, 1]) for (let s = 1; s <= 12; s++) for (let i = 0; i < 4; i++) {
+            const p = planOf(d, s, i);
+            for (const e of [...p.piano, ...p.bass]) {
+                assert.ok(Number.isFinite(e.pos) && e.pos >= -1e-9 && e.pos < 4 + 1e-9, `pos ${e.pos}`);
+                assert.ok(Number.isFinite(e.dur) && e.dur > 0, `dur ${e.dur}`);
+                assert.ok(Number.isFinite(e.vel) && e.vel > 0 && e.vel <= 1.6, `vel ${e.vel}`);
+                assert.ok((Array.isArray(e.intervals) && e.intervals.every(Number.isFinite)) || Number.isFinite(e.abs) || Array.isArray(e.parts), 'hauteurs');
+            }
+        }
+    });
+    test('tempo très vif : aucune note ajoutée (jouabilité)', () => {
+        const a = avg(0.5, 230), c = avg(1, 230);
+        assert.ok(c <= a + 1e-9, `${c} <= ${a}`);
+    });
+    test('la densité ne modifie pas les percussions', () => {
+        for (let s = 1; s <= 10; s++) for (let i = 0; i < 4; i++) {
+            assert.deepEqual(planOf(0, s, i).drums, planOf(1, s, i).drums);
+        }
+    });
+});

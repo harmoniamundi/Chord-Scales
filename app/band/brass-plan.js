@@ -393,6 +393,45 @@ function buildBrassPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, 
             if (ph.timpOn) roll(bpb - 1, rollN, 0.3, 0.75, 'timp', timpF(lastSeg.cs));
         }
     }
+    // Curseur « Densité » (0,5 = écriture d'origine) : les notes détachées (cors, cornets) disparaissent ou se multiplient ; les notes
+    // tenues, la basse du tuba et les percussions ne changent pas.
+    //  - sous 0,5 : des frappes détachées sont retirées (celles qui lancent un accord restent, les levées plus rarement retirées) ;
+    //  - de 0,5 à 0,9 : des frappes brèves des cors comblent les croches vides ;
+    //  - au-dessus de 0,6 (tempo permettant) : des frappes des cornets s'intercalent entre deux croches jouées.
+    if (Number.isFinite(env.density)) {
+        const d = Math.max(0, Math.min(1, env.density));
+        const unit = 1 / spb;
+        const rate = (env.bpm || 100) / 60 / unit;
+        const detached = (e) => e.art === 'stac' || e.art === 'marc';
+        const atSegStart = (pos) => segs.some(sg => Math.abs(sg.s - pos) < 1e-6);
+        const has = (pos) => piano.some(e => detached(e) && Math.abs(e.pos - pos) < 1e-6);
+        if (d < 0.5) {
+            const t = (0.5 - d) / 0.5;
+            for (let k = piano.length - 1; k >= 0; k--) {
+                const e = piano[k];
+                if (!detached(e) || e.pos < 1e-6 || atSegStart(e.pos)) continue;
+                if (rng() < (Math.abs(e.pos - lastSub) < 1e-6 ? 0.4 : 0.9) * t) piano.splice(k, 1);
+            }
+        } else if (d > 0.5) {
+            const u = (d - 0.5) / 0.5;
+            const pf = Math.min(1, u * 1.6), ps = Math.max(0, Math.min(1, (u - 0.2) / 0.8));
+            const slots = Math.round(bpb / unit);
+            if (rate <= 5.5) {
+                for (let k = 0; k < slots; k++) {
+                    const pos = k * unit;
+                    if (has(pos) || rng() >= pf) continue;
+                    hit(pos, unit * 0.8, k % spb === 0 ? 0.5 : 0.44, Vs[segAt(pos)], 'stac', HN);
+                }
+            }
+            if (ps > 0 && rate <= 4.4) {
+                for (let k = 0; k < slots - 1; k++) {
+                    const pos = k * unit;
+                    if (!has(pos) || !has(pos + unit) || has(pos + unit / 2) || rng() >= ps) continue;
+                    hit(pos + unit / 2, unit * 0.4, 0.4, Vs[segAt(pos + unit / 2)], 'stac', CN);
+                }
+            }
+        }
+    }
     piano.sort((a, b) => a.pos - b.pos);
     bass.sort((a, b) => a.pos - b.pos);
     return { piano, bass, drums, brass: true };

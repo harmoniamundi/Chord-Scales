@@ -10,7 +10,7 @@
 
 // Sous Node, les utilitaires partagés se chargent ; en navigateur ce sont des globaux (band-helpers.js).
 if (typeof popRun === 'undefined' && typeof require === 'function') {
-    var { popRun, popScaleNotes, popBassTones, popBassApproach } = require('./band-helpers.js');
+    var { popRun, popScaleNotes, popBassTones, popBassApproach, lineDensify } = require('./band-helpers.js');
 }
 
 // ===================== Orchestration BALKANS =====================
@@ -616,6 +616,14 @@ function buildBalkanPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep,
         }
     }
 
+    // Curseur « Densité » : ligne de l'accordéon étoffée ou dépouillée (0,5 = écriture d'origine)
+    if (Number.isFinite(env.density)) {
+        lineDensify(piano, {
+            d: Math.max(0, Math.min(1, env.density)), rng, bpm: env.bpm || 120, unit: 1 / spe, barEnd: bpb,
+            isLine: (e) => e.art === 'lin', isDecor: (e) => e.art === 'orn' || e.art === 'arp',
+            scaleAt: (pos, lo, hi) => popScaleNotes(csAt(pos), lo, hi)
+        });
+    }
     piano.sort((a, b) => a.pos - b.pos);
     bass.sort((a, b) => a.pos - b.pos);
     drums.sort((a, b) => a.pos - b.pos);

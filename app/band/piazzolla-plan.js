@@ -9,7 +9,7 @@
 
 // Sous Node, les utilitaires partagés se chargent ; en navigateur ce sont des globaux (band/band-helpers.js).
 if (typeof popBassTones === 'undefined' && typeof require === 'function') {
-    var { popBassTones, popBassApproach, popScaleNotes, popVoicing } = require('./band-helpers.js');
+    var { popBassTones, popBassApproach, popScaleNotes, popVoicing, lineDensify } = require('./band-helpers.js');
 }
 // Tables de motifs : globales en navigateur (band-patterns.js), à charger sous Node.
 const PZ_PAT = (typeof PZ_SUBJECTS !== 'undefined')
@@ -125,6 +125,16 @@ function buildPiazzollaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfSt
     const st = env.state.pzState || (env.state.pzState = { v: {}, mel: {}, chrom: {}, fugueStart: null });
     const add = (inst, pos, dur, vel, ints, art) => piano.push({ inst, pos, dur, vel: clampV(vel * dyn), rootIndex: 0, intervals: ints, art });
     const dr = (e, drum, vel) => drums.push({ pos: P(e), drum, vel: Math.min(1, vel * (0.85 + 0.2 * I)) });
+    // Curseur « Densité » : lignes du violon, du bandonéon et de la guitare étoffées ou dépouillées (0,5 = écriture d'origine)
+    const densify = () => {
+        if (!Number.isFinite(env.density)) return;
+        lineDensify(piano, {
+            d: Math.max(0, Math.min(1, env.density)), rng, bpm: env.bpm || 120, unit: 1 / spe, barEnd: bpb,
+            isLine: (e) => e.art === 'line' && e.intervals.length === 1, isDecor: (e) => e.art === 'grace',
+            voiceKey: (e) => e.inst,
+            scaleAt: (pos, lo, hi) => popScaleNotes(csAt(pos), lo, hi)
+        });
+    };
 
     // ---- outils ----
     const ctSet = (cs) => {
@@ -463,6 +473,7 @@ function buildPiazzollaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfSt
         piano.sort((a, b) => a.pos - b.pos);
         bass.sort((a, b) => a.pos - b.pos);
         drums.sort((a, b) => a.pos - b.pos);
+        densify();
         return { piano, bass, drums, piazzolla: true };
     }
 
@@ -558,6 +569,7 @@ function buildPiazzollaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfSt
     piano.sort((a, b) => a.pos - b.pos);
     bass.sort((a, b) => a.pos - b.pos);
     drums.sort((a, b) => a.pos - b.pos);
+    densify();
     return { piano, bass, drums, piazzolla: true };
 }
 

@@ -212,7 +212,8 @@ describe('sanitizeImportedSettings : densités par orchestre', () => {
         assert.deepEqual(san({ style: 'guitar', guitarDensity: 0.8 }).densities, { guitar: 0.8 });
         assert.deepEqual(san({ guitarDensity: 0.3, densities: { guitar: 0.9 } }).densities, { guitar: 0.9 });
     });
-    test('valeurs par défaut : Guitare 60 %, Classique 50 %', () => {
-        assert.deepEqual(F.BAND_DENSITY_DEFAULTS, { guitar: 0.6, classic: 0.5 });
+    test('valeurs par défaut : Guitare 60 %, les autres orchestres 50 %', () => {
+        assert.deepEqual(F.BAND_DENSITY_DEFAULTS, { guitar: 0.6, classic: 0.5, piazzolla: 0.5, balkan: 0.5, cumbia: 0.5, brass: 0.5 });
+        assert.deepEqual(san({ densities: { brass: 0.2, balkan: 9, cumbia: 0, piazzolla: 0.7 } }).densities, { piazzolla: 0.7, balkan: 1, cumbia: 0, brass: 0.2 });
     });
 });

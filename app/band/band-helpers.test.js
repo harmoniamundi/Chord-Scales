@@ -377,3 +377,71 @@ describe('style classique : voicing, note grave, variation', () => {
         }
     });
 });
+
+// ---------- lineDensify (curseur « Densité » des orchestres à ligne mélodique) ----------
+describe('lineDensify', () => {
+    const CM = { rootIndex: 0, chordId: 'majTriad', scaleId: 'ionian' };
+    const mkLine = () => [0, 1, 2, 3].map((p, k) => ({ pos: p, dur: 0.95, vel: 0.7, rootIndex: 0, intervals: [[12, 14, 16, 14][k]], art: 'lin' }))
+        .concat([{ pos: 1.5, dur: 0.2, vel: 0.5, rootIndex: 0, intervals: [19], art: 'orn' }, { pos: 2, dur: 0.5, vel: 0.4, rootIndex: 0, intervals: [4], art: 'pah' }]);
+    const opts = (d, seed, extra = {}) => ({
+        d, rng: seeded(seed), unit: 0.5, bpm: 100, barEnd: 4,
+        isLine: (e) => e.art === 'lin', isDecor: (e) => e.art === 'orn',
+        scaleAt: (pos, lo, hi) => H.popScaleNotes(CM, lo, hi), ...extra
+    });
+    const run = (d, seed, extra) => { const ev = mkLine(); H.lineDensify(ev, opts(d, seed, extra)); return ev; };
+    const lines = (ev) => ev.filter(e => e.art === 'lin');
+
+    test('0,5 : aucune modification', () => {
+        for (let s = 1; s <= 10; s++) assert.deepEqual(run(0.5, s), mkLine());
+    });
+    test('sous 0,5 : moins de notes de ligne, ornements retirés, première note et accompagnement conservés', () => {
+        let orn = 0, tot = 0;
+        for (let s = 1; s <= 40; s++) {
+            const ev = run(0, s);
+            assert.ok(lines(ev).length <= 4 && lines(ev).length >= 1);
+            assert.equal(lines(ev).sort((a, b) => a.pos - b.pos)[0].pos, 0);
+            orn += ev.filter(e => e.art === 'orn').length;
+            tot += lines(ev).length;
+            assert.equal(ev.filter(e => e.art === 'pah').length, 1);
+        }
+        assert.ok(orn <= 6, `ornements restants : ${orn}/40`);
+        assert.ok(tot / 40 < 3, `notes de ligne moyennes : ${tot / 40}`);
+    });
+    test('au-dessus de 0,5 : notes de passage par degrés conjoints de la gamme, ajoutées entre les notes de la ligne', () => {
+        const S = H.popScaleNotes(CM, 0, 30);
+        let more = 0;
+        for (let s = 1; s <= 30; s++) {
+            const ev = run(1, s);
+            if (lines(ev).length > 4) more++;
+            lines(ev).forEach(e => { assert.ok(S.includes(e.intervals[0]), `${e.intervals[0]} hors gamme`); assert.ok(e.dur > 0 && e.vel > 0 && e.vel <= 1); });
+            const sorted = lines(ev).sort((a, b) => a.pos - b.pos);
+            for (let k = 1; k < sorted.length; k++) assert.ok(sorted[k].pos - sorted[k - 1].pos > 0.2, 'pas de notes superposées');
+        }
+        assert.equal(more, 30);
+    });
+    test('à 1, la ligne devient très dense (au moins 2 fois la ligne d\'origine, bien plus qu\'à 0)', () => {
+        let t = 0, t0 = 0;
+        for (let s = 1; s <= 30; s++) { t += lines(run(1, s)).length; t0 += lines(run(0, s)).length; }
+        assert.ok(t / 30 >= 8, `${t / 30}`);
+        assert.ok(t / t0 >= 3, `ratio ${t / t0}`);
+    });
+    test('tempo vif : rien n\'est ajouté ; très vif ou non : l\'allègement reste possible', () => {
+        for (let s = 1; s <= 10; s++) assert.equal(lines(run(1, s, { bpm: 200 })).length, 4);
+        let some = false;
+        for (let s = 1; s <= 10; s++) if (lines(run(1, s, { bpm: 140 })).length > 4) some = true;
+        assert.ok(some, 'des croches ajoutées à 140 BPM');
+        for (let s = 1; s <= 10; s++) assert.ok(!lines(run(1, s, { bpm: 140 })).some(e => Math.abs(e.pos * 4 - Math.round(e.pos * 4)) < 1e-6 && Math.abs(e.pos * 2 - Math.round(e.pos * 2)) > 1e-6), 'pas de doubles-croches à 140 BPM');
+        for (let s = 1; s <= 10; s++) assert.ok(lines(run(0, s, { bpm: 200 })).length < 4);
+    });
+    test('une voix par clé : chaque voix est traitée à part', () => {
+        const ev = [];
+        ['violin', 'bandoneon'].forEach(inst => [0, 1, 2, 3].forEach(p => ev.push({ inst, pos: p, dur: 0.95, vel: 0.7, rootIndex: 0, intervals: [12 + p], art: 'lin' })));
+        H.lineDensify(ev, opts(1, 3, { voiceKey: (e) => e.inst }));
+        ['violin', 'bandoneon'].forEach(inst => assert.ok(ev.filter(e => e.inst === inst).length > 4, inst));
+    });
+    test('copie des champs de la note d\'origine (art, oct…) et copie sans effet de bord sur les originaux hors durée', () => {
+        const ev = mkLine().map(e => e.art === 'lin' ? { ...e, oct: true } : e);
+        H.lineDensify(ev, opts(1, 4));
+        lines(ev).forEach(e => { assert.equal(e.oct, true); assert.equal(e.art, 'lin'); assert.equal(e.rootIndex, 0); });
+    });
+});

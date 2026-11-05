@@ -11,7 +11,7 @@
 
 // Sous Node, les utilitaires partagés se chargent ; en navigateur ce sont des globaux (band/band-helpers.js).
 if (typeof popRun === 'undefined' && typeof require === 'function') {
-    var { popRun, popScaleNotes, popBassApproach, latBassTones } = require('./band-helpers.js');
+    var { popRun, popScaleNotes, popBassApproach, latBassTones, lineDensify } = require('./band-helpers.js');
 }
 
 // ===================== Orchestration CUMBIA =====================
@@ -376,6 +376,14 @@ function buildCumbiaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep,
         for (let k = 0; k < nRun; k++) drums.push({ pos: runFrom + k / nRun, drum: seq[k % seq.length], vel: Math.min(1, 0.4 + 0.5 * k / (nRun - 1)) });
     }
 
+    // Curseur « Densité » : mélodie de l'accordéon étoffée ou dépouillée (0,5 = écriture d'origine)
+    if (Number.isFinite(env.density)) {
+        lineDensify(piano, {
+            d: Math.max(0, Math.min(1, env.density)), rng, bpm: env.bpm || 100, unit: 1 / pulse, barEnd: bpb,
+            isLine: (e) => e.art === 'mel',
+            scaleAt: (pos, lo, hi) => popScaleNotes(csAt(pos), lo, hi)
+        });
+    }
     piano.sort((a, b) => a.pos - b.pos);
     bass.sort((a, b) => a.pos - b.pos);
     drums.sort((a, b) => a.pos - b.pos);

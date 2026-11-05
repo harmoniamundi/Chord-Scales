@@ -16,8 +16,8 @@ const IMPORT_GROOVES = ['samba', 'tango', 'piazzolla', 'lyrique', 'afro', 'b-cho
     'r-roll', 'r-classic', 'r-hard', 'r-punk', 'r-ballad', 'r-blues', 'r-indie', 'c-baroque'];
 
 // Densité de notes par orchestre (curseur « Densité » du pop-up Orchestre, 0 à 1) et valeur par défaut :
-// Guitare 60 % (un peu plus fourni que l'écriture d'origine, vers 35 %) ; Classique 50 % = l'écriture d'origine.
-const BAND_DENSITY_DEFAULTS = { guitar: 0.6, classic: 0.5 };
+// Guitare 60 % (un peu plus fourni que l'écriture d'origine, vers 35 %) ; autres orchestres 50 % = l'écriture d'origine.
+const BAND_DENSITY_DEFAULTS = { guitar: 0.6, classic: 0.5, piazzolla: 0.5, balkan: 0.5, cumbia: 0.5, brass: 0.5 };
 
 // Lit une signature (nombre 2, 3, 4 des anciennes versions, ou texte « 6/8 »).
 function parseMeter(val) {

@@ -2384,7 +2384,7 @@
             }
 
             // Densité de notes de l'orchestre actif (curseur du pop-up Orchestre) : val = 0 à 100 ; agit dès la mesure suivante.
-            // Orchestres concernés : Guitare (60 % par défaut) et Classique (50 % = l'écriture d'origine).
+            // Orchestres concernés : Guitare (60 % par défaut), puis Classique, Piazzolla, Balkans, Cumbia et Brass (50 % = l'écriture d'origine).
             setBandDensity(val) {
                 if (!(this.bandStyle in BAND_DENSITY_DEFAULTS)) return;
                 const n = parseInt(val, 10);
@@ -2399,11 +2399,11 @@
             }
 
             // Le curseur n'a de sens que là où l'orchestre a une voix libre à étoffer : Guitare seule (pas un palo de flamenco, écrit à part)
-            // et Classique (toutes signatures) ; pas pendant le bouton « Arpèges ».
+            // et les orchestres à ligne mélodique (Classique, Piazzolla, Balkans, Cumbia, Brass) ; pas pendant le bouton « Arpèges ».
             isBandDensityAvailable() {
                 if (this._arpPrevStyle) return false;
                 if (this.bandStyle === 'guitar') return !this.getEffectiveGroove('guitar');
-                if (this.bandStyle === 'classic') return true;
+                if (this.bandStyle in BAND_DENSITY_DEFAULTS) return true;
                 return false;
             }
 
@@ -2416,9 +2416,15 @@
                 const display = document.getElementById('band-density-display');
                 if (slider) slider.value = pct;
                 if (display) display.textContent = pct + '%';
-                const tip = this.bandStyle === 'classic'
-                    ? "Densité de notes du piano : à 0, presque seulement la basse et une note par mesure ; 50 % = l'écriture d'origine ; au-dessus, les silences se remplissent puis des doubles-croches s'intercalent jusqu'à un flot continu (Baroque : la main gauche s'anime)."
-                    : "Densité de notes de la guitare : à 0, presque seulement la basse et un accord ; vers 35 %, l'écriture d'origine ; ensuite les silences se remplissent, puis des doubles-croches s'intercalent jusqu'à un flot continu à 100 %.";
+                const TIPS = {
+                    guitar: "Densité de notes de la guitare : à 0, presque seulement la basse et un accord ; vers 35 %, l'écriture d'origine ; ensuite les silences se remplissent, puis des doubles-croches s'intercalent jusqu'à un flot continu à 100 %.",
+                    classic: "Densité de notes du piano : à 0, presque seulement la basse et une note par mesure ; 50 % = l'écriture d'origine ; au-dessus, les silences se remplissent puis des doubles-croches s'intercalent jusqu'à un flot continu (Baroque : la main gauche s'anime).",
+                    piazzolla: "Densité des lignes du violon, du bandonéon et de la guitare : 50 % = l'écriture d'origine ; en dessous, les notes brèves et les ornements disparaissent ; au-dessus, des notes de passage remplissent les lignes puis des doubles-croches s'intercalent. Accords et basse inchangés.",
+                    balkan: "Densité de la ligne de l'accordéon : 50 % = l'écriture d'origine ; en dessous, les notes brèves et les ornements disparaissent ; au-dessus, des notes de passage remplissent la ligne puis des doubles-croches s'intercalent. Accords, basse et percussions inchangés.",
+                    cumbia: "Densité de la mélodie de l'accordéon : 50 % = l'écriture d'origine ; en dessous, les notes brèves disparaissent ; au-dessus, des notes de passage remplissent la mélodie puis des doubles-croches s'intercalent. Accords, basse et percussions inchangés.",
+                    brass: "Densité des notes détachées des cors et des cornets : 50 % = l'écriture d'origine ; en dessous, des frappes disparaissent ; au-dessus, des frappes brèves comblent les croches vides puis s'intercalent. Notes tenues, tubas et percussions inchangés."
+                };
+                const tip = TIPS[this.bandStyle] || TIPS.classic;
                 if (row) row.title = tip;
             }
 
@@ -3303,20 +3309,20 @@
             // ===================== Orchestration BRASS BAND : le calcul est dans band/brass-plan.js =====================
 
             buildBrassPlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                const extra = { splitBeat: this.getSplitBeat(), bpm: this.bpm, bandCtx: this._bandCtx };
+                const extra = { splitBeat: this.getSplitBeat(), bpm: this.bpm, bandCtx: this._bandCtx, density: this.getBandDensity('brass') };
                 return this._bandRun(['brassVoice', 'brassLines'], env => buildBrassPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), extra);
             }
 
             // ===================== Orchestration BALKANS : le calcul est dans band/balkan-plan.js =====================
 
             buildBalkanPlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                return this._bandRun(['balkanVoice', 'balkanMel'], env => buildBalkanPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat(), bpm: this.bpm });
+                return this._bandRun(['balkanVoice', 'balkanMel'], env => buildBalkanPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat(), bpm: this.bpm, density: this.getBandDensity('balkan') });
             }
 
             // ===================== Orchestration CUMBIA : le calcul est dans band/cumbia-plan.js =====================
 
             buildCumbiaPlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                return this._bandRun(['cumbiaVoice', 'cumbiaMel'], env => buildCumbiaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat(), bpm: this.bpm });
+                return this._bandRun(['cumbiaVoice', 'cumbiaMel'], env => buildCumbiaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat(), bpm: this.bpm, density: this.getBandDensity('cumbia') });
             }
 
             // Bus de l'accordéon : anches un peu nasales (bosse vers 1,8 kHz), graves nettoyés, aigus adoucis, compresseur doux, puis
@@ -3388,7 +3394,7 @@
             // ===================== Orchestration PIAZZOLLA : le calcul est dans band/piazzolla-plan.js =====================
 
             buildPiazzollaPlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                const extra = { splitBeat: this.getSplitBeat() };
+                const extra = { splitBeat: this.getSplitBeat(), bpm: this.bpm, density: this.getBandDensity('piazzolla') };
                 return this._bandRun(['pzState'], env => buildPiazzollaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), extra);
             }
 

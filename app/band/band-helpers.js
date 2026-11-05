@@ -454,8 +454,119 @@ function clsMutate(slots, rng) {
 }
 
 
+// ---------------------------------------------------------------------------------------------
+// Curseur « Densité » pour les orchestres à ligne mélodique (accordéon des Balkans et de la cumbia, violon / bandonéon du
+// tango nuevo) : 0,5 = écriture d'origine.
+//  - sous 0,5 : les ornements et les notes brèves disparaissent (la note précédente se prolonge) ; à 0, il ne reste presque que
+//    les notes longues et les premières notes de la mesure ;
+//  - de 0,5 à 0,9 : la ligne se remplit de notes de passage par degrés conjoints de la gamme, de la note tenue vers la suivante ;
+//  - au-dessus de 0,6 (tempo permettant) : des demi-croches s'intercalent entre deux croches jouées, jusqu'à un flot continu à 1.
+// Modifie `ev` en place. Options :
+//   d, rng, bpm, unit (durée de la croche en temps), barEnd (fin de la mesure en temps)
+//   isLine(e) / isDecor(e)   notes de la ligne / ornements (retirés en premier, jamais ajoutés)
+//   voiceKey(e)              (facultatif) une ligne par clé : chaque voix est traitée à part
+//   scaleAt(pos, lo, hi)     notes de la gamme de l'accord à cet instant, entre deux hauteurs
+//   pitchOf(e) / withPitch(e, p)   (facultatif) lecture et copie avec une autre hauteur (par défaut : e.intervals)
+// ---------------------------------------------------------------------------------------------
+function lineDensify(ev, o) {
+    const { d, rng, unit, barEnd } = o;
+    const EPS = 1e-6;
+    const rate = (o.bpm || 100) / 60 / unit;                  // croches par seconde
+    const canFill = rate <= 5.5, canSplit = rate <= 4.4;
+    const topOf = o.pitchOf || ((e) => Math.max(...e.intervals));
+    const withPitch = o.withPitch || ((e, p) => { const sh = p - Math.max(...e.intervals); return { ...e, intervals: e.intervals.map(x => x + sh) }; });
+    const onBeat = (pos) => Math.abs(pos - Math.round(pos)) < EPS;
+    const nearIdx = (S, p) => { let bi = 0; S.forEach((x, k) => { if (Math.abs(x - p) < Math.abs(S[bi] - p)) bi = k; }); return bi; };
+    const groups = new Map();
+    ev.forEach(e => {
+        if (!(o.isLine(e) || (o.isDecor && o.isDecor(e)))) return;
+        const k = o.voiceKey ? o.voiceKey(e) : '_';
+        if (!groups.has(k)) groups.set(k, []);
+        groups.get(k).push(e);
+    });
+    groups.forEach(list => {
+        list.sort((a, b) => a.pos - b.pos);
+        const lines0 = list.filter(e => o.isLine(e));
+        if (!lines0.length) return;
+        if (d < 0.5) {
+            const t = (0.5 - d) / 0.5;
+            const gone = new Set();
+            list.forEach((e) => {
+                if (e === lines0[0]) return;
+                if (!o.isLine(e)) { if (rng() < 0.95 * t) gone.add(e); return; }
+                const p = e.dur <= 1.3 * unit + EPS ? (onBeat(e.pos) ? 0.8 : 0.97) : (e.dur <= 2.2 * unit + EPS ? 0.6 : 0.15);
+                if (rng() < p * t) gone.add(e);
+            });
+            if (!gone.size) return;
+            for (let k = ev.length - 1; k >= 0; k--) if (gone.has(ev[k])) ev.splice(k, 1);
+            const kept = lines0.filter(e => !gone.has(e));
+            kept.forEach((e, k) => {                              // la note prolonge sa durée sur la place laissée libre
+                const next = kept[k + 1];
+                const lostBetween = lines0.some(x => gone.has(x) && x.pos > e.pos && (!next || x.pos < next.pos));
+                if (lostBetween) e.dur = Math.max(e.dur, Math.min(((next ? next.pos : barEnd) - e.pos) * 0.96, 3));
+            });
+            return;
+        }
+        if (d === 0.5) return;
+        const u = (d - 0.5) / 0.5;
+        const pf = Math.min(1, u * 1.6);
+        const ps = Math.max(0, Math.min(1, (u - 0.2) / 0.8));
+        const pitches = lines0.map(topOf);
+        const lo = Math.min(...pitches) - 7, hi = Math.max(...pitches) + 7;
+        const occupied = (pos) => list.some(e => Math.abs(e.pos - pos) < EPS);
+        const added = [];
+        const pushNote = (proto, pos, dur, vel, p) => {
+            const n = withPitch(proto, p);
+            n.pos = pos; n.dur = Math.max(0.05, dur); n.vel = Math.max(0.1, Math.min(1, vel));
+            ev.push(n); added.push(n);
+            return n;
+        };
+        if (canFill) {
+            lines0.forEach((a, k) => {
+                const b = lines0[k + 1];
+                const stop = b ? b.pos - EPS : barEnd - unit;      // la dernière croche de la mesure prépare l'accord suivant
+                const slots = [];
+                for (let j = 1; a.pos + j * unit < stop; j++) {
+                    const pos = a.pos + j * unit;
+                    if (!occupied(pos) && rng() < pf) slots.push(pos);
+                }
+                if (!slots.length) return;
+                const S0 = o.scaleAt(slots[0], lo, hi);
+                if (!S0 || S0.length < 4) return;
+                let cur = nearIdx(S0, topOf(a));
+                const tgt = b ? nearIdx(S0, topOf(b)) : cur + (rng() < 0.5 ? 2 : -2);
+                slots.forEach((pos, m) => {
+                    const S = o.scaleAt(pos, lo, hi) || S0;
+                    const remaining = slots.length - m;
+                    const dist = tgt - cur;
+                    let stepDir = Math.sign(dist) || (rng() < 0.5 ? 1 : -1);
+                    if (Math.abs(dist) <= remaining && rng() < 0.5) stepDir = -stepDir;   // petite bordure avant d'arriver
+                    cur = Math.max(0, Math.min(S.length - 1, cur + stepDir));
+                    const nextPos = Math.min(pos + unit * 0.95, b ? b.pos : barEnd);
+                    pushNote(a, pos, nextPos - pos, a.vel * 0.82, S[cur]);
+                });
+                a.dur = Math.min(a.dur, (slots[0] - a.pos) * 0.97);
+            });
+        }
+        if (ps > 0 && canSplit) {
+            const all = list.concat(added).filter(e => o.isLine(e)).sort((x, y) => x.pos - y.pos);
+            for (let k = 0; k < all.length - 1; k++) {
+                const a = all[k], b = all[k + 1];
+                if (Math.abs(b.pos - a.pos - unit) > EPS || occupied(a.pos + unit / 2) || rng() >= ps) continue;
+                const S = o.scaleAt(a.pos + unit / 2, lo, hi);
+                if (!S || S.length < 4) continue;
+                const ia = nearIdx(S, topOf(a)), ib = nearIdx(S, topOf(b));
+                const idx = Math.max(0, Math.min(S.length - 1, ia + (ib > ia ? 1 : (ib < ia ? -1 : (rng() < 0.5 ? 1 : -1)))));
+                const dur0 = unit / 2 * 0.95;
+                pushNote(a, a.pos + unit / 2, dur0, a.vel * 0.74, S[idx]);
+                a.dur = Math.min(a.dur, unit / 2 * 0.98);
+            }
+        }
+    });
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { popFoldBass, bassPc, bassNear, popBassTones, popBassApproach, popScaleNotes, popLineNote, popRun, latBassTones,
+    module.exports = { lineDensify, popFoldBass, bassPc, bassNear, popBassTones, popBassApproach, popScaleNotes, popLineNote, popRun, latBassTones,
         jamChordPlaybackNotes, popVoicing, popSusVoicing, latThumb, latVary, latDetach,
         brassParts, isSplit, isSplitEffective, getStepHalves,
         bandSwing, defaultBandSwing, BAND_SWING_DEFAULTS, GROOVE_SWING_DEFAULTS, swingWarp, swingPlan, swingPos, pickWeighted, meterKey, patternLib, pianoGuideInterval, pianoHitIntervals,
