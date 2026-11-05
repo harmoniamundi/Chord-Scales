@@ -20,6 +20,16 @@ const VPO_BRASS_DIR = 'app/sounds/VPO';
 const VPO_BRASS_NAMES = ['trumpet', 'french_horn', 'trombone', 'tuba', 'tuba_stc'];
 const VPO_BRASS_FILES = VPO_BRASS_NAMES.map((n) => VPO_BRASS_DIR + '/' + n + '.js');
 
+// Timbre : les échantillons VPO de la nuance ff sont des cuivres joués à pleine puissance, très riches dans l'aigu. Le trombone
+// avait environ 24 dB d'énergie de plus entre 2 et 4 kHz, et 40 dB de plus au-dessus de 4 kHz, que les anciens sons sur lesquels
+// l'orchestre a été réglé : c'est ce qu'on entendait comme un « buzz » désagréable. Le cor avait 11 dB (2-4 kHz) et 21 dB (4-8 kHz)
+// de trop. Un filtre passe-bas de pente 24 dB par octave (deux filtres de Butterworth en série), propre à chaque instrument,
+// ramène le spectre à celui de l'orchestre. Valeurs trouvées en comparant le spectre moyen de chaque instrument à l'ancien
+// (voir sounds/VPO/LISEZMOI.txt). Pour assombrir ou éclaircir un instrument, c'est cette fréquence (en Hz) qu'il faut changer.
+const VPO_TONE_LOWPASS = { trumpet: null, french_horn: 2200, trombone: 1250, tuba: 3000, tuba_stc: 3000 };
+const VPO_TONE_STAGES = 2;
+const VPO_TONE_Q_DB = -3.0103;   // le « Q » d'un passe-bas Web Audio s'exprime en dB : −3 dB = Butterworth (aucune bosse)
+
 // Nom de note (« C#4 », « Bb3 », « B♭3 ») → numéro MIDI (C4 = 60), ou null.
 function vpoNoteToMidi(name) {
     if (typeof name === 'number') return Number.isFinite(name) ? name : null;
@@ -115,7 +125,21 @@ function vpoDecodeSet(ctx, name) {
 // Charge un instrument (« trumpet », « french_horn », « trombone », « tuba », « tuba_stc ») dont la sortie va vers
 // opts.destination (sinon la sortie du contexte audio).
 function vpoLoadBrass(ctx, name, opts) {
-    const destination = (opts && opts.destination) || ctx.destination;
+    let destination = (opts && opts.destination) || ctx.destination;
+    // une chaîne de filtres par instrument, partagée par toutes ses notes (peu coûteux)
+    const fc = VPO_TONE_LOWPASS[name];
+    if (fc) {
+        const out = destination;
+        const filters = [];
+        for (let i = 0; i < VPO_TONE_STAGES; i++) {
+            const f = ctx.createBiquadFilter();
+            f.type = 'lowpass'; f.frequency.value = fc; f.Q.value = VPO_TONE_Q_DB;
+            if (filters.length) filters[filters.length - 1].connect(f);
+            filters.push(f);
+        }
+        filters[filters.length - 1].connect(out);
+        destination = filters[0];
+    }
     return vpoDecodeSet(ctx, name).then((set) => {
         const keys = [...set.samples.keys()];
         return {
@@ -173,5 +197,5 @@ function vpoLoadBrass(ctx, name, opts) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { VPO_BRASS_DIR, VPO_BRASS_NAMES, VPO_BRASS_FILES, vpoNoteToMidi, vpoNearestKey, vpoEnvelope, vpoLoadBrass, vpoLoadScript };
+    module.exports = { VPO_BRASS_DIR, VPO_BRASS_NAMES, VPO_BRASS_FILES, VPO_TONE_LOWPASS, vpoNoteToMidi, vpoNearestKey, vpoEnvelope, vpoLoadBrass, vpoLoadScript };
 }

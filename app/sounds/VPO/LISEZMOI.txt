@@ -10,3 +10,8 @@ Origine : zips « Virtual-Playing-Orchestra3-3-standard-scripts » (répartition
 Pour regénérer ces fichiers, reprendre le principe suivant : lire dans les .sfz de Brass/ la note de référence (pitch_keycenter),
 le volume et le réglage fin (tune) de chaque échantillon ; lire dans le WAV (bloc « smpl ») le début et la fin de boucle ;
 couper le WAV à la fin de boucle, appliquer le volume, encoder en mp3 mono, et écrire le tout au format ci-dessus.
+
+Timbre : les échantillons ff de VPO sont bien plus brillants que les anciens sons sur lesquels l'orchestre est réglé (trombone :
++24 dB entre 2 et 4 kHz et +40 dB au-dessus de 4 kHz ; cor : +11 et +21 dB). audio/vpo-brass.js applique donc à chaque instrument un
+passe-bas de 24 dB par octave (VPO_TONE_LOWPASS : trombone 1250 Hz, cor 2200 Hz, tuba 3000 Hz, trompette aucun). Les gains « g » ont été
+réglés après filtrage pour que chaque instrument ait le niveau des anciens sons. Pour assombrir ou éclaircir : changer ces fréquences.

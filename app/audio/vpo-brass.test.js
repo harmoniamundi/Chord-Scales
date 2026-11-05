@@ -99,7 +99,8 @@ function fakeCtx() {
         cancelScheduledValues(t) { calls.push(['cancel', t]); } }; };
     return { log, currentTime: 1, destination: { name: 'out' },
         createBufferSource() { const s = { playbackRate: { value: 1 }, connect(n) { s.to = n; }, start(t) { s.started = t; }, stop(t) { s.stopped = t; } }; log.sources.push(s); return s; },
-        createGain() { const g = { gain: param(), connect(n) { g.to = n; }, disconnect() {} }; log.gains.push(g); return g; } };
+        createGain() { const g = { gain: param(), connect(n) { g.to = n; }, disconnect() {} }; log.gains.push(g); return g; },
+        createBiquadFilter() { const f = { type: '', frequency: { value: 0 }, Q: { value: 0 }, connect(n) { f.to = n; } }; (log.filters = log.filters || []).push(f); return f; } };
 }
 
 describe('instrument (play)', () => {
@@ -131,7 +132,7 @@ describe('instrument (play)', () => {
     test('boucle réglée sur l\'échantillon choisi ; sortie = destination de l\'instrument', async () => {
         const ctx = fakeCtx();
         try {
-            const inst = await load(ctx, 'trombone', SET);
+            const inst = await load(ctx, 'trumpet', SET);   // sans filtre de timbre : sortie directe
             inst.play('C4', 2, { duration: 1 });
             const s = ctx.log.sources[0];
             assert.equal(s.loop, true);
@@ -173,6 +174,26 @@ describe('instrument (play)', () => {
             assert.ok(calls.some(c => c[0] === 'target' && c[1] === 0));
             assert.ok(ctx.log.sources[0].stopped >= 1);
         } finally { cleanup(); }
+    });
+    test('timbre : le trombone et le cor passent par deux passe-bas en série (le buzz du trombone ff), la trompette par aucun', async () => {
+        const ctx = fakeCtx();
+        try {
+            const trombone = await load(ctx, 'trombone', SET);
+            const filters = ctx.log.filters;
+            assert.equal(filters.length, 2);
+            filters.forEach(f => { assert.equal(f.type, 'lowpass'); assert.equal(f.frequency.value, V.VPO_TONE_LOWPASS.trombone); });
+            assert.equal(filters[0].to, filters[1], 'en série');
+            assert.equal(filters[1].to.name, 'bus', 'puis vers la destination de l\'instrument');
+            trombone.play('C4', 2, { duration: 1 });
+            assert.equal(ctx.log.gains[0].to, filters[0], 'les notes entrent dans la chaîne de filtres');
+            const ctx2 = fakeCtx();
+            await load(ctx2, 'trumpet', SET);
+            assert.equal((ctx2.log.filters || []).length, 0);
+        } finally { cleanup(); }
+    });
+    test('les fréquences de coupure sont des nombres raisonnables, jamais sous 1 kHz (son étouffé) ni au-dessus de 4 kHz', () => {
+        Object.entries(V.VPO_TONE_LOWPASS).forEach(([n, fc]) => { if (fc) assert.ok(fc >= 1000 && fc <= 4000, n + ' ' + fc); });
+        assert.ok(V.VPO_TONE_LOWPASS.trombone < V.VPO_TONE_LOWPASS.french_horn, 'le trombone ff est le plus brillant : il est le plus filtré');
     });
     test('fichier introuvable : promesse rejetée (l\'appli retombe sur les anciens sons)', async () => {
         global.window = { VPO_SAMPLES: {} };
