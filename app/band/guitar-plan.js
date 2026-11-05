@@ -125,23 +125,28 @@ function gtrThin(cell, step) {
     return out;
 }
 
-// Densité de notes (curseur « Densité » du pop-up Orchestre, 0 à 1) appliquée à une cellule déjà choisie :
-//  - sous 0,3 : des notes des doigts disparaissent (jusqu'à une sur deux à 0) ;
-//  - de 0,3 à 0,7 : les silences se remplissent de plus en plus (doigts qui poursuivent l'arpège, parfois la basse alternée sur le 3) ;
-//  - au-dessus de 0,45 (binaire, jusqu'à 150 BPM) : des doubles-croches s'intercalent entre deux croches jouées.
+// Densité de notes (curseur « Densité » du pop-up Orchestre, 0 à 1) appliquée à une cellule déjà choisie ; l'écriture d'origine
+// correspond à peu près à 0,35 :
+//  - sous 0,35 : le jeu s'aère de plus en plus — à 0, il ne reste presque que la basse et un accord par mesure ;
+//  - de 0,35 à 0,7 : les silences se remplissent (doigts qui poursuivent l'arpège, parfois la basse alternée sur le 3) ;
+//  - au-dessus de 0,5 (binaire, jusqu'à 150 BPM) : des doubles-croches s'intercalent entre deux croches jouées, jusqu'à un flot
+//    continu de doubles-croches à 1.
 // Retourne la cellule et `grace` : pour chaque case, la note (rang de doigt) jouée une double-croche après elle, ou null.
 function gtrDensify(cell, o) {
     const { d, spb, ternary, tooFast, bpm, maxRank, rng } = o;
     const out = cell.slice();
     const grace = out.map(() => null);
     const isFinger = (t) => /^[1-4]$/.test(t);
-    if (d < 0.3) {
-        const pThin = (0.3 - d) / 0.3 * 0.5;
-        for (let k = 1; k < out.length; k++) if (isFinger(out[k]) && rng() < pThin) out[k] = '.';
+    if (d < 0.35) {
+        const t = (0.35 - d) / 0.35;                 // 0 à 0,35 → 1 à 0
+        for (let k = 1; k < out.length; k++) {
+            if (isFinger(out[k]) && rng() < 0.92 * t) out[k] = '.';
+            else if (/^[bcuP]$/.test(out[k]) && rng() < 0.65 * t) out[k] = '.';
+        }
         return { cell: out, grace };
     }
-    const pf = Math.min(1, (d - 0.3) / 0.4);
-    const ps = ternary ? 0 : Math.max(0, Math.min(1, (d - 0.45) / 0.55));
+    const pf = Math.min(1, (d - 0.35) / 0.35);
+    const ps = ternary ? 0 : Math.max(0, Math.min(1, (d - 0.5) / 0.5));
     const top = Math.max(2, maxRank || 3);
     let last = 2, dir = 1;
     const nextRank = () => {
@@ -158,7 +163,7 @@ function gtrDensify(cell, o) {
     if (ps > 0 && (bpm || 100) <= 150) {
         for (let k = 0; k < out.length - 1; k++) {
             if (out[k] === '.' || out[k] === 'R' || out[k] === 'A' || out[k + 1] === '.') continue;
-            if (rng() < ps * 0.85) grace[k] = String(nextRank());
+            if (rng() < ps) grace[k] = String(nextRank());
         }
     }
     return { cell: out, grace };
@@ -374,7 +379,7 @@ function buildGuitarPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep,
         if (ph.slowStart && i === 0 && si === 0 && /^[BC]$/.test(cell[0]) && N >= 4) cell[0] = 'R';
 
         // Fin de phrase : le motif se « referme » (accord arpégé lentement, ou accord aigu très doux, sur le troisième temps) ou continue
-        if (isTurn && L > 1 && ph.endingOn && lastOne && N >= 4 && ph.ending < 2 && (dens === null || rng() >= (dens - 0.5) * 2)) {
+        if (isTurn && L > 1 && ph.endingOn && lastOne && N >= 4 && ph.ending < 2 && (dens === null || rng() >= (dens - 0.4) / 0.4)) {
             const half = Math.floor(N / 2);
             for (let k = half; k < N; k++) cell[k] = '.';
             cell[half] = ph.ending === 0 ? 'R' : 'u';

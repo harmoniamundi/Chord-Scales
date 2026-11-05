@@ -368,6 +368,11 @@ describe('densité de notes (curseur du pop-up Orchestre)', () => {
         for (let k = 1; k < levels.length; k++) assert.ok(levels[k] > levels[k - 1], levels.join(' < '));
         assert.ok(levels[4] > levels[1] * 1.8, `${levels[1]} → ${levels[4]}`);
     });
+    test('l\'écart est net : le maximum joue au moins 5 fois plus de notes que le minimum, et le milieu les sépare', () => {
+        const lo = avg(0), mid = avg(0.6), hi = avg(1);
+        assert.ok(hi >= lo * 5, `${lo} → ${hi}`);
+        assert.ok(mid > lo * 2.5 && mid < hi * 0.8, `${lo} / ${mid} / ${hi}`);
+    });
     test('la valeur par défaut (60 %) joue sensiblement plus que l\'écriture d\'origine', () => {
         assert.ok(avg(0.6) > avg(undefined) * 1.2, `${avg(0.6)} vs ${avg(undefined)}`);
     });
