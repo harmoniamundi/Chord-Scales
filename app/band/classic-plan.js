@@ -8,14 +8,14 @@
 
 // Sous Node, les utilitaires partagés se chargent ; en navigateur ce sont des globaux (band/band-helpers.js).
 if (typeof clsVoicing === 'undefined' && typeof require === 'function') {
-    var { clsVoicing, clsLowNote, clsMutate } = require('./band-helpers.js');
+    var { clsVoicing, clsLowNote, clsMutate, popScaleNotes, popRun } = require('./band-helpers.js');
 }
 // Tables de motifs : globales en navigateur (band-patterns.js), à charger sous Node.
 const CLASSIC_PAT = (typeof CLS_EIGHTS !== 'undefined') ? { CLS_EIGHTS, CLS_QUARTERS, CLS_MIXED, CLS_UPPER } : require('../band-patterns.js');
 const { CLS_EIGHTS: CL_EIGHTS, CLS_QUARTERS: CL_QUARTERS, CLS_MIXED: CL_MIXED, CLS_UPPER: CL_UPPER } = CLASSIC_PAT;
 
 // Choix faits une fois par phrase et gardés pendant toute la phrase : intensité, famille de motif, variantes.
-function classicPhraseExtras(bpm, rng, prev, index) {
+function classicPhraseExtras(bpm, rng, prev, index, groove) {
     const pl = (prev && prev.style === 'classic') ? prev : null;
     const prevI = (pl && typeof pl.intensity === 'number') ? pl.intensity : 0.5;
     let I = index === 0 ? 0.35 + rng() * 0.2 : prevI + (0.55 - prevI) * 0.25 + (rng() - 0.5) * 0.45;
@@ -34,7 +34,7 @@ function classicPhraseExtras(bpm, rng, prev, index) {
     else if (I < 0.7) family = pickW([['roll', 3], ['mixed', 2], ['bassup', 2], ['quarter', 1], ['blockarp', 1]]);
     else family = pickW([['roll', 3], ['bassup', 3], ['mixed', 1]]);
     const idx = (n) => Math.floor(rng() * n);
-    return {
+    const out = {
         intensity: I, family,
         eightIdx: idx(CL_EIGHTS.length), eightAlt: idx(CL_EIGHTS.length),
         quarterIdx: idx(CL_QUARTERS.length), quarterAlt: idx(CL_QUARTERS.length),
@@ -45,10 +45,201 @@ function classicPhraseExtras(bpm, rng, prev, index) {
         ending: idx(2),
         endingOn: rng() < 0.75
     };
+    if (groove === BAROQUE_GROOVE) Object.assign(out, baroquePhraseExtras(bpm, rng, pl, pickW));
+    return out;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Style Baroque (rythme imposé « c-baroque » par le style de grille du même nom) : écriture continue, comme une
+// réalisation de basse continue ou un prélude de Bach — doubles-croches ininterrompues à la main droite (arpèges
+// en cellules d'un temps, séquences, gammes) sur une basse qui marche (noires, croches) ou tient la fondamentale.
+// ---------------------------------------------------------------------------------------------
+const BAROQUE_GROOVE = 'c-baroque';
+// Cellules d'un temps (rang de la note de l'accord : 0 = grave ; au-delà du nombre de notes, l'octave supérieure)
+const BQ_CELLS = [[0, 1, 2, 1], [0, 2, 1, 2], [0, 1, 2, 3], [3, 2, 1, 0], [2, 1, 0, 1], [0, 2, 3, 2], [1, 2, 3, 2], [3, 2, 3, 1]];
+// Montée ou descente d'un rang d'un temps à l'autre (effet de séquence)
+const BQ_SHIFTS = [[0, 0, 0, 0], [0, 0, 1, 1], [1, 1, 0, 0], [0, 1, 0, 1], [1, 0, 1, 0], [0, 1, 2, 1]];
+// Motifs de prélude sur 8 doubles-croches (la première est la basse tenue à la main gauche, d'où le silence)
+const BQ_PRELUDE = [[null, 1, 2, 3, 4, 2, 3, 4], [null, 2, 3, 2, 1, 2, 3, 2], [null, 1, 2, 3, 2, 1, 2, 3]];
+// Cellules de gamme : décalages en degrés conjoints
+const BQ_SCALE_CELLS = [[0, 1, 2, 1], [0, 1, 2, 3], [0, 2, 1, 2], [3, 2, 1, 0], [2, 1, 0, 1]];
+
+function baroquePhraseExtras(bpm, rng, pl, pickW) {
+    const pb = (pl && pl.baroque) ? pl : null;
+    const fast = bpm > BQ_FAST_BPM;
+    const idx = (n) => Math.floor(rng() * n);
+    let fam;
+    if (pb && rng() < 0.35 && !(fast && pb.bFam === 'prelude')) fam = pb.bFam;
+    else fam = fast ? pickW([['cells', 3], ['scale', 2]]) : pickW([['prelude', 3], ['cells', 3], ['scale', 2.5]]);
+    const bass = fam === 'prelude' ? 'held' : pickW([['walk', 3], ['eights', 2], ['held', 0.6]]);
+    return {
+        baroque: true, bFam: fam, bBass: bass,
+        bCellA: idx(BQ_CELLS.length), bCellB: idx(BQ_CELLS.length),
+        bShift: idx(BQ_SHIFTS.length), bPre: idx(BQ_PRELUDE.length),
+        bScaleCell: idx(BQ_SCALE_CELLS.length), bScaleDir: pickW([[1, 3], [-1, 2], [0, 1]]),
+        bRun: rng() < 0.7   // la dernière double-croche d'un temps mène par degrés conjoints à l'accord suivant
+    };
+}
+const BQ_FAST_BPM = 132; // au-delà : croches au lieu de doubles-croches
+
+// Plan d'une mesure du style Baroque.
+function buildBaroquePlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn) {
+    const rng = ph.rng;
+    const off = env.transOffset;
+    const div = env.bpm > BQ_FAST_BPM ? 2 : 4;           // notes de la main droite par temps
+    const I = ph.intensity;
+    const prog = L > 1 ? i / (L - 1) : 0;
+    const gv = (0.72 + 0.3 * I) * (0.94 + 0.06 * prog);
+    const splitAt = env.splitBeat || 2;
+    const segs = halves
+        ? [{ s: 0, e: splitAt, cs: halves[0] }, { s: splitAt, e: 4, cs: halves[1] }]
+        : [{ s: 0, e: 4, cs: step }];
+    const sameChord = (a, b) => !!a && !!b && a.rootIndex === b.rootIndex && a.chordId === b.chordId
+        && (Number.isInteger(a.bassRootIndex) ? a.bassRootIndex : -1) === (Number.isInteger(b.bassRootIndex) ? b.bassRootIndex : -1);
+    const lastSeg = segs[segs.length - 1];
+    const changes = isLastMeasureOfStep && !!nextStep && !sameChord(lastSeg.cs, nextStep);
+    const holdOn = !changes && !!nextStep;
+    const clamp = (v) => Math.max(0.12, Math.min(1, v));
+    const fold = (p) => { while (p + off > 19) p -= 12; while (p + off < -12) p += 12; return p; };
+    const ev = [];
+
+    // Note de la main droite : rang dans l'accord, avec reprise à l'octave au-delà du nombre de notes
+    const rank = (V, k) => { const n = V.length, q = Math.floor(k / n); return V[k - q * n] + 12 * q; };
+    // Notes de basse : la basse de l'accord puis ses notes repliées dans l'octave au-dessus
+    const bassTones = (V, low) => {
+        const set = new Set([low]);
+        V.forEach(x => { let y = x; while (y - low >= 12) y -= 12; while (y < low) y += 12; set.add(y); });
+        return [...set].sort((a, b) => a - b);
+    };
+    // Note conjointe (degré de la gamme du prochain accord) qui amène à sa basse
+    const approach = (from, ncs) => {
+        if (!ncs) return null;
+        const tgt = clsLowNote(env, ncs, off);
+        const S = popScaleNotes(ncs, tgt - 4, tgt + 4).filter(x => x !== tgt);
+        if (!S.length) return null;
+        const dir = from >= tgt ? 1 : -1;
+        const side = S.filter(x => (x - tgt) * dir > 0).sort((a, b) => Math.abs(a - tgt) - Math.abs(b - tgt));
+        return side.length ? side[0] : S.sort((a, b) => Math.abs(a - tgt) - Math.abs(b - tgt))[0];
+    };
+
+    segs.forEach((sg, si) => {
+        const len = sg.e - sg.s;
+        const lastOne = si === segs.length - 1;
+        const V = clsVoicing(env, sg.cs, off);
+        const n = V.length;
+        if (!n) return;
+        const low = clsLowNote(env, sg.cs, off);
+        const toCs = lastOne ? (changes ? nextStep : null) : segs[si + 1].cs;   // accord vers lequel on s'oriente
+        const endPos = sg.e + ((lastOne && holdOn) ? 1.2 : 0.05);
+        const put = (pos, max, p, vel) => {
+            const at = sg.s + pos;
+            ev.push({
+                pos: at, dur: Math.max(0.2, Math.min(endPos - at, max)), vel: clamp(vel * gv),
+                rootIndex: 0, intervals: [fold(p)], noteVels: [1], roll: 0,
+                lay: rng() * 0.006, wide: true, gainMul: 1.2
+            });
+        };
+
+        // ---------- main gauche ----------
+        const T = bassTones(V, low);
+        const tone = (k) => { const q = Math.floor(k / T.length); return T[k - q * T.length] + 12 * q; };
+        const app = toCs ? approach(low, toCs) : null;
+        const kind = len < 4 && ph.bBass === 'eights' ? 'walk' : ph.bBass;
+        if (kind === 'held') {
+            put(0, len >= 4 ? 2.4 : len, low, 0.72);
+            if (len >= 4) put(2, 2.2, rng() < 0.55 ? low : tone(2), 0.56);
+        } else if (kind === 'walk') {
+            const q = Math.floor(len);
+            const shape = (i % 2 === 0) ? [0, 1, 2] : [0, 2, 1];
+            for (let b = 0; b < q; b++) {
+                const last = b === q - 1;
+                const p = (last && app !== null) ? app : (b === 0 ? low : tone(shape[Math.min(b, shape.length - 1)]));
+                put(b, 1.15, p, b === 0 ? 0.72 : (b === 2 ? 0.6 : 0.52));
+            }
+        } else { // croches : la basse arpège l'accord (basse d'Alberti à la main gauche)
+            const ranks = i % 2 === 0 ? [0, 2, 1, 2, 0, 2, 1, 2] : [0, 1, 2, 1, 0, 1, 2, 1];
+            const q = Math.floor(len * 2);
+            for (let k = 0; k < q; k++) {
+                const last = k === q - 1;
+                const p = (last && app !== null) ? app : tone(ranks[k % 8]);
+                put(k / 2, 0.8, p, k === 0 ? 0.72 : (k % 2 === 0 ? 0.58 : 0.48));
+            }
+        }
+
+        // ---------- main droite ----------
+        const slots = len * div;
+        const fig = new Array(slots).fill(null);
+        let fam = ph.bFam;
+        if (fam === 'prelude' && (len < 4 || div !== 4)) fam = 'cells';
+        if (i % 4 === 3 && fam === 'cells' && rng() < 0.4) fam = 'scale';   // une mesure de gamme pour relancer la phrase
+        if (fam === 'prelude') {
+            const P = BQ_PRELUDE[ph.bPre];
+            const closing = isTurn && lastOne && L > 1;
+            const second = closing ? [null, 1, 2, 3, 4, 3, 2, 1] : P;   // dernière mesure de la phrase : le motif redescend
+            for (let k = 0; k < 8; k++) {
+                if (P[k] !== null) fig[k] = rank(V, P[k]);
+                if (second[k] !== null) fig[k + 8] = rank(V, second[k]);
+            }
+        } else if (fam === 'cells') {
+            const A = BQ_CELLS[ph.bCellA], B = BQ_CELLS[ph.bCellB], sh = BQ_SHIFTS[ph.bShift];
+            for (let b = 0; b < len; b++) {
+                const cell = (b % 2 === 0 ? A : B);
+                for (let k = 0; k < div; k++) {
+                    // à 2 notes par temps (tempo vif) : on garde la 1re et la 3e note de la cellule
+                    const r = div === 4 ? cell[k] : cell[k * 2];
+                    fig[b * div + k] = rank(V, r + sh[b % 4]);
+                }
+            }
+        } else { // scale : séquence de gammes autour des notes de l'accord
+            const S = popScaleNotes(sg.cs, V[0] - 5, V[n - 1] + 14);
+            if (S.length >= 6) {
+                const nearest = (p) => { let bi = 0; S.forEach((x, j) => { if (Math.abs(x - p) < Math.abs(S[bi] - p)) bi = j; }); return bi; };
+                const dir = ph.bScaleDir;
+                const i0 = nearest(dir < 0 ? V[n - 1] + (n < 4 ? 12 : 0) : V[0]);
+                const cell = BQ_SCALE_CELLS[ph.bScaleCell];
+                for (let b = 0; b < len; b++) {
+                    for (let k = 0; k < div; k++) {
+                        const d = div === 4 ? cell[k] : cell[k * 2];
+                        const j = Math.max(0, Math.min(S.length - 1, i0 + dir * b + d));
+                        fig[b * div + k] = S[j];
+                    }
+                }
+            } else {
+                for (let k = 0; k < slots; k++) fig[k] = rank(V, [0, 1, 2, 1][k % 4]);
+            }
+        }
+
+        // Dernier temps : une courte gamme qui mène par degrés conjoints à l'accord suivant, ou (fin de phrase) un accord posé
+        const lastBeat = slots - div;
+        if (isTurn && lastOne && L > 1 && ph.endingOn && len >= 3) {
+            for (let k = lastBeat; k < slots; k++) fig[k] = null;
+            ev.push({
+                pos: sg.s + len - 1, dur: Math.max(0.3, Math.min(endPos - (sg.s + len - 1), 2.4)), vel: clamp(0.5 * gv),
+                rootIndex: 0, intervals: V.map(fold), noteVels: V.map((_, k) => k === n - 1 ? 1 : 0.86), roll: 0.014 + rng() * 0.01,
+                lay: rng() * 0.008, wide: true, gainMul: 1.2
+            });
+        } else if (toCs && ph.bRun && div === 4 && len >= 2 && fam !== 'prelude') {
+            const nV = clsVoicing(env, toCs, off);
+            const before = fig[lastBeat - 1];
+            const run = popRun(env, toCs, before === null ? V[n - 1] : before, nV[Math.min(1, nV.length - 1)], 3);
+            if (run.length === 3) { fig[lastBeat + 1] = run[0]; fig[lastBeat + 2] = run[1]; fig[lastBeat + 3] = run[2]; }
+        }
+
+        fig.forEach((p, k) => {
+            if (p === null) return;
+            const beatStart = k % div === 0;
+            const base = beatStart ? (k === 0 ? 0.7 : 0.62) : (div === 4 && k % 2 === 0 ? 0.5 : 0.44);
+            put(k / div, div === 4 ? 0.95 : 1.1, p, base + (rng() - 0.5) * 0.05);
+        });
+    });
+
+    ev.sort((a, b) => a.pos - b.pos);
+    return { piano: ev, bass: [], drums: [] };
 }
 
 // Plan d'une mesure du style Classique.
 function buildClassicPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
+    if (ph.baroque) return buildBaroquePlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn);
     const rng = ph.rng;
     const I = ph.intensity;
     const fam = ph.family;
@@ -231,5 +422,5 @@ function buildArpPlan(env, bpb, step, nextStep, isLastMeasureOfStep, halves) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { classicPhraseExtras, buildClassicPlan, buildArpPlan };
+    module.exports = { classicPhraseExtras, buildClassicPlan, buildArpPlan, buildBaroquePlan, BAROQUE_GROOVE };
 }

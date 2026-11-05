@@ -51,7 +51,7 @@ function buildBandPhrase(ctx, index, style, prev) {
     };
     if (style === 'pop') Object.assign(phrase, popPhraseExtras(rng, prev, index, ctx.groove));
     else if (style === 'latin') Object.assign(phrase, latinPhraseExtras({ isCuba: ctx.isCuba, bpm: ctx.bpm, groove: ctx.groove }, rng, prev, index));
-    else if (style === 'classic') Object.assign(phrase, classicPhraseExtras(ctx.bpm, rng, prev, index));
+    else if (style === 'classic') Object.assign(phrase, classicPhraseExtras(ctx.bpm, rng, prev, index, ctx.groove));
     else if (style === 'guitar') Object.assign(phrase, guitarPhraseExtras({ bpm: ctx.bpm, ternary: ctx.ternary, bpb, groove: ctx.groove }, rng, prev, index));
     else if (style === 'brass') Object.assign(phrase, brassPhraseExtras({ groove: ctx.groove }, rng, prev, index));
     else if (style === 'balkan') Object.assign(phrase, balkanPhraseExtras(rng, prev, index, { groove: ctx.groove }));

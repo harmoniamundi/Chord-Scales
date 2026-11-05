@@ -169,3 +169,96 @@ describe('buildArpPlan', () => {
         });
     });
 });
+
+// ---------- Style Baroque (rythme imposé « c-baroque ») ----------
+describe('style Baroque', () => {
+    const { BAROQUE_GROOVE } = require('./classic-plan.js');
+    const C = { rootIndex: 0, chordId: 'maj', scaleId: 'ionian' };
+    const F = { rootIndex: 5, chordId: 'maj', scaleId: 'ionian' };
+    const bqPhrase = (seed, bFam, extra = {}) => ({ ...classicPhraseExtras(84, seeded(seed), null, 0, BAROQUE_GROOVE), rng: seeded(seed + 500), bFam, ...extra });
+    const bqPlan = (o = {}) => plan({ env: mkEnv({ bpm: 84 }), step: C, nextStep: F, ...o });
+
+    test('sans le rythme c-baroque, les phrases Classique restent inchangées', () => {
+        assert.equal(classicPhraseExtras(84, seeded(3), null, 0).baroque, undefined);
+        assert.deepEqual(classicPhraseExtras(84, seeded(3), null, 0), classicPhraseExtras(84, seeded(3), null, 0, 'r-roll'));
+    });
+    test('le rythme c-baroque pose les choix de phrase baroques', () => {
+        for (let s = 1; s <= 80; s++) {
+            const ph = classicPhraseExtras(84, seeded(s), null, 0, BAROQUE_GROOVE);
+            assert.equal(ph.baroque, true);
+            assert.ok(['prelude', 'cells', 'scale'].includes(ph.bFam));
+            assert.ok(['held', 'walk', 'eights'].includes(ph.bBass));
+        }
+    });
+    test('à tempo vif (> 132 BPM) : jamais de motif de prélude (doubles-croches)', () => {
+        for (let s = 1; s <= 200; s++) {
+            const ph = classicPhraseExtras(150, seeded(s), { style: 'classic', baroque: true, bFam: 'prelude' }, 2, BAROQUE_GROOVE);
+            assert.notEqual(ph.bFam, 'prelude');
+        }
+    });
+    test('mesure pleine : beaucoup de notes (≥ 16 aux deux mains) dans chaque famille, bien plus que le style Classique', () => {
+        for (const fam of ['prelude', 'cells', 'scale']) {
+            for (let s = 1; s <= 40; s++) {
+                const ph = bqPhrase(s, fam, { bBass: ['held', 'walk', 'eights'][s % 3] });
+                for (let i = 0; i < 4; i++) {
+                    const out = bqPlan({ ph, i, isTurn: i === 3 });
+                    const n = out.piano.length;
+                    assert.ok(n >= (i === 3 ? 12 : 16), `${fam} seed ${s} mesure ${i} : ${n} notes`);
+                }
+            }
+        }
+    });
+    test('événements valides : triés, dans la mesure, durées positives, hauteurs jouables', () => {
+        for (const fam of ['prelude', 'cells', 'scale']) {
+            for (let s = 1; s <= 40; s++) {
+                const ph = bqPhrase(s, fam, { bBass: ['held', 'walk', 'eights'][s % 3] });
+                for (let i = 0; i < 4; i++) {
+                    const { piano, bass, drums } = bqPlan({ ph, i, isTurn: i === 3, last: i === 3 });
+                    assert.deepEqual([bass.length, drums.length], [0, 0]);
+                    let prev = -1;
+                    piano.forEach(e => {
+                        assert.ok(e.pos >= 0 && e.pos < 4, `pos ${e.pos}`);
+                        assert.ok(e.pos >= prev); prev = e.pos;
+                        assert.ok(e.dur > 0 && e.vel > 0 && e.vel <= 1);
+                        e.intervals.forEach(p => assert.ok(Number.isFinite(p) && p >= -29 && p <= 19, `hauteur ${p}`));
+                    });
+                }
+            }
+        }
+    });
+    test('la basse est la fondamentale sur le premier temps (accord sur basse compris)', () => {
+        for (const bass of ['held', 'walk', 'eights']) {
+            const ph = bqPhrase(7, 'cells', { bBass: bass });
+            const first = bqPlan({ ph, step: { ...C, bassRootIndex: 4 } }).piano.filter(e => e.pos === 0).map(e => e.intervals[0]);
+            assert.ok(first.some(p => ((p % 12) + 12) % 12 === 4), `${bass} : ${first}`);
+            const first2 = bqPlan({ ph }).piano.filter(e => e.pos === 0).map(e => e.intervals[0]);
+            assert.ok(first2.some(p => ((p % 12) + 12) % 12 === 0), `${bass} : ${first2}`);
+        }
+    });
+    test('mesure à deux accords : les deux moitiés sont jouées, chacune sur son accord', () => {
+        const ph = bqPhrase(11, 'cells', { bBass: 'walk' });
+        const { piano } = bqPlan({ ph, halves: [C, F] });
+        const a = piano.filter(e => e.pos < 2), b = piano.filter(e => e.pos >= 2);
+        assert.ok(a.length >= 8 && b.length >= 8, `${a.length} / ${b.length}`);
+        const pcs = (arr) => new Set(arr.map(e => ((e.intervals[0] % 12) + 12) % 12));
+        const cTones = [0, 4, 7], fTones = [5, 9, 0];
+        assert.ok([...pcs(a.filter(e => e.pos === 0))].every(p => cTones.includes(p)));
+        assert.ok([...pcs(b.filter(e => e.pos === 2))].every(p => fTones.includes(p)));
+    });
+    test('transposition (Sib) : hauteurs restent dans la plage jouable', () => {
+        const env = mkEnv({ bpm: 84, transOffset: 2 });
+        for (let s = 1; s <= 30; s++) {
+            const ph = bqPhrase(s, ['prelude', 'cells', 'scale'][s % 3]);
+            bqPlan({ env, ph, i: s % 4 }).piano.forEach(e => e.intervals.forEach(p => assert.ok(p + 2 <= 19 && p + 2 >= -14, `${p}`)));
+        }
+    });
+    test('tempo vif : croches (au moins 8 notes par mesure, moins de 17 par main)', () => {
+        const ph = { ...classicPhraseExtras(150, seeded(5), null, 0, BAROQUE_GROOVE), rng: seeded(6) };
+        const out = plan({ env: mkEnv({ bpm: 150 }), step: C, nextStep: F, ph, i: 1 });
+        assert.ok(out.piano.length >= 8 && out.piano.length <= 24, `${out.piano.length}`);
+    });
+    test('déterministe à graine égale', () => {
+        const a = bqPlan({ ph: bqPhrase(4, 'scale') }), b = bqPlan({ ph: bqPhrase(4, 'scale') });
+        assert.deepEqual(a, b);
+    });
+});

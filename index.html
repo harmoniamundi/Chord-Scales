@@ -2138,7 +2138,7 @@
             // (samba, tango, Piazzolla, afro, brass chorale…) : il ne vaut que pour l'orchestre auquel il appartient, sinon il
             // « fuit » (ex. : rythme afro d'un style Afro-cubain qui ferait sonner Cuba sous l'orchestre Brasil).
             getEffectiveGroove(style) {
-                const ok = { latin: ['samba', 'tango', 'piazzolla'], cuba: ['afro', 'salsa'], brass: ['b-chorale'], balkan: ['bk-sevdah', 'bk-tsifte'], piazzolla: ['lyrique'], guitar: ['f-solea', 'f-bulerias', 'f-tangos'], pop: ROCK_GROOVES }[style || this.bandStyle];
+                const ok = { latin: ['samba', 'tango', 'piazzolla'], cuba: ['afro', 'salsa'], brass: ['b-chorale'], balkan: ['bk-sevdah', 'bk-tsifte'], piazzolla: ['lyrique'], guitar: ['f-solea', 'f-bulerias', 'f-tangos'], classic: ['c-baroque'], pop: ROCK_GROOVES }[style || this.bandStyle];
                 return (this._bandGroove && ok && ok.includes(this._bandGroove)) ? this._bandGroove : null;
             }
 
@@ -2176,7 +2176,7 @@
                     this.setBandStyle('pop');
                 } else {
                     // Un autre choix (y compris « Guitare » seule) ne garde ni le rythme lyrique ni celui d'un palo ni celui d'un style rock
-                    if (this._bandGroove === 'lyrique' || (this._bandGroove || '').startsWith('f-') || (this._bandGroove || '').startsWith('r-')) this._bandGroove = null;
+                    if (this._bandGroove === 'lyrique' || (this._bandGroove || '').startsWith('f-') || (this._bandGroove || '').startsWith('r-') || (this._bandGroove || '').startsWith('c-')) this._bandGroove = null;
                     this.setBandStyle(v);
                 }
             }
@@ -2929,7 +2929,8 @@
                 const m = this._bandMeasureCounter - 1; // index de mesure depuis le début de la jam
                 const phraseIndex = Math.floor(m / L);
                 const i = m % L;
-                if (!this._bandPhrase || this._bandPhrase.index !== phraseIndex || this._bandPhrase.style !== style || !!this._bandPhrase.cuba !== cuba) {
+                if (!this._bandPhrase || this._bandPhrase.index !== phraseIndex || this._bandPhrase.style !== style || !!this._bandPhrase.cuba !== cuba
+                    || (style === 'classic' && !!this._bandPhrase.baroque !== (this.getEffectiveGroove() === 'c-baroque'))) {
                     this._bandPhrase = this.buildBandPhrase(phraseIndex, style);
                     this._bandPhrase.cuba = cuba;
                 }

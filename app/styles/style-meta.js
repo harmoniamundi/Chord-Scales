@@ -43,7 +43,7 @@ const STYLE_BAND = {
 };
 
 // Rythme imposé à l'orchestre Latin par certains styles (sinon le moteur choisit bossa / samba / afro selon le tempo).
-const STYLE_GROOVE = { samba: 'samba', tango: 'lyrique', piazzolla: 'piazzolla', milongalyrique: 'lyrique', afro68: 'afro', salsa: 'salsa', brasshymn: 'b-chorale', brasscantique: 'b-chorale',
+const STYLE_GROOVE = { baroque: 'c-baroque', samba: 'samba', tango: 'lyrique', piazzolla: 'piazzolla', milongalyrique: 'lyrique', afro68: 'afro', salsa: 'salsa', brasshymn: 'b-chorale', brasscantique: 'b-chorale',
     flamencosolea: 'f-solea', flamencobulerias: 'f-bulerias', flamencotangos: 'f-tangos',
     balkansevdah: 'bk-sevdah', balkantsifte: 'bk-tsifte',
     rockroll: 'r-roll', rockclassic: 'r-classic', hardrock: 'r-hard', punk: 'r-punk', rockballad: 'r-ballad', bluesrock: 'r-blues', indierock: 'r-indie' };
