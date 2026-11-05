@@ -50,6 +50,11 @@ describe('bassNote', () => {
     test('la basse sonne une octave plus bas que le piano', () => {
         assert.equal(N.bassNote(env(), 0, 0, 1).noteStr, 'C2');
     });
+    test('gainMul : coefficient de niveau d\'une note (basse qui mène) ; 1 par défaut', () => {
+        const base = N.bassNote(env(), 0, 5, 1, 0.9, true).opts.gain;
+        close(N.bassNote(env(), 0, 5, 1, 0.9, true, 1).opts.gain, base);
+        close(N.bassNote(env(), 0, 5, 1, 0.9, true, 1.18).opts.gain, base * 1.18);
+    });
 });
 
 describe('pianoNotes', () => {

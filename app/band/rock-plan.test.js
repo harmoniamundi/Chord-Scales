@@ -53,8 +53,10 @@ describe('données des rythmes rock', () => {
             assert.equal(D.snare.length, 16, g + ' snare');
             (D.ghost || []).forEach(p => assert.equal(p.length, 16, g + ' ghost'));
             G.bass[l].forEach(p => assert.equal(p.length, 16, g + ' bass'));
-            const gt = G.guitar[l];
+            const gt = G.guitar && G.guitar[l];   // null : pas de guitare électrique (rock'n'roll des années 50)
+            if (!gt) return;
             if (gt.mode !== 'boogie' && gt.mode !== 'arp') gt.pats.forEach(p => assert.equal(p.length, 16, g + ' gtr'));
+            (gt.arpBar || []).forEach(p => assert.equal(p.split(' ').length, 8, g + ' arpBar'));
             if (gt.mode === 'boogie') gt.pats.forEach(p => assert.equal(p.split(' ').length, 8, g + ' boogie'));
         }));
     });
@@ -148,7 +150,8 @@ describe('plans rock : validité', () => {
         R.ROCK_GROOVES.forEach(g => {
             const ms = run(g, 2);
             assert.ok(ms.every(({ plan }) => plan.drums.some(d => d.drum === 'rkick')), g + ' grosse caisse à chaque mesure');
-            assert.ok(ms.some(({ plan }) => plan.piano.some(e => e.inst === 'gtr')), g + ' guitare');
+            if (g === 'r-roll') assert.ok(ms.every(({ plan }) => !plan.piano.some(e => e.inst === 'gtr')), g + ' : pas de guitare électrique');
+            else assert.ok(ms.some(({ plan }) => plan.piano.some(e => e.inst === 'gtr')), g + ' guitare');
             assert.ok(ms.some(({ plan }) => plan.bass.length >= 2), g + ' basse');
         });
     });
@@ -200,6 +203,200 @@ describe('plans rock : idiome', () => {
         assert.equal(pad(p1, 'organ').length, 0);
         assert.equal(pad(p1, 'strings').length, 0);
         assert.ok(pad(p0, 'organ')[0].dur > 4);
+    });
+});
+
+// Signature d'une mesure de guitare : positions, durées et nombre de cordes de chaque coup
+const gtrSig = (plan) => plan.piano.filter(e => e.inst === 'gtr').map(e => e.pos + '/' + e.dur.toFixed(2) + '/' + e.intervals.length + '/' + e.art).join(',');
+const gtrOf = (plan) => plan.piano.filter(e => e.inst === 'gtr');
+
+describe('rock\'n\'roll des années 50 : la basse mène, sans guitare électrique', () => {
+    test('aucune guitare, ni dans les données ni dans les plans, quelle que soit la transposition', () => {
+        assert.equal(R.ROCK['r-roll'].guitar, null);
+        [0, -2, -9].forEach(off => [1, 2, 3].forEach(seed => run('r-roll', seed, off, { halves: seed % 2 === 0 }).forEach(({ plan, ph }) => {
+            assert.equal(gtrOf(plan).length, 0);
+            assert.equal(typeof ph.gtrTone, 'string');
+            assert.ok(plan.tone in require('../audio/rock-synths.js').AMP_TONES);
+        })));
+    });
+    test('la contrebasse est signalée (upright) et chaque note de basse porte un coefficient de niveau supérieur à 1', () => {
+        run('r-roll', 2).forEach(({ plan }) => {
+            assert.equal(plan.upright, true);
+            plan.bass.forEach(b => assert.ok(b.gainMul > 1, 'gainMul ' + b.gainMul));
+        });
+        ['r-classic', 'r-hard', 'r-punk', 'r-blues', 'r-indie', 'r-ballad'].forEach(g => run(g, 2).forEach(({ plan }) => {
+            assert.ok(!plan.upright, g);
+            plan.bass.forEach(b => assert.equal(b.gainMul, undefined, g));
+        }));
+    });
+    test('la basse joue une ligne qui marche : plus de notes qu\'avant, des tierces, sixtes et septièmes, accents sur les temps 2 et 4', () => {
+        const toks = new Set(); let notes = 0, accent = 0, soft = 0, measures = 0;
+        for (let seed = 1; seed <= 6; seed++) run('r-roll', seed).forEach(({ plan }) => {
+            measures++; notes += plan.bass.length;
+            plan.bass.forEach(b => {
+                toks.add(b.tok);
+                if (b.pos === 1 || b.pos === 3) accent += b.vel; else if (b.pos % 1 !== 0) soft += b.vel;
+            });
+        });
+        ['R', 'T', 'F', '6', '7'].forEach(t => assert.ok(toks.has(t), t));
+        assert.ok(notes / measures >= 3.5, 'notes par mesure ' + notes / measures);
+        const n24 = [...Array(6)].reduce((n, _, k) => n + run('r-roll', k + 1).reduce((m, { plan }) => m + plan.bass.filter(b => b.pos === 1 || b.pos === 3).length, 0), 0);
+        const nOff = [...Array(6)].reduce((n, _, k) => n + run('r-roll', k + 1).reduce((m, { plan }) => m + plan.bass.filter(b => b.pos % 1 !== 0).length, 0), 0);
+        assert.ok(accent / n24 > soft / nOff, 'les temps 2 et 4 sont plus appuyés que les contretemps');
+    });
+    test('la basse est plus forte que le piano et la batterie (vélocité moyenne), et le piano n\'a pas de marche de basse en main gauche', () => {
+        const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+        const bass = [], piano = [], drums = [];
+        for (let seed = 1; seed <= 4; seed++) run('r-roll', seed).forEach(({ plan }) => {
+            plan.bass.forEach(b => bass.push(b.vel * b.gainMul));
+            plan.piano.forEach(e => piano.push(e.vel));
+            plan.drums.filter(d => d.drum === 'rkick' || d.drum === 'rsnare').forEach(d => drums.push(d.vel));
+        });
+        assert.ok(mean(bass) > mean(piano), 'basse ' + mean(bass) + ' piano ' + mean(piano));
+        assert.ok(mean(bass) > mean(drums), 'basse ' + mean(bass) + ' batterie ' + mean(drums));
+    });
+    test('en fin de phrase, la basse monte vers l\'accord suivant (course de quatre notes sur les deux derniers temps)', () => {
+        let runs = 0;
+        for (let seed = 1; seed <= 12; seed++) run('r-roll', seed).filter(({ i }) => i === 3).forEach(({ plan }) => {
+            if (plan.bass.filter(b => b.pos >= 2 && b.pos < 4 && b.pos % 0.5 === 0).length >= 4) runs++;
+        });
+        assert.ok(runs >= 8, 'courses : ' + runs);
+    });
+    test('le rock\'n\'roll garde son piano (boogie au couplet, accords martelés au refrain)', () => {
+        const ms = run('r-roll', 3);
+        assert.ok(ms.some(({ plan, ph }) => !ph.rockHi && plan.piano.length > 0));
+        assert.ok(ms.some(({ plan, ph }) => ph.rockHi && plan.piano.filter(e => !e.inst || e.inst === 'piano').length >= 6));
+    });
+});
+
+describe('rock des années 70 : une guitare moins mécanique', () => {
+    test('les mesures d\'un morceau sont rarement identiques : beaucoup de motifs de guitare différents', () => {
+        let total = 0, distinct = 0, same = 0;
+        for (let seed = 1; seed <= 8; seed++) {
+            const ms = run('r-classic', seed);
+            total += ms.length; distinct += new Set(ms.map(({ plan }) => gtrSig(plan))).size;
+            ms.forEach((x, k) => { if (k && gtrSig(x.plan) === gtrSig(ms[k - 1].plan)) same++; });
+        }
+        assert.ok(distinct / total > 0.55, 'motifs distincts / mesures : ' + distinct / total);
+        assert.ok(same / total < 0.05, 'mesures consécutives identiques : ' + same);
+    });
+    test('à l\'intérieur d\'une phrase de quatre mesures, la guitare ne joue pas partout le même rythme', () => {
+        for (let seed = 1; seed <= 8; seed++) {
+            const ms = run('r-classic', seed, 0, { phrases: 2 });
+            [0, 4].forEach(a => assert.ok(new Set(ms.slice(a, a + 4).map(({ plan }) => gtrSig(plan))).size >= 3, 'seed ' + seed));
+        }
+    });
+    test('mélange de coups descendants, montants, sourds, d\'accords tenus et d\'arpèges', () => {
+        const dirs = new Set(), arts = new Set(); let longChord = 0, arpBars = 0, sus = 0;
+        for (let seed = 1; seed <= 20; seed++) run('r-classic', seed).forEach(({ plan }) => {
+            const g = gtrOf(plan);
+            g.forEach(e => { dirs.add(e.dir); arts.add(e.art); if (e.art === 'strum' && e.dur >= 1.4) longChord++; });
+            if (g.length && g.every(e => e.art === 'arp')) arpBars++;
+            if (g.some(e => e.intervals.length === 5 && e.intervals[3] - e.intervals[0] === 17)) sus++;
+        });
+        assert.ok(dirs.has(1) && dirs.has(-1));
+        ['strum', 'dead', 'arp'].forEach(a => assert.ok(arts.has(a), a));
+        assert.ok(longChord > 20, 'accords tenus : ' + longChord);
+        assert.ok(arpBars > 3, 'mesures d\'arpège : ' + arpBars);
+        assert.ok(sus > 0, 'retombée sus4');
+    });
+    test('le jeu est humain : délais entre cordes et retards variés, jamais le même d\'un coup à l\'autre', () => {
+        const rolls = new Set(), lays = new Set();
+        for (let seed = 1; seed <= 4; seed++) run('r-classic', seed).forEach(({ plan }) => gtrOf(plan).forEach(e => { rolls.add(e.roll.toFixed(4)); lays.add((e.lay || 0).toFixed(4)); }));
+        assert.ok(rolls.size > 20 && lays.size > 20, rolls.size + ' / ' + lays.size);
+    });
+    test('un accord qui change au milieu de la mesure est suivi par la guitare (y compris dans une mesure d\'arpège)', () => {
+        for (let seed = 1; seed <= 6; seed++) run('r-classic', seed, 0, { halves: true }).forEach(({ plan }) => gtrOf(plan).forEach(e => assert.ok(e.pos >= 0 && e.pos < 4)));
+    });
+});
+
+describe('hard rock : des accords de longueurs différentes', () => {
+    const lens = (g, seeds = 12) => {
+        const out = [];
+        for (let seed = 1; seed <= seeds; seed++) run(g, seed, 0, { phrases: 4 }).forEach(({ plan }) => gtrOf(plan).filter(e => e.art === 'strum').forEach(e => out.push(+e.dur.toFixed(2))));
+        return out;
+    };
+    test('les accords de puissance ne durent pas tous pareil : coups brefs, accords d\'un temps, de deux temps et de toute la mesure', () => {
+        const d = lens('r-hard');
+        assert.ok(new Set(d).size >= 8, 'durées distinctes : ' + new Set(d).size);
+        assert.ok(d.some(x => x <= 0.6) && d.some(x => x >= 0.9 && x <= 1.1) && d.some(x => x >= 1.9) && d.some(x => x >= 3.9), d.join());
+    });
+    test('par mesure, la guitare mêle des durées différentes (au moins deux longueurs dans la plupart des mesures qui comptent plusieurs accords)', () => {
+        let multi = 0, varied = 0;
+        for (let seed = 1; seed <= 10; seed++) run('r-hard', seed).forEach(({ plan }) => {
+            const ch = gtrOf(plan).filter(e => e.art === 'strum');
+            if (ch.length >= 3) { multi++; if (new Set(ch.map(e => e.dur.toFixed(1))).size >= 2) varied++; }
+        });
+        assert.ok(multi > 20 && varied / multi > 0.8, varied + '/' + multi);
+    });
+    // Comme dans le moteur : un bloc de la grille garde le même accord pendant ses quatre mesures, le suivant n'est annoncé qu'à la dernière.
+    const runSteps = (groove, seed) => {
+        const env = mkEnv(); const out = []; let prev = null;
+        for (let p = 0; p < 4; p++) {
+            const ph = mkPhrase(seed, p, groove, prev); prev = ph;
+            for (let i = 0; i < 4; i++) out.push({ plan: buildPopPlan(env, CHORDS[p % 4], CHORDS[(p + 1) % 4], i === 3, null, ph, i, 4, i === 3, p * 4 + i), ph, i });
+        }
+        return out;
+    };
+    test('un accord peut durer six temps : sonnerie au-delà de la barre de mesure, sans ré-attaque avant le troisième temps de la mesure suivante', () => {
+        let found = 0;
+        for (let seed = 1; seed <= 20; seed++) {
+            const ms = runSteps('r-hard', seed);
+            ms.forEach(({ plan }, k) => {
+                const hold = gtrOf(plan).find(e => e.dur > 5);
+                if (!hold) return;
+                found++;
+                assert.equal(hold.pos, 0); assert.ok(hold.dur < 6.1);
+                const nx = ms[k + 1];
+                if (nx) assert.ok(gtrOf(nx.plan).every(e => e.pos >= 2 - 1e-9), 'pas de ré-attaque avant le temps 3, graine ' + seed + ' mesure ' + (k + 1));
+            });
+        }
+        assert.ok(found >= 5, 'accords de six temps : ' + found);
+    });
+    test('l\'accord tenu n\'est jamais prolongé si l\'accord change (ni dans la grille, ni au milieu de la mesure suivante)', () => {
+        const env = mkEnv(); const A = CHORDS[0], B = CHORDS[2];
+        const ph = { rng: seeded(5), style: 'pop', ...popPhraseExtras(seeded(5), null, 2, 'r-hard'), gtrHoldOn: true, gtrHoldAt: 0 };
+        // accord suivant différent : pas de tenue
+        assert.ok(!gtrOf(buildPopPlan(env, A, B, true, null, ph, 0, 4, false, 0)).some(e => e.dur > 5));
+        // mesure suivante coupée en deux accords : la tenue s'arrête avec la première moitié (sixième temps), la deuxième moitié joue normalement
+        const e2 = mkEnv();
+        const p0 = buildPopPlan(e2, A, A, false, null, ph, 0, 4, false, 10);
+        assert.ok(gtrOf(p0).some(e => e.dur > 5));
+        const p1 = buildPopPlan(e2, A, A, false, [A, B], ph, 1, 4, false, 11);
+        assert.ok(gtrOf(p1).some(e => e.pos < 2));
+    });
+    test('les cinq autres rythmes ne gardent pas d\'accord de six temps', () => {
+        ['r-classic', 'r-punk', 'r-blues', 'r-indie', 'r-ballad'].forEach(g => {
+            for (let seed = 1; seed <= 5; seed++) run(g, seed).forEach(({ plan }) => gtrOf(plan).forEach(e => assert.ok(e.dur < 5, g)));
+        });
+    });
+});
+
+describe('punk : des accords moins mécaniques', () => {
+    test('les mesures ne se répètent pas à l\'identique : motifs, accents, grattés sourds, paumes étouffées', () => {
+        let total = 0, distinct = 0, same = 0; const arts = new Set(), vels = new Set();
+        for (let seed = 1; seed <= 8; seed++) {
+            const ms = run('r-punk', seed);
+            total += ms.length; distinct += new Set(ms.map(({ plan }) => gtrSig(plan))).size;
+            ms.forEach((x, k) => { if (k && gtrSig(x.plan) === gtrSig(ms[k - 1].plan)) same++; gtrOf(x.plan).forEach(e => { arts.add(e.art); vels.add(e.vel.toFixed(2)); }); });
+        }
+        assert.ok(distinct / total > 0.45, 'motifs distincts / mesures : ' + distinct / total);
+        assert.ok(same / total < 0.1, 'mesures consécutives identiques : ' + same);
+        ['strum', 'mute', 'dead'].forEach(a => assert.ok(arts.has(a), a));
+        assert.ok(vels.size > 15, 'nuances : ' + vels.size);
+    });
+    test('le punk reste du punk : accords de puissance (trois cordes), coups descendants en majorité, huitièmes droites', () => {
+        let down = 0, total = 0;
+        for (let seed = 1; seed <= 6; seed++) run('r-punk', seed).forEach(({ plan }) => gtrOf(plan).forEach(e => {
+            if (e.art === 'strum') { total++; if (e.dir === 1) down++; assert.ok(e.intervals.length === 3, 'power chord'); }
+        }));
+        assert.ok(down / total > 0.95);
+        assert.ok(R.ROCK['r-punk'].swing === 0.5);
+    });
+    test('la guitare joue des durées différentes (accords tenus, relances en doubles croches)', () => {
+        const d = new Set();
+        for (let seed = 1; seed <= 12; seed++) run('r-punk', seed).forEach(({ plan }) => gtrOf(plan).forEach(e => d.add(e.dur.toFixed(1))));
+        assert.ok(d.size >= 5, [...d].join());
     });
 });
 

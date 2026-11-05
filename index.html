@@ -2801,12 +2801,14 @@
 
             // --- Basse ---
 
-            playBassAbs(absSemi, time, duration, vel = 0.85, wide = false) {
-                const inst = ((this.bandStyle === 'pop' || this.bandStyle === 'cumbia') && this.bassInstrumentPop) ? this.bassInstrumentPop : this.bassInstrument;
+            // upright : contrebasse (rock'n'roll des années 50) même dans l'orchestre Pop-Rock, qui joue sinon la basse électrique ;
+            // gainMul : coefficient de niveau de la note (basse qui mène).
+            playBassAbs(absSemi, time, duration, vel = 0.85, wide = false, upright = false, gainMul = 1) {
+                const inst = (!(upright && this.bassInstrument) && (this.bandStyle === 'pop' || this.bandStyle === 'cumbia') && this.bassInstrumentPop) ? this.bassInstrumentPop : this.bassInstrument;
                 if (!inst) return;
                 // soundfont-player n'honore l'option "destination" qu'à la création de l'instrument, pas par note : le curseur
                 // de volume de la basse est donc appliqué directement au gain de la note (wide : dynamique élargie, style Pop).
-                const n = bassNote(this._noteEnv(), absSemi, time, duration, vel, wide);
+                const n = bassNote(this._noteEnv(), absSemi, time, duration, vel, wide, gainMul);
                 this._playNotes(inst, [n]);
             }
 
@@ -2991,7 +2993,7 @@
 
             // ===================== Orchestration POP : le calcul est dans band/pop-plan.js =====================
             buildPopPlan(step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                return this._bandRun(['popVoice', 'popRunAt', 'bandLastFill', 'rockStrV', 'rockPad'], env => buildPopPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m));
+                return this._bandRun(['popVoice', 'popRunAt', 'bandLastFill', 'rockStrV', 'rockPad', 'rockGtrHold'], env => buildPopPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m));
             }
 
             // ===================== Orchestration LATIN =====================
@@ -3469,7 +3471,7 @@
                 // Léger jitter d'humanisation (±6 ms), jamais dans le passé
                 const at = (e) => Math.max(now, now + (e.pos - beatInMeasure) * beatSec + (e.lay || 0) + (Math.random() - 0.5) * 0.012);
                 plan.drums.filter(inBeat).forEach(e => this.playBandDrum(e, at(e)));
-                plan.bass.filter(inBeat).forEach(e => plan.piazzolla ? this.playPiazzollaBass(e, at(e), beatSec) : plan.brass ? this.playTubaAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), e.art) : this.playBassAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), !!e.wide));
+                plan.bass.filter(inBeat).forEach(e => plan.piazzolla ? this.playPiazzollaBass(e, at(e), beatSec) : plan.brass ? this.playTubaAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), e.art) : this.playBassAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), !!e.wide, !!plan.upright, e.gainMul || 1));
                 plan.piano.filter(inBeat).forEach(e => plan.rock ? this.playRockHit(e, at(e), beatSec) : plan.classicalGuitar ? this.playClassicalGuitarHit(e, at(e), beatSec) : plan.piazzolla ? this.playPiazzollaHit(e, at(e), beatSec) : plan.brass ? this.playBrassHit(e, at(e), beatSec) : (plan.accordion ? this.playAccordionHit(e, at(e), beatSec) : (plan.guitar ? this.playGuitarHit(e, at(e), beatSec) : this.playPianoHit(e, at(e), beatSec))));
             }
 

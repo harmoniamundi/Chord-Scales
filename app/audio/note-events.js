@@ -32,13 +32,14 @@ const OCT = NE_CONST.PLAY_BASE_OCTAVE;
 const randOf = (env) => env.rand || Math.random;
 
 // Basse (une note). time est utilisé tel quel.
-function bassNote(env, absSemi, time, duration, vel = 0.85, wide = false) {
+// gainMul : coefficient de niveau propre à la note (la basse « qui mène » du rock'n'roll des années 50 dépasse un peu le plafond habituel).
+function bassNote(env, absSemi, time, duration, vel = 0.85, wide = false, gainMul = 1) {
     return {
         noteStr: playNoteName(env.instrumentKey, absSemi, 0, OCT - 1),
         when: time,
         opts: {
             duration,
-            gain: (wide ? Math.min(1.05, 0.35 + 0.75 * vel) : Math.min(1.05, 0.6 + 0.45 * vel)) * env.bassVolume
+            gain: (wide ? Math.min(1.05, 0.35 + 0.75 * vel) : Math.min(1.05, 0.6 + 0.45 * vel)) * env.bassVolume * gainMul
         }
     };
 }
