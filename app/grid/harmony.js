@@ -243,6 +243,12 @@ function functionAlternatives(chord, next = null, keyOverride = null, env = {}) 
             r !== 7 ? it(`V${suf}/${R(tSec)}`, `Dominante secondaire (tonicisation) : résout sur ${R(tSec)} (${K(tSec)}), une quinte plus bas`) : null,
             chainItem
         ]);
+        // Chiffrage par degré des dominantes étendues (cycle de dominantes : III7 – VI7 – II7 – V7 – I) : II7, III7, VI7 et VII7,
+        // c'est-à-dire les degrés où la gamme porte un accord mineur ou diminué. I7, IV7, ♭III7 et ♭VI7 sont traités plus bas
+        // (emprunts modaux), V7 est la dominante principale.
+        if ([2, 4, 9, 11].includes(r)) add('Degré', [
+            it(`${R(r)}${suf}`, `Dominante sur le degré ${R(r)} (${K(r)}) : dominante étendue du cycle des quintes, résout sur ${R(tSec)} (${K(tSec)})`)
+        ]);
         const tTri = mod(r + 11);
         const tBd = mod(r + 2);
         add('Substitutions', [

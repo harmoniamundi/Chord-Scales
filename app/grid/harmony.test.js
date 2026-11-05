@@ -140,6 +140,23 @@ describe('lectures alternatives', () => {
         assert.ok(lab(g).some(l => l.startsWith('V7 de ')));
         g.find(x => x.title === 'Modulation').items.forEach(i => assert.ok(i.mod && Number.isInteger(i.mod.root)));
     });
+    test('dominante sur II, III, VI, VII : chiffrage par degré (II7, III7, VI7, VII7), en plus de V7/x', () => {
+        // Ré majeur : E7 = II7, F#7 = III7, B7 = VI7, C#7 = VII7
+        for (const [root, label, target] of [[4, 'II7', 'V7/V'], [6, 'III7', 'V7/VI'], [11, 'VI7', 'V7/II'], [1, 'VII7', 'V7/III']]) {
+            const g = alt(ch(root, '7'), null, 2);
+            const deg = g.find(x => x.title === 'Degré');
+            assert.ok(deg, `${label} : groupe Degré`);
+            assert.deepEqual(deg.items.map(i => i.label), [label]);
+            assert.ok(lab(g).includes(target), `${label} garde ${target}`);
+        }
+    });
+    test('dominante : pas de doublon « Degré » sur I7, IV7, V7 ni sur les emprunts (♭III7, ♭VI7)', () => {
+        for (const r of [0, 3, 5, 7, 8]) assert.ok(!titles(alt(ch(r, '7'))).includes('Degré'), `r=${r}`);
+    });
+    test('dominante : le suffixe suit le type d\'accord (7sus, +)', () => {
+        assert.ok(lab(alt(ch(9, '7sus4'))).includes('VI7sus'));
+        assert.ok(lab(alt(ch(9, 'augTriad'))).includes('VI+'));
+    });
     // Pont de « I Got Rhythm » en Si♭ : D7 → G7 → C7 → F7 → B♭ (cycle des dominantes)
     const BB = 10, D = 2, G = 7, C = 0, F = 5;
     const bridge = (idx, key = BB) => {
