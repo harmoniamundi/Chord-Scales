@@ -187,3 +187,27 @@ describe('modifications (la portée d’origine n’est jamais changée)', () =>
         assert.equal(S.formatStaff(S.shiftEvent(P('t,4/4,0;q:c1'), 0, -1)), 't,4/4,0;q:c1', 'pas sous l’octave 1');
     });
 });
+
+describe('taille d’affichage de la portée', () => {
+    test('par défaut 100 % : absente du texte ; autre taille : 4e champ de l’en-tête, aller-retour identique', () => {
+        assert.equal(P('t,4/4,0;q:c4').size, 100);
+        assert.equal(S.formatStaff(P('t,4/4,0,100;q:c4')), 't,4/4,0;q:c4');
+        for (const t of ['t,4/4,0,60;q:c4', 'b,6/8,-2,150;8t:bb3', 't,3/4,7,200;']) assert.equal(S.formatStaff(P(t)), t, t);
+        assert.equal(P('t,4/4,0,150;q:c4').size, 150);
+    });
+    test('tailles invalides refusées (hors 60-200, pas de 10, pas un nombre)', () => {
+        for (const t of ['t,4/4,0,50;', 't,4/4,0,210;', 't,4/4,0,155;', 't,4/4,0,abc;', 't,4/4,0,;', 't,4/4,0,100,1;', 't,4/4,0,-100;']) assert.equal(P(t), null, t);
+    });
+    test('clampStaffSize arrondit au pas de 10 et borne', () => {
+        assert.equal(S.clampStaffSize(33), 60);
+        assert.equal(S.clampStaffSize(999), 200);
+        assert.equal(S.clampStaffSize('124'), 120);
+        assert.equal(S.clampStaffSize('x'), 100);
+    });
+    test('les modifications gardent la taille', () => {
+        const st = P('t,4/4,0,150;q:c4 q:d4');
+        for (const out of [S.insertEvent(st, 1, { d: 'q', p: { l: 'e', o: 4, a: 0 } }), S.removeEvent(st, 0), S.updateEvent(st, 0, { d: 'h' }), S.alterEvent(st, 0, 1), S.shiftEvent(st, 0, 1), S.cloneStaff(st)]) {
+            assert.equal(out.size, 150);
+        }
+    });
+});

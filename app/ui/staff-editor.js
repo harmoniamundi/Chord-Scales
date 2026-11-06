@@ -9,7 +9,7 @@
 // Sous Node (tests), le format se charge ; en navigateur ce sont des globaux (ui/staff-notes.js).
 const NSE_N = (typeof parseStaff !== 'undefined')
     ? { parseStaff, formatStaff, staffDefault, layoutStaff, meterBeamUnits, pitchFromDia, pitchDia, pitchLabel, pitchMidi, midiToName, diaFromY, yFromDia,
-        playbackPlan, insertEvent, removeEvent, updateEvent, alterEvent, shiftEvent, cloneStaff, SN_KEY_NAMES, SN_KEY_LABELS, SN_BOTTOM_LINE, SN_METERS }
+        playbackPlan, insertEvent, removeEvent, updateEvent, alterEvent, shiftEvent, cloneStaff, SN_KEY_NAMES, SN_KEY_LABELS, SN_BOTTOM_LINE, SN_METERS, SN_SIZE_MIN, SN_SIZE_MAX, SN_SIZE_STEP, SN_SIZE_DEFAULT, clampStaffSize }
     : require('./staff-notes.js');
 
 const NSE_SPACING = 10;        // écart entre deux lignes de la portée (pixels)
@@ -25,7 +25,8 @@ const NSE_BLUE = '#2563eb';
 function drawNoteStaff(host, st, opts = {}) {
     const VF = Vex.Flow;
     host.innerHTML = '';
-    const W = Math.max(260, Math.floor(opts.width || host.clientWidth || 600));
+    const zoom = (st.size || NSE_N.SN_SIZE_DEFAULT) / 100; // taille d'affichage : on dessine en grandeur normale puis on agrandit / réduit
+    const W = Math.max(260, Math.floor((opts.width || host.clientWidth || 600) / zoom)); // largeur « logique » disponible
     const clef = st.clef === 'b' ? 'bass' : 'treble';
     const restKey = st.clef === 'b' ? 'd/3' : 'b/4';
     const keyName = NSE_N.SN_KEY_NAMES[st.ks];
@@ -94,8 +95,13 @@ function drawNoteStaff(host, st, opts = {}) {
     renderer.resize(W, height);
     const ctx = renderer.getContext();
     const svg = host.querySelector('svg');
-    if (svg) { svg.style.display = 'block'; svg.style.overflow = 'visible'; svg.setAttribute('width', String(W)); svg.setAttribute('height', String(height)); }
-    const geo = { width: W, height, lines: [], notes: [] };
+    if (svg) {
+        svg.style.display = 'block'; svg.style.overflow = 'visible';
+        svg.setAttribute('viewBox', `0 0 ${W} ${height}`);
+        svg.setAttribute('width', String(Math.round(W * zoom))); svg.setAttribute('height', String(Math.round(height * zoom)));
+        svg.style.width = `${Math.round(W * zoom)}px`; svg.style.maxWidth = '100%'; svg.style.height = 'auto'; // trop grand pour la zone : il se réduit sans se déformer
+    }
+    const geo = { width: W, height, zoom, lines: [], notes: [] };
     const tieJobs = []; // { from: {note, line}, to: {note, line} }
     let tiePending = null;
     lines.forEach((ln, li) => {
@@ -198,6 +204,12 @@ function nseToolsHtml(st, cur) {
         <select class="ns-sel" data-set="clef" aria-label="Clé"><option value="t"${st.clef === 't' ? ' selected' : ''}>Clé de sol</option><option value="b"${st.clef === 'b' ? ' selected' : ''}>Clé de fa</option></select>
         <select class="ns-sel" data-set="meter" aria-label="Mesure">${meters}</select>
         <select class="ns-sel ns-sel-key" data-set="ks" aria-label="Armure">${nseKeyOptions(st.ks)}</select>
+        <span class="ns-sep"></span>
+        <label class="ns-zoom" title="Taille de la portée">
+            <span class="ns-zoom-lab" aria-hidden="true">Taille</span>
+            <input type="range" class="ns-range" data-set="size" min="${NSE_N.SN_SIZE_MIN}" max="${NSE_N.SN_SIZE_MAX}" step="${NSE_N.SN_SIZE_STEP}" value="${st.size || NSE_N.SN_SIZE_DEFAULT}" aria-label="Taille de la portée en pourcentage">
+            <output class="ns-zoom-val">${st.size || NSE_N.SN_SIZE_DEFAULT} %</output>
+        </label>
         <span class="ns-sep"></span>
         <div class="ns-grp">
             <button type="button" class="ns-btn ns-play" data-act="play" title="Écouter la portée" aria-label="Écouter la portée">▶</button>
@@ -316,6 +328,9 @@ class NoteStaffView {
         const del = this.tools.querySelector('[data-act="del"]'); if (del) del.disabled = this.sel < 0;
         const un = this.tools.querySelector('[data-act="undo"]'); if (un) un.disabled = this.history.length === 0;
         const play = this.tools.querySelector('[data-act="play"]'); if (play) play.textContent = this.playing ? '■' : '▶';
+        const sz = this.tools.querySelector('[data-set="size"]');
+        if (sz && document.activeElement !== sz) sz.value = String(this.st.size || NSE_N.SN_SIZE_DEFAULT);
+        const szv = this.tools.querySelector('.ns-zoom-val'); if (szv) szv.textContent = `${this.st.size || NSE_N.SN_SIZE_DEFAULT} %`;
         ['clef', 'meter', 'ks'].forEach(k => {
             const s = this.tools.querySelector(`[data-set="${k}"]`);
             if (s) s.value = String(k === 'clef' ? this.st.clef : (k === 'meter' ? this.st.meter : this.st.ks));
@@ -386,6 +401,7 @@ class NoteStaffView {
         const host = this.svgHost;
         this.tools.addEventListener('click', (ev) => this._toolClick(ev));
         this.tools.addEventListener('change', (ev) => this._toolChange(ev));
+        this.tools.addEventListener('input', (ev) => this._toolInput(ev));
         host.addEventListener('pointerdown', (ev) => this._pointerDown(ev));
         host.addEventListener('pointermove', (ev) => this._pointerMove(ev));
         host.addEventListener('pointerleave', () => this._hideGhost());
@@ -394,7 +410,10 @@ class NoteStaffView {
     _local(ev) {
         const svg = this.svgHost.querySelector('svg');
         const r = (svg || this.svgHost).getBoundingClientRect();
-        return { x: ev.clientX - r.left, y: ev.clientY - r.top };
+        // Les positions de la géométrie sont en unités du dessin : on convertit les pixels de l'écran (la portée peut être agrandie ou réduite).
+        const k = this.geo && r.width > 0 ? this.geo.width / r.width : 1;
+        this._k = k;
+        return { x: (ev.clientX - r.left) * k, y: (ev.clientY - r.top) * k };
     }
 
     _lineAt(y) {
@@ -406,12 +425,13 @@ class NoteStaffView {
     _hitEvent(pt) {
         if (!this.geo) return -1;
         let best = -1, bestD = 1e9;
+        const tol = Math.max(1, this._k || 1); // portée réduite : la zone de clic reste d'au moins 11 pixels à l'écran
         for (const r of this.geo.notes) {
             const dx = Math.abs(pt.x - r.x);
-            if (dx > 11) continue;
+            if (dx > 11 * tol) continue;
             const L = this.geo.lines[r.line];
             const dy = r.rest ? ((pt.y >= L.bottomY - 4 * NSE_SPACING - 4 && pt.y <= L.bottomY + 4) ? 0 : 99) : Math.abs(pt.y - r.y);
-            if (dy > 8) continue;
+            if (dy > 8 * tol) continue;
             const d = dx + dy;
             if (d < bestD) { bestD = d; best = r.ev; }
         }
@@ -462,7 +482,7 @@ class NoteStaffView {
         const lineIdx = line ? line.line : 0;
         const onMove = (e2) => {
             const p2 = this._local(e2);
-            if (!moved && Math.abs(p2.y - pt.y) < 4) return;
+            if (!moved && Math.abs(p2.y - pt.y) < 4 * Math.max(1, this._k || 1)) return;
             const dia = this._diaAt(p2, lineIdx);
             const np = NSE_N.pitchFromDia(dia, this.st.ks);
             const e0 = this.st.ev[dragEv];
@@ -502,8 +522,9 @@ class NoteStaffView {
             g.innerHTML = '<i></i><span></span>';
             this.svgHost.appendChild(g);
         }
-        g.style.left = `${pt.x - 6}px`;
-        g.style.top = `${y - 4.5}px`;
+        const back = 1 / (this._k || 1); // unités du dessin → pixels de l'écran
+        g.style.left = `${pt.x * back - 6}px`;
+        g.style.top = `${y * back - 4.5}px`;
         g.lastChild.textContent = NSE_N.pitchLabel(p);
     }
 
@@ -559,6 +580,14 @@ class NoteStaffView {
         this._refreshTools();
     }
 
+    // Curseur de taille : la portée suit le curseur en direct (sans encombrer l'historique d'annulation).
+    _toolInput(ev) {
+        const r = ev.target.closest('input[data-set="size"]');
+        if (!r || !this.editable) return;
+        this.activate();
+        this._apply(Object.assign(NSE_N.cloneStaff(this.st), { size: NSE_N.clampStaffSize(r.value) }), { noHistory: true });
+    }
+
     _toolChange(ev) {
         const s = ev.target.closest('select');
         if (!s || !this.editable) return;
@@ -581,7 +610,7 @@ class NoteStaffView {
     // ----- Clavier (appelé par l'annotation quand la portée est active) : renvoie true si la touche a été utilisée -----
 
     handleKey(ev) {
-        if (!this.editable || ev.target.closest('select')) return false;
+        if (!this.editable || ev.target.closest('select, input')) return false;
         const act = nseKeyAction(ev.key, { shift: ev.shiftKey, meta: ev.metaKey, ctrl: ev.ctrlKey });
         if (!act) return false;
         const has = this.sel >= 0 && this.st.ev[this.sel];

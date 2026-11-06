@@ -373,3 +373,10 @@ describe('annotations avec portée : import et grille', () => {
         assert.equal(b.note, 'Lick');
     });
 });
+
+describe('sanitizeNoteHtml : taille de portée', () => {
+    test('la taille passe, une taille invalide supprime la portée', () => {
+        assert.equal(F.sanitizeNoteHtml('a<div class="annot-staff" data-staff="t,4/4,0,150;q:c4"></div>'), 'a<div class="annot-staff" data-staff="t,4/4,0,150;q:c4"></div>');
+        assert.equal(F.sanitizeNoteHtml('a<div class="annot-staff" data-staff="t,4/4,0,155;q:c4"></div>'), 'a');
+    });
+});

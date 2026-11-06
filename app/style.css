@@ -944,3 +944,8 @@
 /* Mode « à l'aveugle » : les annotations (écrites par le musicien) restent visibles, contrairement aux gammes */
 #view-jam.jam-playing.jam-blind #jam-scales-card.jam-annot-mode #jam-scale-visualizer { visibility: visible; }
 #view-jam.jam-playing.jam-blind #jam-scales-card.jam-annot-mode #jam-blind-scales-note { display: none; }
+
+/* Curseur de taille de la portée (barre d'outils de la portée) */
+.ns-zoom { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 8px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #cbd5e1; font: 600 12px system-ui, sans-serif; cursor: pointer; }
+.ns-range { width: 84px; height: 18px; margin: 0; accent-color: #3b82f6; cursor: pointer; }
+.ns-zoom-val { min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; color: #e2e8f0; }

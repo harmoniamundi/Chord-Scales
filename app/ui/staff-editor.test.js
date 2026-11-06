@@ -68,6 +68,10 @@ describe('nseToolsHtml : barre d’outils de la portée', () => {
             assert.ok(html.includes(needle), needle);
         }
     });
+    test('curseur de taille : bornes et valeur de la portée', () => {
+        assert.ok(html.includes('data-set="size"') && html.includes('min="60"') && html.includes('max="200"') && html.includes('value="100"'));
+        assert.ok(E.nseToolsHtml(S.parseStaff('t,4/4,0,150;q:c4')).includes('value="150"'));
+    });
     test('clé, mesure et armure reflètent la portée', () => {
         assert.ok(html.includes('<option value="b" selected>'));
         assert.ok(html.includes('<option value="6/8" selected>'));

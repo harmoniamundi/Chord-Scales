@@ -30,19 +30,32 @@ const SN_EVENT_RE = /^(w|h|q|8|16)(\.)?(t)?(?::([a-g])(##|#|bb|b)?([1-7])|(r))$/
 const SN_ALTER = { '': 0, '#': 1, '##': 2, b: -1, bb: -2 };
 const SN_ALTER_TEXT = { 0: '', 1: '#', 2: '##', '-1': 'b', '-2': 'bb' };
 
-function staffDefault() { return { clef: 't', meter: '4/4', ks: 0, ev: [] }; }
+// Taille d'affichage de la portée, en % (100 = normale). Écrite dans le texte seulement si elle diffère de 100.
+const SN_SIZE_MIN = 60, SN_SIZE_MAX = 200, SN_SIZE_STEP = 10, SN_SIZE_DEFAULT = 100;
+function clampStaffSize(v) {
+    const n = Math.round(Number(v) / SN_SIZE_STEP) * SN_SIZE_STEP;
+    return Number.isFinite(n) ? Math.max(SN_SIZE_MIN, Math.min(SN_SIZE_MAX, n)) : SN_SIZE_DEFAULT;
+}
 
-// Lit un texte de portée ; renvoie la portée ({ clef, meter, ks, ev: [{ d, dot, tri, p: {l, o, a} | null }] }) ou null si le texte est invalide.
+function staffDefault() { return { clef: 't', meter: '4/4', ks: 0, size: SN_SIZE_DEFAULT, ev: [] }; }
+
+// Lit un texte de portée ; renvoie la portée ({ clef, meter, ks, size, ev: [{ d, dot, tri, p: {l, o, a} | null }] }) ou null si le texte est invalide.
 function parseStaff(text) {
     if (typeof text !== 'string' || text.length > SN_MAX_LENGTH) return null;
     const semi = text.indexOf(';');
     const head = (semi < 0 ? text : text.slice(0, semi)).split(',');
-    if (head.length !== 3) return null;
+    if (head.length !== 3 && head.length !== 4) return null;
     const clef = head[0];
     if (clef !== 't' && clef !== 'b') return null;
     if (!SN_METERS.includes(head[1])) return null;
     if (!/^-?[0-7]$/.test(head[2])) return null;
     const ks = parseInt(head[2], 10);
+    let size = SN_SIZE_DEFAULT;
+    if (head.length === 4) {
+        if (!/^\d{2,3}$/.test(head[3])) return null;
+        size = parseInt(head[3], 10);
+        if (size < SN_SIZE_MIN || size > SN_SIZE_MAX || size % SN_SIZE_STEP !== 0) return null;
+    }
     const body = semi < 0 ? '' : text.slice(semi + 1).trim();
     const tokens = body === '' ? [] : body.split(/\s+/);
     if (tokens.length > SN_MAX_EVENTS) return null;
@@ -52,13 +65,14 @@ function parseStaff(text) {
         if (!m) return null;
         ev.push({ d: m[1], dot: !!m[2], tri: !!m[3], p: m[7] ? null : { l: m[4], o: parseInt(m[6], 10), a: SN_ALTER[m[5] || ''] } });
     }
-    return { clef, meter: head[1], ks, ev };
+    return { clef, meter: head[1], ks, size, ev };
 }
 
 // Texte canonique d'une portée (l'inverse de parseStaff pour tout texte valide).
 function formatStaff(st) {
     const evs = st.ev.map(e => `${e.d}${e.dot ? '.' : ''}${e.tri ? 't' : ''}${e.p ? `:${e.p.l}${SN_ALTER_TEXT[e.p.a]}${e.p.o}` : 'r'}`);
-    return `${st.clef},${st.meter},${st.ks};${evs.join(' ')}`;
+    const size = st.size && st.size !== SN_SIZE_DEFAULT ? `,${clampStaffSize(st.size)}` : '';
+    return `${st.clef},${st.meter},${st.ks}${size};${evs.join(' ')}`;
 }
 
 // Texte à enregistrer, ou null s'il n'est pas valide : renvoie la forme canonique.
@@ -201,7 +215,7 @@ function playbackPlan(st) {
 
 // ----- Modifications (renvoient une nouvelle portée ; l'ancienne n'est pas touchée) -----
 
-function cloneStaff(st) { return { clef: st.clef, meter: st.meter, ks: st.ks, ev: st.ev.map(e => ({ d: e.d, dot: e.dot, tri: e.tri, p: e.p ? { ...e.p } : null })) }; }
+function cloneStaff(st) { return { clef: st.clef, meter: st.meter, ks: st.ks, size: st.size || SN_SIZE_DEFAULT, ev: st.ev.map(e => ({ d: e.d, dot: e.dot, tri: e.tri, p: e.p ? { ...e.p } : null })) }; }
 
 function insertEvent(st, index, ev) {
     const out = cloneStaff(st);
@@ -249,6 +263,7 @@ function shiftEvent(st, index, steps) {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { SN_UNITS, SN_DURATIONS, SN_METERS, SN_MAX_EVENTS, SN_MAX_LENGTH, SN_KEY_NAMES, SN_KEY_LABELS, SN_BOTTOM_LINE,
+        SN_SIZE_MIN, SN_SIZE_MAX, SN_SIZE_STEP, SN_SIZE_DEFAULT, clampStaffSize,
         staffDefault, parseStaff, formatStaff, canonicalStaff, eventUnits, meterUnits, meterBeamUnits, decomposeUnits, layoutStaff,
         pitchDia, keyAlter, pitchFromDia, pitchMidi, midiToName, pitchLabel, diaFromY, yFromDia, playbackPlan,
         cloneStaff, insertEvent, removeEvent, updateEvent, alterEvent, shiftEvent };
