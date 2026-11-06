@@ -447,6 +447,7 @@
                         <div class="flex items-center gap-2 flex-wrap">
                             <div class="flex bg-[#1a1a1a] p-1 rounded-lg text-xs font-medium border border-[#333333]">
                                 <button onclick="app.jam.setVisMode('staff')" id="jam-vmode-staff" class="py-1 px-2.5 rounded-md transition bg-[#3a3a3c] text-white shadow-sm">Portée</button>
+                                <button onclick="app.jam.setVisMode('annotations')" id="jam-vmode-annotations" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Annotations</button>
                                 <button onclick="app.jam.setVisMode('intervals')" id="jam-vmode-intervals" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Intervalles</button>
                                 <button onclick="app.jam.setVisMode('notes')" id="jam-vmode-notes" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Notes</button>
                                 <button onclick="app.jam.setVisMode('letters')" id="jam-vmode-letters" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Lettres</button>
@@ -609,6 +610,7 @@
                 this.visMode = 'staff';
 
                 this.loadedGridName = null;
+                this.gridNote = ''; // annotation générale de la grille (onglet Annotations, zone de gauche) ; celles des mesures sont portées par les blocs (`note`)
                 this._fnConvention = null; // chiffrage des degrés choisi à la main ('jazz' | 'classic') ; null = classique (défaut, quel que soit le style)
                 this._fnStyle = 'ii-v-i';  // style dont la grille est issue (null : grille sans style) ; n'influe plus sur le chiffrage (classique par défaut pour tous les styles)
                 this.mainKey = 0;
@@ -786,6 +788,7 @@
 
             _clearGrid() {
                 this.grid = [];
+                this.gridNote = '';
                 this.loadedGridName = null;
                 this.updateLoadedGridNameDisplay();
                 this.renderGridUI();
@@ -799,7 +802,8 @@
                     name: this.loadedGridName,
                     mainKey: this.mainKey,
                     mainQuality: this.mainQuality,
-                    spell: this.rootSpell
+                    spell: this.rootSpell,
+                    gridNote: this.gridNote
                 };
             }
 
@@ -809,7 +813,7 @@
             _gridContentSignature(grid) {
                 const out = [];
                 (grid || []).forEach(block => {
-                    const { measures, fnLabel, modKey, partStart, split, ...rest } = block;
+                    const { measures, fnLabel, modKey, partStart, split, note, ...rest } = block; // `note` (annotation) : ne change pas la musique de la grille
                     let sp = null;
                     if (split) {
                         const { fnLabel: _f, modKey: _m, ...splitRest } = split;
@@ -851,6 +855,7 @@
             applyState(state) {
                 this.grid = JSON.parse(JSON.stringify(state.grid));
                 this.loadedGridName = state.name;
+                this.gridNote = state.gridNote || '';
                 this.mainKey = state.mainKey;
                 this.mainQuality = state.mainQuality;
                 this._qualityAuto = false;
@@ -967,6 +972,7 @@
                     key: this.mainKey,
                     quality: this.mainQuality,
                     spell: this.rootSpell,
+                    notes: this.gridNote || undefined, // annotation générale de la grille (onglet Annotations) ; les annotations de mesure sont dans la grille
                     fnConvention: this._fnConvention || undefined, // chiffrage des degrés choisi à la main ; absent = selon le style
                     bpm: this.bpm,
                     timeSignature: this.getMeterKey(),
@@ -1336,6 +1342,7 @@
                 if (st.spell) { this._applySpell(st.spell); this._syncKeySelect(); }
                 else if (st.key !== undefined || st.quality !== undefined) this._refreshSpelling(-1);
                 this._fnConvention = st.fnConvention || null;
+                this.gridNote = st.notes || '';
                 if (st.bpm !== undefined) this.setBpm(st.bpm);
                 // Les anciens fichiers n'ont pas de signature : ils sont en 4/4.
                 this.setTimeSignature(st.timeSignature !== undefined ? st.timeSignature : '4/4');
@@ -1535,7 +1542,7 @@
                 this._fnConvention = null;
                 this.setStyleMenuCustom();
                 if (entry.settings) this.applyImportedSettings(this.sanitizeImportedSettings(entry.settings));
-                else this.setTimeSignature('4/4'); // grille enregistrée avant l'existence des signatures : 4/4
+                else { this.gridNote = ''; this.setTimeSignature('4/4'); } // grille enregistrée avant l'existence des signatures : 4/4
                 this.loadedGridName = name;
                 this._markSaved(name);
                 this.renderGridUI();
@@ -4226,6 +4233,9 @@
             // Sélectionne la mesure m (moitié « half » si elle a deux accords) comme le fait un clic : position courante,
             // affichage de l'accord et de sa gamme, puis lecture de l'accord. Partagé par le clic et les flèches du clavier.
             _activateMeasure(m, half) {
+                // La case a été dessinée avant d'éventuels changements de blocs (ex. une annotation validée au moment du clic) :
+                // on reprend la mesure telle qu'elle est maintenant dans la grille.
+                m = this.getFlatMeasureList().find(x => x.measureNumber === m.measureNumber) || m;
                 const pos = clickPosition(m, half, this.getBeatsPerBar(), this.getSplitBeat());
                 this.currentStepIndex = pos.stepIndex;
                 this.currentBeat = pos.beat;
@@ -5407,15 +5417,24 @@
             }
 
             setVisMode(mode) {
+                const prev = this.visMode;
                 this.visMode = mode;
-                ['staff', 'intervals', 'notes', 'letters'].forEach(m => {
+                ['staff', 'annotations', 'intervals', 'notes', 'letters'].forEach(m => {
                     const btn = document.getElementById(`jam-vmode-${m}`);
                     if (!btn) return;
                     btn.className = m === mode
                         ? "py-1 px-2.5 rounded-md transition bg-[#3a3a3c] text-white shadow-sm"
                         : "py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white";
                 });
+                // Les options d'affichage des gammes et le compteur de gammes n'ont pas de sens dans l'onglet Annotations.
+                const annot = mode === 'annotations';
+                ['jam-btn-toggle-target', 'jam-btn-toggle-avoid', 'jam-btn-toggle-characteristic', 'jam-btn-toggle-scale-info', 'jam-scales-count-badge'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = annot ? 'none' : '';
+                });
                 this.renderJamScales();
+                // Pendant la jam, la hauteur réservée à la zone est recalculée en entrant dans l'onglet Annotations ou en le quittant.
+                if (this.isPlaying && (annot || prev === 'annotations')) this.lockScalesHeight();
             }
 
             // Joue une note isolée (clic sur une pastille) avec la transposition du mode Jam.
@@ -5451,6 +5470,16 @@
             renderJamScales() {
                 const container = document.getElementById('jam-scale-visualizer');
                 if (!container) return;
+                // Onglet Annotations : deux zones de texte libre à la place des cartes de gammes.
+                const annotMode = this.visMode === 'annotations';
+                const scalesCard = document.getElementById('jam-scales-card');
+                if (scalesCard) scalesCard.classList.toggle('jam-annot-mode', annotMode);
+                container.classList.toggle('jam-annot-grid', annotMode);
+                if (annotMode) {
+                    this._scalesSig = null; // en revenant aux gammes, les cartes sont redessinées
+                    this._renderJamAnnotations(container);
+                    return;
+                }
                 if (!this.isPlaying) this._scalesSig = null;
                 const keepOld = this.isPlaying && this._scalesSig && container.firstChild;
                 // On garde les cartes actuelles pour les réutiliser si rien n'a changé (voir plus bas)
@@ -5614,6 +5643,88 @@
                 this.renderJamScales();
             }
 
+            // ===== Onglet « Annotations » : deux zones de texte libre =====
+            // Gauche : annotation générale de la grille (`this.gridNote`), fixe pendant toute la lecture.
+            // Droite : annotation de la mesure en cours (jam lancée) ou sélectionnée (jam à l'arrêt) ; elle change à chaque
+            // mesure (une mesure à deux accords garde la même annotation). Le texte de mesure est porté par son bloc (`note`).
+            // Les zones sont créées une fois : seuls leurs textes sont remis à jour, pour ne jamais couper une saisie en cours.
+            _renderJamAnnotations(container) {
+                let general = container.querySelector('#jam-annot-general');
+                let box = container.querySelector('#jam-annot-measure');
+                if (!general || !box) {
+                    container.innerHTML = `
+                        <div class="jam-annot-zone">
+                            <div class="jam-annot-head">Grille</div>
+                            <textarea id="jam-annot-general" class="jam-annot-text" maxlength="${GRID_NOTE_MAX}" spellcheck="false" aria-label="Annotations générales de la grille"
+                                placeholder="Indications générales pour toute la grille…"
+                                onkeydown="event.stopPropagation()" onchange="app.jam.commitGridNote(this.value)"></textarea>
+                        </div>
+                        <div class="jam-annot-zone">
+                            <div class="jam-annot-head" id="jam-annot-measure-head">Mesure</div>
+                            <textarea id="jam-annot-measure" class="jam-annot-text" maxlength="${MEASURE_NOTE_MAX}" spellcheck="false" aria-label="Annotations de la mesure"
+                                onkeydown="event.stopPropagation()" onchange="app.jam.commitMeasureNote(this)"></textarea>
+                        </div>`;
+                    general = container.querySelector('#jam-annot-general');
+                    box = container.querySelector('#jam-annot-measure');
+                }
+                const head = container.querySelector('#jam-annot-measure-head');
+
+                const gv = this.gridNote || '';
+                if (document.activeElement !== general && general.value !== gv) general.value = gv;
+
+                const idx = this.currentStepIndex;
+                const step = (idx >= 0 && idx < this.grid.length) ? this.grid[idx] : null;
+                let label = 'Mesure', measureNum = '', readOnly = true, placeholder = 'Cliquez sur une mesure de la grille pour l\'annoter';
+                if (step && this.isPlaying) {
+                    // Jam lancée : mesure en cours (plusieurs mesures si le bloc en couvre plusieurs), lecture seule
+                    // (modifier une annotation redécoupe les blocs de la grille, ce qui n'est pas permis en cours de lecture).
+                    const first = this.getStepStartMeasure(idx);
+                    label = (step.measures > 1 ? `Mesures ${first}–${first + step.measures - 1}` : `Mesure ${first}`) + ' · lecture seule';
+                    placeholder = '';
+                } else if (step) {
+                    const n = this._activeMeasureNumber();
+                    label = `Mesure ${n}`;
+                    measureNum = String(n);
+                    readOnly = false;
+                    placeholder = 'Indications pour cette mesure…';
+                }
+                if (head.textContent !== label) head.textContent = label;
+                box.dataset.measure = measureNum;
+                box.readOnly = readOnly;
+                box.placeholder = placeholder;
+                const mv = step ? (step.note || '') : '';
+                if ((document.activeElement !== box || readOnly) && box.value !== mv) box.value = mv;
+            }
+
+            // Annotation générale de la grille (zone de gauche) : validée en quittant le champ, une entrée d'annulation par saisie.
+            commitGridNote(text) {
+                const v = String(text || '').replace(/\s+$/, '').slice(0, GRID_NOTE_MAX);
+                if (v === (this.gridNote || '')) return;
+                this.withUndo(() => { this.gridNote = v; });
+                this.refreshSaveButton();
+            }
+
+            // Annotation de la mesure (zone de droite). La mesure est isolée dans son propre bloc (comme pour une fonction tonale) :
+            // la sélection est donc replacée sur la même mesure, et la grille affichée n'est pas redessinée (elle ne change pas
+            // d'aspect, et cela ne doit pas faire perdre le clic qui a fait quitter le champ).
+            commitMeasureNote(el) {
+                if (this.isPlaying || el.readOnly) return;
+                const n = parseInt(el.dataset.measure, 10);
+                const flat = this.getFlatMeasureList();
+                if (!(n >= 1 && n <= flat.length)) return;
+                const v = String(el.value || '').replace(/\s+$/, '').slice(0, MEASURE_NOTE_MAX);
+                if (v === (this.grid[flat[n - 1].stepIndex].note || '')) return;
+                const bpb = this.getBeatsPerBar();
+                const active = this._activeMeasureNumber();
+                const beatInMeasure = this.currentBeat % bpb;
+                this.withUndo(() => { setMeasureNote(this.grid, n, v); });
+                if (active) {
+                    const m = this.getFlatMeasureList()[active - 1];
+                    if (m) { this.currentStepIndex = m.stepIndex; this.currentBeat = (m.measureInStep - 1) * bpb + beatInMeasure; }
+                }
+                this.refreshSaveButton();
+            }
+
             // Carte de gammes d'une mesure à deux accords : une section par accord (temps 1-2, temps 3-4).
             appendSplitScaleCard(container, idx, step, pendingStaves, onlyHalf = null) {
                 const allHalves = this.getStepHalves(step);
@@ -5692,6 +5803,7 @@
                 const container = document.getElementById('jam-scale-visualizer');
                 if (!container) return;
                 container.style.minHeight = '';
+                if (this.visMode === 'annotations') return; // les deux zones d'annotation ont une hauteur fixe (style.css)
                 if (!this.isPlaying || this.grid.length === 0 || !window.matchMedia('(min-width: 1024px)').matches) return;
 
                 const savedIdx = this.currentStepIndex;
@@ -7319,7 +7431,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-03-a';
+        var BUILD = '2026-11-06-a';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }

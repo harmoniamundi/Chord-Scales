@@ -217,3 +217,24 @@ describe('sanitizeImportedSettings : densités par orchestre', () => {
         assert.deepEqual(san({ densities: { brass: 0.2, balkan: 9, cumbia: 0, piazzolla: 0.7 } }).densities, { piazzolla: 0.7, balkan: 1, cumbia: 0, brass: 0.2 });
     });
 });
+
+describe('annotations (onglet Annotations)', () => {
+    test('annotation de mesure : conservée, espaces de fin retirés, limitée à 600 signes', () => {
+        const g = F.sanitizeImportedGrid([step({ note: 'Jouer doux  \n' }), step({ note: 'x'.repeat(800) }), step({ note: '   ' }), step({ note: 42 }), step()]);
+        assert.equal(g[0].note, 'Jouer doux');
+        assert.equal(g[1].note.length, F.MEASURE_NOTE_MAX);
+        assert.equal('note' in g[2], false);
+        assert.equal('note' in g[3], false);
+        assert.equal('note' in g[4], false);
+    });
+    test('annotation générale (réglages) : conservée, limitée à 2000 signes, ignorée si vide ou pas du texte', () => {
+        assert.equal(F.sanitizeImportedSettings({ notes: 'Swing léger\n' }).notes, 'Swing léger');
+        assert.equal(F.sanitizeImportedSettings({ notes: 'y'.repeat(3000) }).notes.length, F.GRID_NOTE_MAX);
+        for (const bad of ['', '  ', 5, null, {}, []]) assert.equal('notes' in F.sanitizeImportedSettings({ notes: bad }), false, JSON.stringify(bad));
+        assert.equal('notes' in F.sanitizeImportedSettings({}), false); // anciens fichiers
+    });
+    test('un fichier sans annotation (ancien) se lit comme avant', () => {
+        const g = F.sanitizeImportedGrid([step()]);
+        assert.deepEqual(Object.keys(g[0]).sort(), ['chordId', 'measures', 'rootIndex', 'scaleId']);
+    });
+});

@@ -19,6 +19,10 @@ const IMPORT_GROOVES = ['samba', 'tango', 'piazzolla', 'lyrique', 'afro', 'b-cho
 // Guitare 60 % (un peu plus fourni que l'écriture d'origine, vers 35 %) ; autres orchestres 50 % = l'écriture d'origine.
 const BAND_DENSITY_DEFAULTS = { guitar: 0.6, classic: 0.5, piazzolla: 0.5, balkan: 0.5, cumbia: 0.5, brass: 0.5 };
 
+// Annotations libres (onglet « Annotations » du mode Jam) : une par mesure (jusqu'à 600 signes) et une pour toute la grille.
+const MEASURE_NOTE_MAX = 600;
+const GRID_NOTE_MAX = 2000;
+
 // Lit une signature (nombre 2, 3, 4 des anciennes versions, ou texte « 6/8 »).
 function parseMeter(val) {
     const k = String(val === undefined || val === null ? '' : val).trim();
@@ -70,6 +74,7 @@ function sanitizeImportedGrid(raw) {
             if (typeof item[k] === 'string') step[k] = item[k].slice(0, 80);
         });
         if (typeof item.fnLabel === 'string' && item.fnLabel) step.fnLabel = item.fnLabel.slice(0, 24);
+        if (typeof item.note === 'string' && item.note.trim()) step.note = item.note.replace(/\s+$/, '').slice(0, MEASURE_NOTE_MAX);
         const mk0 = modKeyOf(item.modKey);
         if (mk0) step.modKey = mk0;
         // Signes de reprise : début, fin (nombre de passages) et 1re / 2e fin
@@ -95,6 +100,7 @@ function sanitizeImportedSettings(data) {
     if (typeof data.quality === 'string' && qualities.includes(data.quality)) out.quality = data.quality;
     if (GF_THEORY.isValidSpell(data.spell)) out.spell = data.spell;
     if (data.fnConvention === 'jazz' || data.fnConvention === 'classic') out.fnConvention = data.fnConvention; // chiffrage des degrés choisi à la main ; absent = classique (défaut)
+    if (typeof data.notes === 'string' && data.notes.trim()) out.notes = data.notes.replace(/\s+$/, '').slice(0, GRID_NOTE_MAX); // annotation générale de la grille
     const bpm = Number(data.bpm);
     if (Number.isFinite(bpm)) out.bpm = Math.max(50, Math.min(220, Math.round(bpm)));
     if (data.timeSignature !== undefined && data.timeSignature !== null) {
@@ -138,5 +144,5 @@ function sanitizeImportedSettings(data) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { BAND_DENSITY_DEFAULTS, PART_LABELS, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings };
+    module.exports = { MEASURE_NOTE_MAX, GRID_NOTE_MAX, BAND_DENSITY_DEFAULTS, PART_LABELS, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings };
 }

@@ -392,7 +392,7 @@
         #jam-chord-sequence-display .jam-cell-top > span:last-child { min-width: 0; }
         #jam-chord-sequence-display .jam-add-cell { align-self: stretch; min-height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 1.5px dashed #2f6f57; background: rgba(16,185,129,.06); color: #34d399; font-size: 24px; line-height: 1; cursor: pointer; user-select: none; transition: background .12s, border-color .12s; }
         #jam-chord-sequence-display .jam-add-cell:hover { background: rgba(16,185,129,.16); border-color: #34d399; }
-        :root { --cs-build: '2026-11-03-a'; } /* numéro de version lu par la page */
+        :root { --cs-build: '2026-11-06-a'; } /* numéro de version lu par la page */
         .jm-pop { position: fixed; z-index: 2000; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); color: #e2e8f0; padding: 10px 12px 12px; font-size: 12px; }
         .jm-pop.jm-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; max-height: 62vh; }
         /* Pop-up « Orchestre » : fenêtre flottante à gauche de l'écran, sans voile, déplaçable par sa barre de titre */
@@ -834,3 +834,28 @@
     /* Mesure et Swing se partagent une ligne ; le bouton Orchestre passe sur la ligne suivante */
     #jam-grid-editor .jr-meter-row { justify-content: space-between; }
 }
+
+/* ===== Mode Jam, onglet « Annotations » : deux zones blanches de texte libre à la place des cartes de gammes =====
+   Gauche : annotation générale de la grille (fixe) ; droite : annotation de la mesure en cours / sélectionnée. */
+#jam-scale-visualizer.jam-annot-grid { align-items: stretch; grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(150px, auto); }
+.jam-annot-zone { display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 150px; }
+.jam-annot-head { flex: 0 0 auto; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; user-select: none; }
+.jam-annot-text {
+    flex: 1 1 auto; width: 100%; min-height: 120px; resize: none; box-sizing: border-box;
+    padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a;
+    font: 400 15px/1.45 system-ui, -apple-system, 'Segoe UI', sans-serif; overflow-y: auto;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+}
+.jam-annot-text::placeholder { color: #94a3b8; }
+.jam-annot-text:focus { outline: 2px solid #3b82f6; outline-offset: 1px; }
+.jam-annot-text[readonly] { cursor: default; }
+.jam-annot-text[readonly]:focus { outline: none; }
+@media (min-width: 1024px) {
+    /* Deux zones côte à côte ; hors lecture elles remplissent la place disponible, en lecture elles ont une hauteur fixe
+       (la grille d'accords ne bouge pas pendant la jam). */
+    #view-jam #jam-scales-card #jam-scale-visualizer.jam-annot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: minmax(180px, 1fr); grid-auto-rows: auto; }
+    #view-jam.jam-playing #jam-scales-card #jam-scale-visualizer.jam-annot-grid { grid-template-rows: 190px; }
+}
+/* Mode « à l'aveugle » : les annotations (écrites par le musicien) restent visibles, contrairement aux gammes */
+#view-jam.jam-playing.jam-blind #jam-scales-card.jam-annot-mode #jam-scale-visualizer { visibility: visible; }
+#view-jam.jam-playing.jam-blind #jam-scales-card.jam-annot-mode #jam-blind-scales-note { display: none; }

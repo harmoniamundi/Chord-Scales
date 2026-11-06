@@ -3,7 +3,7 @@
 // poser des signes de reprise, enregistrer une fonction tonale, repères de partie automatiques.
 // Toutes les fonctions reçoivent le tableau `grid` (liste de blocs) et le MODIFIENT en place, comme le faisait le moteur ;
 // sélection, pile d'annulation et rafraîchissement de l'écran restent dans index.html.
-// Un bloc : { rootIndex, chordId, scaleId, measures, split?, bassRootIndex?, repeatStart?, repeatEnd?, volta?, partStart?, fnLabel?, modKey? }
+// Un bloc : { rootIndex, chordId, scaleId, measures, split?, bassRootIndex?, repeatStart?, repeatEnd?, volta?, partStart?, fnLabel?, modKey?, note? }
 // Les mesures sont numérotées à partir de 1 (comme flatMeasureList). Chargé par index.html via <script src="grid/edit-ops.js">
 // (après grid/play-order.js et grid/grid-format.js) et testé par grid/edit-ops.test.js.
 
@@ -18,6 +18,8 @@ if (typeof flatMeasureList === 'undefined' && typeof require === 'function') {
 }
 // isPartLabel est une constante globale (grid/grid-format.js) : on la reprend sous un nom propre à ce fichier.
 const EDIT_IS_PART_LABEL = (typeof isPartLabel !== 'undefined') ? isPartLabel : require('./grid-format.js').isPartLabel;
+// Longueur maximale d'une annotation de mesure (grid/grid-format.js), reprise sous un nom propre à ce fichier.
+const EDIT_NOTE_MAX = (typeof MEASURE_NOTE_MAX !== 'undefined') ? MEASURE_NOTE_MAX : require('./grid-format.js').MEASURE_NOTE_MAX;
 if (typeof isSplit === 'undefined' && typeof require === 'function') {
     var { isSplit } = require('../band/band-helpers.js');
 }
@@ -25,7 +27,7 @@ if (typeof romanDegByRank === 'undefined' && typeof require === 'function') {
     var { romanDegByRank, fnMinorRef } = require('./generation.js');
 }
 
-const EDIT_OPS_BUILD = '2026-11-03-a'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
+const EDIT_OPS_BUILD = '2026-11-06-a'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
 const cloneStep = (o) => JSON.parse(JSON.stringify(o));
 
 // Repère de partie porté par la mesure m (liste à plat), seulement si elle ouvre son bloc ; '' sinon.
@@ -48,6 +50,7 @@ function measureItems(grid, from, to) {
         if (effVolta[m.stepIndex]) it.volta = effVolta[m.stepIndex];
         if (stp.fnLabel) it.fnLabel = stp.fnLabel;
         if (stp.modKey) it.modKey = { ...stp.modKey };
+        if (typeof stp.note === 'string' && stp.note) it.note = stp.note; // annotation libre de la mesure (onglet Annotations)
         if (Number.isInteger(m.bassRootIndex)) it.bassRootIndex = m.bassRootIndex;
         if (m.harmonicFunction) it.harmonicFunction = m.harmonicFunction;
         if (m.split) it.split = { rootIndex: m.split.rootIndex, chordId: m.split.chordId, scaleId: m.split.scaleId };
@@ -180,7 +183,7 @@ function duplicateMeasureAfter(grid, measureNumber) {
 function appendCopyOfLast(grid) {
     const last = cloneStep(grid[grid.length - 1]);
     if (last.measures !== 1) delete last.split;
-    delete last.repeatStart; delete last.repeatEnd; delete last.volta; delete last.fnLabel; delete last.modKey; delete last.partStart;
+    delete last.repeatStart; delete last.repeatEnd; delete last.volta; delete last.fnLabel; delete last.modKey; delete last.partStart; delete last.note;
     last.measures = 1;
     grid.push(last);
 }
@@ -231,6 +234,20 @@ function setFunctionLabel(grid, measureNumber, half, label, mod = null) {
     if (label && mod && Number.isInteger(mod.root) && mod.root >= 0 && mod.root <= 11) target.modKey = { root: mod.root, minor: !!mod.minor };
     else delete target.modKey;
     mergeAround(grid, idx - 1, idx + 1);
+}
+
+// Annotation libre d'une mesure (onglet « Annotations » du mode Jam) : la mesure est isolée dans son propre bloc, qui porte
+// le texte (`note`) comme il porterait une fonction tonale. Texte vide = annotation retirée. Renvoie l'index du bloc, ou -1.
+function setMeasureNote(grid, measureNumber, text) {
+    const clean = String(text === undefined || text === null ? '' : text).replace(/\s+$/, '').slice(0, EDIT_NOTE_MAX);
+    const flat = flatMeasureList(grid).find(x => x.measureNumber === measureNumber);
+    if (!flat) return -1;
+    if (!clean && !grid[flat.stepIndex].note) return flat.stepIndex; // rien à retirer : la structure des blocs reste intacte
+    const idx = isolateMeasure(grid, measureNumber);
+    if (idx < 0) return -1;
+    if (clean) grid[idx].note = clean; else delete grid[idx].note;
+    mergeAround(grid, idx - 1, idx + 1);
+    return idx;
 }
 
 // Accords de la grille dans l'ordre de lecture : { measureNumber, half (0 ou 1), rootIndex, chordId }.
@@ -392,7 +409,7 @@ function diatonicDegrees(env) {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { partLabelOfMeasure, measureItems, isolateMeasure, isolateRange, splitBeforeMeasure, mergeAround, deleteRange,
-        deleteMeasureAt, insertItemsAfter, duplicateMeasureAfter, appendCopyOfLast, setMeasureSplit, transposeRange, setFunctionLabel,
+        deleteMeasureAt, insertItemsAfter, duplicateMeasureAfter, appendCopyOfLast, setMeasureSplit, transposeRange, setFunctionLabel, setMeasureNote,
         chordPositions, laterChordOccurrences, applyFunctionLabelToLater, chordSuggestionsForRoot, rememberChord,
         withIsolatedRange, toggleRepeatStart, cycleRepeatEnd, toggleVolta, clearRepeats, markMeasure, assignAutoParts, diatonicDegrees, qualityTargetChord };
 }

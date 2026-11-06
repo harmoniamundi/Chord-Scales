@@ -475,3 +475,72 @@ describe('accords à proposer en premier pour une fondamentale', () => {
         assert.equal(r[0].chordId, 'c99');
     });
 });
+
+describe('annotations de mesure (onglet Annotations)', () => {
+    const noteOf = (g, n) => { const m = flatMeasureList(g).find(x => x.measureNumber === n); return g[m.stepIndex].note || null; };
+    test('une annotation isole la mesure, sans rien changer d\'autre', () => {
+        const g = [st(0, 'maj7', 4)];
+        const idx = E.setMeasureNote(g, 2, 'Jouer doux');
+        assert.equal(idx, 1);
+        assert.deepEqual(g.map(b => b.measures), [1, 1, 2]);
+        assert.deepEqual([1, 2, 3, 4].map(n => noteOf(g, n)), [null, 'Jouer doux', null, null]);
+        assert.deepEqual(roots(g), [0, 0, 0, 0]);
+    });
+    test('retirer l\'annotation (texte vide) refusionne les blocs', () => {
+        const g = [st(0, 'maj7', 4)];
+        E.setMeasureNote(g, 3, 'x');
+        E.setMeasureNote(g, 3, '   \n');
+        assert.deepEqual(g, [st(0, 'maj7', 4)]);
+    });
+    test('texte vide sur une mesure sans annotation : la grille n\'est pas touchée', () => {
+        const g = [st(0, 'maj7', 4)];
+        assert.equal(E.setMeasureNote(g, 2, ''), 0);
+        assert.deepEqual(g, [st(0, 'maj7', 4)]);
+    });
+    test('les espaces de fin sont retirés, le texte est limité à 600 signes, mesure inconnue → -1', () => {
+        const g = [st(0, 'maj7', 2)];
+        E.setMeasureNote(g, 1, 'ligne 1\nligne 2  \n');
+        assert.equal(noteOf(g, 1), 'ligne 1\nligne 2');
+        E.setMeasureNote(g, 2, 'a'.repeat(900));
+        assert.equal(noteOf(g, 2).length, 600);
+        assert.equal(E.setMeasureNote(g, 9, 'x'), -1);
+    });
+    test('deux mesures voisines identiques avec des annotations différentes ne fusionnent pas', () => {
+        const g = [st(0, 'maj7', 2)];
+        E.setMeasureNote(g, 1, 'A');
+        E.setMeasureNote(g, 2, 'B');
+        assert.equal(g.length, 2);
+        E.setMeasureNote(g, 2, 'A');
+        assert.equal(g.length, 1); // même texte, même accord : un seul bloc de 2 mesures
+        assert.equal(g[0].measures, 2);
+    });
+    test('l\'annotation suit sa mesure quand on supprime, insère ou copie des mesures', () => {
+        const g = [st(0, 'maj7', 1), st(2, 'm7', 1), st(7, '7', 1)];
+        E.setMeasureNote(g, 3, 'Finir sur la tierce');
+        E.deleteRange(g, 1, 1);
+        assert.equal(noteOf(g, 2), 'Finir sur la tierce');
+        assert.equal(flatMeasureList(g)[1].rootIndex, 7);
+        const items = E.measureItems(g, 2, 2);
+        assert.equal(items[0].note, 'Finir sur la tierce'); // copier / couper emporte l'annotation
+        E.insertItemsAfter(g, 1, items);
+        assert.equal(noteOf(g, 2), 'Finir sur la tierce');
+        assert.equal(noteOf(g, 3), 'Finir sur la tierce');
+    });
+    test('dupliquer garde l\'annotation, ajouter une mesure en fin de grille ne la recopie pas', () => {
+        const g = [st(0, 'maj7', 1), st(2, 'm7', 1)];
+        E.setMeasureNote(g, 2, 'Rubato');
+        E.appendCopyOfLast(g);
+        assert.equal(noteOf(g, 3), null);
+        E.duplicateMeasureAfter(g, 1);
+        E.setMeasureNote(g, 1, 'Intro');
+        E.duplicateMeasureAfter(g, 1);
+        assert.equal(noteOf(g, 2), 'Intro');
+    });
+    test('transposer ne perd pas l\'annotation', () => {
+        const g = [st(0, 'maj7', 2)];
+        E.setMeasureNote(g, 2, 'Octave haute');
+        E.transposeRange(g, 1, 2, 2);
+        assert.equal(noteOf(g, 2), 'Octave haute');
+        assert.deepEqual(roots(g), [2, 2]);
+    });
+});
