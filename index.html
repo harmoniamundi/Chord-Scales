@@ -551,7 +551,7 @@
                 this.bandDensity = { ...BAND_DENSITY_DEFAULTS }; // densité de notes par orchestre (0 à 1), réglée par le curseur « Densité » du pop-up Orchestre ; enregistrée avec la grille
                 this.bandSwingSettings = {}; // swing choisi (0.5 à 0.75), par orchestre ; absent = « Auto » (valeur par défaut du style : Jazz = triolet qui se resserre avec le tempo, les autres = croches droites 50 %)
                 this._degreeTriads = (() => { try { return localStorage.getItem('csm-degree-triads') === '1'; } catch (e) { return false; } })(); // degrés de l'éditeur : triades ou septièmes
-                this.bandMaster = MASTER_UNITY; // position du curseur Master (0-1), hors sauvegardes / export / import ; le métronome a son propre volume
+                this.bandMaster = 1; // position du curseur Master (0-1) : 100 % par défaut à l'ouverture, hors sauvegardes / export / import ; le métronome a son propre volume
                 this.masterBus = null;
                 // Métronome (hors sauvegardes / export / import) : intro d'une mesure toujours jouée ; clic pendant la grille seulement si activé
                 this.metronomeEnabled = false;
@@ -7200,8 +7200,8 @@
 
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Master</span>
-                    <input type="range" id="band-master-slider" min="0" max="100" value="50" title="Volume général de l'orchestre (50 % = niveau d'origine, au-dessus : plus fort)" oninput="app.jam.setBandMaster(this.value)" class="w-full accent-blue-500">
-                    <span id="band-master-display" class="text-xs font-mono font-bold text-slate-200 min-w-[32px] text-right">50%</span>
+                    <input type="range" id="band-master-slider" min="0" max="100" value="100" title="Volume général de l'orchestre (100 % par défaut ; 50 % = niveau d'origine, au-dessus : plus fort)" oninput="app.jam.setBandMaster(this.value)" class="w-full accent-blue-500">
+                    <span id="band-master-display" class="text-xs font-mono font-bold text-slate-200 min-w-[32px] text-right">100%</span>
                 </div>
 
                 <div class="flex items-center gap-2">
