@@ -6,6 +6,10 @@
 const GF_THEORY = (typeof scalesDb !== 'undefined')
     ? { scalesDb, lookupChord, isValidSpell }
     : require('../theory.js');
+// Portées éditables des annotations (ui/staff-notes.js) : une portée n'est gardée que si son texte est valide.
+const GF_STAFF = (typeof parseStaff !== 'undefined')
+    ? { parseStaff, formatStaff }
+    : require('../ui/staff-notes.js');
 
 // Repères de partie proposés par le menu « Partie » ; les lettres A–Z restent acceptées (anciennes grilles, parties auto)
 const PART_LABELS = ['in', 'A', 'B', 'C', 'D', 'E', 'F', 'G', "A'", "B'", "C'", "D'", "E'", "F'", "G'", 'out'];
@@ -23,6 +27,20 @@ const BAND_DENSITY_DEFAULTS = { guitar: 0.6, classic: 0.5, piazzolla: 0.5, balka
 // Le texte est mis en forme (gras, taille, couleur…) : il est gardé sous forme de HTML RESTREINT, nettoyé par sanitizeNoteHtml.
 const MEASURE_NOTE_MAX = 2000;
 const GRID_NOTE_MAX = 8000;
+const NOTE_MAX_STAVES = 8; // portées éditables par annotation
+
+// Polices proposées par la barre de mise en forme (nom de la première famille en minuscules → valeur CSS enregistrée).
+// Ce sont des polices du système, plus la police manuscrite Kalam fournie avec l'appli : aucune autre n'est acceptée.
+const NOTE_FONTS = {
+    'system-ui': "system-ui,-apple-system,'Segoe UI',sans-serif",
+    arial: 'Arial,Helvetica,sans-serif',
+    verdana: 'Verdana,Geneva,sans-serif',
+    'trebuchet ms': "'Trebuchet MS',sans-serif",
+    georgia: 'Georgia,serif',
+    'times new roman': "'Times New Roman',Times,serif",
+    'courier new': "'Courier New',Courier,monospace",
+    kalam: 'Kalam,cursive'
+};
 
 // Éléments acceptés (les autres sont retirés, leur texte est gardé) et ce qu'ils deviennent.
 const NOTE_TAGS = { b: 'b', strong: 'b', i: 'i', em: 'i', u: 'u', s: 's', strike: 's', del: 's', span: 'span', font: 'span',
@@ -72,6 +90,9 @@ function noteStyle(styleText) {
             const m = /^(\d{1,3}(?:\.\d+)?)px$/.exec(val);
             if (m) px = Math.round(parseFloat(m[1])); else if (NOTE_FONT_WORDS[val]) px = NOTE_FONT_WORDS[val];
             if (px) got.set('font-size', Math.max(8, Math.min(96, px)) + 'px');
+        } else if (prop === 'font-family') {
+            const first = val.split(',')[0].trim().replace(/^["']|["']$/g, '').trim();
+            if (Object.prototype.hasOwnProperty.call(NOTE_FONTS, first)) got.set('font-family', NOTE_FONTS[first]);
         } else if (prop === 'font-weight') {
             if (/^(bold|bolder|[6-9]00)$/.test(val)) got.set('font-weight', 'bold'); else if (/^(normal|lighter|[1-5]00)$/.test(val)) got.set('font-weight', 'normal');
         } else if (prop === 'font-style') {
@@ -94,7 +115,7 @@ function sanitizeNoteHtml(raw, maxText = MEASURE_NOTE_MAX) {
     if (typeof raw !== 'string' || !raw) return '';
     const src = raw.replace(/\r\n?/g, '\n').replace(/<(script|style)\b[\s\S]*?<\/\1\s*>/gi, '').replace(/<!--[\s\S]*?-->/g, '');
     const re = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/g;
-    let out = '', pos = 0, left = maxText, count = 0, hasText = false, m;
+    let out = '', pos = 0, left = maxText, count = 0, hasText = false, m, skip = 0, staves = 0;
     const stack = [];
     const addText = (chunk) => {
         if (!chunk || left <= 0) return;
@@ -104,11 +125,27 @@ function sanitizeNoteHtml(raw, maxText = MEASURE_NOTE_MAX) {
         if (/[^\s ]/.test(t)) hasText = true;
         out += t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     };
+    const readAttrs = (raw) => {
+        const attrs = {};
+        raw.replace(/([a-zA-Z-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g, (all, k, a, b, c) => { attrs[k.toLowerCase()] = decodeNoteEntities(a !== undefined ? a : (b !== undefined ? b : c)); return all; });
+        return attrs;
+    };
     while ((m = re.exec(src))) {
-        addText(src.slice(pos, m.index));
+        if (!skip) addText(src.slice(pos, m.index));
         pos = re.lastIndex;
         const closing = m[1] === '/';
         const name = m[2].toLowerCase();
+        // Contenu d'une portée (dessin, boutons…) : jeté, la portée est reconstruite à partir de son seul texte « data-staff ».
+        if (skip) { if (name === 'div') skip += closing ? -1 : 1; continue; }
+        if (!closing && name === 'div' && /\bdata-staff\s*=/i.test(m[3])) {
+            skip = 1;
+            const text = GF_STAFF.parseStaff(readAttrs(m[3])['data-staff'] || '');
+            if (text && staves < NOTE_MAX_STAVES && count < 400) {
+                out += `<div class="annot-staff" data-staff="${GF_STAFF.formatStaff(text)}"></div>`;
+                staves++; count++; hasText = true;
+            }
+            continue;
+        }
         const kind = NOTE_TAGS[name];
         if (!kind) continue;
         if (kind === 'br') { if (!closing && count < 400) { out += '<br>'; count++; } continue; }
@@ -121,11 +158,11 @@ function sanitizeNoteHtml(raw, maxText = MEASURE_NOTE_MAX) {
         }
         let style = '';
         if (kind !== 'b' && kind !== 'i' && kind !== 'u' && kind !== 's') {
-            const attrs = {};
-            m[3].replace(/([a-zA-Z-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g, (all, k, a, b, c) => { attrs[k.toLowerCase()] = decodeNoteEntities(a !== undefined ? a : (b !== undefined ? b : c)); return all; });
+            const attrs = readAttrs(m[3]);
             let css = attrs.style || '';
             if (name === 'font') {
                 if (attrs.color) css += `;color:${attrs.color}`;
+                if (attrs.face) css += `;font-family:${String(attrs.face).replace(/;/g, '')}`;
                 const sz = parseInt(attrs.size, 10);
                 if (sz >= 1 && sz <= 7) css += `;font-size:${NOTE_FONT_SIZES[sz - 1]}px`;
             }
@@ -135,7 +172,7 @@ function sanitizeNoteHtml(raw, maxText = MEASURE_NOTE_MAX) {
         if (emit) { out += `<${kind}${style ? ` style="${style}"` : ''}>`; count++; }
         stack.push({ kind, emitted: emit });
     }
-    addText(src.slice(pos));
+    if (!skip) addText(src.slice(pos));
     while (stack.length) { const e = stack.pop(); if (e.emitted) out += `</${e.kind}>`; }
     if (!hasText) return '';
     // éléments vides, retours à la ligne et espaces de fin (le navigateur en laisse toujours un en fin de champ)
@@ -270,5 +307,5 @@ function sanitizeImportedSettings(data) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { MEASURE_NOTE_MAX, GRID_NOTE_MAX, sanitizeNoteHtml, BAND_DENSITY_DEFAULTS, PART_LABELS, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings };
+    module.exports = { MEASURE_NOTE_MAX, GRID_NOTE_MAX, NOTE_FONTS, NOTE_MAX_STAVES, sanitizeNoteHtml, BAND_DENSITY_DEFAULTS, PART_LABELS, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings };
 }

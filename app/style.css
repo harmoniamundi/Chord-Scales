@@ -392,7 +392,7 @@
         #jam-chord-sequence-display .jam-cell-top > span:last-child { min-width: 0; }
         #jam-chord-sequence-display .jam-add-cell { align-self: stretch; min-height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 1.5px dashed #2f6f57; background: rgba(16,185,129,.06); color: #34d399; font-size: 24px; line-height: 1; cursor: pointer; user-select: none; transition: background .12s, border-color .12s; }
         #jam-chord-sequence-display .jam-add-cell:hover { background: rgba(16,185,129,.16); border-color: #34d399; }
-        :root { --cs-build: '2026-11-06-b'; } /* numéro de version lu par la page */
+        :root { --cs-build: '2026-11-06-c'; } /* numéro de version lu par la page */
         .jm-pop { position: fixed; z-index: 2000; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); color: #e2e8f0; padding: 10px 12px 12px; font-size: 12px; }
         .jm-pop.jm-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; max-height: 62vh; }
         /* Pop-up « Orchestre » : fenêtre flottante à gauche de l'écran, sans voile, déplaçable par sa barre de titre */
@@ -837,7 +837,7 @@
 
 /* ===== Mode Jam, onglet « Annotations » : deux zones blanches de texte libre à la place des cartes de gammes =====
    Gauche : annotation générale de la grille (fixe) ; droite : annotation de la mesure en cours / sélectionnée. */
-#jam-scale-visualizer.jam-annot-grid { align-items: stretch; grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(150px, auto); }
+#jam-scale-visualizer.jam-annot-grid { align-items: stretch; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; grid-auto-rows: minmax(150px, auto); }
 .jam-annot-zone { display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 150px; }
 .jam-annot-head { flex: 0 0 auto; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; user-select: none; }
 .jam-annot-text {
@@ -855,20 +855,48 @@
 .jam-annot-text ul { margin: 2px 0 2px 1.3em; padding: 0; list-style: disc; }
 .jam-annot-text li { margin: 0; }
 
-/* Pop-up de mise en forme des annotations (s'ouvre au clic dans une zone) */
-.annot-pop { width: 720px; overflow-y: auto; }
-.annot-cols { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 4px 16px; align-items: start; }
-.annot-col { min-width: 0; }
-.annot-col .annot-line:first-child { margin-top: 0; }
-@media (max-width: 900px) { .annot-cols { grid-template-columns: minmax(0, 1fr); } .annot-pop { width: min(460px, calc(100vw - 16px)); } .annot-col + .annot-col .annot-line:first-child { margin-top: 7px; } }
-.annot-pop .jm-row { align-items: center; }
-.annot-line { display: flex; align-items: flex-start; gap: 8px; margin-top: 7px; }
-.annot-lab { flex: 0 0 54px; padding-top: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #94a3b8; }
-.annot-line > .jm-row { flex: 1 1 auto; min-width: 0; }
+/* Barre de mise en forme (collée en haut de l'onglet Annotations), comme dans un traitement de texte */
+.annot-bar { grid-column: 1 / -1; align-self: start; position: sticky; top: 0; z-index: 30; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px;
+    padding: 6px 8px; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 10px; box-shadow: 0 4px 14px rgba(0, 0, 0, .35); }
+.annot-bar.is-idle .ab-btn, .annot-bar.is-idle .ab-sel { opacity: .6; }
+.ab-grp { display: inline-flex; align-items: center; gap: 2px; }
+.ab-sep { width: 1px; height: 22px; background: #3a3a3c; margin: 0 2px; }
+.ab-btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 30px; height: 30px; padding: 0 7px; border-radius: 7px; border: 1px solid transparent;
+    background: transparent; color: #e2e8f0; font: 600 13px/1 system-ui, -apple-system, sans-serif; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.ab-btn:hover { background: #2a2a2c; border-color: #3a3a3c; }
+.ab-btn.is-on, .ab-btn.is-open { background: #2563eb; border-color: #93c5fd; color: #fff; }
+.ab-btn small { font-size: 10px; font-weight: 500; color: #94a3b8; }
+.ab-btn.is-on small, .ab-btn.is-open small { color: #dbeafe; }
+.ab-step { font-size: 17px; min-width: 26px; padding: 0 4px; }
+.ab-size { min-width: 52px; background: #2a2a2c; border-color: #3a3a3c; font-variant-numeric: tabular-nums; }
+.ab-txt { font-size: 12px; white-space: nowrap; }
+.ab-staff svg { flex: 0 0 auto; }
+.ab-color { flex-direction: column; gap: 1px; padding-top: 3px; }
+.ab-a { font-size: 15px; font-weight: 800; line-height: 1; }
+.ab-bar { display: block; width: 16px; height: 3px; border-radius: 1px; background: #dc2626; }
+.ab-hl { padding: 0 3px; border-radius: 3px; background: #fef08a; color: #0f172a; font-size: 12px; font-weight: 700; }
+.ab-sel { height: 30px; max-width: 150px; padding: 0 6px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #e2e8f0; font: 600 12px system-ui, sans-serif; cursor: pointer; }
+.ab-clear { color: #cbd5e1; }
+@media (max-width: 639px) {
+    /* Téléphone : une seule ligne qui défile sous le doigt, pour ne pas prendre la moitié de l'écran */
+    .annot-bar { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .annot-bar > * { flex: 0 0 auto; }
+}
+
+/* Menus flottants de la barre (taille avec curseur, couleurs, symboles) */
+.ab-menu { position: fixed; z-index: 2100; width: 280px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; padding: 10px 12px 12px;
+    background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0, 0, 0, .6); color: #e2e8f0; font-size: 12px; }
+.ab-menu-title { margin-bottom: 7px; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; }
+.ab-menu-gap { margin-top: 11px; }
+.ab-size-row { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+.ab-range { flex: 1 1 auto; min-width: 0; height: 26px; accent-color: #3b82f6; cursor: pointer; }
+.ab-size-out { min-width: 24px; text-align: right; font: 700 15px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.ab-size-row small { color: #94a3b8; }
+.ab-hint { margin-top: 9px; color: #94a3b8; font-size: 11px; line-height: 1.35; }
+.ab-menu .jm-row { align-items: center; }
+.ab-menu.is-dragging { opacity: .3; } /* pendant qu'on glisse le curseur de taille, le texte derrière le menu reste visible */
 .annot-none { height: 24px; min-width: 0; padding: 0 8px; }
 .annot-chip { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 32px; height: 30px; padding: 0 6px; }
-.annot-chip.is-on { background: #2563eb; border-color: #93c5fd; color: #fff; }
-.annot-sizes .annot-chip { min-width: 40px; }
 .annot-sym { min-width: 30px; font-size: 14px; padding: 4px 6px; }
 .annot-nu { font-style: italic; font-weight: 700; }
 .annot-sw { width: 24px; height: 24px; padding: 0; border-radius: 6px; border: 1px solid #64748b; cursor: pointer; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -876,10 +904,42 @@
 .annot-sw-custom { position: relative; overflow: hidden; display: inline-block; background: conic-gradient(#f43f5e, #f59e0b, #22c55e, #06b6d4, #6366f1, #d946ef, #f43f5e); }
 .annot-sw-custom input { position: absolute; inset: -6px; width: 40px; height: 40px; opacity: 0; cursor: pointer; }
 @media (min-width: 1024px) {
-    /* Deux zones côte à côte ; hors lecture elles remplissent la place disponible, en lecture elles ont une hauteur fixe
+    /* Barre en haut, puis deux zones côte à côte ; hors lecture elles remplissent la place disponible, en lecture elles ont une hauteur fixe
        (la grille d'accords ne bouge pas pendant la jam). */
-    #view-jam #jam-scales-card #jam-scale-visualizer.jam-annot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: minmax(180px, 1fr); grid-auto-rows: auto; }
-    #view-jam.jam-playing #jam-scales-card #jam-scale-visualizer.jam-annot-grid { grid-template-rows: 190px; }
+    #view-jam #jam-scales-card #jam-scale-visualizer.jam-annot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto minmax(180px, 1fr); grid-auto-rows: auto; }
+    #view-jam.jam-playing #jam-scales-card #jam-scale-visualizer.jam-annot-grid { grid-template-rows: auto 190px; }
+}
+
+/* Portées éditables glissées dans le texte (ui/staff-editor.js) */
+.annot-staff { display: block; position: relative; margin: 6px 0; padding: 4px 4px 4px; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px;
+    white-space: normal; user-select: none; -webkit-user-select: none; cursor: default; color: #0f172a; font: 400 13px/1.3 system-ui, -apple-system, sans-serif; }
+.annot-staff.is-active { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
+.annot-staff-svg { position: relative; overflow-x: auto; overflow-y: hidden; touch-action: none; min-height: 110px; }
+.jam-annot-text[contenteditable="true"] .annot-staff-svg { cursor: crosshair; }
+.annot-staff-hint { position: absolute; left: 0; right: 0; top: 4px; text-align: center; font-size: 11px; color: #94a3b8; pointer-events: none; }
+.annot-ghost { position: absolute; pointer-events: none; width: 0; height: 0; }
+.annot-ghost i { position: absolute; left: 0; top: 0; width: 12px; height: 9px; border-radius: 50%; background: rgba(37, 99, 235, .4); transform: rotate(-20deg); }
+.annot-ghost span { position: absolute; left: 16px; top: -3px; padding: 0 4px; border-radius: 4px; background: #1e293b; color: #fff; font: 600 10px/16px system-ui, sans-serif; white-space: nowrap; }
+/* Outils de la portée active : ils prennent la place de la barre de texte (dans la barre collée en haut de l'onglet) ; cachés sinon */
+.annot-staff > .annot-staff-tools { display: none; }
+.ab-staff-host { display: none; }
+.annot-bar.staff-mode > :not(.ab-staff-host) { display: none; }
+.annot-bar.staff-mode .ab-staff-host { display: flex; flex: 1 1 auto; min-width: 0; }
+.ab-staff-host .annot-staff-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 5px; min-width: 0; }
+.ns-grp { display: inline-flex; align-items: center; gap: 2px; }
+.ns-sep { width: 1px; height: 22px; background: #3a3a3c; margin: 0 2px; }
+.ns-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; padding: 0 6px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c;
+    color: #e2e8f0; font: 600 13px/1 system-ui, sans-serif; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.ns-btn:hover:not(:disabled) { border-color: #60a5fa; }
+.ns-btn:disabled { opacity: .4; cursor: default; }
+.ns-btn.is-on { background: #2563eb; border-color: #93c5fd; color: #fff; }
+.ns-txt { font-size: 12px; white-space: nowrap; }
+.ns-danger { color: #fca5a5; }
+.ns-play { color: #86efac; }
+.ns-sel { height: 30px; max-width: 170px; padding: 0 6px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #e2e8f0; font: 600 12px system-ui, sans-serif; cursor: pointer; }
+@media (max-width: 639px) {
+    .annot-bar.staff-mode .ab-staff-host { flex: 0 0 auto; }
+    .ab-staff-host .annot-staff-tools { flex-wrap: nowrap; }
 }
 /* Mode « à l'aveugle » : les annotations (écrites par le musicien) restent visibles, contrairement aux gammes */
 #view-jam.jam-playing.jam-blind #jam-scales-card.jam-annot-mode #jam-scale-visualizer { visibility: visible; }

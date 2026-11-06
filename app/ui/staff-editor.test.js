@@ -1,0 +1,94 @@
+// Tests de la partie de la portée éditable qui se calcule sans navigateur (ui/staff-editor.js) : touches du clavier, barre d'outils,
+// note la plus proche. Le dessin VexFlow et les clics sont vérifiés dans le navigateur (voir TESTS.md). Lancer : node --test
+const { test, describe } = require('node:test');
+const assert = require('node:assert/strict');
+const E = require('./staff-editor.js');
+const S = require('./staff-notes.js');
+
+describe('nseKeyAction : touche → action', () => {
+    test('flèches : hauteur (Maj = octave) et déplacement de la sélection', () => {
+        assert.deepEqual(E.nseKeyAction('ArrowUp'), { type: 'shift', steps: 1 });
+        assert.deepEqual(E.nseKeyAction('ArrowDown'), { type: 'shift', steps: -1 });
+        assert.deepEqual(E.nseKeyAction('ArrowUp', { shift: true }), { type: 'shift', steps: 7 });
+        assert.deepEqual(E.nseKeyAction('ArrowDown', { shift: true }), { type: 'shift', steps: -7 });
+        assert.deepEqual(E.nseKeyAction('ArrowLeft'), { type: 'move', delta: -1 });
+        assert.deepEqual(E.nseKeyAction('ArrowRight'), { type: 'move', delta: 1 });
+    });
+    test('Suppr., Retour arrière, Échap', () => {
+        assert.deepEqual(E.nseKeyAction('Delete'), { type: 'delete' });
+        assert.deepEqual(E.nseKeyAction('Backspace'), { type: 'delete' });
+        assert.deepEqual(E.nseKeyAction('Escape'), { type: 'deselect' });
+    });
+    test('lettres a-g (majuscules aussi) : changer la lettre de la note', () => {
+        assert.deepEqual(E.nseKeyAction('c'), { type: 'letter', letter: 'c' });
+        assert.deepEqual(E.nseKeyAction('G'), { type: 'letter', letter: 'g' });
+        assert.equal(E.nseKeyAction('h'), null);
+    });
+    test('altérations, point, triolet, silence, durées 1 à 5', () => {
+        assert.deepEqual(E.nseKeyAction('#'), { type: 'alter', delta: 1 });
+        assert.deepEqual(E.nseKeyAction('-'), { type: 'alter', delta: -1 });
+        assert.deepEqual(E.nseKeyAction('n'), { type: 'alter', delta: null });
+        assert.deepEqual(E.nseKeyAction('.'), { type: 'mod', mod: 'dot' });
+        assert.deepEqual(E.nseKeyAction('t'), { type: 'mod', mod: 'tri' });
+        assert.deepEqual(E.nseKeyAction('r'), { type: 'mod', mod: 'rest' });
+        assert.deepEqual(['1', '2', '3', '4', '5'].map(k => E.nseKeyAction(k).dur), ['16', '8', 'q', 'h', 'w']);
+        assert.equal(E.nseKeyAction('6'), null);
+    });
+    test('⌘Z / Ctrl+Z annule ; les autres raccourcis ⌘ ou Ctrl ne sont pas pour la portée', () => {
+        assert.deepEqual(E.nseKeyAction('z', { meta: true }), { type: 'undo' });
+        assert.deepEqual(E.nseKeyAction('z', { ctrl: true }), { type: 'undo' });
+        assert.equal(E.nseKeyAction('c', { meta: true }), null);
+        assert.equal(E.nseKeyAction('b', { ctrl: true }), null);
+    });
+    test('toute autre touche est laissée à la saisie du texte', () => {
+        for (const k of ['Enter', ' ', 'x', 'Tab', 'Home', 'a1']) assert.equal(E.nseKeyAction(k), null, k);
+    });
+});
+
+describe('nseNearestLetter : lettre demandée à l’octave la plus proche', () => {
+    const near = (p, l, ks = 0) => S.formatStaff({ clef: 't', meter: '4/4', ks, ev: [{ d: 'q', dot: false, tri: false, p: E.nseNearestLetter(p, l, ks) }] }).split(';')[1];
+    test('sans changer d’octave quand c’est le plus proche', () => {
+        assert.equal(near({ l: 'c', o: 4, a: 0 }, 'e'), 'q:e4');
+        assert.equal(near({ l: 'e', o: 4, a: 0 }, 'a'), 'q:a4'); // la3 est à 4 degrés de mi4, la4 à 3 : la4 est plus proche
+    });
+    test('passe à l’octave voisine quand elle est plus proche', () => {
+        assert.equal(near({ l: 'b', o: 4, a: 0 }, 'c'), 'q:c5');
+        assert.equal(near({ l: 'c', o: 4, a: 0 }, 'b'), 'q:b3');
+    });
+    test('prend l’altération de l’armure', () => {
+        assert.equal(near({ l: 'e', o: 4, a: 0 }, 'f', 1), 'q:f#4');
+    });
+});
+
+describe('nseToolsHtml : barre d’outils de la portée', () => {
+    const html = E.nseToolsHtml(S.parseStaff('b,6/8,-2;q:c3'));
+    test('durées, point, triolet, silence, altérations et actions', () => {
+        for (const needle of ['data-dur="w"', 'data-dur="h"', 'data-dur="q"', 'data-dur="8"', 'data-dur="16"', 'data-mod="dot"', 'data-mod="tri"', 'data-mod="rest"',
+            'data-alt="1"', 'data-alt="-1"', 'data-alt="0"', 'data-act="play"', 'data-act="undo"', 'data-act="del"', 'data-act="clear"', 'data-act="remove"', 'data-act="exit"']) {
+            assert.ok(html.includes(needle), needle);
+        }
+    });
+    test('clé, mesure et armure reflètent la portée', () => {
+        assert.ok(html.includes('<option value="b" selected>'));
+        assert.ok(html.includes('<option value="6/8" selected>'));
+        assert.ok(html.includes('<option value="-2" selected>'));
+        assert.equal((html.match(/<option value="-?\d"[ >]/g) || []).length, 15, 'les 15 armures, de 7 bémols à 7 dièses');
+    });
+    test('les icônes de durée sont des dessins (pas de police musicale)', () => {
+        for (const d of ['w', 'h', 'q', '8', '16']) assert.ok(E.nseNoteIcon(d).startsWith('<svg'), d);
+        assert.notEqual(E.nseNoteIcon('8'), E.nseNoteIcon('16'));
+    });
+    test('libellés d’armure : do majeur sans altération, sol majeur 1 dièse, si♭ majeur 2 bémols', () => {
+        const opts = E.nseKeyOptions(0);
+        assert.ok(opts.includes('Do maj. · aucune'));
+        assert.ok(opts.includes('Sol maj. · 1♯'));
+        assert.ok(opts.includes('Si♭ maj. · 2♭'));
+    });
+});
+
+describe('dimensions', () => {
+    test('une ligne de portée contient la portée et ses lignes supplémentaires', () => {
+        assert.equal(E.NSE_SPACING, 10);
+        assert.ok(E.NSE_BAND >= E.NSE_TOP + 4 * E.NSE_SPACING + 3 * E.NSE_SPACING);
+    });
+});

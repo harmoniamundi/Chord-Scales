@@ -292,3 +292,84 @@ describe('sanitizeNoteHtml : annotations mises en forme', () => {
         assert.ok(out.includes('x'));
     });
 });
+
+describe('sanitizeNoteHtml : polices', () => {
+    const S = F.sanitizeNoteHtml;
+    test('police de la liste : gardée sous sa forme canonique, quelle que soit l’écriture du navigateur', () => {
+        assert.equal(S('<span style="font-family: Georgia, serif;">x</span>'), '<span style="font-family:Georgia,serif">x</span>');
+        assert.equal(S('<span style="font-family: &quot;Times New Roman&quot;, Times, serif">x</span>'), `<span style="font-family:'Times New Roman',Times,serif">x</span>`);
+        assert.equal(S('<span style="font-family:GEORGIA">x</span>'), '<span style="font-family:Georgia,serif">x</span>');
+        assert.equal(S('<span style="font-family: Kalam">x</span>'), '<span style="font-family:Kalam,cursive">x</span>');
+    });
+    test('balise <font face="…"> (anciens navigateurs) : même traitement', () => {
+        assert.equal(S('<font face="Verdana">x</font>'), '<span style="font-family:Verdana,Geneva,sans-serif">x</span>');
+    });
+    test('police inconnue ou piégée : retirée, le texte reste', () => {
+        assert.equal(S('<span style="font-family: Papyrus">x</span>'), 'x');
+        assert.equal(S('<span style="font-family: Arial; background: url(javascript:alert(1))">x</span>'), '<span style="font-family:Arial,Helvetica,sans-serif">x</span>');
+        assert.equal(S('<font face="Arial;color:red">x</font>'), 'x', 'on ne peut pas glisser une autre propriété dans le nom de la police');
+    });
+    test('toutes les polices de NOTE_FONTS passent, avec leur valeur exacte', () => {
+        for (const [key, css] of Object.entries(F.NOTE_FONTS)) assert.equal(S(`<span style="font-family:${key}">x</span>`), `<span style="font-family:${css}">x</span>`, key);
+    });
+    test('taille, police et couleur ensemble', () => {
+        assert.equal(S('<span style="font-size: 43px; font-family: Georgia, serif; color: rgb(220, 38, 38);">x</span>'),
+            '<span style="font-size:43px;font-family:Georgia,serif;color:#dc2626">x</span>');
+    });
+});
+
+describe('sanitizeNoteHtml : portées éditables', () => {
+    const S = F.sanitizeNoteHtml;
+    const staff = (t) => `<div class="annot-staff" data-staff="${t}"></div>`;
+    test('une portée valide est gardée sous sa forme canonique', () => {
+        assert.equal(S(staff('t,4/4,0;q:c4 8:d4')), staff('t,4/4,0;q:c4 8:d4'));
+        assert.equal(S(staff('t,4/4,0;  q:c4   8:d4 ')), staff('t,4/4,0;q:c4 8:d4'));
+    });
+    test('une portée seule est une annotation (elle n’est pas « vide »)', () => {
+        assert.notEqual(S(staff('t,4/4,0;')), '');
+    });
+    test('le texte autour est gardé, dans l’ordre', () => {
+        assert.equal(S(`Riff :${staff('t,4/4,0;q:c4')}puis reprise`), `Riff :${staff('t,4/4,0;q:c4')}puis reprise`);
+    });
+    test('le dessin et les boutons enregistrés avec la portée sont jetés (rien ne s’exécute, aucun texte parasite)', () => {
+        const drawn = '<div class="annot-staff is-active" data-staff="t,4/4,0;q:c4" contenteditable="false"><div class="annot-staff-svg"><svg><text>PARASITE</text><script>alert(1)</script></svg></div><div class="annot-staff-tools"><button>Vider</button></div></div>suite';
+        assert.equal(S(drawn), `${staff('t,4/4,0;q:c4')}suite`);
+    });
+    test('portée invalide, vide ou sans valeur : supprimée avec son contenu', () => {
+        for (const bad of ['zzz', '', 't,4/4,0;q:h9', 't,4/4,9;', '<img src=x onerror=alert(1)>']) {
+            assert.equal(S(`avant<div data-staff="${bad.replace(/"/g, '&quot;')}">contenu</div>après`), 'avantaprès', bad);
+        }
+    });
+    test('balise non fermée : tout ce qui suit est jeté (pas de fuite)', () => {
+        assert.equal(S(`avant<div data-staff="t,4/4,0;q:c4">fin`), staff('t,4/4,0;q:c4').replace('></div>', '></div>').replace(/^/, 'avant'));
+    });
+    test('portées imbriquées dans un div ordinaire : conservées', () => {
+        assert.equal(S(`<div>ligne${staff('t,4/4,0;q:c4')}</div>`), `<div>ligne${staff('t,4/4,0;q:c4')}</div>`);
+    });
+    test('huit portées au plus', () => {
+        const nine = Array(9).fill(staff('t,4/4,0;q:c4')).join('');
+        assert.equal((S(nine).match(/annot-staff/g) || []).length, F.NOTE_MAX_STAVES);
+        assert.equal(F.NOTE_MAX_STAVES, 8);
+    });
+    test('nettoyer deux fois donne le même résultat', () => {
+        for (const raw of [`<span style="font-size:20px">a</span>${staff('b,6/8,-2;8t:bb3 8t:b3 8t:bbb3')}<div>z</div>`, staff('t,4/4,0;'), `x${staff('t,3/4,1;q.:f#4')}y`]) {
+            const once = S(raw);
+            assert.equal(S(once), once);
+        }
+    });
+    test('les portées ne comptent pas dans la longueur du texte', () => {
+        const long = 'x'.repeat(1990);
+        const out = S(`${long}${staff('t,4/4,0;q:c4')}`, 2000);
+        assert.ok(out.includes('annot-staff') && out.startsWith(long));
+    });
+});
+
+describe('annotations avec portée : import et grille', () => {
+    test('sanitizeImportedGrid : la portée d’une mesure passe l’import, une portée piégée est retirée', () => {
+        const stub = '<div class="annot-staff" data-staff="t,4/4,0;q:c4 8:d4"></div>';
+        const [a] = F.sanitizeImportedGrid([{ rootIndex: 2, chordId: 'm7', scaleId: 'dorian', measures: 1, note: `Lick :${stub}` }]);
+        assert.equal(a.note, `Lick :${stub}`);
+        const [b] = F.sanitizeImportedGrid([{ rootIndex: 2, chordId: 'm7', scaleId: 'dorian', measures: 1, note: '<div data-staff="bidon">x</div>Lick' }]);
+        assert.equal(b.note, 'Lick');
+    });
+});
