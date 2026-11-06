@@ -7800,6 +7800,14 @@
                 'app/ui/measure-editor.js': typeof MEASURE_EDITOR_BUILD !== 'undefined' ? MEASURE_EDITOR_BUILD : '',
                 'app/style.css': cssBuild()
             };
+            // Fichiers nouveaux de la version : s'ils sont absents (mal placés ou pas envoyés), ils ne définissent pas leur fonction.
+            var needed = {
+                'app/ui/staff-notes.js': typeof parseStaff === 'function',
+                'app/grid/grid-format.js': typeof GF_STAFF !== 'undefined',
+                'app/ui/staff-editor.js': typeof NoteStaffView === 'function',
+                'app/ui/annot-bar.js': typeof annotBarHtml === 'function'
+            };
+            Object.keys(needed).forEach(function (f) { seen[f] = needed[f] ? BUILD : ''; });
             var old = Object.keys(seen).filter(function (f) { return seen[f] !== BUILD; });
             var tag = document.createElement('div');
             tag.textContent = 'version ' + BUILD;
@@ -7808,7 +7816,7 @@
             if (!old.length) return;
             var bar = document.createElement('div');
             bar.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:99999;padding:8px 40px 8px 12px;background:#b45309;color:#fff;font:13px/1.35 sans-serif;text-align:center';
-            bar.textContent = 'Mise à jour incomplète : ' + old.join(', ') + ' n\'est pas à la même version que index.html (' + BUILD + '). Renvoyez ce fichier sur GitHub, dans son dossier, puis rechargez.';
+            bar.textContent = 'Mise à jour incomplète : à envoyer sur GitHub, dans son dossier (absent ou pas à la version ' + BUILD + ') : ' + old.join(', ') + '. Puis rechargez la page.';
             var x = document.createElement('button');
             x.textContent = '✕';
             x.style.cssText = 'position:absolute;right:8px;top:4px;background:none;border:0;color:#fff;font-size:16px;cursor:pointer';
