@@ -219,22 +219,76 @@ describe('sanitizeImportedSettings : densités par orchestre', () => {
 });
 
 describe('annotations (onglet Annotations)', () => {
-    test('annotation de mesure : conservée, espaces de fin retirés, limitée à 600 signes', () => {
-        const g = F.sanitizeImportedGrid([step({ note: 'Jouer doux  \n' }), step({ note: 'x'.repeat(800) }), step({ note: '   ' }), step({ note: 42 }), step()]);
+    test('annotation de mesure : conservée, espaces de fin retirés, limitée', () => {
+        const g = F.sanitizeImportedGrid([step({ note: 'Jouer doux  \n' }), step({ note: 'x'.repeat(F.MEASURE_NOTE_MAX + 300) }), step({ note: '   ' }), step({ note: 42 }), step()]);
         assert.equal(g[0].note, 'Jouer doux');
         assert.equal(g[1].note.length, F.MEASURE_NOTE_MAX);
         assert.equal('note' in g[2], false);
         assert.equal('note' in g[3], false);
         assert.equal('note' in g[4], false);
     });
-    test('annotation générale (réglages) : conservée, limitée à 2000 signes, ignorée si vide ou pas du texte', () => {
+    test('annotation générale (réglages) : conservée, limitée, ignorée si vide ou pas du texte', () => {
         assert.equal(F.sanitizeImportedSettings({ notes: 'Swing léger\n' }).notes, 'Swing léger');
-        assert.equal(F.sanitizeImportedSettings({ notes: 'y'.repeat(3000) }).notes.length, F.GRID_NOTE_MAX);
-        for (const bad of ['', '  ', 5, null, {}, []]) assert.equal('notes' in F.sanitizeImportedSettings({ notes: bad }), false, JSON.stringify(bad));
+        assert.equal(F.sanitizeImportedSettings({ notes: 'y'.repeat(F.GRID_NOTE_MAX + 1000) }).notes.length, F.GRID_NOTE_MAX);
+        for (const bad of ['', '  ', 5, null, {}, [], '<div><br></div>']) assert.equal('notes' in F.sanitizeImportedSettings({ notes: bad }), false, JSON.stringify(bad));
         assert.equal('notes' in F.sanitizeImportedSettings({}), false); // anciens fichiers
     });
     test('un fichier sans annotation (ancien) se lit comme avant', () => {
         const g = F.sanitizeImportedGrid([step()]);
         assert.deepEqual(Object.keys(g[0]).sort(), ['chordId', 'measures', 'rootIndex', 'scaleId']);
+    });
+});
+
+describe('sanitizeNoteHtml : annotations mises en forme', () => {
+    const S = F.sanitizeNoteHtml;
+    test('texte simple (anciennes annotations) : inchangé, retours à la ligne gardés', () => {
+        assert.equal(S('Arpège ascendant\nfinir sur la tierce'), 'Arpège ascendant\nfinir sur la tierce');
+        assert.equal(S('a < b et c > d & e'), 'a &lt; b et c &gt; d &amp; e');
+    });
+    test('mise en forme de la barre : gras, taille, couleur, surlignage, alignement, liste', () => {
+        assert.equal(S('<span style="font-size: xxx-large; font-weight: bold; color: rgb(220, 38, 38); background-color: rgb(253, 224, 71);">Gros</span>'),
+            '<span style="font-size:48px;font-weight:bold;color:#dc2626;background-color:#fde047">Gros</span>');
+        assert.equal(S('<div style="text-align: center;">x</div>'), '<div style="text-align:center">x</div>');
+        assert.equal(S('<ul><li>un</li><li>deux</li></ul>'), '<ul><li>un</li><li>deux</li></ul>');
+        assert.equal(S('<strong>g</strong><em>i</em><u>s</u><strike>b</strike>'), '<b>g</b><i>i</i><u>s</u><s>b</s>');
+        assert.equal(S('<font color="#f00" size="7">r</font>'), '<span style="color:#ff0000;font-size:48px">r</span>');
+        assert.equal(S('<span style="font-size:3px">p</span><span style="font-size:500px">g</span>'), '<span style="font-size:8px">p</span><span style="font-size:96px">g</span>');
+    });
+    test('rien d\'exécutable ne passe : scripts, événements, liens, images, styles inconnus', () => {
+        assert.equal(S('<img src=x onerror=alert(1)>Salut<script>alert(1)</script><a href="javascript:x">lien</a>'), 'Salutlien');
+        assert.equal(S('<div onclick="x()" style="text-align: right; background-image: url(javascript:1); position: fixed">r</div>'), '<div style="text-align:right">r</div>');
+        assert.equal(S('<span style="color: expression(alert(1))">x</span>'), 'x');
+        assert.equal(S('<span style="color: rgba(1,2,3,0.5)">x</span>'), 'x'); // couleur translucide refusée
+        assert.equal(S('<style>body{display:none}</style>t'), 't');
+        assert.equal(S('&lt;script&gt;alert(1)&lt;/script&gt;'), '&lt;script&gt;alert(1)&lt;/script&gt;'); // texte, pas du code
+        const out = S('<b onmouseover="a()" class="c" id="d">x</b>');
+        assert.equal(out, '<b>x</b>');
+    });
+    test('balises mal fermées ou imbriquées de travers : le résultat est toujours équilibré', () => {
+        assert.equal(S('<b>gras <i>et italique</b> fin</i>'), '<b>gras <i>et italique</i></b> fin');
+        assert.equal(S('<div><span style="color:#000">x'), '<div><span style="color:#000000">x</span></div>');
+        assert.equal(S('x</b></div>'), 'x');
+    });
+    test('vide : aucun texte visible, retours à la ligne et éléments vides de fin retirés', () => {
+        for (const v of ['', '<br>', '<div><br></div>', '<span style="color:#000"> </span>', '&nbsp;', null, undefined, 5]) assert.equal(S(v), '', String(v));
+        assert.equal(S('texte<div><br></div><div><br></div>'), 'texte');
+        assert.equal(S('a<div><br></div>b'), 'a<div><br></div>b'); // une ligne vide au milieu reste
+    });
+    test('entités : décodées puis ré-échappées, numériques acceptées, inconnues laissées', () => {
+        assert.equal(S('&#9837; &#x266F; &amp;lt; &truc;'), '♭ ♯ &amp;lt; &amp;truc;');
+    });
+    test('limite de texte : coupée, et les éléments ouverts sont refermés', () => {
+        assert.equal(S('<b>' + 'x'.repeat(50) + '</b>fin', 10), '<b>xxxxxxxxxx</b>');
+        assert.equal(S('x'.repeat(50), 10), 'xxxxxxxxxx');
+    });
+    test('idempotent : nettoyer deux fois donne le même résultat', () => {
+        const once = S('<span style="font-size: 20px; color: rgb(1, 2, 3)">A</span><div style="text-align:center"><b>B</b></div>');
+        assert.equal(S(once), once);
+    });
+    test('beaucoup d\'éléments : plafonné, jamais d\'erreur', () => {
+        const big = '<b>'.repeat(2000) + 'x' + '<br>'.repeat(2000);
+        const out = S(big);
+        assert.ok(out.length < 20000);
+        assert.ok(out.includes('x'));
     });
 });

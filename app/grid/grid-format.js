@@ -19,9 +19,135 @@ const IMPORT_GROOVES = ['samba', 'tango', 'piazzolla', 'lyrique', 'afro', 'b-cho
 // Guitare 60 % (un peu plus fourni que l'écriture d'origine, vers 35 %) ; autres orchestres 50 % = l'écriture d'origine.
 const BAND_DENSITY_DEFAULTS = { guitar: 0.6, classic: 0.5, piazzolla: 0.5, balkan: 0.5, cumbia: 0.5, brass: 0.5 };
 
-// Annotations libres (onglet « Annotations » du mode Jam) : une par mesure (jusqu'à 600 signes) et une pour toute la grille.
-const MEASURE_NOTE_MAX = 600;
-const GRID_NOTE_MAX = 2000;
+// Annotations libres (onglet « Annotations » du mode Jam) : une par mesure (jusqu'à 2000 signes de texte) et une pour toute la grille (8000).
+// Le texte est mis en forme (gras, taille, couleur…) : il est gardé sous forme de HTML RESTREINT, nettoyé par sanitizeNoteHtml.
+const MEASURE_NOTE_MAX = 2000;
+const GRID_NOTE_MAX = 8000;
+
+// Éléments acceptés (les autres sont retirés, leur texte est gardé) et ce qu'ils deviennent.
+const NOTE_TAGS = { b: 'b', strong: 'b', i: 'i', em: 'i', u: 'u', s: 's', strike: 's', del: 's', span: 'span', font: 'span',
+    div: 'div', p: 'div', br: 'br', ul: 'ul', ol: 'ol', li: 'li' };
+// Tailles écrites en mots (produites par certains navigateurs) et tailles 1 à 7 de l'ancienne balise <font>, en pixels.
+const NOTE_FONT_WORDS = { 'xx-small': 9, 'x-small': 10, small: 13, medium: 16, large: 18, 'x-large': 24, 'xx-large': 32, 'xxx-large': 48 };
+const NOTE_FONT_SIZES = [10, 13, 16, 18, 24, 32, 48];
+
+function decodeNoteEntities(t) {
+    const named = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+    return t.replace(/&(?:#(\d{1,7})|#x([0-9a-f]{1,6})|([a-z]+));/gi, (all, dec, hex, name) => {
+        if (name) return Object.prototype.hasOwnProperty.call(named, name.toLowerCase()) ? named[name.toLowerCase()] : all;
+        const cp = dec ? parseInt(dec, 10) : parseInt(hex, 16);
+        const ok = cp === 9 || cp === 10 || (cp >= 32 && cp <= 0x10FFFF && !(cp >= 0xD800 && cp <= 0xDFFF) && !(cp >= 0x7F && cp <= 0x9F));
+        return ok ? String.fromCodePoint(cp) : all;
+    });
+}
+
+// Couleur CSS : #rgb, #rrggbb ou rgb()/rgba() opaque → « #rrggbb » ; sinon null.
+function noteColor(v) {
+    v = String(v || '').trim().toLowerCase();
+    let m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/.exec(v);
+    if (m) return '#' + (m[1].length === 3 ? m[1].split('').map(c => c + c).join('') : m[1]);
+    m = /^rgba?\(\s*(\d{1,3})\s*[, ]\s*(\d{1,3})\s*[, ]\s*(\d{1,3})\s*(?:[,/]\s*([\d.]+%?)\s*)?\)$/.exec(v);
+    if (!m) return null;
+    const alpha = m[4] === undefined ? 1 : (m[4].endsWith('%') ? parseFloat(m[4]) / 100 : parseFloat(m[4]));
+    if (alpha !== 1) return null;
+    const c = [m[1], m[2], m[3]].map(Number);
+    if (c.some(n => n > 255)) return null;
+    return '#' + c.map(n => n.toString(16).padStart(2, '0')).join('');
+}
+
+// Style CSS réduit à ce que propose la barre de mise en forme (couleur, surlignage, taille, gras, italique, souligné, barré, alignement).
+function noteStyle(styleText) {
+    const got = new Map();
+    String(styleText || '').split(';').forEach(decl => {
+        const i = decl.indexOf(':');
+        if (i < 0) return;
+        const prop = decl.slice(0, i).trim().toLowerCase();
+        const val = decl.slice(i + 1).trim().toLowerCase();
+        if (prop === 'color') { const c = noteColor(val); if (c) got.set('color', c); }
+        else if (prop === 'background-color' || prop === 'background') {
+            if (val === 'transparent') got.set('background-color', 'transparent');
+            else { const c = noteColor(val); if (c) got.set('background-color', c); }
+        } else if (prop === 'font-size') {
+            let px = null;
+            const m = /^(\d{1,3}(?:\.\d+)?)px$/.exec(val);
+            if (m) px = Math.round(parseFloat(m[1])); else if (NOTE_FONT_WORDS[val]) px = NOTE_FONT_WORDS[val];
+            if (px) got.set('font-size', Math.max(8, Math.min(96, px)) + 'px');
+        } else if (prop === 'font-weight') {
+            if (/^(bold|bolder|[6-9]00)$/.test(val)) got.set('font-weight', 'bold'); else if (/^(normal|lighter|[1-5]00)$/.test(val)) got.set('font-weight', 'normal');
+        } else if (prop === 'font-style') {
+            if (val === 'italic' || val === 'oblique') got.set('font-style', 'italic'); else if (val === 'normal') got.set('font-style', 'normal');
+        } else if (prop === 'text-decoration' || prop === 'text-decoration-line') {
+            const t = val.split(/\s+/);
+            const parts = ['underline', 'line-through'].filter(k => t.includes(k));
+            if (parts.length) got.set('text-decoration', parts.join(' ')); else if (t.includes('none')) got.set('text-decoration', 'none');
+        } else if (prop === 'text-align') {
+            if (/^(left|center|right|justify)$/.test(val)) got.set('text-align', val);
+        }
+    });
+    return [...got].map(([k, v]) => `${k}:${v}`).join(';');
+}
+
+// Nettoie une annotation mise en forme : on ne garde que les éléments et styles ci-dessus, tout le texte est échappé
+// (rien de ce qui vient d'un fichier importé ne peut exécuter de code). Le texte est limité à maxText signes.
+// Renvoie '' si l'annotation ne contient aucun texte visible. Un texte simple (anciennes annotations) reste tel quel.
+function sanitizeNoteHtml(raw, maxText = MEASURE_NOTE_MAX) {
+    if (typeof raw !== 'string' || !raw) return '';
+    const src = raw.replace(/\r\n?/g, '\n').replace(/<(script|style)\b[\s\S]*?<\/\1\s*>/gi, '').replace(/<!--[\s\S]*?-->/g, '');
+    const re = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/g;
+    let out = '', pos = 0, left = maxText, count = 0, hasText = false, m;
+    const stack = [];
+    const addText = (chunk) => {
+        if (!chunk || left <= 0) return;
+        let t = decodeNoteEntities(chunk);
+        if (t.length > left) t = t.slice(0, left);
+        left -= t.length;
+        if (/[^\s ]/.test(t)) hasText = true;
+        out += t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    };
+    while ((m = re.exec(src))) {
+        addText(src.slice(pos, m.index));
+        pos = re.lastIndex;
+        const closing = m[1] === '/';
+        const name = m[2].toLowerCase();
+        const kind = NOTE_TAGS[name];
+        if (!kind) continue;
+        if (kind === 'br') { if (!closing && count < 400) { out += '<br>'; count++; } continue; }
+        if (closing) {
+            let k = stack.length - 1;
+            while (k >= 0 && stack[k].kind !== kind) k--;
+            if (k < 0) continue;
+            while (stack.length > k) { const e = stack.pop(); if (e.emitted) out += `</${e.kind}>`; }
+            continue;
+        }
+        let style = '';
+        if (kind !== 'b' && kind !== 'i' && kind !== 'u' && kind !== 's') {
+            const attrs = {};
+            m[3].replace(/([a-zA-Z-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g, (all, k, a, b, c) => { attrs[k.toLowerCase()] = decodeNoteEntities(a !== undefined ? a : (b !== undefined ? b : c)); return all; });
+            let css = attrs.style || '';
+            if (name === 'font') {
+                if (attrs.color) css += `;color:${attrs.color}`;
+                const sz = parseInt(attrs.size, 10);
+                if (sz >= 1 && sz <= 7) css += `;font-size:${NOTE_FONT_SIZES[sz - 1]}px`;
+            }
+            style = noteStyle(css);
+        }
+        const emit = count < 400 && stack.length < 16 && (kind !== 'span' || !!style);
+        if (emit) { out += `<${kind}${style ? ` style="${style}"` : ''}>`; count++; }
+        stack.push({ kind, emitted: emit });
+    }
+    addText(src.slice(pos));
+    while (stack.length) { const e = stack.pop(); if (e.emitted) out += `</${e.kind}>`; }
+    if (!hasText) return '';
+    // éléments vides, retours à la ligne et espaces de fin (le navigateur en laisse toujours un en fin de champ)
+    let prev;
+    do {
+        prev = out;
+        out = out.replace(/<(span|b|i|u|s|div|li)(?: style="[^"]*")?><\/\1>/g, '')
+            .replace(/<div(?: style="[^"]*")?>(?:<br>|\s| )*<\/div>$/, '')
+            .replace(/(?:<br>|\s| )+$/, '');
+    } while (out !== prev);
+    return out;
+}
 
 // Lit une signature (nombre 2, 3, 4 des anciennes versions, ou texte « 6/8 »).
 function parseMeter(val) {
@@ -74,7 +200,7 @@ function sanitizeImportedGrid(raw) {
             if (typeof item[k] === 'string') step[k] = item[k].slice(0, 80);
         });
         if (typeof item.fnLabel === 'string' && item.fnLabel) step.fnLabel = item.fnLabel.slice(0, 24);
-        if (typeof item.note === 'string' && item.note.trim()) step.note = item.note.replace(/\s+$/, '').slice(0, MEASURE_NOTE_MAX);
+        if (typeof item.note === 'string') { const nt = sanitizeNoteHtml(item.note, MEASURE_NOTE_MAX); if (nt) step.note = nt; }
         const mk0 = modKeyOf(item.modKey);
         if (mk0) step.modKey = mk0;
         // Signes de reprise : début, fin (nombre de passages) et 1re / 2e fin
@@ -100,7 +226,7 @@ function sanitizeImportedSettings(data) {
     if (typeof data.quality === 'string' && qualities.includes(data.quality)) out.quality = data.quality;
     if (GF_THEORY.isValidSpell(data.spell)) out.spell = data.spell;
     if (data.fnConvention === 'jazz' || data.fnConvention === 'classic') out.fnConvention = data.fnConvention; // chiffrage des degrés choisi à la main ; absent = classique (défaut)
-    if (typeof data.notes === 'string' && data.notes.trim()) out.notes = data.notes.replace(/\s+$/, '').slice(0, GRID_NOTE_MAX); // annotation générale de la grille
+    if (typeof data.notes === 'string') { const nt = sanitizeNoteHtml(data.notes, GRID_NOTE_MAX); if (nt) out.notes = nt; } // annotation générale de la grille
     const bpm = Number(data.bpm);
     if (Number.isFinite(bpm)) out.bpm = Math.max(50, Math.min(220, Math.round(bpm)));
     if (data.timeSignature !== undefined && data.timeSignature !== null) {
@@ -144,5 +270,5 @@ function sanitizeImportedSettings(data) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { MEASURE_NOTE_MAX, GRID_NOTE_MAX, BAND_DENSITY_DEFAULTS, PART_LABELS, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings };
+    module.exports = { MEASURE_NOTE_MAX, GRID_NOTE_MAX, sanitizeNoteHtml, BAND_DENSITY_DEFAULTS, PART_LABELS, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings };
 }

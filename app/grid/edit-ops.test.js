@@ -2,6 +2,7 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const E = require('./edit-ops.js');
+const F = require('./grid-format.js');
 const { flatMeasureList } = require('./play-order.js');
 const T = require('../theory.js');
 const { buildStyleTemplate, STYLE_BUILDERS } = require('../styles/style-builders.js');
@@ -497,13 +498,21 @@ describe('annotations de mesure (onglet Annotations)', () => {
         assert.equal(E.setMeasureNote(g, 2, ''), 0);
         assert.deepEqual(g, [st(0, 'maj7', 4)]);
     });
-    test('les espaces de fin sont retirés, le texte est limité à 600 signes, mesure inconnue → -1', () => {
+    test('les espaces de fin sont retirés, le texte est limité, mesure inconnue → -1', () => {
         const g = [st(0, 'maj7', 2)];
         E.setMeasureNote(g, 1, 'ligne 1\nligne 2  \n');
         assert.equal(noteOf(g, 1), 'ligne 1\nligne 2');
-        E.setMeasureNote(g, 2, 'a'.repeat(900));
-        assert.equal(noteOf(g, 2).length, 600);
+        E.setMeasureNote(g, 2, 'a'.repeat(5000));
+        assert.equal(noteOf(g, 2).length, F.MEASURE_NOTE_MAX);
         assert.equal(E.setMeasureNote(g, 9, 'x'), -1);
+    });
+    test('texte mis en forme : les styles autorisés sont gardés, le reste est retiré', () => {
+        const g = [st(0, 'maj7', 2)];
+        E.setMeasureNote(g, 1, '<span style="font-size: 28px; color: rgb(220, 38, 38); position: fixed" onclick="x()">Fort</span><script>alert(1)</script>');
+        assert.equal(noteOf(g, 1), '<span style="font-size:28px;color:#dc2626">Fort</span>');
+        E.setMeasureNote(g, 2, '<div><br></div>'); // aucun texte visible : pas d'annotation
+        assert.equal(noteOf(g, 2), null);
+        assert.equal(g.length, 2);
     });
     test('deux mesures voisines identiques avec des annotations différentes ne fusionnent pas', () => {
         const g = [st(0, 'maj7', 2)];

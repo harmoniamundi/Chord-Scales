@@ -18,8 +18,9 @@ if (typeof flatMeasureList === 'undefined' && typeof require === 'function') {
 }
 // isPartLabel est une constante globale (grid/grid-format.js) : on la reprend sous un nom propre à ce fichier.
 const EDIT_IS_PART_LABEL = (typeof isPartLabel !== 'undefined') ? isPartLabel : require('./grid-format.js').isPartLabel;
-// Longueur maximale d'une annotation de mesure (grid/grid-format.js), reprise sous un nom propre à ce fichier.
+// Longueur maximale d'une annotation de mesure et nettoyage de son texte mis en forme (grid/grid-format.js), repris sous des noms propres à ce fichier.
 const EDIT_NOTE_MAX = (typeof MEASURE_NOTE_MAX !== 'undefined') ? MEASURE_NOTE_MAX : require('./grid-format.js').MEASURE_NOTE_MAX;
+const EDIT_CLEAN_NOTE = (typeof sanitizeNoteHtml !== 'undefined') ? sanitizeNoteHtml : require('./grid-format.js').sanitizeNoteHtml;
 if (typeof isSplit === 'undefined' && typeof require === 'function') {
     var { isSplit } = require('../band/band-helpers.js');
 }
@@ -27,7 +28,7 @@ if (typeof romanDegByRank === 'undefined' && typeof require === 'function') {
     var { romanDegByRank, fnMinorRef } = require('./generation.js');
 }
 
-const EDIT_OPS_BUILD = '2026-11-06-a'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
+const EDIT_OPS_BUILD = '2026-11-06-b'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
 const cloneStep = (o) => JSON.parse(JSON.stringify(o));
 
 // Repère de partie porté par la mesure m (liste à plat), seulement si elle ouvre son bloc ; '' sinon.
@@ -237,9 +238,9 @@ function setFunctionLabel(grid, measureNumber, half, label, mod = null) {
 }
 
 // Annotation libre d'une mesure (onglet « Annotations » du mode Jam) : la mesure est isolée dans son propre bloc, qui porte
-// le texte (`note`) comme il porterait une fonction tonale. Texte vide = annotation retirée. Renvoie l'index du bloc, ou -1.
+// le texte mis en forme (`note`, HTML restreint) comme il porterait une fonction tonale. Texte vide = annotation retirée. Renvoie l'index du bloc, ou -1.
 function setMeasureNote(grid, measureNumber, text) {
-    const clean = String(text === undefined || text === null ? '' : text).replace(/\s+$/, '').slice(0, EDIT_NOTE_MAX);
+    const clean = EDIT_CLEAN_NOTE(text, EDIT_NOTE_MAX); // texte mis en forme (HTML restreint) ; '' si aucun texte visible
     const flat = flatMeasureList(grid).find(x => x.measureNumber === measureNumber);
     if (!flat) return -1;
     if (!clean && !grid[flat.stepIndex].note) return flat.stepIndex; // rien à retirer : la structure des blocs reste intacte

@@ -5418,6 +5418,7 @@
 
             setVisMode(mode) {
                 const prev = this.visMode;
+                if (mode !== 'annotations') this.closeAnnotPopup(); // valide aussi l'annotation en cours de saisie
                 this.visMode = mode;
                 ['staff', 'annotations', 'intervals', 'notes', 'letters'].forEach(m => {
                     const btn = document.getElementById(`jam-vmode-${m}`);
@@ -5643,38 +5644,43 @@
                 this.renderJamScales();
             }
 
-            // ===== Onglet « Annotations » : deux zones de texte libre =====
+            // ===== Onglet « Annotations » : deux zones de texte libre, mises en forme =====
             // Gauche : annotation générale de la grille (`this.gridNote`), fixe pendant toute la lecture.
             // Droite : annotation de la mesure en cours (jam lancée) ou sélectionnée (jam à l'arrêt) ; elle change à chaque
             // mesure (une mesure à deux accords garde la même annotation). Le texte de mesure est porté par son bloc (`note`).
+            // Ce sont des champs éditables (contenteditable) : le texte est gardé en HTML restreint (grid/grid-format.js,
+            // sanitizeNoteHtml). Un clic dans une zone ouvre le pop-up de mise en forme.
             // Les zones sont créées une fois : seuls leurs textes sont remis à jour, pour ne jamais couper une saisie en cours.
             _renderJamAnnotations(container) {
                 let general = container.querySelector('#jam-annot-general');
                 let box = container.querySelector('#jam-annot-measure');
                 if (!general || !box) {
+                    const handlers = `onkeydown="app.jam.annotKeydown(event)" onfocus="app.jam.openAnnotPopup(this)" onclick="app.jam.openAnnotPopup(this)"
+                                onblur="app.jam.annotBlur(this, event)" oninput="app.jam.annotInput(this)" onpaste="app.jam.annotPaste(event)" ondrop="event.preventDefault()"`;
                     container.innerHTML = `
                         <div class="jam-annot-zone">
                             <div class="jam-annot-head">Grille</div>
-                            <textarea id="jam-annot-general" class="jam-annot-text" maxlength="${GRID_NOTE_MAX}" spellcheck="false" aria-label="Annotations générales de la grille"
-                                placeholder="Indications générales pour toute la grille…"
-                                onkeydown="event.stopPropagation()" onchange="app.jam.commitGridNote(this.value)"></textarea>
+                            <div id="jam-annot-general" class="jam-annot-text" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="false"
+                                aria-label="Annotations générales de la grille" data-placeholder="Indications générales pour toute la grille…" ${handlers}></div>
                         </div>
                         <div class="jam-annot-zone">
                             <div class="jam-annot-head" id="jam-annot-measure-head">Mesure</div>
-                            <textarea id="jam-annot-measure" class="jam-annot-text" maxlength="${MEASURE_NOTE_MAX}" spellcheck="false" aria-label="Annotations de la mesure"
-                                onkeydown="event.stopPropagation()" onchange="app.jam.commitMeasureNote(this)"></textarea>
+                            <div id="jam-annot-measure" class="jam-annot-text" contenteditable="false" role="textbox" aria-multiline="true" spellcheck="false"
+                                aria-label="Annotations de la mesure" ${handlers}></div>
                         </div>`;
                     general = container.querySelector('#jam-annot-general');
                     box = container.querySelector('#jam-annot-measure');
                 }
                 const head = container.querySelector('#jam-annot-measure-head');
+                const focused = (el) => document.activeElement === el;
+                const setHtml = (el, html) => { if (el.__html !== html) { el.innerHTML = html; el.__html = html; } };
 
-                const gv = this.gridNote || '';
-                if (document.activeElement !== general && general.value !== gv) general.value = gv;
+                const gv = sanitizeNoteHtml(this.gridNote || '', GRID_NOTE_MAX);
+                if (!focused(general)) setHtml(general, gv);
 
                 const idx = this.currentStepIndex;
                 const step = (idx >= 0 && idx < this.grid.length) ? this.grid[idx] : null;
-                let label = 'Mesure', measureNum = '', readOnly = true, placeholder = 'Cliquez sur une mesure de la grille pour l\'annoter';
+                let label = 'Mesure', measureNum = '', editable = false, placeholder = 'Cliquez sur une mesure de la grille pour l\'annoter';
                 if (step && this.isPlaying) {
                     // Jam lancée : mesure en cours (plusieurs mesures si le bloc en couvre plusieurs), lecture seule
                     // (modifier une annotation redécoupe les blocs de la grille, ce qui n'est pas permis en cours de lecture).
@@ -5685,21 +5691,24 @@
                     const n = this._activeMeasureNumber();
                     label = `Mesure ${n}`;
                     measureNum = String(n);
-                    readOnly = false;
+                    editable = true;
                     placeholder = 'Indications pour cette mesure…';
                 }
                 if (head.textContent !== label) head.textContent = label;
                 box.dataset.measure = measureNum;
-                box.readOnly = readOnly;
-                box.placeholder = placeholder;
-                const mv = step ? (step.note || '') : '';
-                if ((document.activeElement !== box || readOnly) && box.value !== mv) box.value = mv;
+                box.setAttribute('contenteditable', editable ? 'true' : 'false');
+                box.setAttribute('aria-readonly', editable ? 'false' : 'true');
+                box.dataset.placeholder = placeholder;
+                if (!editable && this._annotPop && this._annotPop.ed === box) this.closeAnnotPopup();
+                if (!(focused(box) && editable)) setHtml(box, step ? sanitizeNoteHtml(step.note || '', MEASURE_NOTE_MAX) : '');
             }
 
+            _annotIsEditable(el) { return !!el && el.getAttribute('contenteditable') === 'true'; }
+
             // Annotation générale de la grille (zone de gauche) : validée en quittant le champ, une entrée d'annulation par saisie.
-            commitGridNote(text) {
-                const v = String(text || '').replace(/\s+$/, '').slice(0, GRID_NOTE_MAX);
-                if (v === (this.gridNote || '')) return;
+            commitGridNote(html) {
+                const v = sanitizeNoteHtml(html, GRID_NOTE_MAX);
+                if (v === sanitizeNoteHtml(this.gridNote || '', GRID_NOTE_MAX)) return;
                 this.withUndo(() => { this.gridNote = v; });
                 this.refreshSaveButton();
             }
@@ -5707,13 +5716,13 @@
             // Annotation de la mesure (zone de droite). La mesure est isolée dans son propre bloc (comme pour une fonction tonale) :
             // la sélection est donc replacée sur la même mesure, et la grille affichée n'est pas redessinée (elle ne change pas
             // d'aspect, et cela ne doit pas faire perdre le clic qui a fait quitter le champ).
-            commitMeasureNote(el) {
-                if (this.isPlaying || el.readOnly) return;
+            commitMeasureNote(el, html) {
+                if (this.isPlaying || !this._annotIsEditable(el)) return;
                 const n = parseInt(el.dataset.measure, 10);
                 const flat = this.getFlatMeasureList();
                 if (!(n >= 1 && n <= flat.length)) return;
-                const v = String(el.value || '').replace(/\s+$/, '').slice(0, MEASURE_NOTE_MAX);
-                if (v === (this.grid[flat[n - 1].stepIndex].note || '')) return;
+                const v = sanitizeNoteHtml(html, MEASURE_NOTE_MAX);
+                if (v === sanitizeNoteHtml(this.grid[flat[n - 1].stepIndex].note || '', MEASURE_NOTE_MAX)) return;
                 const bpb = this.getBeatsPerBar();
                 const active = this._activeMeasureNumber();
                 const beatInMeasure = this.currentBeat % bpb;
@@ -5723,6 +5732,236 @@
                     if (m) { this.currentStepIndex = m.stepIndex; this.currentBeat = (m.measureInStep - 1) * bpb + beatInMeasure; }
                 }
                 this.refreshSaveButton();
+            }
+
+            // Valide le contenu d'un champ d'annotation (nettoyé), sans toucher à son affichage hors cas vide.
+            _annotCommit(ed) {
+                if (!ed || !ed.isConnected) return;
+                this._annotNormalize(ed);
+                const html = sanitizeNoteHtml(ed.innerHTML, ed.id === 'jam-annot-general' ? GRID_NOTE_MAX : MEASURE_NOTE_MAX);
+                if (ed.id === 'jam-annot-general') this.commitGridNote(html); else this.commitMeasureNote(ed, html);
+                if (!html && ed.innerHTML !== '') ed.innerHTML = ''; // champ vraiment vide : le texte d'aide réapparaît
+                ed.__html = html;
+            }
+
+            // Les tailles de la barre sont posées par le navigateur sous une taille « provisoire » (xxx-large) :
+            // on la remplace tout de suite par la taille choisie, en pixels.
+            _annotNormalize(ed) {
+                const px = this._annotSizePx || 15;
+                ed.querySelectorAll('span').forEach(sp => { if (sp.style.fontSize === 'xxx-large') sp.style.fontSize = `${px}px`; });
+                ed.querySelectorAll('font').forEach(f => { // anciens navigateurs : <font size="7"> à la place du style
+                    if (f.getAttribute('size') === '7') { const sp = document.createElement('span'); sp.style.fontSize = `${px}px`; while (f.firstChild) sp.appendChild(f.firstChild); f.replaceWith(sp); }
+                });
+            }
+
+            annotInput(ed) { this._annotNormalize(ed); this._annotSaveSel(); }
+
+            annotKeydown(ev) {
+                ev.stopPropagation(); // les raccourcis de la page (flèches de la grille, ⌘Z de la grille…) ne s'appliquent pas à la saisie
+                if (ev.key === 'Escape') { ev.preventDefault(); this.closeAnnotPopup(); }
+            }
+
+            // Collage en texte brut : pas de mise en forme venue d'ailleurs.
+            annotPaste(ev) {
+                ev.preventDefault();
+                const t = (ev.clipboardData || window.clipboardData).getData('text/plain');
+                if (t) document.execCommand('insertText', false, t);
+            }
+
+            // Quitter le champ valide l'annotation, sauf si le focus passe au pop-up de mise en forme (sélecteur de couleur).
+            annotBlur(ed, ev) {
+                const pop = this._annotPop && this._annotPop.el;
+                if (pop && ev && ev.relatedTarget && pop.contains(ev.relatedTarget)) return;
+                this._annotCommit(ed);
+            }
+
+            // ----- Pop-up de mise en forme (s'ouvre au clic dans une zone d'annotation) -----
+            openAnnotPopup(ed) {
+                if (!this._annotIsEditable(ed)) return;
+                if (this._annotPop) {
+                    if (this._annotPop.ed !== ed) { this._annotCommit(this._annotPop.ed); this._annotPop.ed = ed; this._annotRange = null; this._placeAnnotPopup(); }
+                    this._annotActive = ed;
+                    return;
+                }
+                const sw = (cls, color, attr) => `<button type="button" class="annot-sw" ${attr}="${color}" style="background:${color}" title="${color}" aria-label="${cls} ${color}"></button>`;
+                const textColors = ['#0f172a', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#0891b2', '#2563eb', '#7c3aed', '#db2777', '#6b7280'];
+                const hiColors = ['#fef08a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#fed7aa', '#e5e7eb'];
+                const chip = (label, attrs, title, cls = '') => `<button type="button" class="jm-chip annot-chip ${cls}" ${attrs} title="${title}" aria-label="${title}">${label}</button>`;
+                const alignIcon = (kind) => {
+                    const x = { left: [1, 9], center: [4, 8], right: [7, 8] }[kind]; // début et longueur des lignes courtes
+                    return `<svg width="16" height="14" viewBox="0 0 16 14" aria-hidden="true"><path d="M1 2h14M${x[0]} 5.5h${x[1]}M1 9h14M${x[0]} 12.5h${x[1]}" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>`;
+                };
+                const symbols = ['♭', '♯', '♮', 'Δ', 'ø', '°', '⁷', '⁹', '¹¹', '¹³', '♩', '♪', '♫', '‖', '→', '↑', '↓', '↗', '↘', '✓', '×'];
+                const nuances = ['p', 'mp', 'mf', 'f', 'ff', 'cresc.', 'dim.', 'rit.', 'a tempo', 'solo', 'tutti'];
+                const el = document.createElement('div');
+                el.className = 'jm-pop annot-pop';
+                el.setAttribute('role', 'dialog');
+                el.setAttribute('aria-label', 'Mise en forme de l\'annotation');
+                el.innerHTML = `
+                    <div class="jm-head" title="Glisser pour déplacer">
+                        <span class="jm-title">Mise en forme</span>
+                        <button type="button" class="jm-btn" data-close="1" title="Fermer (Échap)">✕</button>
+                    </div>
+                    <div class="annot-cols"><div class="annot-col">
+                    <div class="annot-line"><div class="annot-lab">Style</div>
+                        <div class="jm-row">
+                            ${chip('<b>G</b>', 'data-cmd="bold" data-state="bold"', 'Gras (⌘B)')}
+                            ${chip('<i>I</i>', 'data-cmd="italic" data-state="italic"', 'Italique (⌘I)')}
+                            ${chip('<u>S</u>', 'data-cmd="underline" data-state="underline"', 'Souligné (⌘U)')}
+                            ${chip('<s>B</s>', 'data-cmd="strikeThrough" data-state="strikeThrough"', 'Barré')}
+                            ${chip(alignIcon('left'), 'data-cmd="justifyLeft"', 'Aligner à gauche')}
+                            ${chip(alignIcon('center'), 'data-cmd="justifyCenter"', 'Centrer')}
+                            ${chip(alignIcon('right'), 'data-cmd="justifyRight"', 'Aligner à droite')}
+                            ${chip('• Liste', 'data-cmd="insertUnorderedList" data-state="insertUnorderedList"', 'Liste à puces')}
+                        </div>
+                    </div>
+                    <div class="annot-line"><div class="annot-lab">Taille</div>
+                        <div class="jm-row annot-sizes">
+                            ${[[12, 'Petit'], [15, 'Normal'], [20, 'Grand'], [28, 'Très grand'], [40, 'Énorme']].map(([px, n]) =>
+                                chip(`<span style="font-size:${Math.round(11 + px / 4)}px;line-height:1">A</span>`, `data-size="${px}"`, `${n} (${px} px)`)).join('')}
+                        </div>
+                    </div>
+                    <div class="annot-line"><div class="annot-lab">Couleur</div>
+                        <div class="jm-row annot-colors">
+                            ${textColors.map(c => sw('Couleur', c, 'data-color')).join('')}
+                            <label class="annot-sw annot-sw-custom" title="Autre couleur…"><input type="color" id="annot-color-custom" value="#dc2626" aria-label="Autre couleur de texte"></label>
+                        </div>
+                    </div>
+                    <div class="annot-line"><div class="annot-lab">Fond</div>
+                        <div class="jm-row annot-colors">
+                            ${hiColors.map(c => sw('Surlignage', c, 'data-hilite')).join('')}
+                            <button type="button" class="jm-chip annot-chip annot-none" data-hilite="transparent" title="Retirer le surlignage">Aucun</button>
+                        </div>
+                    </div>
+                    </div><div class="annot-col">
+                    <div class="annot-line"><div class="annot-lab">Symboles</div>
+                        <div class="jm-row">${symbols.map(x => chip(x, `data-ins="${x}"`, `Insérer ${x}`, 'annot-sym')).join('')}</div>
+                    </div>
+                    <div class="annot-line"><div class="annot-lab">Nuances</div>
+                        <div class="jm-row">${nuances.map(x => chip(x, `data-ins="${x}"`, `Insérer « ${x} »`, 'annot-nu')).join('')}</div>
+                    </div>
+                    </div></div>
+                    <div class="jm-foot"><button type="button" class="jm-btn" data-clear="1" title="Retire gras, couleur, taille… de la sélection">Effacer la mise en forme</button></div>`;
+                // Les boutons ne prennent pas le focus : la sélection du texte reste en place dans la zone.
+                el.addEventListener('mousedown', (ev) => { if (!ev.target.closest('input')) ev.preventDefault(); });
+                el.addEventListener('click', (ev) => {
+                    const t = ev.target;
+                    if (t.closest('[data-close]')) { this.closeAnnotPopup(); return; }
+                    let b;
+                    if ((b = t.closest('[data-cmd]'))) this.annotCmd(b.dataset.cmd);
+                    else if ((b = t.closest('[data-size]'))) { this._annotSizePx = parseInt(b.dataset.size, 10); this.annotCmd('fontSize', '7'); }
+                    else if ((b = t.closest('[data-color]'))) this.annotCmd('foreColor', b.dataset.color);
+                    else if ((b = t.closest('[data-hilite]'))) this.annotCmd('hiliteColor', b.dataset.hilite);
+                    else if ((b = t.closest('[data-ins]'))) this.annotCmd('insertText', b.dataset.ins);
+                    else if (t.closest('[data-clear]')) { this.annotCmd('removeFormat'); this.annotCmd('justifyLeft'); }
+                });
+                el.querySelector('#annot-color-custom').addEventListener('change', (ev) => this.annotCmd('foreColor', ev.target.value));
+                (document.fullscreenElement || document.body).appendChild(el);
+                this._enablePopupDrag(el);
+                this._annotPop = { el, ed };
+                this._annotActive = ed;
+                this._annotRange = null;
+                this._annotOutside = (ev) => {
+                    const t = ev.target;
+                    if (!this._annotPop || this._annotPop.el.contains(t) || (t.closest && t.closest('.jam-annot-text'))) return;
+                    this.closeAnnotPopup();
+                };
+                this._annotSelChange = () => { this._annotSaveSel(); this._annotRefreshState(); };
+                this._annotReposition = () => this._placeAnnotPopup();
+                document.addEventListener('pointerdown', this._annotOutside, true);
+                document.addEventListener('selectionchange', this._annotSelChange);
+                window.addEventListener('resize', this._annotReposition);
+                this._placeAnnotPopup();
+                this._annotRefreshState();
+            }
+
+            // Le pop-up se pose sur la zone d'annotation voisine (celle qu'on n'est pas en train d'écrire) : la zone en cours de
+            // saisie, la grille d'accords et les boutons restent visibles et cliquables. Il se déplace en glissant sa barre de titre ;
+            // la position choisie est conservée. Sur téléphone, il s'ouvre en haut de l'écran.
+            _placeAnnotPopup() {
+                const pop = this._annotPop;
+                if (!pop) return;
+                const el = pop.el, vw = window.innerWidth, vh = window.innerHeight;
+                if (vw < 640) {
+                    el.style.left = '8px'; el.style.top = '8px'; el.style.width = `${vw - 16}px`; el.style.maxHeight = '55vh';
+                    return;
+                }
+                el.style.width = ''; el.style.maxHeight = '';
+                if (!this._popPos) {
+                    // Hauteur bornée à l'espace sous le haut de la zone voisine : le pop-up défile au lieu de recouvrir onglets et transport.
+                    const zs = Array.from(document.querySelectorAll('#jam-scale-visualizer .jam-annot-zone'));
+                    const an = zs.find(z => !z.contains(pop.ed)) || pop.ed;
+                    el.style.maxHeight = `${Math.max(170, vh - an.getBoundingClientRect().top - 8)}px`;
+                }
+                const pw = el.offsetWidth, ph = el.offsetHeight;
+                if (this._popPos) {
+                    el.style.left = `${Math.min(Math.max(0, this._popPos.left), Math.max(0, vw - pw))}px`;
+                    el.style.top = `${Math.min(Math.max(0, this._popPos.top), Math.max(0, vh - ph))}px`;
+                    return;
+                }
+                const zones = Array.from(document.querySelectorAll('#jam-scale-visualizer .jam-annot-zone'));
+                const anchor = zones.find(z => !z.contains(pop.ed)) || pop.ed;
+                const zr = anchor.getBoundingClientRect();
+                el.style.left = `${Math.min(Math.max(8, zr.left + 8), Math.max(8, vw - pw - 8))}px`;
+                el.style.top = `${Math.min(Math.max(8, zr.top), Math.max(8, vh - ph - 8))}px`;
+            }
+
+            closeAnnotPopup() {
+                const pop = this._annotPop;
+                if (!pop) return;
+                this._annotPop = null;
+                document.removeEventListener('pointerdown', this._annotOutside, true);
+                document.removeEventListener('selectionchange', this._annotSelChange);
+                window.removeEventListener('resize', this._annotReposition);
+                pop.el.remove();
+                this._annotCommit(pop.ed);
+                this._annotActive = null;
+                this._annotRange = null;
+            }
+
+            // Mémorise la sélection dans le champ actif (le pop-up peut la lui faire perdre, par exemple avec le sélecteur de couleur).
+            _annotSaveSel() {
+                const ed = this._annotActive, sel = window.getSelection();
+                if (!ed || !sel || sel.rangeCount === 0) return;
+                const r = sel.getRangeAt(0);
+                if (ed.contains(r.commonAncestorContainer)) this._annotRange = r.cloneRange();
+            }
+
+            _annotRestoreSel() {
+                const ed = this._annotActive, sel = window.getSelection();
+                if (!ed || !sel) return false;
+                if (sel.rangeCount && ed.contains(sel.getRangeAt(0).commonAncestorContainer)) return true;
+                ed.focus();
+                let r = this._annotRange;
+                if (!(r && ed.contains(r.commonAncestorContainer))) { r = document.createRange(); r.selectNodeContents(ed); r.collapse(false); }
+                sel.removeAllRanges();
+                sel.addRange(r);
+                return true;
+            }
+
+            // Applique une commande de mise en forme à la sélection (ou, sans sélection, au texte qui sera tapé ensuite).
+            annotCmd(cmd, value) {
+                const ed = this._annotActive;
+                if (!this._annotIsEditable(ed)) return;
+                this._annotRestoreSel();
+                try {
+                    document.execCommand('styleWithCSS', false, true); // styles en CSS (span) plutôt que balises <font>
+                    document.execCommand(cmd, false, value);
+                } catch (e) {}
+                this._annotNormalize(ed);
+                this._annotSaveSel();
+                this._annotRefreshState();
+            }
+
+            // Boutons du pop-up allumés selon le style du texte sélectionné.
+            _annotRefreshState() {
+                const pop = this._annotPop;
+                if (!pop) return;
+                pop.el.querySelectorAll('[data-state]').forEach(b => {
+                    let on = false;
+                    try { on = !!(this._annotActive && this._annotActive.contains((window.getSelection().anchorNode)) && document.queryCommandState(b.dataset.state)); } catch (e) {}
+                    b.classList.toggle('is-on', on);
+                });
             }
 
             // Carte de gammes d'une mesure à deux accords : une section par accord (temps 1-2, temps 3-4).
@@ -7431,7 +7670,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-06-a';
+        var BUILD = '2026-11-06-b';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }
