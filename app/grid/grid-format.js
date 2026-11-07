@@ -318,6 +318,84 @@ function sanitizeImportedSettings(data) {
     return out;
 }
 
+// ===== Export : que mettre dans le fichier .json ? =====
+// Toujours exportés : les accords (fondamentale, qualité, basse, durée, accord partagé dans une mesure), les signes de reprise et la
+// signature rythmique (sans elle, l'import remet la grille en 4/4). Le reste se choisit, case par case (mode « Personnalisée »).
+const EXPORT_OPTIONS = [
+    { key: 'analysis', label: 'Analyse fonctionnelle', hint: 'degrés, modulations et personnalisations de l\'analyse' },
+    { key: 'notes', label: 'Annotations', hint: 'celles des mesures et celle de la grille, portées comprises' },
+    { key: 'parts', label: 'Parties', hint: 'repères in, A, B… out' },
+    { key: 'scales', label: 'Gammes', hint: 'la gamme choisie pour chaque accord' },
+    { key: 'key', label: 'Tonalité et mode', hint: 'avec l\'orthographe ♯ / ♭' },
+    { key: 'tempo', label: 'Tempo', hint: 'les battements par minute' },
+    { key: 'orchestra', label: 'Orchestre', hint: 'style, rythme, swing et densités' },
+    { key: 'mix', label: 'Volumes et réverbération', hint: 'le mixage de l\'orchestre' }
+];
+const EXPORT_MODES = ['full', 'grid', 'custom']; // complète (tout) · grille seule · personnalisée
+
+// Cases cochées d'un mode : complète = tout, grille seule = rien ; en « personnalisée », on part de ce que l'utilisateur a coché.
+function exportOptionsFor(mode, custom) {
+    const on = (v) => EXPORT_OPTIONS.reduce((o, d) => { o[d.key] = v; return o; }, {});
+    if (mode === 'grid') return on(false);
+    if (mode !== 'custom') return on(true);
+    const src = (custom && typeof custom === 'object') ? custom : {};
+    const out = on(false);
+    EXPORT_OPTIONS.forEach(d => { out[d.key] = src[d.key] === true; });
+    return exportOptionsNormalized(out);
+}
+
+// L'analyse fonctionnelle se lit par rapport à la tonalité : elle l'emporte avec elle.
+function exportOptionsNormalized(opts) {
+    const out = {};
+    EXPORT_OPTIONS.forEach(d => { out[d.key] = !!(opts && opts[d.key]); });
+    if (out.analysis) out.key = true;
+    return out;
+}
+
+// Grille à exporter : copie des blocs, sans ce qui n'est pas demandé (fnLabel / modKey / harmonicFunction, note, partStart / section / phrase, scaleId).
+function filterGridForExport(grid, opts) {
+    const o = exportOptionsNormalized(opts);
+    const strip = (b, isSplit) => {
+        const c = JSON.parse(JSON.stringify(b));
+        if (!o.analysis) { delete c.fnLabel; delete c.modKey; delete c.harmonicFunction; }
+        if (!o.notes) delete c.note;
+        if (!o.parts) { delete c.partStart; delete c.section; delete c.phrase; }
+        if (!o.scales) delete c.scaleId;
+        if (!isSplit && c.split && typeof c.split === 'object') c.split = strip(c.split, true);
+        return c;
+    };
+    return (Array.isArray(grid) ? grid : []).map(b => strip(b, false));
+}
+
+// Réglages à exporter : la signature rythmique y est toujours ; le reste selon les cases.
+function filterSettingsForExport(settings, opts) {
+    const o = exportOptionsNormalized(opts);
+    const s = (settings && typeof settings === 'object') ? settings : {};
+    const out = {};
+    if (s.timeSignature !== undefined) out.timeSignature = s.timeSignature;
+    if (o.key) ['key', 'quality', 'spell'].forEach(k => { if (s[k] !== undefined) out[k] = s[k]; });
+    if (o.analysis && s.fnConvention !== undefined) out.fnConvention = s.fnConvention;
+    if (o.notes && s.notes !== undefined) out.notes = s.notes;
+    if (o.tempo && s.bpm !== undefined) out.bpm = s.bpm;
+    const so = s.orchestration;
+    if (so && typeof so === 'object' && (o.orchestra || o.mix)) {
+        const orch = {};
+        if (o.orchestra) ['mode', 'style', 'densities', 'swing', 'groove'].forEach(k => { if (so[k] !== undefined) orch[k] = so[k]; });
+        if (o.mix) ['volumes', 'reverb'].forEach(k => { if (so[k] !== undefined) orch[k] = so[k]; });
+        out.orchestration = orch;
+    }
+    return out;
+}
+
+// Phrase qui résume le contenu du fichier (affichée dans le pop-up).
+function describeExport(opts) {
+    const o = exportOptionsNormalized(opts);
+    const base = 'accords, durées, reprises et signature rythmique';
+    const extra = EXPORT_OPTIONS.filter(d => o[d.key]).map(d => d.label.toLowerCase());
+    return extra.length ? `Le fichier contiendra : ${base}, plus ${extra.join(', ')}.` : `Le fichier contiendra la grille seule : ${base}.`;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { MEASURE_NOTE_MAX, GRID_NOTE_MAX, NOTE_FONTS, NOTE_MAX_STAVES, sanitizeNoteHtml, BAND_DENSITY_DEFAULTS, PART_LABELS, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings };
+    module.exports = { MEASURE_NOTE_MAX, GRID_NOTE_MAX, NOTE_FONTS, NOTE_MAX_STAVES, sanitizeNoteHtml, BAND_DENSITY_DEFAULTS, PART_LABELS, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings,
+        EXPORT_OPTIONS, EXPORT_MODES, exportOptionsFor, exportOptionsNormalized, filterGridForExport, filterSettingsForExport, describeExport };
 }

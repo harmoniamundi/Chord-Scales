@@ -538,6 +538,7 @@
                 this.timer = null;
                 this._EXPORT_TAIL = 2.5; // export du son : durée (s) enregistrée après le dernier temps (queue de réverbération)
                 this._exporting = false; this._exportRec = null; this._exportKind = 'grid';
+                this._exportMode = 'full'; this._exportCustom = { analysis: true, notes: true }; this._loadExportPrefs(); // contenu du fichier .json : complète / grille seule / personnalisée (cases)
                 this._LEAD = 0.12;       // avance (s) des ticks sur leur temps audio
                 this._FIRST_LEAD = 0.35; // délai (s) avant le tout premier temps : laisse la sortie audio se réveiller
                 this._beatAudio = null;  // instant audio du prochain temps
@@ -1106,6 +1107,7 @@
                     if (nameEl) nameEl.value = this.loadedGridName || nameEl.value || 'grille';
                     this._exportStatus('', 0);
                 }
+                this._exportBuildOptions();
                 if (!this._exportKeyBound) {
                     this._exportKeyBound = true;
                     document.addEventListener('keydown', (ev) => {
@@ -1133,6 +1135,48 @@
                 this._exportRefresh();
             }
 
+            // --- Contenu du fichier .json : complète · grille seule · personnalisée (cases à cocher), mémorisé d'une fois sur l'autre ---
+            _loadExportPrefs() {
+                try {
+                    const p = JSON.parse(localStorage.getItem('jamExportPrefs'));
+                    if (p && EXPORT_MODES.includes(p.mode)) this._exportMode = p.mode;
+                    if (p && p.custom && typeof p.custom === 'object') this._exportCustom = exportOptionsNormalized(p.custom);
+                } catch (e) { /* préférences absentes ou illisibles : valeurs par défaut */ }
+            }
+
+            _saveExportPrefs() {
+                try { localStorage.setItem('jamExportPrefs', JSON.stringify({ mode: this._exportMode, custom: this._exportCustom })); } catch (e) { /* stockage plein ou refusé : sans importance */ }
+            }
+
+            _exportOptions() { return exportOptionsFor(this._exportMode, this._exportCustom); }
+
+            setExportMode(mode) {
+                if (this._exportRec || !EXPORT_MODES.includes(mode)) return;
+                this._exportMode = mode;
+                this._saveExportPrefs();
+                this._exportRefresh();
+            }
+
+            setExportOption(key, on) {
+                if (this._exportRec || !EXPORT_OPTIONS.some(d => d.key === key)) return;
+                this._exportCustom = exportOptionsNormalized({ ...exportOptionsNormalized(this._exportCustom), [key]: !!on });
+                this._saveExportPrefs();
+                this._exportRefresh();
+            }
+
+            // Construit une fois la liste des cases (une par option de grid/grid-format.js).
+            _exportBuildOptions() {
+                const box = document.getElementById('export-options');
+                if (!box || box.dataset.built) return;
+                box.dataset.built = '1';
+                box.innerHTML = EXPORT_OPTIONS.map(d =>
+                    `<label class="exp-opt"><input type="checkbox" data-key="${d.key}"><span><b>${d.label}</b><small>${d.hint}</small></span></label>`).join('');
+                box.addEventListener('change', (ev) => {
+                    const inp = ev.target;
+                    if (inp && inp.dataset && inp.dataset.key) this.setExportOption(inp.dataset.key, inp.checked);
+                });
+            }
+
             // Estimation de la durée du son exporté (toute la grille une fois, reprises comprises)
             _exportSeconds() { return playedMeasureCount(this.grid) * this.getBeatsPerBar() * 60 / this.bpm; }
 
@@ -1146,11 +1190,31 @@
                     b.setAttribute('aria-pressed', String(on));
                     b.disabled = busy;
                 });
+                const opts = this._exportOptions();
+                const content = document.getElementById('export-content');
+                if (content) content.classList.toggle('hidden', audio);
+                const checks = document.getElementById('export-options');
+                if (checks) {
+                    checks.classList.toggle('hidden', this._exportMode !== 'custom');
+                    checks.querySelectorAll('input[data-key]').forEach(inp => {
+                        const k = inp.dataset.key;
+                        inp.checked = !!opts[k];
+                        inp.disabled = busy || (k === 'key' && opts.analysis); // l'analyse fonctionnelle emporte la tonalité
+                        inp.title = (k === 'key' && opts.analysis) ? 'Nécessaire à l\'analyse fonctionnelle' : '';
+                    });
+                }
+                EXPORT_MODES.forEach(m => {
+                    const b = document.getElementById('export-mode-' + m);
+                    if (!b) return;
+                    b.classList.toggle('is-on', this._exportMode === m);
+                    b.setAttribute('aria-pressed', String(this._exportMode === m));
+                    b.disabled = busy;
+                });
                 const note = document.getElementById('export-note');
                 if (note) {
                     note.textContent = audio
                         ? `Le son est enregistré en temps réel : la grille est jouée une fois par l'orchestre (sans métronome, sans boucle, mesures sélectionnées ignorées). Durée de l'export : environ ${wavDurationLabel(this._exportSeconds() + this._EXPORT_TAIL)}. Fichier WAV stéréo.`
-                        : 'Fichier .json avec la grille, la tonalité, le tempo et l\'orchestration : il peut être importé dans une autre copie de l\'appli.';
+                        : `${describeExport(opts)} Le fichier .json peut être importé dans une autre copie de l'appli.`;
                 }
                 const go = document.getElementById('export-go');
                 if (go) { go.textContent = audio ? 'Enregistrer le son' : 'Exporter la grille'; go.disabled = busy; }
@@ -1195,13 +1259,14 @@
             }
 
             _exportGridFile(name) {
+                const opts = this._exportOptions();
                 const payload = {
                     format: 'chord-scales-jam-grid',
                     version: 1,
                     name: name,
-                    keyName: rootLabels[this.mainKey] || 'C',
-                    ...this.collectSettings(),
-                    grid: JSON.parse(JSON.stringify(this.grid))
+                    ...(opts.key ? { keyName: rootLabels[this.mainKey] || 'C' } : {}),
+                    ...filterSettingsForExport(this.collectSettings(), opts),
+                    grid: filterGridForExport(this.grid, opts)
                 };
                 const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
                 const fileName = name.replace(/[\\/:*?"<>|]+/g, '_').trim() || 'grille';
@@ -1356,7 +1421,9 @@
                 this.setTimeSignature(st.timeSignature !== undefined ? st.timeSignature : '4/4');
                 const o = st.orchestration;
                 if (o) {
-                    this._bandGroove = IMPORT_GROOVES.includes(o.groove) ? o.groove : null;
+                    // Un fichier exporté sans l'orchestre (seulement les volumes) laisse le rythme, les densités et le swing en place.
+                    const hasBand = o.style !== undefined || o.groove !== undefined || o.densities !== undefined || o.swing !== undefined;
+                    if (hasBand) this._bandGroove = IMPORT_GROOVES.includes(o.groove) ? o.groove : null;
                     if (o.style !== undefined) {
                         const styleSel = document.getElementById('band-style-select');
                         if (styleSel) styleSel.value = o.style;
@@ -1366,10 +1433,10 @@
                         Object.keys(o.volumes).forEach(k => this.setBandVolume(k, Math.round(o.volumes[k] * 100)));
                     }
                     if (o.reverb !== undefined) this.setBandReverb(Math.round(o.reverb * 100));
-                    this.bandDensity = { ...BAND_DENSITY_DEFAULTS }; // les fichiers sans densité reviennent aux valeurs par défaut
+                    if (hasBand) this.bandDensity = { ...BAND_DENSITY_DEFAULTS }; // les fichiers sans densité reviennent aux valeurs par défaut
                     if (o.densities) Object.keys(BAND_DENSITY_DEFAULTS).forEach(k => { if (typeof o.densities[k] === 'number') this.bandDensity[k] = o.densities[k]; });
                     this.updateBandDensityUI();
-                    this.bandSwingSettings = {}; // les fichiers sans swing reviennent à « Auto »
+                    if (hasBand) this.bandSwingSettings = {}; // les fichiers sans swing reviennent à « Auto »
                     if (o.swing !== undefined) this.setBandSwing(o.swing);
                     this.updateBandModalUI();
                     this.updateBandButtonLabel();
@@ -7787,6 +7854,14 @@
                 <button type="button" id="export-kind-grid" class="jm-chip is-on" onclick="app.jam.setExportKind('grid')" title="La grille d'accords et ses réglages, dans un fichier .json">Grille (.json)</button>
                 <button type="button" id="export-kind-audio" class="jm-chip" onclick="app.jam.setExportKind('audio')" title="Le son de la grille jouée par l'orchestre, dans un fichier .wav">Son (.wav)</button>
             </div>
+            <div id="export-content" class="exp-content">
+                <div class="jm-seg jm-seg-deg" role="group" aria-label="Contenu du fichier">
+                    <button type="button" id="export-mode-full" class="jm-chip" onclick="app.jam.setExportMode('full')" title="Tout : accords, analyse, annotations, tonalité, tempo et orchestre">Complète</button>
+                    <button type="button" id="export-mode-grid" class="jm-chip" onclick="app.jam.setExportMode('grid')" title="Les accords seulement : durées, reprises et signature rythmique">Grille seule</button>
+                    <button type="button" id="export-mode-custom" class="jm-chip" onclick="app.jam.setExportMode('custom')" title="Choisir ce qui accompagne la grille">Personnalisée</button>
+                </div>
+                <div id="export-options" class="exp-options hidden" role="group" aria-label="Éléments à exporter avec la grille"></div>
+            </div>
             <label class="exp-field"><span>Nom du fichier</span>
                 <input type="text" id="export-name" class="exp-input" value="grille" maxlength="80" autocomplete="off" onkeydown="if (event.key === 'Enter') app.jam.runExport()">
             </label>
@@ -7970,7 +8045,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-07-c';
+        var BUILD = '2026-11-07-d';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }

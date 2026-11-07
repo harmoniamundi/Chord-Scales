@@ -389,3 +389,131 @@ describe('sanitizeNoteHtml : taille de portée', () => {
         assert.equal(F.sanitizeNoteHtml('a<div class="annot-staff" data-staff="t,4/4,0,155;q:c4"></div>'), 'a');
     });
 });
+
+describe('export : options, filtrage de la grille et des réglages', () => {
+    const full = () => [
+        step({ measures: 1, fnLabel: 'ii7', modKey: { root: 5, minor: false }, harmonicFunction: 'secondaryDominant', note: '<b>gras</b>', partStart: 'A', section: 'A1', phrase: 'A1', repeatStart: true, bassRootIndex: 7,
+            split: { rootIndex: 7, chordId: '7', scaleId: 'mixolydian', fnLabel: 'V7', modKey: { root: 0, minor: true }, bassRootIndex: 11 } }),
+        step({ rootIndex: 7, chordId: '7', scaleId: 'mixolydian', measures: 2, repeatEnd: 2, volta: 1 })
+    ];
+    const settings = () => ({
+        key: 2, quality: 'dorian', spell: 'flat', notes: '<i>générale</i>', fnConvention: 'jazz', bpm: 120, timeSignature: '3/4',
+        orchestration: { mode: 'orchestra', style: 'swing', volumes: { piano: 0.5 }, reverb: 0.3, densities: { guitar: 0.6 }, swing: 0.6, groove: 'samba' }
+    });
+    const none = F.exportOptionsFor('grid');
+
+    test('modes : complète = tout coché, grille seule = rien', () => {
+        const all = F.exportOptionsFor('full'), nothing = F.exportOptionsFor('grid');
+        F.EXPORT_OPTIONS.forEach(d => { assert.equal(all[d.key], true, d.key); assert.equal(nothing[d.key], false, d.key); });
+        assert.deepEqual(F.EXPORT_MODES, ['full', 'grid', 'custom']);
+    });
+    test('mode personnalisé : seules les cases à true comptent, le reste (valeurs douteuses comprises) est décoché', () => {
+        const o = F.exportOptionsFor('custom', { notes: true, tempo: 'oui', parts: 1, inconnue: true });
+        assert.equal(o.notes, true);
+        assert.equal(o.tempo, false);
+        assert.equal(o.parts, false);
+        assert.equal('inconnue' in o, false);
+        assert.equal(F.exportOptionsFor('custom', null).notes, false);
+    });
+    test('l\'analyse fonctionnelle emporte la tonalité', () => {
+        assert.equal(F.exportOptionsFor('custom', { analysis: true }).key, true);
+        assert.equal(F.exportOptionsNormalized({ analysis: true, key: false }).key, true);
+        assert.equal(F.exportOptionsNormalized({ key: true }).analysis, false);
+    });
+
+    test('grille seule : plus aucune analyse, annotation, partie ni gamme ; les accords, durées, basses, reprises et accord partagé restent', () => {
+        const g = F.filterGridForExport(full(), none);
+        assert.deepEqual(g[0], { rootIndex: 2, chordId: 'm7', measures: 1, repeatStart: true, bassRootIndex: 7, split: { rootIndex: 7, chordId: '7', bassRootIndex: 11 } });
+        assert.deepEqual(g[1], { rootIndex: 7, chordId: '7', measures: 2, repeatEnd: 2, volta: 1 });
+    });
+    test('analyse seule : fonctions et modulations (y compris celles de l\'accord partagé) sont gardées', () => {
+        const g = F.filterGridForExport(full(), F.exportOptionsFor('custom', { analysis: true }));
+        assert.equal(g[0].fnLabel, 'ii7');
+        assert.deepEqual(g[0].modKey, { root: 5, minor: false });
+        assert.equal(g[0].harmonicFunction, 'secondaryDominant');
+        assert.equal(g[0].split.fnLabel, 'V7');
+        assert.deepEqual(g[0].split.modKey, { root: 0, minor: true });
+        assert.equal(g[0].note, undefined);
+        assert.equal(g[0].partStart, undefined);
+        assert.equal(g[0].scaleId, undefined);
+    });
+    test('annotations seules : la note de chaque mesure est gardée, pas l\'analyse', () => {
+        const g = F.filterGridForExport(full(), F.exportOptionsFor('custom', { notes: true }));
+        assert.equal(g[0].note, '<b>gras</b>');
+        assert.equal(g[0].fnLabel, undefined);
+        assert.equal(g[0].split.fnLabel, undefined);
+        assert.equal(g[0].split.modKey, undefined);
+    });
+    test('parties et gammes se choisissent séparément', () => {
+        const parts = F.filterGridForExport(full(), F.exportOptionsFor('custom', { parts: true }));
+        assert.deepEqual([parts[0].partStart, parts[0].section, parts[0].phrase, parts[0].scaleId], ['A', 'A1', 'A1', undefined]);
+        const scales = F.filterGridForExport(full(), F.exportOptionsFor('custom', { scales: true }));
+        assert.equal(scales[0].scaleId, 'dorian');
+        assert.equal(scales[0].split.scaleId, 'mixolydian');
+        assert.equal(scales[0].partStart, undefined);
+    });
+    test('le filtrage ne modifie pas la grille d\'origine', () => {
+        const g = full(), before = JSON.stringify(g);
+        F.filterGridForExport(g, none);
+        assert.equal(JSON.stringify(g), before);
+    });
+    test('entrée qui n\'est pas un tableau → tableau vide', () => {
+        assert.deepEqual(F.filterGridForExport(null, none), []);
+    });
+
+    test('réglages, grille seule : seule la signature rythmique reste', () => {
+        assert.deepEqual(F.filterSettingsForExport(settings(), none), { timeSignature: '3/4' });
+    });
+    test('réglages, complète : tout est gardé', () => {
+        assert.deepEqual(F.filterSettingsForExport(settings(), F.exportOptionsFor('full')), settings());
+    });
+    test('réglages : tonalité, tempo, analyse et annotation générale', () => {
+        const key = F.filterSettingsForExport(settings(), F.exportOptionsFor('custom', { key: true }));
+        assert.deepEqual(key, { timeSignature: '3/4', key: 2, quality: 'dorian', spell: 'flat' });
+        assert.deepEqual(F.filterSettingsForExport(settings(), F.exportOptionsFor('custom', { tempo: true })), { timeSignature: '3/4', bpm: 120 });
+        const an = F.filterSettingsForExport(settings(), F.exportOptionsFor('custom', { analysis: true }));
+        assert.equal(an.fnConvention, 'jazz');
+        assert.equal(an.key, 2); // l'analyse se lit par rapport à la tonalité
+        assert.equal(an.notes, undefined);
+        assert.equal(F.filterSettingsForExport(settings(), F.exportOptionsFor('custom', { notes: true })).notes, '<i>générale</i>');
+    });
+    test('réglages : l\'orchestre et le mixage sont indépendants', () => {
+        const band = F.filterSettingsForExport(settings(), F.exportOptionsFor('custom', { orchestra: true }));
+        assert.deepEqual(band.orchestration, { mode: 'orchestra', style: 'swing', densities: { guitar: 0.6 }, swing: 0.6, groove: 'samba' });
+        const mix = F.filterSettingsForExport(settings(), F.exportOptionsFor('custom', { mix: true }));
+        assert.deepEqual(mix.orchestration, { volumes: { piano: 0.5 }, reverb: 0.3 });
+        assert.equal(F.filterSettingsForExport(settings(), none).orchestration, undefined);
+    });
+
+    test('un fichier exporté « grille seule » se réimporte : accords intacts, gammes proposées par défaut', () => {
+        const payload = { name: 'x', ...F.filterSettingsForExport(settings(), none), grid: F.filterGridForExport(full(), none) };
+        const g = F.sanitizeImportedGrid(JSON.parse(JSON.stringify(payload)).grid);
+        assert.ok(g);
+        assert.equal(g[0].chordId, 'm7');
+        assert.equal(g[1].measures, 2);
+        assert.equal(g[0].bassRootIndex, 7);
+        assert.equal(g[0].split.chordId, '7');
+        assert.equal(g[0].repeatStart, true);
+        assert.equal(g[1].repeatEnd, 2);
+        assert.ok(g[0].scaleId && g[0].split.scaleId); // gamme par défaut de l'accord
+        assert.equal(g[0].note, undefined);
+        assert.equal(g[0].fnLabel, undefined);
+        const st = F.sanitizeImportedSettings(payload);
+        assert.deepEqual(st, { timeSignature: '3/4' });
+    });
+    test('un fichier « complet » se réimporte à l\'identique', () => {
+        const opts = F.exportOptionsFor('full');
+        const g = F.sanitizeImportedGrid(F.filterGridForExport(full(), opts));
+        assert.equal(g[0].fnLabel, 'ii7');
+        assert.equal(g[0].split.fnLabel, 'V7');
+        assert.equal(g[0].note, '<b>gras</b>');
+        assert.equal(g[0].partStart, 'A');
+        assert.equal(g[0].scaleId, 'dorian');
+    });
+
+    test('description du contenu', () => {
+        assert.match(F.describeExport(none), /grille seule/);
+        assert.match(F.describeExport(F.exportOptionsFor('custom', { analysis: true, notes: true })), /analyse fonctionnelle, annotations, tonalité et mode/);
+        assert.match(F.describeExport(F.exportOptionsFor('full')), /volumes et réverbération/);
+    });
+});
