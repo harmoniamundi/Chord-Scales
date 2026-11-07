@@ -31,7 +31,7 @@ const SN_ALTER = { '': 0, '#': 1, '##': 2, b: -1, bb: -2 };
 const SN_ALTER_TEXT = { 0: '', 1: '#', 2: '##', '-1': 'b', '-2': 'bb' };
 
 // Taille d'affichage de la portée, en % (100 = normale). Écrite dans le texte seulement si elle diffère de 100.
-const SN_SIZE_MIN = 60, SN_SIZE_MAX = 200, SN_SIZE_STEP = 10, SN_SIZE_DEFAULT = 100;
+const SN_SIZE_MIN = 50, SN_SIZE_MAX = 200, SN_SIZE_STEP = 10, SN_SIZE_DEFAULT = 100;
 function clampStaffSize(v) {
     const n = Math.round(Number(v) / SN_SIZE_STEP) * SN_SIZE_STEP;
     return Number.isFinite(n) ? Math.max(SN_SIZE_MIN, Math.min(SN_SIZE_MAX, n)) : SN_SIZE_DEFAULT;

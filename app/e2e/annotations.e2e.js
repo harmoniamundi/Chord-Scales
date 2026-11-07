@@ -75,6 +75,10 @@ describe('annotations : portées (navigateur)', { skip: !pw && 'Playwright non i
         return { st: e.getAttribute('data-staff'), x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height), picked: e.classList.contains('is-picked'), active: e.classList.contains('is-active') };
     }), zoneSel);
 
+    // Point du corps du bloc n° `i` (jamais le crayon du coin haut gauche) : c'est là qu'on le saisit.
+    const bodyPoint = async (page, zoneSel, i = 0) => { const r = (await staves(page, zoneSel))[i]; return { x: Math.round(r.x + r.w * 0.6), y: Math.round(r.y + r.h / 2) }; };
+    const clickBlock = async (page, zoneSel, i = 0) => { const q = await bodyPoint(page, zoneSel, i); await page.mouse.click(q.x, q.y); };
+
     test('police Real Book par défaut, et plus de polices dans le menu', async () => {
         const { page, errors, close } = await openAnnotations();
         const r = await page.evaluate(async () => {
@@ -102,7 +106,9 @@ describe('annotations : portées (navigateur)', { skip: !pw && 'Playwright non i
         // un clic dans la portée au repos ne l'ouvre plus
         await page.click('#jam-annot-general .annot-staff .annot-staff-svg');
         assert.equal((await staves(page, '#jam-annot-general'))[0].active, false);
-        // le crayon n'apparaît qu'au survol
+        // le crayon n'apparaît qu'au survol (ou quand le bloc est sélectionné)
+        const zb = await page.locator('#jam-annot-general').boundingBox();
+        await page.mouse.click(zb.x + 20, zb.y + zb.height - 20);   // clic dans le texte : le bloc n'est plus sélectionné
         await page.mouse.move(5, 5);
         assert.equal(await page.locator('#jam-annot-general .annot-staff-edit').isVisible(), false);
         await page.hover('#jam-annot-general .annot-staff');
@@ -141,16 +147,14 @@ describe('annotations : portées (navigateur)', { skip: !pw && 'Playwright non i
         await close();
     });
 
-    // Glisse la poignée du bloc n° `i` de `zoneSel` pour que son coin haut gauche tombe en (left, top).
+    // Glisse le bloc n° `i` de `zoneSel` (saisi par son corps) pour que son coin haut gauche tombe en (left, top).
     async function dragBlock(page, zoneSel, i, left, top, opts = {}) {
-        const sel = `${zoneSel} .annot-staff >> nth=${i}`;
-        await page.hover(sel);
-        const grip = await page.locator(`${sel} >> .annot-staff-grip`).boundingBox();
         const r = (await staves(page, zoneSel))[i];
-        const gx = grip.x + 10 - r.x, gy = grip.y + 10 - r.y;
-        await page.mouse.move(grip.x + 10, grip.y + 10);
+        const q = await bodyPoint(page, zoneSel, i);
+        const gx = q.x - r.x, gy = q.y - r.y;
+        await page.mouse.move(q.x, q.y);
         await page.mouse.down();
-        await page.mouse.move(grip.x + 40, grip.y + 30, { steps: 3 });
+        await page.mouse.move(q.x + 40, q.y + 30, { steps: 3 });
         if (opts.alt) await page.keyboard.down('Alt');
         await page.mouse.move(left + gx, top + gy, { steps: 8 });
         if (opts.stay) return;
@@ -183,25 +187,26 @@ describe('annotations : portées (navigateur)', { skip: !pw && 'Playwright non i
         assert.match(await page.evaluate(() => app.jam.gridNote), /data-staff="t,4\/4,0;q:g4 q:a4" data-pos="-?\d+,-?\d+"/);
         await page.evaluate(() => { app.jam.setVisMode('intervals'); app.jam.setVisMode('annotations'); });
         await page.waitForTimeout(200);
-        const again = (await staves(page, '#jam-annot-general'))[1];
-        assert.ok(Math.abs(again.x - after[1].x) <= 1 && Math.abs(again.y - after[1].y) <= 1, 'même place après relecture');
-        // ⌘Z / Ctrl+Z annule le déplacement (sans saisie entre-temps), ⇧ le rétablit
-        await dragBlock(page, '#jam-annot-general', 1, goal.left + 40, goal.top + 20);
-        const moved = (await staves(page, '#jam-annot-general'))[1];
-        assert.ok(Math.abs(moved.x - (goal.left + 40)) <= 1);
+        const both = await staves(page, '#jam-annot-general');   // la barre a disparu entre-temps : on compare les blocs entre eux
+        assert.ok(Math.abs((both[1].x - both[0].x) - (after[1].x - after[0].x)) <= 1 && Math.abs((both[1].y - both[0].y) - (after[1].y - after[0].y)) <= 1, 'même place après relecture');
+        // ⌘Z / Ctrl+Z annule le déplacement (sans saisie entre-temps), ⇧ le rétablit ; on compare la place du bloc par rapport au premier
+        const rel = async () => { const [p, q] = await staves(page, '#jam-annot-general'); return { x: q.x - p.x, y: q.y - p.y }; };
+        const same = (u, v) => Math.abs(u.x - v.x) <= 1 && Math.abs(u.y - v.y) <= 1;
+        const start = await rel();
+        const before = (await staves(page, '#jam-annot-general'))[1];
+        await dragBlock(page, '#jam-annot-general', 1, before.x + 40, before.y + 20);
+        const moved = await rel();
+        assert.ok(!same(moved, start), 'le bloc a bougé');
         await page.keyboard.press('Control+z');
         await page.waitForTimeout(200);
-        const undone = (await staves(page, '#jam-annot-general'))[1];
-        assert.ok(Math.abs(undone.x - after[1].x) <= 1 && Math.abs(undone.y - after[1].y) <= 1, 'Ctrl+Z revient à la place d\'avant');
+        assert.ok(same(await rel(), start), 'Ctrl+Z revient à la place d\'avant');
         await page.keyboard.press('Control+Shift+z');
         await page.waitForTimeout(200);
-        const redone = (await staves(page, '#jam-annot-general'))[1];
-        assert.ok(Math.abs(redone.x - moved.x) <= 1 && Math.abs(redone.y - moved.y) <= 1, 'Ctrl+Maj+Z le rétablit');
+        assert.ok(same(await rel(), moved), 'Ctrl+Maj+Z le rétablit');
         // le bouton ↶ de la grille l'annule aussi
         await page.click('#jam-undo-btn');
         await page.waitForTimeout(200);
-        const viaBtn = (await staves(page, '#jam-annot-general'))[1];
-        assert.ok(Math.abs(viaBtn.x - after[1].x) <= 1 && Math.abs(viaBtn.y - after[1].y) <= 1, '↶ revient à la place d\'avant');
+        assert.ok(same(await rel(), start), '↶ revient à la place d\'avant');
         assert.deepEqual(errors, []);
         await close();
     });
@@ -216,8 +221,8 @@ describe('annotations : portées (navigateur)', { skip: !pw && 'Playwright non i
         assert.equal(await posOf(page, '#jam-annot-general', 0), null, 'à 3 pixels ou moins de sa place : aimanté');
         await dragBlock(page, '#jam-annot-general', 0, a.x + 2, a.y + 1, { alt: true });
         assert.equal(await posOf(page, '#jam-annot-general', 0), '2,1', 'Alt : pas d\'aimant, 2 pixels gardés');
-        await page.hover('#jam-annot-general .annot-staff');
-        await page.dblclick('#jam-annot-general .annot-staff-grip');
+        const dq = await bodyPoint(page, '#jam-annot-general');
+        await page.mouse.dblclick(dq.x, dq.y);
         assert.equal(await posOf(page, '#jam-annot-general', 0), null, 'double-clic : revenu à sa place');
         assert.deepEqual(errors, []);
         await close();
@@ -227,9 +232,7 @@ describe('annotations : portées (navigateur)', { skip: !pw && 'Playwright non i
         const { page, errors, close } = await openAnnotations();
         await addStaff(page, '#jam-annot-general', [50, 45]);
         const a = (await staves(page, '#jam-annot-general'))[0];
-        await page.hover('#jam-annot-general .annot-staff');
-        const g = await page.locator('#jam-annot-general .annot-staff-grip').boundingBox();
-        await page.mouse.click(g.x + 10, g.y + 10);
+        await clickBlock(page, '#jam-annot-general');
         await page.keyboard.press('ArrowRight');
         await page.keyboard.press('ArrowRight');
         await page.keyboard.press('ArrowDown');
@@ -268,9 +271,8 @@ describe('annotations : portées (navigateur)', { skip: !pw && 'Playwright non i
         const { page, errors, close } = await openAnnotations();
         await addStaff(page, '#jam-annot-general', [50, 45]);
         const before = await page.evaluate(() => document.getElementById('jam-annot-general').innerHTML);
-        await page.hover('#jam-annot-general .annot-staff');
-        const g = await page.locator('#jam-annot-general .annot-staff-grip').boundingBox();
-        await page.mouse.move(g.x + 10, g.y + 10);
+        const g = await bodyPoint(page, '#jam-annot-general');
+        await page.mouse.move(g.x, g.y);
         await page.mouse.down();
         await page.mouse.move(g.x + 120, g.y + 70, { steps: 5 });
         await page.keyboard.press('Escape');
@@ -286,10 +288,8 @@ describe('annotations : portées (navigateur)', { skip: !pw && 'Playwright non i
         await page.click('#jam-annot-general');
         await page.keyboard.type('Intro: ');
         await addStaff(page, '#jam-annot-general', [50, 45, 40]);
-        // clic sur la poignée : le bloc est sélectionné ; ⌘C / Ctrl+C le copie
-        await page.hover('#jam-annot-general .annot-staff');
-        let g = await page.locator('#jam-annot-general .annot-staff-grip').boundingBox();
-        await page.mouse.click(g.x + 10, g.y + 10);
+        // un clic sur le bloc le sélectionne ; ⌘C / Ctrl+C le copie
+        await clickBlock(page, '#jam-annot-general');
         assert.equal((await staves(page, '#jam-annot-general'))[0].picked, true);
         await page.keyboard.press('Control+c');
         assert.equal(await page.evaluate(() => navigator.clipboard.readText()), '[portée:t,4/4,0;q:b4 q:c5 q:d5]');
@@ -302,9 +302,7 @@ describe('annotations : portées (navigateur)', { skip: !pw && 'Playwright non i
         assert.equal(m.length, 2);
         assert.equal(m[0].y, m[1].y);
         // couper la seconde et la coller à la fin de la zone générale
-        await page.hover('#jam-annot-measure .annot-staff >> nth=1');
-        g = await page.locator('#jam-annot-measure .annot-staff >> nth=1 >> .annot-staff-grip').boundingBox();
-        await page.mouse.click(g.x + 10, g.y + 10);
+        await clickBlock(page, '#jam-annot-measure', 1);
         await page.keyboard.press('Control+x');
         await page.waitForTimeout(150);
         assert.equal((await staves(page, '#jam-annot-measure')).length, 1);
@@ -314,9 +312,7 @@ describe('annotations : portées (navigateur)', { skip: !pw && 'Playwright non i
         await page.waitForTimeout(150);
         assert.equal((await staves(page, '#jam-annot-general')).length, 2);
         // un bloc sélectionné s'enlève avec Suppr.
-        await page.hover('#jam-annot-measure .annot-staff');
-        g = await page.locator('#jam-annot-measure .annot-staff-grip').boundingBox();
-        await page.mouse.click(g.x + 10, g.y + 10);
+        await clickBlock(page, '#jam-annot-measure');
         await page.keyboard.press('Delete');
         assert.equal((await staves(page, '#jam-annot-measure')).length, 0);
         // enregistrement : la grille garde la portée de la zone générale (et son texte), même après un changement d'onglet
@@ -372,6 +368,93 @@ describe('annotations : portées (navigateur)', { skip: !pw && 'Playwright non i
         assert.ok(narrow.lines > wide.lines, `plus de lignes dans une zone étroite (${wide.lines} → ${narrow.lines})`);
         assert.ok(narrow.w <= narrow.zone, 'le cadre reste dans la zone');
         assert.equal(await page.evaluate(() => document.querySelector('#jam-annot-general .annot-staff').getAttribute('data-staff').split(';')[1].split(' ').length), 12);
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('la barre de mise en forme n\'apparaît que pendant l\'édition, et les zones prennent la place libre', async () => {
+        const { page, errors, close } = await openAnnotations();
+        const bar = () => page.locator('#jam-annot-bar').isVisible();
+        const zoneH = () => page.evaluate(() => Math.round(document.getElementById('jam-annot-general').getBoundingClientRect().height));
+        assert.equal(await bar(), false, 'pas de barre quand on n\'édite pas');
+        const idleH = await zoneH();
+        await page.click('#jam-annot-general');
+        assert.equal(await bar(), true, 'la barre apparaît quand on édite');
+        assert.ok(await zoneH() < idleH, 'les zones cèdent la place à la barre');
+        await page.mouse.click(5, 5);                                // clic ailleurs : on sort de l\'édition
+        await page.waitForTimeout(150);
+        assert.equal(await bar(), false, 'la barre disparaît en sortant');
+        assert.equal(await zoneH(), idleH, 'les zones reprennent la place');
+        // un bloc portée choisi d\'un clic ne fait pas surgir la barre (rien ne bouge sous le pointeur)
+        await addStaff(page, '#jam-annot-general', [50, 45]);
+        await page.mouse.click(5, 5);
+        await page.waitForTimeout(150);
+        const y0 = (await staves(page, '#jam-annot-general'))[0].y;
+        await clickBlock(page, '#jam-annot-general');
+        assert.equal(await bar(), false, 'pas de barre pour un bloc choisi');
+        assert.equal((await staves(page, '#jam-annot-general'))[0].y, y0, 'le bloc ne bouge pas');
+        // le crayon ouvre l\'édition de la portée : la barre vient avec ses outils
+        await page.hover('#jam-annot-general .annot-staff');
+        await page.click('#jam-annot-general .annot-staff-edit');
+        assert.equal(await bar(), true);
+        await page.mouse.click(5, 5);
+        await page.waitForTimeout(150);
+        assert.equal(await bar(), false);
+        // jam lancée : plus de barre, même en éditant la zone de gauche
+        await page.click('#jam-annot-general');
+        assert.equal(await bar(), true);
+        await page.evaluate(() => document.getElementById('view-jam').classList.add('jam-playing'));
+        assert.equal(await bar(), false, 'pas de barre pendant la jam');
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('panneau « Antisèches » : nom, masquable (mode normal et plein écran), la grille prend la place', async () => {
+        const { page, errors, close } = await openAnnotations();
+        assert.equal((await page.locator('#jam-scales-card h3').first().textContent()).trim(), 'Antisèches');
+        const grid = () => page.evaluate(() => Math.round(document.getElementById('jam-chord-card').getBoundingClientRect().height));
+        const h0 = await grid();
+        await page.click('#jam-antiseche-btn');
+        assert.equal(await page.locator('#jam-scales-card').isVisible(), false);
+        assert.ok(await grid() > h0 + 100, `la grille prend la place libérée (${h0} → ${await grid()})`);
+        assert.equal(await page.getAttribute('#jam-antiseche-btn', 'aria-pressed'), 'false');
+        await page.click('#jam-antiseche-btn');
+        assert.equal(await page.locator('#jam-scales-card').isVisible(), true);
+        assert.equal(await grid(), h0);
+        // plein écran, jam lancée : les antisèches occupent toute la largeur libre ; masquées, la grille reprend leur place
+        await page.evaluate(() => app.jam.toggleGridFullscreen());
+        await page.waitForTimeout(500);
+        await page.evaluate(() => document.getElementById('view-jam').classList.add('jam-playing'));
+        await page.waitForTimeout(200);
+        const w = await page.evaluate(() => ({ card: document.getElementById('jam-scales-card').getBoundingClientRect().width, vw: window.innerWidth }));
+        assert.ok(w.card > w.vw - 60, `antisèches sur toute la largeur en plein écran (${w.card} px sur ${w.vw})`);
+        const seq = () => page.evaluate(() => Math.round(document.getElementById('jam-chord-sequence-display').getBoundingClientRect().height));
+        const s0 = await seq();
+        await page.click('#jam-antiseche-btn');
+        assert.equal(await page.locator('#jam-scales-card').isVisible(), false);
+        assert.ok(await seq() > s0 + 100, 'la grille prend la place en plein écran aussi');
+        // le choix est gardé d\'une visite à l\'autre
+        assert.equal(await page.evaluate(() => localStorage.getItem('jamAntisechesHidden')), '1');
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('portée réduite à 50 %, et indication de mesure plus petite que la portée', async () => {
+        const { page, errors, close } = await openAnnotations();
+        await page.click('#jam-annot-general');
+        await page.click('[data-insert-staff]');
+        await page.waitForSelector('.annot-staff.is-active');
+        const sig = () => page.evaluate(() => { const g = document.querySelector('.annot-staff-svg .vf-timesignature'); const q = g.getBoundingClientRect(); const st = document.querySelector('.annot-staff-svg .vf-stave').getBoundingClientRect(); return { sig: q.height, staff: st.height, tr: g.getAttribute('transform') }; });
+        const a = await sig();
+        assert.match(a.tr || '', /scale\(0\.\d+\)/);
+        assert.ok(a.sig <= a.staff + 2, `indication de mesure (${Math.round(a.sig)} px) pas plus haute que la portée (${Math.round(a.staff)} px) ; non réduite elle ferait le double`);
+        assert.equal(await page.getAttribute('[data-set="size"]', 'min'), '50');
+        const w0 = (await page.locator('.annot-staff.is-active svg').boundingBox()).height;
+        await page.evaluate(() => { const r = document.querySelector('[data-set="size"]'); r.value = '50'; r.dispatchEvent(new Event('input', { bubbles: true })); });
+        await page.waitForTimeout(200);
+        assert.match(await page.getAttribute('.annot-staff', 'data-staff'), /^t,4\/4,0,50;/);
+        const w1 = (await page.locator('.annot-staff.is-active svg').boundingBox()).height;
+        assert.ok(Math.abs(w1 - w0 / 2) < 3, `la portée est deux fois plus petite (${w0} → ${w1})`);
         assert.deepEqual(errors, []);
         await close();
     });

@@ -194,12 +194,15 @@ describe('taille d’affichage de la portée', () => {
         assert.equal(S.formatStaff(P('t,4/4,0,100;q:c4')), 't,4/4,0;q:c4');
         for (const t of ['t,4/4,0,60;q:c4', 'b,6/8,-2,150;8t:bb3', 't,3/4,7,200;']) assert.equal(S.formatStaff(P(t)), t, t);
         assert.equal(P('t,4/4,0,150;q:c4').size, 150);
+        assert.equal(P('t,4/4,0,50;q:c4').size, 50);
+        assert.equal(S.formatStaff(P('t,4/4,0,50;q:c4')), 't,4/4,0,50;q:c4');
     });
-    test('tailles invalides refusées (hors 60-200, pas de 10, pas un nombre)', () => {
-        for (const t of ['t,4/4,0,50;', 't,4/4,0,210;', 't,4/4,0,155;', 't,4/4,0,abc;', 't,4/4,0,;', 't,4/4,0,100,1;', 't,4/4,0,-100;']) assert.equal(P(t), null, t);
+    test('tailles invalides refusées (hors 50-200, pas de 10, pas un nombre)', () => {
+        for (const t of ['t,4/4,0,40;', 't,4/4,0,210;', 't,4/4,0,155;', 't,4/4,0,abc;', 't,4/4,0,;', 't,4/4,0,100,1;', 't,4/4,0,-100;']) assert.equal(P(t), null, t);
     });
     test('clampStaffSize arrondit au pas de 10 et borne', () => {
-        assert.equal(S.clampStaffSize(33), 60);
+        assert.equal(S.clampStaffSize(33), 50);
+        assert.equal(S.clampStaffSize(50), 50);
         assert.equal(S.clampStaffSize(999), 200);
         assert.equal(S.clampStaffSize('124'), 120);
         assert.equal(S.clampStaffSize('x'), 100);

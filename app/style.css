@@ -392,7 +392,7 @@
         #jam-chord-sequence-display .jam-cell-top > span:last-child { min-width: 0; }
         #jam-chord-sequence-display .jam-add-cell { align-self: stretch; min-height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 1.5px dashed #2f6f57; background: rgba(16,185,129,.06); color: #34d399; font-size: 24px; line-height: 1; cursor: pointer; user-select: none; transition: background .12s, border-color .12s; }
         #jam-chord-sequence-display .jam-add-cell:hover { background: rgba(16,185,129,.16); border-color: #34d399; }
-        :root { --cs-build: '2026-11-07-b'; } /* numéro de version lu par la page */
+        :root { --cs-build: '2026-11-07-c'; } /* numéro de version lu par la page */
         .jm-pop { position: fixed; z-index: 2000; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); color: #e2e8f0; padding: 10px 12px 12px; font-size: 12px; }
         .jm-pop.jm-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; max-height: 62vh; }
         /* Pop-up « Orchestre » : fenêtre flottante à gauche de l'écran, sans voile, déplaçable par sa barre de titre */
@@ -907,8 +907,25 @@
     /* Barre en haut, puis deux zones côte à côte ; hors lecture elles remplissent la place disponible, en lecture elles ont une hauteur fixe
        (la grille d'accords ne bouge pas pendant la jam). */
     #view-jam #jam-scales-card #jam-scale-visualizer.jam-annot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto minmax(180px, 1fr); grid-auto-rows: auto; }
-    #view-jam.jam-playing #jam-scales-card #jam-scale-visualizer.jam-annot-grid { grid-template-rows: auto 190px; }
+    /* Sans la barre (elle n'apparaît que pendant l'édition) : les zones prennent toute la place ; jam lancée, hauteur fixe (la grille d'accords ne bouge pas) */
+    #view-jam #jam-scales-card #jam-scale-visualizer.jam-annot-grid.jam-annot-barless { grid-template-rows: minmax(180px, 1fr); }
+    #view-jam.jam-playing #jam-scales-card #jam-scale-visualizer.jam-annot-grid { grid-template-rows: 250px; }
 }
+
+/* La barre de mise en forme n'est là que pendant l'édition d'une annotation : cachée sinon, et pendant la lecture de la jam */
+.annot-bar.is-idle, #view-jam.jam-playing .annot-bar { display: none; }
+
+/* ===== Panneau « Antisèches » masquable (bouton de la carte de la grille) : la grille d'accords prend la place libre ===== */
+#view-jam.jam-antiseche-hidden #jam-scales-card { display: none !important; }
+@media (min-width: 1024px) {
+    #view-jam.jam-antiseche-hidden { grid-template-rows: minmax(0, 1fr); }
+    #view-jam.jam-antiseche-hidden #jam-chord-card { margin-bottom: 24px; }
+    #view-jam.jam-antiseche-hidden #jam-chord-card #jam-chord-sequence-display { flex: 1 1 auto !important; }
+}
+/* Plein écran : les antisèches (jam lancée) occupent toute la largeur libre de la carte, au lieu de rester calées à gauche */
+#view-jam.jam-playing #jam-chord-card:fullscreen #jam-scales-card { align-self: stretch; margin: 12px 0 0; }
+/* Le bouton ne sert à rien là où les antisèches ne s'affichent jamais : plein écran à l'arrêt, plein écran simulé (téléphone) */
+#view-jam:not(.jam-playing) #jam-chord-card:fullscreen #jam-antiseche-btn, #view-jam #jam-chord-card.jam-pseudo-fs #jam-antiseche-btn { display: none; }
 
 /* Portées éditables glissées dans le texte (ui/staff-editor.js).
    Au repos, le cadre épouse la portée écrite (le dessin est recadré par le script) : plusieurs portées, ou une portée et du texte, tiennent sur la même ligne.
@@ -930,24 +947,19 @@
 .annot-staff-svg .vf-stavebarline rect { stroke: currentColor; stroke-width: .7; }
 .annot-staff.is-active .annot-staff-svg { overflow-x: auto; overflow-y: hidden; min-height: 110px; line-height: normal; }
 .jam-annot-text[contenteditable="true"] .annot-staff.is-active .annot-staff-svg { cursor: crosshair; }
-/* Poignée de déplacement (portée au repos, zone modifiable) : visible au survol, toujours discrète sur écran tactile */
-.annot-staff-grip { display: none; position: absolute; left: -9px; top: -9px; z-index: 3; width: 20px; height: 20px; align-items: center; justify-content: center; border-radius: 10px;
-    background: #1e293b; color: #fff; font: 700 12px/1 system-ui, sans-serif; cursor: grab; touch-action: none; box-shadow: 0 1px 4px rgba(0, 0, 0, .45); }
-.annot-staff-grip:active { cursor: grabbing; }
-.jam-annot-text[contenteditable="true"] .annot-staff:not(.is-active):hover > .annot-staff-grip,
-.jam-annot-text[contenteditable="true"] .annot-staff.is-picked:not(.is-active) > .annot-staff-grip { display: flex; }
-/* Crayon ✎ : ouvre la portée en édition (un second clic en sort) ; il se place à côté de la poignée, et à sa place quand la poignée est cachée (édition) */
-.annot-staff-edit { display: none; position: absolute; left: 14px; top: -9px; z-index: 3; width: 20px; height: 20px; padding: 0; align-items: center; justify-content: center; border: 0; border-radius: 10px;
+/* Hors édition (zone modifiable), le bloc se saisit n'importe où : curseur « main », et le doigt le déplace sans faire défiler la page */
+.jam-annot-text[contenteditable="true"] .annot-staff:not(.is-active) { cursor: grab; touch-action: none; }
+.jam-annot-text[contenteditable="true"] .annot-staff:not(.is-active):active { cursor: grabbing; }
+/* Crayon ✎ : ouvre la portée en édition (un second clic en sort) ; visible au survol, toujours visible sur écran tactile */
+.annot-staff-edit { display: none; position: absolute; left: -9px; top: -9px; z-index: 3; width: 20px; height: 20px; padding: 0; align-items: center; justify-content: center; border: 0; border-radius: 10px;
     background: #2563eb; color: #fff; font: 700 12px/1 system-ui, sans-serif; cursor: pointer; box-shadow: 0 1px 4px rgba(0, 0, 0, .45); }
 .annot-staff-edit:hover { background: #1d4ed8; }
 .jam-annot-text[contenteditable="true"] .annot-staff:hover > .annot-staff-edit,
 .jam-annot-text[contenteditable="true"] .annot-staff.is-picked > .annot-staff-edit,
 .jam-annot-text[contenteditable="true"] .annot-staff.is-active > .annot-staff-edit { display: flex; }
-.annot-staff.is-active > .annot-staff-edit { left: -9px; background: #1e293b; box-shadow: 0 0 0 2px #3b82f6; }
+.annot-staff.is-active > .annot-staff-edit { background: #1e293b; box-shadow: 0 0 0 2px #3b82f6; }
 @media (hover: none) {
-    .jam-annot-text[contenteditable="true"] .annot-staff:not(.is-active) > .annot-staff-grip { display: flex; opacity: .75; width: 24px; height: 24px; left: -11px; top: -11px; border-radius: 12px; }
-    .jam-annot-text[contenteditable="true"] .annot-staff > .annot-staff-edit { display: flex; opacity: .85; width: 24px; height: 24px; left: 17px; top: -11px; border-radius: 12px; }
-    .jam-annot-text[contenteditable="true"] .annot-staff.is-active > .annot-staff-edit { left: -11px; }
+    .jam-annot-text[contenteditable="true"] .annot-staff > .annot-staff-edit { display: flex; opacity: .85; width: 24px; height: 24px; left: -11px; top: -11px; border-radius: 12px; }
 }
 /* Pendant un déplacement : aperçu du bloc là où il sera déposé */
 .annot-drag-ghost { position: fixed; z-index: 2200; pointer-events: none; opacity: .85; background: #fff; border: 1px solid #3b82f6; border-radius: 8px; padding: 4px; line-height: 0;

@@ -5,7 +5,7 @@
 // Écrire : choisir une durée, cliquer sur la portée (la note se pose à la hauteur cliquée, avant la note qui suit) ;
 // cliquer une note pour la sélectionner puis la glisser vers le haut ou le bas, ou utiliser les flèches ; Suppr. l'enlève.
 // Deux états : portée « en édition » (elle occupe toute la largeur de la zone, avec sa barre d'outils) ou portée « au repos »
-// (le cadre épouse la portée telle qu'elle est écrite ; elle se déplace par sa poignée ⠿ et se copie-colle d'une zone à l'autre).
+// (le cadre épouse la portée telle qu'elle est écrite ; elle se déplace en la glissant, hors édition, et se copie-colle d'une zone à l'autre).
 // Chargé par index.html via <script src="ui/staff-editor.js"> (après ui/staff-notes.js) et testé par ui/staff-editor.test.js.
 
 // Sous Node (tests), le format se charge ; en navigateur ce sont des globaux (ui/staff-notes.js).
@@ -40,6 +40,21 @@ function nseHandDrawn(svg) {
         const a = (((i * 3) % 4) - 1.5) * 0.12;    // très légère pente
         const mx = x1 + (x2 - x1) * (0.35 + ((i * 5) % 3) * 0.15);
         p.setAttribute('d', `M${x1} ${y1 + a}Q${mx} ${y1 + w} ${x2} ${y2 - a}`);
+    });
+}
+
+// L'indication de mesure (4/4, 6/8…) de la police manuscrite fait le double de la hauteur de la portée (chaque chiffre en occupe toute la hauteur) :
+// on la réduit de moitié autour de son centre, chaque chiffre couvre alors la moitié de la portée comme dans une partition.
+const NSE_TIMESIG_SCALE = 0.5;
+function nseSmallTimeSig(svg) {
+    if (!svg || !svg.querySelectorAll) return;
+    svg.querySelectorAll('.vf-timesignature').forEach((g) => {
+        try {
+            const b = g.getBBox();
+            if (!(b.width > 0 && b.height > 0)) return;
+            const cx = b.x + b.width / 2, cy = b.y + b.height / 2, k = NSE_TIMESIG_SCALE;
+            g.setAttribute('transform', `translate(${cx} ${cy}) scale(${k}) translate(${-cx} ${-cy})`);
+        } catch (e) { /* mesure impossible (élément caché) : on garde la taille d'origine */ }
     });
 }
 
@@ -191,6 +206,7 @@ function drawNoteStaff(host, st, opts = {}) {
         } catch (e) { /* liaison impossible à dessiner : la portée reste lisible */ }
     });
     nseHandDrawn(svg);
+    nseSmallTimeSig(svg);
     // Portée au repos : le cadre épouse la portée (largeur de ses mesures, hauteur de ses lignes, notes aiguës et graves comprises).
     if (opts.compact && svg) {
         const b = nseContentBox(svg, { x: 0, y: NSE_TOP - 20, w: Math.min(W, (geo.right || W) + NSE_PAD), h: height - NSE_TOP + 20 - 24 });
@@ -383,9 +399,9 @@ let NSE_ACTIVE = null; // la portée dont la barre d'outils est ouverte (une seu
 
 // opts : isEditable() → l'annotation est modifiable ; onChange(view) après chaque modification ; onActivate(view) quand on clique dans la portée ;
 //        zones() → les zones d'annotation modifiables où l'on peut déposer la portée ; maxStaves : nombre de portées permis par zone ;
-//        onPick(view) quand le bloc est sélectionné par sa poignée ; onTransfer(view, zone, range) quand il est déposé dans une autre zone ;
+//        onPick(view) quand le bloc est sélectionné ; onTransfer(view, zone, range) quand il est déposé dans une autre zone ;
 //        onCopy(view), onPaste(view) : boutons Copier / Coller de la barre d'outils ;
-//        onGrab(view) quand la poignée est saisie (avant tout déplacement) ;
+//        onGrab(view) quand le bloc est saisi (avant tout déplacement) ;
 //        onMoved(view) quand le bloc vient d'être déplacé ou décalé (à enregistrer tout de suite, pour que ↶ l'annule) ;
 //        audio : { ready() → Promise, now(), play(midi, secondes, durée) → nœud audio ou null, bpm() }
 class NoteStaffView {
@@ -403,11 +419,9 @@ class NoteStaffView {
         el.setAttribute('contenteditable', 'false');
         el.setAttribute('role', 'group');
         el.setAttribute('aria-label', 'Portée : motif musical');
-        el.innerHTML = '<div class="annot-staff-grip" contenteditable="false" title="Glisser pour déplacer la portée (au pixel près) · cliquer pour la sélectionner (copier, couper, flèches = 1 px) · double-clic : revenir à la place du texte" aria-hidden="true">⠿</div>'
-            + '<button type="button" class="annot-staff-edit" contenteditable="false" title="Modifier la portée (un second clic en sort)" aria-label="Modifier la portée">✎</button>'
+        el.innerHTML = '<button type="button" class="annot-staff-edit" contenteditable="false" title="Modifier la portée (un second clic en sort)" aria-label="Modifier la portée">✎</button>'
             + '<div class="annot-staff-svg"></div><div class="annot-staff-tools" role="toolbar" aria-label="Édition de la portée"></div>';
         // La barre d'outils de la portée prend la place de la barre de texte tant que la portée est active (opts.toolsHost) ; sinon elle reste ici, cachée.
-        this.grip = el.querySelector('.annot-staff-grip');
         this.editBtn = el.querySelector('.annot-staff-edit');
         this.pos = NSE_N.parseStaffPos(el.getAttribute('data-pos') || '') || { x: 0, y: 0 }; // décalage libre (pixels) par rapport à la place dans le texte
         this._showPos();
@@ -581,16 +595,16 @@ class NoteStaffView {
         host.addEventListener('pointerdown', (ev) => this._pointerDown(ev));
         host.addEventListener('pointermove', (ev) => this._pointerMove(ev));
         host.addEventListener('pointerleave', () => this._hideGhost());
-        // On n'entre plus en édition en cliquant dans la portée : le crayon ✎ (à côté de la poignée ⠿, au survol) l'ouvre, et un second clic la ferme.
-        // La poignée ⠿ déplace ou sélectionne le bloc ; un double-clic sur elle le remet à sa place dans le texte.
+        // On n'entre pas en édition en cliquant dans la portée : le crayon ✎ (au survol) l'ouvre, et un second clic la ferme.
         this.editBtn.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); });
         this.editBtn.addEventListener('click', (ev) => {
             ev.preventDefault(); ev.stopPropagation();
             if (!this.editable) return;
             if (this.isActive) { this.deactivate(); if (this.opts.onFocusBack) this.opts.onFocusBack(this); } else this.activate();
         });
-        this.grip.addEventListener('pointerdown', (ev) => this._gripDown(ev));
-        this.grip.addEventListener('dblclick', (ev) => { ev.preventDefault(); ev.stopPropagation(); if (this.editable && !this.isActive) this.resetPos(); });
+        // Hors édition, un clic-glisser n'importe où dans le bloc le déplace ; un clic le sélectionne ; un double-clic le remet à sa place dans le texte.
+        this.el.addEventListener('pointerdown', (ev) => { if (!ev.target.closest('.annot-staff-edit')) this._blockDown(ev); });
+        this.el.addEventListener('dblclick', (ev) => { if (ev.target.closest('.annot-staff-edit')) return; ev.preventDefault(); ev.stopPropagation(); if (this.editable && !this.isActive) this.resetPos(); });
     }
 
     _local(ev) {
@@ -720,7 +734,7 @@ class NoteStaffView {
 
     _hideGhost() { const g = this.svgHost.querySelector('.annot-ghost'); if (g) g.remove(); }
 
-    // ----- Déplacer le bloc (poignée ⠿) : au repos seulement -----
+    // ----- Déplacer le bloc  : au repos seulement -----
 
     // Décalage libre : le bloc garde sa place dans le texte et est simplement décalé de pos.x, pos.y pixels (data-pos, enregistré avec l'annotation).
     _showPos() {
@@ -760,7 +774,7 @@ class NoteStaffView {
         return true;
     }
 
-    // Remet le bloc à sa place dans le texte (double-clic sur la poignée).
+    // Remet le bloc à sa place dans le texte (double-clic sur le bloc).
     resetPos() {
         if (!this.pos.x && !this.pos.y) return;
         this.pos = { x: 0, y: 0 };
@@ -774,18 +788,18 @@ class NoteStaffView {
         return zone === this._zone() || zone.querySelectorAll('.annot-staff').length < (this.opts.maxStaves || 8);
     }
 
-    // Clic sur la poignée : sélectionne le bloc (⌘C copie, ⌘X coupe, Suppr. l'enlève, les flèches le décalent d'un pixel). Glisser : déplace le bloc
+    // Hors édition, appui sur le bloc : un clic le sélectionne (⌘C copie, ⌘X coupe, Suppr. l'enlève, les flèches le décalent d'un pixel). Glisser : déplace le bloc
     // au pixel près, là où l'aperçu se trouve (il garde alors sa place dans le texte, avec un décalage), y compris dans l'autre zone ;
     // Échap annule. Un décalage de moins de 3 pixels revient à la place du texte (touche Alt enfoncée : pas d'aimant).
-    _gripDown(ev) {
+    _blockDown(ev) {
         if (!this.editable || ev.button > 0 || this.isActive) return;
         ev.preventDefault();
         ev.stopPropagation();
-        const grip = this.grip, el = this.el;
+        const el = this.el, grip = el;
         if (this.opts.onGrab) this.opts.onGrab(this);
         const x0 = ev.clientX, y0 = ev.clientY;
         const r0 = el.getBoundingClientRect();
-        const gx = x0 - r0.left, gy = y0 - r0.top;      // où la poignée a été saisie dans le bloc
+        const gx = x0 - r0.left, gy = y0 - r0.top;      // où le bloc a été saisi
         const zones = () => (this.opts.zones ? this.opts.zones() : [this._zone()]).filter(Boolean);
         let dragging = false, ghost = null, timer = null, lastX = x0, lastY = y0, alt = false;
         try { grip.setPointerCapture(ev.pointerId); } catch (e) { /* non pris en charge */ }
@@ -1057,5 +1071,5 @@ function annotationHtmlForSave(ed) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { nseHandDrawn, NSE_SPACING, NSE_BAND, NSE_TOP, nseToolsHtml, nseKeyAction, nseNearestLetter, nseNoteIcon, nseKeyOptions, nseToolState, nseFragmentToClipText };
+    module.exports = { nseHandDrawn, nseSmallTimeSig, NSE_TIMESIG_SCALE, NSE_SPACING, NSE_BAND, NSE_TOP, nseToolsHtml, nseKeyAction, nseNearestLetter, nseNoteIcon, nseKeyOptions, nseToolState, nseFragmentToClipText };
 }

@@ -69,7 +69,7 @@ describe('nseToolsHtml : barre d’outils de la portée', () => {
         }
     });
     test('curseur de taille : bornes et valeur de la portée', () => {
-        assert.ok(html.includes('data-set="size"') && html.includes('min="60"') && html.includes('max="200"') && html.includes('value="100"'));
+        assert.ok(html.includes('data-set="size"') && html.includes('min="50"') && html.includes('max="200"') && html.includes('value="100"'));
         assert.ok(E.nseToolsHtml(S.parseStaff('t,4/4,0,150;q:c4')).includes('value="150"'));
     });
     test('clé, mesure et armure reflètent la portée', () => {
@@ -169,5 +169,23 @@ describe('nseHandDrawn : lignes de portée « crayon »', () => {
         E.nseHandDrawn(svg);
         assert.deepEqual(svg.paths.map(p => p.a.d), ['M3 30L50 40', 'M3 30L8 30', 'autre chose']);
         assert.doesNotThrow(() => E.nseHandDrawn(null));
+    });
+});
+
+describe('nseSmallTimeSig : indication de mesure réduite', () => {
+    const fakeSvg = (groups) => ({ querySelectorAll: (sel) => (sel === '.vf-timesignature' ? groups : []) });
+    const group = (box) => { const a = {}; return { a, getBBox: () => box, setAttribute: (k, v) => { a[k] = v; } }; };
+    test('réduite autour de son centre', () => {
+        const g = group({ x: 40, y: 30, width: 20, height: 40 });
+        E.nseSmallTimeSig(fakeSvg([g]));
+        assert.equal(g.a.transform, `translate(50 50) scale(${E.NSE_TIMESIG_SCALE}) translate(-50 -50)`);
+        assert.ok(E.NSE_TIMESIG_SCALE < 0.8 && E.NSE_TIMESIG_SCALE > 0.4);
+    });
+    test('élément sans taille, mesure impossible ou pas de dessin : rien ne casse, rien ne change', () => {
+        const empty = group({ x: 0, y: 0, width: 0, height: 0 });
+        const broken = { a: {}, getBBox: () => { throw new Error('caché'); }, setAttribute() { throw new Error('non'); } };
+        E.nseSmallTimeSig(fakeSvg([empty, broken]));
+        assert.deepEqual(empty.a, {});
+        assert.doesNotThrow(() => E.nseSmallTimeSig(null));
     });
 });
