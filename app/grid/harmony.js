@@ -8,6 +8,7 @@
 const HARM_THEORY = (typeof lookupChord !== 'undefined')
     ? { lookupChord, chordInfo, chordTypes, chordRootName, bassNoteName }
     : require('../theory.js');
+const HARMONY_BUILD = '2026-11-07-e'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
 if (typeof romanDeg === 'undefined' && typeof require === 'function') {
     var { romanDeg, chordFamily, convertRomanText, convertRomanLabel } = require('./generation.js');
 }
@@ -261,7 +262,16 @@ function functionAlternatives(chord, next = null, keyOverride = null, env = {}) 
             r === 3 ? it('♭III7', 'Dominante d\'emprunt (♭III7), couleur blues mineur') : null,
             r === 8 ? it('♭VI7', 'Sixte augmentée (♭VI7) : conduit à V') : null
         ]);
-        if (r !== 7) add('Modulation', [it(`V${suf} de ${K(tSec)}`, `Modulation : cet accord devient la dominante de la nouvelle tonalité de ${K(tSec)}`, mk(tSec))]);
+        if (r !== 7) {
+            const modItems = [it(`V${suf} de ${K(tSec)}`, `Modulation : cet accord devient la dominante de la nouvelle tonalité de ${K(tSec)}`, mk(tSec))];
+            // Un accord de dominante ne dit pas si sa cible est majeure ou mineure : quand l'accord qui suit (le prochain accord
+            // différent) est un accord mineur sur la tonique visée, on propose aussi la modulation en mode mineur (V7 de Dm).
+            const target = (Array.isArray(env.after) && env.after[0]) || next;
+            if (target && chordFamily(target.chordId) === 'min' && mod(target.rootIndex - chord.rootIndex) === 5) {
+                modItems.push(it(`V${suf} de ${K(tSec)}m`, `Modulation en ${K(tSec)} mineur : cet accord devient la dominante de la nouvelle tonalité de ${K(tSec)} mineur (l'accord suivant est mineur)`, mk(tSec, true)));
+            }
+            add('Modulation', modItems);
+        }
     } else if (fam === 'min') {
         const degreeInfo = {
             0: ['i', 'Tonique mineure (mode parallèle)'],

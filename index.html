@@ -8045,7 +8045,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-07-d';
+        var BUILD = '2026-11-07-e';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }
@@ -8053,6 +8053,7 @@
             var seen = {
                 'app/grid/edit-ops.js': typeof EDIT_OPS_BUILD !== 'undefined' ? EDIT_OPS_BUILD : '',
                 'app/ui/measure-editor.js': typeof MEASURE_EDITOR_BUILD !== 'undefined' ? MEASURE_EDITOR_BUILD : '',
+                'app/grid/harmony.js': typeof HARMONY_BUILD !== 'undefined' ? HARMONY_BUILD : '',
                 'app/style.css': cssBuild()
             };
             // Fichiers nouveaux de la version : s'ils sont absents (mal placés ou pas envoyés), ils ne définissent pas leur fonction.

@@ -409,3 +409,51 @@ describe('followingChords : accords différents qui suivent', () => {
         assert.deepEqual(H.followingChords(flat, 5), []);
     });
 });
+
+describe('modulation en mode mineur : V7 de Xm', () => {
+    const A = 9, D = 2;
+    const opts = (extra = {}) => ({ mainKey: D, rootLabels: LABELS, ...extra });
+    const mods = (g) => (g.find(x => x.title === 'Modulation') || { items: [] }).items;
+    test('A7 suivi de Dm7 : « V7 de D » (majeur) et « V7 de Dm » (mineur) sont proposés', () => {
+        const g = H.functionAlternatives(ch(A, '7'), ch(D, 'm7'), 7, opts());
+        const major = mods(g).find(i => i.label === 'V7 de D');
+        const minor = mods(g).find(i => i.label === 'V7 de Dm');
+        assert.deepEqual(major.mod, { root: D, minor: false });
+        assert.deepEqual(minor.mod, { root: D, minor: true });
+    });
+    test('suivi d\'une triade mineure : même proposition', () => {
+        const g = H.functionAlternatives(ch(A, '7'), ch(D, 'minTriad'), 7, opts());
+        assert.ok(mods(g).some(i => i.label === 'V7 de Dm'));
+    });
+    test('suivi d\'un accord majeur ou dominant : pas de « V7 de Dm »', () => {
+        for (const id of ['majTriad', 'maj7', '7']) {
+            const g = H.functionAlternatives(ch(A, '7'), ch(D, id), 7, opts());
+            assert.ok(!mods(g).some(i => i.label === 'V7 de Dm'), id);
+            assert.ok(mods(g).some(i => i.label === 'V7 de D'), id);
+        }
+    });
+    test('accord suivant mineur mais pas une quarte plus haut : pas de « V7 de Xm »', () => {
+        const g = H.functionAlternatives(ch(A, '7'), ch(4, 'm7'), 7, opts());
+        assert.ok(!mods(g).some(i => i.label.endsWith('m')));
+    });
+    test('sans accord suivant : comportement inchangé', () => {
+        const g = H.functionAlternatives(ch(A, '7'), null, 7, opts());
+        assert.deepEqual(mods(g).map(i => i.label), ['V7 de D']);
+    });
+    test('accord répété : on lit le prochain accord différent (env.after)', () => {
+        const g = H.functionAlternatives(ch(A, '7'), ch(A, '7'), 7, opts({ after: [{ rootIndex: D, chordId: 'm7' }] }));
+        assert.ok(mods(g).some(i => i.label === 'V7 de Dm'));
+    });
+    test('lecture « V7 de Dm » choisie : la grille se lit en ré mineur ensuite (classique : III au lieu de ♭III)', () => {
+        const base = [ch(A, '7'), ch(D, 'm7'), ch(7, 'm7'), ch(0, '7', { harmonicFunction: 'secondaryDominant' }), ch(5, 'maj7')];
+        const read = (first) => {
+            const flat = flatOf(base.map((c, i) => i === 0 ? { ...c, ...first } : c));
+            return flat.map((m, i) => H.harmonicFunctionLabel(m, flat, i, 0, null, D, { convention: 'classic', mainQuality: 'aeolian' }));
+        };
+        const viaMajor = read({ fnLabel: 'V7 de D', modKey: { root: D, minor: false } });
+        const viaMinor = read({ fnLabel: 'V7 de Dm', modKey: { root: D, minor: true } });
+        assert.deepEqual(viaMajor.slice(1), ['i', 'iv', 'V/♭III', '♭III']);
+        assert.deepEqual(viaMinor.slice(1), ['i', 'iv', 'V/III', 'III']);
+        assert.equal(viaMinor[0], 'V7 de Dm'); // un libellé « X de Y » reste tel quel
+    });
+});
