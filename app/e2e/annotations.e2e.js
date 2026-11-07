@@ -91,7 +91,7 @@ describe('annotations : portées (navigateur)', { skip: !pw && 'Playwright non i
         await close();
     });
 
-    test('au repos, le cadre épouse la portée ; en édition, il prend toute la largeur', async () => {
+    test('au repos, le cadre épouse la portée ; le crayon ✎ ouvre l\'édition, un second clic la ferme', async () => {
         const { page, errors, close } = await openAnnotations();
         await addStaff(page, '#jam-annot-general', [50, 45, 40]);
         const rest = (await staves(page, '#jam-annot-general'))[0];
@@ -99,11 +99,23 @@ describe('annotations : portées (navigateur)', { skip: !pw && 'Playwright non i
         assert.ok(!rest.active);
         assert.ok(rest.w < zone / 2, `cadre au repos étroit (${rest.w} px dans une zone de ${zone} px)`);
         assert.ok(rest.h < 110, `cadre au repos plus bas que la ligne d'édition (${rest.h} px)`);
-        // un clic dans la portée la remet en édition : elle prend la largeur de la zone
+        // un clic dans la portée au repos ne l'ouvre plus
         await page.click('#jam-annot-general .annot-staff .annot-staff-svg');
+        assert.equal((await staves(page, '#jam-annot-general'))[0].active, false);
+        // le crayon n'apparaît qu'au survol
+        await page.mouse.move(5, 5);
+        assert.equal(await page.locator('#jam-annot-general .annot-staff-edit').isVisible(), false);
+        await page.hover('#jam-annot-general .annot-staff');
+        assert.equal(await page.locator('#jam-annot-general .annot-staff-edit').isVisible(), true);
+        await page.click('#jam-annot-general .annot-staff-edit');
         const edit = (await staves(page, '#jam-annot-general'))[0];
         assert.ok(edit.active);
         assert.ok(edit.w > zone - 60, `portée en édition large (${edit.w} px)`);
+        assert.equal(await page.locator('#jam-annot-general .annot-staff-edit').isVisible(), true, 'le crayon reste visible en édition');
+        await page.click('#jam-annot-general .annot-staff-edit');   // second clic : on sort de l'édition
+        const back = (await staves(page, '#jam-annot-general'))[0];
+        assert.ok(!back.active);
+        assert.ok(back.w < zone / 2);
         assert.deepEqual(errors, []);
         await close();
     });
@@ -129,29 +141,125 @@ describe('annotations : portées (navigateur)', { skip: !pw && 'Playwright non i
         await close();
     });
 
-    test('déplacement par la poignée : une portée vient se ranger à côté d\'une autre', async () => {
+    // Glisse la poignée du bloc n° `i` de `zoneSel` pour que son coin haut gauche tombe en (left, top).
+    async function dragBlock(page, zoneSel, i, left, top, opts = {}) {
+        const sel = `${zoneSel} .annot-staff >> nth=${i}`;
+        await page.hover(sel);
+        const grip = await page.locator(`${sel} >> .annot-staff-grip`).boundingBox();
+        const r = (await staves(page, zoneSel))[i];
+        const gx = grip.x + 10 - r.x, gy = grip.y + 10 - r.y;
+        await page.mouse.move(grip.x + 10, grip.y + 10);
+        await page.mouse.down();
+        await page.mouse.move(grip.x + 40, grip.y + 30, { steps: 3 });
+        if (opts.alt) await page.keyboard.down('Alt');
+        await page.mouse.move(left + gx, top + gy, { steps: 8 });
+        if (opts.stay) return;
+        await page.mouse.up();
+        if (opts.alt) await page.keyboard.up('Alt');
+        await page.waitForTimeout(200);
+    }
+    const posOf = (page, zoneSel, i) => page.evaluate(([s, k]) => Array.from(document.querySelectorAll(`${s} .annot-staff`))[k].getAttribute('data-pos'), [zoneSel, i]);
+
+    test('déplacement au pixel près, enregistré, annulable par ↶ et ⌘Z', async () => {
         const { page, errors, close } = await openAnnotations();
         await page.click('#jam-annot-general');
         await page.keyboard.type('Intro: ');
         await addStaff(page, '#jam-annot-general', [50, 45, 40]);
         await addStaff(page, '#jam-annot-general', [60, 55]);
-        const [a, b] = await staves(page, '#jam-annot-general');
-        assert.ok(b.y > a.y, 'au départ, la seconde portée est sur une autre ligne');
-        await page.mouse.move(b.x + 40, b.y + 40);
-        const grip = await page.locator('#jam-annot-general .annot-staff >> nth=1 >> .annot-staff-grip').boundingBox();
-        await page.mouse.move(grip.x + 10, grip.y + 10);
-        await page.mouse.down();
-        await page.mouse.move(grip.x + 60, grip.y - 5, { steps: 4 });
-        await page.mouse.move(a.x + a.w + 40, a.y + 30, { steps: 8 });
-        assert.ok(await page.evaluate(() => !!document.querySelector('.annot-drag-ghost') && !!document.querySelector('.annot-drop-caret')), 'aperçu et trait d\'insertion pendant le glisser');
+        const [a, b0] = await staves(page, '#jam-annot-general');
+        assert.ok(b0.y > a.y, 'au départ, la seconde portée est sur une autre ligne');
+        const goal = { left: a.x + a.w + 37, top: a.y + 13 };
+        await dragBlock(page, '#jam-annot-general', 1, goal.left, goal.top, { stay: true });
+        assert.ok(await page.evaluate(() => !!document.querySelector('.annot-drag-ghost')), 'aperçu pendant le glisser');
         await page.mouse.up();
         await page.waitForTimeout(200);
         const after = await staves(page, '#jam-annot-general');
         assert.equal(after.length, 2);
-        assert.equal(after[1].y, after[0].y, 'les deux portées sont sur la même ligne');
-        assert.ok(after[1].x > after[0].x + after[0].w - 1, 'la seconde est à droite de la première');
+        assert.ok(Math.abs(after[1].x - goal.left) <= 1 && Math.abs(after[1].y - goal.top) <= 1, `bloc déposé au pixel près (${after[1].x},${after[1].y} pour ${goal.left},${goal.top})`);
         assert.equal(after[1].st, 't,4/4,0;q:g4 q:a4', 'c\'est bien la portée déplacée');
+        assert.match(await posOf(page, '#jam-annot-general', 1) || '', /^-?\d+,-?\d+$/);
         assert.ok(!await page.evaluate(() => !!document.querySelector('.annot-drag-ghost')), 'plus d\'aperçu après le dépôt');
+        // enregistré dans la grille, et relu après un changement d'onglet
+        assert.match(await page.evaluate(() => app.jam.gridNote), /data-staff="t,4\/4,0;q:g4 q:a4" data-pos="-?\d+,-?\d+"/);
+        await page.evaluate(() => { app.jam.setVisMode('intervals'); app.jam.setVisMode('annotations'); });
+        await page.waitForTimeout(200);
+        const again = (await staves(page, '#jam-annot-general'))[1];
+        assert.ok(Math.abs(again.x - after[1].x) <= 1 && Math.abs(again.y - after[1].y) <= 1, 'même place après relecture');
+        // ⌘Z / Ctrl+Z annule le déplacement (sans saisie entre-temps), ⇧ le rétablit
+        await dragBlock(page, '#jam-annot-general', 1, goal.left + 40, goal.top + 20);
+        const moved = (await staves(page, '#jam-annot-general'))[1];
+        assert.ok(Math.abs(moved.x - (goal.left + 40)) <= 1);
+        await page.keyboard.press('Control+z');
+        await page.waitForTimeout(200);
+        const undone = (await staves(page, '#jam-annot-general'))[1];
+        assert.ok(Math.abs(undone.x - after[1].x) <= 1 && Math.abs(undone.y - after[1].y) <= 1, 'Ctrl+Z revient à la place d\'avant');
+        await page.keyboard.press('Control+Shift+z');
+        await page.waitForTimeout(200);
+        const redone = (await staves(page, '#jam-annot-general'))[1];
+        assert.ok(Math.abs(redone.x - moved.x) <= 1 && Math.abs(redone.y - moved.y) <= 1, 'Ctrl+Maj+Z le rétablit');
+        // le bouton ↶ de la grille l'annule aussi
+        await page.click('#jam-undo-btn');
+        await page.waitForTimeout(200);
+        const viaBtn = (await staves(page, '#jam-annot-general'))[1];
+        assert.ok(Math.abs(viaBtn.x - after[1].x) <= 1 && Math.abs(viaBtn.y - after[1].y) <= 1, '↶ revient à la place d\'avant');
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('petit écart : retour à la place du texte (aimant), sauf avec Alt ; double-clic sur la poignée : retour à la place du texte', async () => {
+        const { page, errors, close } = await openAnnotations();
+        await addStaff(page, '#jam-annot-general', [50, 45]);
+        const a = (await staves(page, '#jam-annot-general'))[0];
+        await dragBlock(page, '#jam-annot-general', 0, a.x + 30, a.y + 40);
+        assert.ok(await posOf(page, '#jam-annot-general', 0), 'un vrai déplacement est gardé');
+        await dragBlock(page, '#jam-annot-general', 0, a.x + 2, a.y + 1);
+        assert.equal(await posOf(page, '#jam-annot-general', 0), null, 'à 3 pixels ou moins de sa place : aimanté');
+        await dragBlock(page, '#jam-annot-general', 0, a.x + 2, a.y + 1, { alt: true });
+        assert.equal(await posOf(page, '#jam-annot-general', 0), '2,1', 'Alt : pas d\'aimant, 2 pixels gardés');
+        await page.hover('#jam-annot-general .annot-staff');
+        await page.dblclick('#jam-annot-general .annot-staff-grip');
+        assert.equal(await posOf(page, '#jam-annot-general', 0), null, 'double-clic : revenu à sa place');
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('flèches : un bloc sélectionné se décale de 1 pixel (10 avec Maj), en une seule étape d\'annulation', async () => {
+        const { page, errors, close } = await openAnnotations();
+        await addStaff(page, '#jam-annot-general', [50, 45]);
+        const a = (await staves(page, '#jam-annot-general'))[0];
+        await page.hover('#jam-annot-general .annot-staff');
+        const g = await page.locator('#jam-annot-general .annot-staff-grip').boundingBox();
+        await page.mouse.click(g.x + 10, g.y + 10);
+        await page.keyboard.press('ArrowRight');
+        await page.keyboard.press('ArrowRight');
+        await page.keyboard.press('ArrowDown');
+        await page.keyboard.press('Shift+ArrowRight');
+        assert.equal(await posOf(page, '#jam-annot-general', 0), '12,1');
+        const b = (await staves(page, '#jam-annot-general'))[0];
+        assert.equal(b.x - a.x, 12);
+        assert.equal(b.y - a.y, 1);
+        assert.equal(b.picked, true, 'le bloc reste sélectionné');
+        await page.keyboard.press('Control+z');           // une seule étape pour toute la série
+        await page.waitForTimeout(200);
+        assert.equal(await posOf(page, '#jam-annot-general', 0), null);
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('un bloc ne sort pas de sa zone, et le déplacement vers l\'autre zone se fait au pixel près', async () => {
+        const { page, errors, close } = await openAnnotations();
+        await addStaff(page, '#jam-annot-general', [50, 45]);
+        const z = await page.locator('#jam-annot-general').boundingBox();
+        await dragBlock(page, '#jam-annot-general', 0, z.x - 80, z.y - 60);       // au-delà du bord haut gauche
+        let a = (await staves(page, '#jam-annot-general'))[0];
+        assert.ok(a.x >= z.x - 1 && a.y >= z.y - 1, `ramené dans la zone (${a.x},${a.y} ; zone ${z.x},${z.y})`);
+        const m = await page.locator('#jam-annot-measure').boundingBox();
+        const goal = { left: m.x + 51, top: m.y + 44 };
+        await dragBlock(page, '#jam-annot-general', 0, goal.left, goal.top);
+        assert.equal((await staves(page, '#jam-annot-general')).length, 0);
+        const inM = await staves(page, '#jam-annot-measure');
+        assert.equal(inM.length, 1);
+        assert.ok(Math.abs(inM[0].x - goal.left) <= 1 && Math.abs(inM[0].y - goal.top) <= 1, `déposé au pixel près dans l'autre zone (${inM[0].x},${inM[0].y})`);
         assert.deepEqual(errors, []);
         await close();
     });

@@ -244,3 +244,26 @@ describe('copier-coller d\'une portée : staffClipText / splitStaffClips', () =>
         assert.deepEqual(S.splitStaffClips(long), [{ text: long }]);
     });
 });
+
+describe('décalage libre d\'un bloc portée (data-pos)', () => {
+    test('lecture : deux entiers « x,y », avec signe', () => {
+        assert.deepEqual(S.parseStaffPos('12,-7'), { x: 12, y: -7 });
+        assert.deepEqual(S.parseStaffPos(' 0,0 '), { x: 0, y: 0 });
+    });
+    test('lecture : tout le reste est refusé', () => {
+        for (const bad of ['', '12', '1,2,3', 'a,b', '1.5,2', '12345,1', '1;2', '--1,2', null, undefined, 5]) assert.equal(S.parseStaffPos(bad), null, String(bad));
+    });
+    test('les valeurs sont limitées à ±3000 pixels', () => {
+        assert.equal(S.clampStaffPos(99999), 3000);
+        assert.equal(S.clampStaffPos(-99999), -3000);
+        assert.equal(S.clampStaffPos('x'), 0);
+        assert.equal(S.clampStaffPos(2.6), 3);
+        assert.deepEqual(S.parseStaffPos('3500,-3500'), { x: 3000, y: -3000 });
+    });
+    test('écriture : pas de décalage = texte vide ; aller-retour', () => {
+        assert.equal(S.formatStaffPos(null), '');
+        assert.equal(S.formatStaffPos({ x: 0, y: 0 }), '');
+        assert.equal(S.formatStaffPos({ x: 4, y: -9 }), '4,-9');
+        assert.deepEqual(S.parseStaffPos(S.formatStaffPos({ x: -120, y: 33 })), { x: -120, y: 33 });
+    });
+});

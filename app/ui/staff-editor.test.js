@@ -143,3 +143,31 @@ describe('nseFragmentToClipText : texte copié d\'une sélection', () => {
         assert.deepEqual(S.splitStaffClips(txt), [{ text: 'A ' }, { staff: 't,4/4,0;q:c4' }, { staff: 'b,3/4,-1;h:f3' }, { text: ' B' }]);
     });
 });
+
+describe('nseHandDrawn : lignes de portée « crayon »', () => {
+    const fakeSvg = (ds) => {
+        const paths = ds.map(d => { const a = { d }; return { getAttribute: (k) => a[k], setAttribute: (k, v) => { a[k] = v; }, a }; });
+        return { paths, querySelectorAll: (sel) => (sel === '.vf-stave path' ? paths : []) };
+    };
+    test('une ligne droite devient une courbe très légère, de mêmes extrémités à moins d\'un pixel', () => {
+        const svg = fakeSvg(['M3 30L188.641 30', 'M3 40L188.641 40', 'M3 50L188.641 50']);
+        E.nseHandDrawn(svg);
+        svg.paths.forEach((p, i) => {
+            const m = /^M([\d.]+) ([\d.]+)Q([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)$/.exec(p.a.d);
+            assert.ok(m, p.a.d);
+            assert.ok(Math.abs(+m[2] - (30 + 10 * i)) < 1 && Math.abs(+m[4] - (30 + 10 * i)) < 1 && Math.abs(+m[6] - (30 + 10 * i)) < 1);
+            assert.equal(+m[1], 3); assert.equal(+m[5], 188.641);
+        });
+    });
+    test('le tracé est le même à chaque dessin (pas de scintillement)', () => {
+        const a = fakeSvg(['M3 30L188.641 30', 'M3 40L188.641 40']), b = fakeSvg(['M3 30L188.641 30', 'M3 40L188.641 40']);
+        E.nseHandDrawn(a); E.nseHandDrawn(b);
+        assert.deepEqual(a.paths.map(p => p.a.d), b.paths.map(p => p.a.d));
+    });
+    test('les traits inattendus (obliques, très courts) et un dessin absent ne causent rien', () => {
+        const svg = fakeSvg(['M3 30L50 40', 'M3 30L8 30', 'autre chose']);
+        E.nseHandDrawn(svg);
+        assert.deepEqual(svg.paths.map(p => p.a.d), ['M3 30L50 40', 'M3 30L8 30', 'autre chose']);
+        assert.doesNotThrow(() => E.nseHandDrawn(null));
+    });
+});

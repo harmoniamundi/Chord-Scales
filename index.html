@@ -5679,7 +5679,7 @@
                     this._annotBindBar(container.querySelector('#jam-annot-bar'));
                 }
                 const head = container.querySelector('#jam-annot-measure-head');
-                const focused = (el) => document.activeElement === el;
+                const focused = (el) => document.activeElement === el && !this._annotForceRender; // après ⌘Z sur un bloc, la zone qui a le focus est redessinée aussi
                 const setHtml = (el, html) => { if (el.__html !== html) { el.innerHTML = html; el.__html = html; } this._annotHydrate(el); };
 
                 const gv = sanitizeNoteHtml(this.gridNote || '', GRID_NOTE_MAX);
@@ -5763,13 +5763,33 @@
                 });
             }
 
-            annotInput(ed) { this._annotNormalize(ed); this._annotSaveSel(); }
+            annotInput(ed) { this._annotMoveUndo = false; this._annotMoveRedo = false; this._annotNormalize(ed); this._annotSaveSel(); }
 
             annotKeydown(ev) {
                 ev.stopPropagation(); // les raccourcis de la page (flèches de la grille, ⌘Z de la grille…) ne s'appliquent pas à la saisie
                 // Une portée dont une note est sélectionnée prend les flèches, lettres, Suppr. et ⌘Z.
                 const sv = (typeof NSE_ACTIVE !== 'undefined') ? NSE_ACTIVE : null;
                 if (sv && ev.currentTarget && ev.currentTarget.contains(sv.el) && sv.handleKey(ev)) { ev.preventDefault(); return; }
+                // Un bloc portée sélectionné (poignée ⠿) se décale avec les flèches : 1 pixel, 10 avec Maj.
+                const arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+                if (arrows[ev.key] && !ev.metaKey && !ev.ctrlKey && !ev.altKey && ev.currentTarget) {
+                    const picked = ev.currentTarget.querySelector('.annot-staff.is-picked:not(.is-active)');
+                    if (picked && picked.__noteStaff) {
+                        const k = ev.shiftKey ? 10 : 1;
+                        ev.preventDefault();
+                        picked.__noteStaff.nudge(arrows[ev.key][0] * k, arrows[ev.key][1] * k);
+                        return;
+                    }
+                }
+                // ⌘Z / ⌘⇧Z juste après un déplacement de bloc (sans saisie entre-temps) : annule ou rétablit ce déplacement.
+                if ((ev.metaKey || ev.ctrlKey) && !ev.altKey && String(ev.key).toLowerCase() === 'z' && (ev.shiftKey ? this._annotMoveRedo : this._annotMoveUndo)) {
+                    ev.preventDefault();
+                    if (this._annotStaffTimer && ev.currentTarget) this._annotCommit(ev.currentTarget); // flèches pas encore enregistrées
+                    this._annotMoveUndo = false; this._annotMoveRedo = !ev.shiftKey;
+                    this._annotForceRender = true;
+                    try { if (ev.shiftKey) this.redo(); else this.undo(); } finally { this._annotForceRender = false; }
+                    return;
+                }
                 if (ev.key === 'Escape') {
                     ev.preventDefault();
                     if (this._annotMenu) this._annotCloseMenu();
@@ -6112,7 +6132,9 @@
                 };
                 return {
                     isEditable: () => this._annotIsEditable(ed),
-                    onChange: () => this._annotStaffChanged(ed),
+                    onChange: () => { this._annotMoveUndo = false; this._annotMoveRedo = false; this._annotStaffChanged(ed); },
+                    // Un déplacement à la souris est enregistré tout de suite ; une série de flèches (série = true) en une seule entrée : ↶ ou ⌘Z l'annule
+                    onMoved: (view, serie) => { this._annotMoveUndo = true; this._annotMoveRedo = false; if (serie) this._annotStaffChanged(ed); else this._annotCommit(ed); },
                     toolsHost: () => document.getElementById('jam-annot-staff-host'),
                     onActivate: () => { this.annotActivate(ed); focusEd(NSE_ACTIVE); this._annotStaffMode(true); },
                     onDeactivate: () => this._annotStaffMode(false),
@@ -6121,8 +6143,9 @@
                     // Bloc au repos : sélectionné par sa poignée, déplacé dans la zone ou dans l'autre zone, copié-collé
                     zones: () => Array.from(document.querySelectorAll('.jam-annot-text')).filter(z => this._annotIsEditable(z)),
                     maxStaves: NOTE_MAX_STAVES,
+                    onGrab: () => { if (this._annotStaffTimer) this._annotCommit(ed); }, // changements en attente enregistrés avant le déplacement : il aura sa propre étape d'annulation
                     onPick: () => { this.annotActivate(ed); try { ed.focus({ preventScroll: true }); } catch (e) {} },
-                    onTransfer: (view, zone, range) => this._annotTransferStaff(view, zone, range),
+                    onTransfer: (view, zone, range, desired, snap) => this._annotTransferStaff(view, zone, range, desired, snap),
                     onCopy: (view) => this.annotCopyStaff(view),
                     onPaste: () => this.annotPasteStaff(),
                     audio: this._annotAudio()
@@ -6130,7 +6153,7 @@
             }
 
             // Une portée lâchée dans l'autre zone d'annotation : elle y est recréée au point d'insertion, puis retirée de la zone d'origine.
-            _annotTransferStaff(view, zone, range) {
+            _annotTransferStaff(view, zone, range, desired, snap) {
                 const from = view.el.closest('.jam-annot-text');
                 if (!from || !zone || !this._annotIsEditable(zone) || zone.querySelectorAll('.annot-staff').length >= NOTE_MAX_STAVES) return;
                 const before = new Set(zone.querySelectorAll('.annot-staff'));
@@ -6143,7 +6166,12 @@
                 this._annotCommit(from);
                 this._annotCommit(zone);
                 const added = Array.from(zone.querySelectorAll('.annot-staff')).find(el => !before.has(el));
-                if (added && added.__noteStaff) added.__noteStaff._pick();
+                if (added && added.__noteStaff) {
+                    if (desired) added.__noteStaff.placeAt(desired, snap !== false); // décalé au pixel près, comme dans sa zone d'origine
+                    this._annotCommit(zone);
+                    this._annotMoveUndo = true; this._annotMoveRedo = false;
+                    added.__noteStaff._pick();
+                }
             }
 
             // Une portée est active : ses outils remplacent ceux du texte dans la barre (et inversement).
@@ -7906,7 +7934,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-07-a';
+        var BUILD = '2026-11-07-b';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }
@@ -7918,9 +7946,9 @@
             };
             // Fichiers nouveaux de la version : s'ils sont absents (mal placés ou pas envoyés), ils ne définissent pas leur fonction.
             var needed = {
-                'app/ui/staff-notes.js': typeof splitStaffClips === 'function',
+                'app/ui/staff-notes.js': typeof splitStaffClips === 'function' && typeof parseStaffPos === 'function',
                 'app/grid/grid-format.js': typeof NOTE_FONTS !== 'undefined' && !!NOTE_FONTS.menlo,
-                'app/ui/staff-editor.js': typeof nseToolState === 'function',
+                'app/ui/staff-editor.js': typeof nseToolState === 'function' && typeof nseHandDrawn === 'function',
                 'app/ui/annot-bar.js': typeof ANNOT_FONT_DEFAULT_CSS !== 'undefined'
             };
             Object.keys(needed).forEach(function (f) { seen[f] = needed[f] ? BUILD : ''; });

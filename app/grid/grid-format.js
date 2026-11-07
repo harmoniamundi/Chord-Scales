@@ -8,7 +8,7 @@ const GF_THEORY = (typeof scalesDb !== 'undefined')
     : require('../theory.js');
 // Portées éditables des annotations (ui/staff-notes.js) : une portée n'est gardée que si son texte est valide.
 const GF_STAFF = (typeof parseStaff !== 'undefined')
-    ? { parseStaff, formatStaff }
+    ? { parseStaff, formatStaff, parseStaffPos, formatStaffPos }
     : require('../ui/staff-notes.js');
 
 // Repères de partie proposés par le menu « Partie » ; les lettres A–Z restent acceptées (anciennes grilles, parties auto)
@@ -149,9 +149,11 @@ function sanitizeNoteHtml(raw, maxText = MEASURE_NOTE_MAX) {
         if (skip) { if (name === 'div') skip += closing ? -1 : 1; continue; }
         if (!closing && name === 'div' && /\bdata-staff\s*=/i.test(m[3])) {
             skip = 1;
-            const text = GF_STAFF.parseStaff(readAttrs(m[3])['data-staff'] || '');
+            const sa = readAttrs(m[3]);
+            const text = GF_STAFF.parseStaff(sa['data-staff'] || '');
             if (text && staves < NOTE_MAX_STAVES && count < 400) {
-                out += `<div class="annot-staff" data-staff="${GF_STAFF.formatStaff(text)}"></div>`;
+                const pos = GF_STAFF.formatStaffPos(GF_STAFF.parseStaffPos(sa['data-pos'] || '')); // décalage libre (pixels), facultatif
+                out += `<div class="annot-staff" data-staff="${GF_STAFF.formatStaff(text)}"${pos ? ` data-pos="${pos}"` : ''}></div>`;
                 staves++; count++; hasText = true;
             }
             continue;

@@ -81,6 +81,30 @@ function canonicalStaff(text) {
     return st ? formatStaff(st) : null;
 }
 
+// ----- Décalage libre d'un bloc portée -----
+// Un bloc garde sa place dans le texte mais peut être décalé au pixel près : « x,y » (pixels, par rapport à sa place dans le texte),
+// écrit à part du texte de la portée (attribut data-pos). (0,0) = pas de décalage.
+
+const SN_POS_MAX = 3000;
+
+function clampStaffPos(v) {
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) ? Math.max(-SN_POS_MAX, Math.min(SN_POS_MAX, n)) : 0;
+}
+
+// Lit un décalage « x,y » ; renvoie { x, y } ou null si le texte n'est pas valide.
+function parseStaffPos(text) {
+    const m = /^(-?\d{1,4}),(-?\d{1,4})$/.exec(typeof text === 'string' ? text.trim() : '');
+    return m ? { x: clampStaffPos(m[1]), y: clampStaffPos(m[2]) } : null;
+}
+
+// Texte d'un décalage, ou '' quand il n'y en a pas (valeur absente ou (0,0)).
+function formatStaffPos(pos) {
+    if (!pos) return '';
+    const x = clampStaffPos(pos.x), y = clampStaffPos(pos.y);
+    return x === 0 && y === 0 ? '' : `${x},${y}`;
+}
+
 // ----- Copier-coller d'une portée (texte brut, pour passer d'une zone d'annotation à l'autre ou d'une fenêtre à l'autre) -----
 // Une portée copiée s'écrit « [portée:t,4/4,0;q:c4 8:e4] » ; dans un texte collé, chaque repère de ce genre redevient une portée.
 
@@ -287,7 +311,7 @@ function shiftEvent(st, index, steps) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { staffClipText, splitStaffClips, SN_UNITS, SN_DURATIONS, SN_METERS, SN_MAX_EVENTS, SN_MAX_LENGTH, SN_KEY_NAMES, SN_KEY_LABELS, SN_BOTTOM_LINE,
+    module.exports = { SN_POS_MAX, clampStaffPos, parseStaffPos, formatStaffPos, staffClipText, splitStaffClips, SN_UNITS, SN_DURATIONS, SN_METERS, SN_MAX_EVENTS, SN_MAX_LENGTH, SN_KEY_NAMES, SN_KEY_LABELS, SN_BOTTOM_LINE,
         SN_SIZE_MIN, SN_SIZE_MAX, SN_SIZE_STEP, SN_SIZE_DEFAULT, clampStaffSize,
         staffDefault, parseStaff, formatStaff, canonicalStaff, eventUnits, meterUnits, meterBeamUnits, decomposeUnits, layoutStaff,
         pitchDia, keyAlter, pitchFromDia, pitchMidi, midiToName, pitchLabel, diaFromY, yFromDia, playbackPlan,

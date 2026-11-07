@@ -325,6 +325,15 @@ describe('sanitizeNoteHtml : portées éditables', () => {
         assert.equal(S(staff('t,4/4,0;q:c4 8:d4')), staff('t,4/4,0;q:c4 8:d4'));
         assert.equal(S(staff('t,4/4,0;  q:c4   8:d4 ')), staff('t,4/4,0;q:c4 8:d4'));
     });
+    test('décalage libre (data-pos) : gardé s\'il est valide et non nul, sinon retiré ; le texte de la portée reste exigeant', () => {
+        const at = (t, pos) => `<div class="annot-staff" data-staff="${t}" data-pos="${pos}"></div>`;
+        assert.equal(S(at('t,4/4,0;q:c4', '25,-8')), at('t,4/4,0;q:c4', '25,-8'));
+        assert.equal(S(at('t,4/4,0;q:c4', '0,0')), staff('t,4/4,0;q:c4'));
+        for (const bad of ['', 'x', '1,2,3', '1.5,2', 'javascript:alert(1)', '"><script>']) assert.equal(S(at('t,4/4,0;q:c4', bad.replace(/"/g, '&quot;'))), staff('t,4/4,0;q:c4'), bad);
+        assert.equal(S(at('t,4/4,0;q:c4', '99999,1')), staff('t,4/4,0;q:c4'));        // plus de 4 chiffres : refusé
+        assert.equal(S(at('t,4/4,0;q:c4', '5000,-5000')), at('t,4/4,0;q:c4', '3000,-3000')); // bornes
+        assert.equal(S(at('bidon', '5,5')), '');
+    });
     test('une portée seule est une annotation (elle n’est pas « vide »)', () => {
         assert.notEqual(S(staff('t,4/4,0;')), '');
     });
