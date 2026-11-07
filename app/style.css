@@ -392,7 +392,7 @@
         #jam-chord-sequence-display .jam-cell-top > span:last-child { min-width: 0; }
         #jam-chord-sequence-display .jam-add-cell { align-self: stretch; min-height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 1.5px dashed #2f6f57; background: rgba(16,185,129,.06); color: #34d399; font-size: 24px; line-height: 1; cursor: pointer; user-select: none; transition: background .12s, border-color .12s; }
         #jam-chord-sequence-display .jam-add-cell:hover { background: rgba(16,185,129,.16); border-color: #34d399; }
-        :root { --cs-build: '2026-11-07-c'; } /* numéro de version lu par la page */
+        :root { --cs-build: '2026-11-07-d'; } /* numéro de version lu par la page */
         .jm-pop { position: fixed; z-index: 2000; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); color: #e2e8f0; padding: 10px 12px 12px; font-size: 12px; }
         .jm-pop.jm-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; max-height: 62vh; }
         /* Pop-up « Orchestre » : fenêtre flottante à gauche de l'écran, sans voile, déplaçable par sa barre de titre */
