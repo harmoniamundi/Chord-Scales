@@ -5661,7 +5661,8 @@
                 let box = container.querySelector('#jam-annot-measure');
                 if (!general || !box) {
                     const handlers = `onkeydown="app.jam.annotKeydown(event)" onfocus="app.jam.annotActivate(this)" onclick="app.jam.annotActivate(this)"
-                                onblur="app.jam.annotBlur(this, event)" oninput="app.jam.annotInput(this)" onpaste="app.jam.annotPaste(event)" ondrop="event.preventDefault()"`;
+                                onblur="app.jam.annotBlur(this, event)" oninput="app.jam.annotInput(this)" onpaste="app.jam.annotPaste(event)"
+                                oncopy="app.jam.annotCopy(event)" oncut="app.jam.annotCopy(event, true)" ondrop="event.preventDefault()"`;
                     container.innerHTML = `${annotBarHtml()}
                         <div class="jam-annot-zone">
                             <div class="jam-annot-head">Grille</div>
@@ -5776,11 +5777,90 @@
                 }
             }
 
-            // Collage en texte brut : pas de mise en forme venue d'ailleurs.
+            // Collage en texte brut : pas de mise en forme venue d'ailleurs. Un repère « [portée:…] » (voir annotCopy) redevient une portée.
             annotPaste(ev) {
                 ev.preventDefault();
+                const ed = ev.currentTarget;
                 const t = (ev.clipboardData || window.clipboardData).getData('text/plain');
-                if (t) document.execCommand('insertText', false, t);
+                if (!t) return;
+                const parts = splitStaffClips(t);
+                if (!parts.some(p => p.staff)) document.execCommand('insertText', false, t);
+                else this._annotPasteParts(ed, parts);
+            }
+
+            // Copier / couper : quand la sélection contient une portée (ou qu'une portée est en édition et qu'aucun texte n'est sélectionné),
+            // le presse-papiers reçoit le texte avec un repère « [portée:…] » à la place de chaque portée, que le collage sait relire,
+            // y compris dans l'autre zone d'annotation. Sans portée concernée, la copie du navigateur suit son cours.
+            annotCopy(ev, cut = false) {
+                const ed = ev.currentTarget;
+                if (!ed || !ev.clipboardData) return;
+                const sel = window.getSelection();
+                let text = null, removeActive = null;
+                if (sel && sel.rangeCount && !sel.isCollapsed && ed.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+                    const frag = sel.getRangeAt(0).cloneContents();
+                    if (frag.querySelector('.annot-staff')) text = nseFragmentToClipText(frag);
+                } else {
+                    const sv = (typeof NSE_ACTIVE !== 'undefined') ? NSE_ACTIVE : null;
+                    if (sv && ed.contains(sv.el)) { text = staffClipText(sv.st); removeActive = sv; }
+                }
+                if (text === null) return;
+                ev.preventDefault();
+                ev.clipboardData.setData('text/plain', text);
+                const first = splitStaffClips(text).find(p => p.staff);
+                if (first) this._staffClip = first.staff;
+                if (!cut || !this._annotIsEditable(ed)) return;
+                if (removeActive) { removeActive.destroy(); removeActive.el.remove(); }
+                else { try { document.execCommand('delete'); } catch (e) {} }
+                this._annotCommit(ed);
+            }
+
+            // Insère des morceaux [{ text }] / [{ staff }] à l'endroit du curseur de la zone (la sélection est remplacée). Une portée collée
+            // s'insère telle quelle dans la ligne, au repos : elle peut se trouver à côté d'une autre portée ou d'un texte.
+            _annotPasteParts(ed, parts) {
+                if (!this._annotIsEditable(ed)) return;
+                let room = NOTE_MAX_STAVES - ed.querySelectorAll('.annot-staff').length;
+                const sel = window.getSelection();
+                let range = (sel && sel.rangeCount && ed.contains(sel.getRangeAt(0).commonAncestorContainer)) ? sel.getRangeAt(0) : null;
+                if (!range) { range = document.createRange(); range.selectNodeContents(ed); range.collapse(false); }
+                if (!range.collapsed) range.deleteContents();
+                for (const p of parts) {
+                    if (p.staff) {
+                        if (room <= 0) continue;
+                        const holder = document.createElement('div');
+                        holder.innerHTML = noteStaffStubHtml(parseStaff(p.staff));
+                        const stub = holder.firstChild;
+                        range.insertNode(stub);
+                        room--;
+                        range = document.createRange();
+                        range.setStartAfter(stub);
+                        range.collapse(true);
+                    } else if (p.text) {
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                        document.execCommand('insertText', false, p.text);
+                        range = sel.getRangeAt(0);
+                    }
+                }
+                sel.removeAllRanges();
+                sel.addRange(range);
+                this._annotHydrate(ed);
+                this._annotStaffChanged(ed);
+            }
+
+            // Bouton « Coller » de la barre (et de la barre d'une portée) : colle la dernière portée copiée à l'endroit du curseur.
+            annotPasteStaff() {
+                if (!this._staffClip || !this._annotEnsureActive()) return;
+                const ed = this._annotActive;
+                if (!this._annotIsEditable(ed)) return;
+                this._annotRestoreSel();
+                this._annotPasteParts(ed, [{ staff: this._staffClip }]);
+            }
+
+            // Bouton « Copier » de la barre d'une portée : la portée en édition va dans le presse-papiers (et dans la mémoire de l'appli).
+            annotCopyStaff(view) {
+                if (!view) return;
+                this._staffClip = formatStaff(view.st);
+                try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(staffClipText(view.st)).catch(() => {}); } catch (e) {}
             }
 
             // Quitter le champ valide l'annotation, sauf si le focus passe à la barre, à un menu ou à une portée de ce champ.
@@ -5810,6 +5890,7 @@
                 else if ((b = t.closest('[data-menu]'))) this._annotToggleMenu(b.dataset.menu, b);
                 else if ((b = t.closest('[data-cmd]'))) this.annotCmd(b.dataset.cmd);
                 else if (t.closest('[data-insert-staff]')) this.annotInsertStaff();
+                else if (t.closest('[data-paste-staff]')) this.annotPasteStaff();
                 else if (t.closest('[data-clear]')) { this.annotCmd('removeFormat'); this.annotCmd('justifyLeft'); }
             }
 
@@ -5855,7 +5936,7 @@
                     if (t.closest('.jam-annot-text, #jam-annot-bar, .ab-menu')) return;
                     this.annotDeactivate();
                 };
-                this._annotSelChange = () => { this._annotSaveSel(); this._annotRefreshState(); };
+                this._annotSelChange = () => { this._annotSaveSel(); this._annotRefreshState(); this._annotMarkPicked(); };
                 document.addEventListener('pointerdown', this._annotOutside, true);
                 document.addEventListener('selectionchange', this._annotSelChange);
             }
@@ -5865,6 +5946,17 @@
                 this._annotListening = false;
                 document.removeEventListener('pointerdown', this._annotOutside, true);
                 document.removeEventListener('selectionchange', this._annotSelChange);
+            }
+
+            // Les portées comprises dans la sélection (cliquées par leur poignée, ou englobées par un glisser) sont encadrées : ⌘C / ⌘X les prennent.
+            _annotMarkPicked() {
+                const ed = this._annotActive, sel = window.getSelection();
+                if (!ed) return;
+                ed.querySelectorAll('.annot-staff').forEach((el) => {
+                    let on = false;
+                    try { on = !!(sel && sel.rangeCount && !sel.isCollapsed && !el.classList.contains('is-active') && sel.containsNode(el, false)); } catch (e) {}
+                    el.classList.toggle('is-picked', on);
+                });
             }
 
             // Mémorise la sélection dans le champ actif (la barre ou un menu peut la lui faire perdre, par exemple avec le curseur de taille).
@@ -6026,8 +6118,32 @@
                     onDeactivate: () => this._annotStaffMode(false),
                     onFocusBack: () => { try { ed.focus({ preventScroll: true }); } catch (e) {} },
                     onRemove: (view) => { view.destroy(); view.el.remove(); this._annotCommit(ed); },
+                    // Bloc au repos : sélectionné par sa poignée, déplacé dans la zone ou dans l'autre zone, copié-collé
+                    zones: () => Array.from(document.querySelectorAll('.jam-annot-text')).filter(z => this._annotIsEditable(z)),
+                    maxStaves: NOTE_MAX_STAVES,
+                    onPick: () => { this.annotActivate(ed); try { ed.focus({ preventScroll: true }); } catch (e) {} },
+                    onTransfer: (view, zone, range) => this._annotTransferStaff(view, zone, range),
+                    onCopy: (view) => this.annotCopyStaff(view),
+                    onPaste: () => this.annotPasteStaff(),
                     audio: this._annotAudio()
                 };
+            }
+
+            // Une portée lâchée dans l'autre zone d'annotation : elle y est recréée au point d'insertion, puis retirée de la zone d'origine.
+            _annotTransferStaff(view, zone, range) {
+                const from = view.el.closest('.jam-annot-text');
+                if (!from || !zone || !this._annotIsEditable(zone) || zone.querySelectorAll('.annot-staff').length >= NOTE_MAX_STAVES) return;
+                const before = new Set(zone.querySelectorAll('.annot-staff'));
+                const holder = document.createElement('div');
+                holder.innerHTML = noteStaffStubHtml(view.st);
+                range.insertNode(holder.firstChild);
+                view.destroy();
+                view.el.remove();
+                this._annotHydrate(zone);
+                this._annotCommit(from);
+                this._annotCommit(zone);
+                const added = Array.from(zone.querySelectorAll('.annot-staff')).find(el => !before.has(el));
+                if (added && added.__noteStaff) added.__noteStaff._pick();
             }
 
             // Une portée est active : ses outils remplacent ceux du texte dans la barre (et inversement).
@@ -7790,7 +7906,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-06-c';
+        var BUILD = '2026-11-07-a';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }
@@ -7802,10 +7918,10 @@
             };
             // Fichiers nouveaux de la version : s'ils sont absents (mal placés ou pas envoyés), ils ne définissent pas leur fonction.
             var needed = {
-                'app/ui/staff-notes.js': typeof parseStaff === 'function',
-                'app/grid/grid-format.js': typeof GF_STAFF !== 'undefined',
-                'app/ui/staff-editor.js': typeof NoteStaffView === 'function',
-                'app/ui/annot-bar.js': typeof annotBarHtml === 'function'
+                'app/ui/staff-notes.js': typeof splitStaffClips === 'function',
+                'app/grid/grid-format.js': typeof NOTE_FONTS !== 'undefined' && !!NOTE_FONTS.menlo,
+                'app/ui/staff-editor.js': typeof nseToolState === 'function',
+                'app/ui/annot-bar.js': typeof ANNOT_FONT_DEFAULT_CSS !== 'undefined'
             };
             Object.keys(needed).forEach(function (f) { seen[f] = needed[f] ? BUILD : ''; });
             var old = Object.keys(seen).filter(function (f) { return seen[f] !== BUILD; });

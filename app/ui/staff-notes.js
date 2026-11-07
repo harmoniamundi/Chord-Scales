@@ -81,6 +81,31 @@ function canonicalStaff(text) {
     return st ? formatStaff(st) : null;
 }
 
+// ----- Copier-coller d'une portée (texte brut, pour passer d'une zone d'annotation à l'autre ou d'une fenêtre à l'autre) -----
+// Une portée copiée s'écrit « [portée:t,4/4,0;q:c4 8:e4] » ; dans un texte collé, chaque repère de ce genre redevient une portée.
+
+const SN_CLIP_RE = /\[portée:([^\]\n]{1,800})\]/g;
+
+function staffClipText(st) { return `[portée:${formatStaff(st)}]`; }
+
+// Découpe un texte collé en morceaux [{ text }] (texte ordinaire) et [{ staff }] (texte d'une portée valide, sous sa forme canonique).
+// Un repère dont la portée est invalide reste du texte ordinaire.
+function splitStaffClips(text) {
+    const src = String(text === undefined || text === null ? '' : text);
+    const out = [];
+    let pos = 0, m;
+    SN_CLIP_RE.lastIndex = 0;
+    while ((m = SN_CLIP_RE.exec(src))) {
+        const canon = canonicalStaff(m[1]);
+        if (!canon) continue;
+        if (m.index > pos) out.push({ text: src.slice(pos, m.index) });
+        out.push({ staff: canon });
+        pos = m.index + m[0].length;
+    }
+    if (pos < src.length) out.push({ text: src.slice(pos) });
+    return out;
+}
+
 // ----- Durées -----
 
 function eventUnits(e) {
@@ -262,7 +287,7 @@ function shiftEvent(st, index, steps) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { SN_UNITS, SN_DURATIONS, SN_METERS, SN_MAX_EVENTS, SN_MAX_LENGTH, SN_KEY_NAMES, SN_KEY_LABELS, SN_BOTTOM_LINE,
+    module.exports = { staffClipText, splitStaffClips, SN_UNITS, SN_DURATIONS, SN_METERS, SN_MAX_EVENTS, SN_MAX_LENGTH, SN_KEY_NAMES, SN_KEY_LABELS, SN_BOTTOM_LINE,
         SN_SIZE_MIN, SN_SIZE_MAX, SN_SIZE_STEP, SN_SIZE_DEFAULT, clampStaffSize,
         staffDefault, parseStaff, formatStaff, canonicalStaff, eventUnits, meterUnits, meterBeamUnits, decomposeUnits, layoutStaff,
         pitchDia, keyAlter, pitchFromDia, pitchMidi, midiToName, pitchLabel, diaFromY, yFromDia, playbackPlan,

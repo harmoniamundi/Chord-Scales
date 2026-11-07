@@ -43,11 +43,30 @@ describe('polices', () => {
     test('les polices proposées sont exactement celles que le nettoyage accepte', () => {
         assert.deepEqual(B.ANNOT_FONT_CHOICES.map(f => f.css).sort(), Object.values(F.NOTE_FONTS).sort());
     });
+    test('« Real Book » (Kalam, la police des accords de la grille) est la première police et la police par défaut', () => {
+        assert.equal(B.ANNOT_FONT_CHOICES[0].label, 'Real Book');
+        assert.equal(B.ANNOT_FONT_CHOICES[0].css, B.ANNOT_FONT_DEFAULT_CSS);
+        assert.equal(B.ANNOT_FONT_DEFAULT_CSS, 'Kalam,cursive');
+        const css = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'style.css'), 'utf8');
+        assert.match(css, /\.jam-annot-text \{[^}]*font: 400 15px\/1\.45 Kalam, cursive/, 'les zones d\'annotation s\'écrivent par défaut en Real Book');
+    });
+    test('plus de polices qu\'avant : au moins 15, sans doublon de libellé ni de première famille', () => {
+        const list = B.ANNOT_FONT_CHOICES;
+        assert.ok(list.length >= 15);
+        assert.equal(new Set(list.map(f => f.label)).size, list.length);
+        const first = (css) => css.split(',')[0].replace(/^["']|["']$/g, '').toLowerCase();
+        assert.equal(new Set(list.map(f => first(f.css))).size, list.length, 'deux polices ne peuvent pas avoir la même première famille (le nettoyage les confondrait)');
+    });
+    test('chaque police finit par une famille générique (un repli existe toujours)', () => {
+        for (const f of B.ANNOT_FONT_CHOICES) assert.match(f.css, /(sans-serif|serif|monospace|cursive)$/, f.label);
+    });
     test('annotFontLabel : retrouve le libellé depuis la valeur calculée par le navigateur', () => {
         assert.equal(B.annotFontLabel('Georgia, serif'), 'Georgia');
         assert.equal(B.annotFontLabel('"Times New Roman", Times, serif'), 'Times');
         assert.equal(B.annotFontLabel("system-ui, -apple-system, 'Segoe UI', sans-serif"), 'Système');
-        assert.equal(B.annotFontLabel('Kalam, cursive'), 'Manuscrite (Kalam)');
+        assert.equal(B.annotFontLabel('Kalam, cursive'), 'Real Book');
+        assert.equal(B.annotFontLabel('"Palatino Linotype", Palatino, serif'), 'Palatino');
+        assert.equal(B.annotFontLabel('Menlo'), 'Code (Menlo)');
         assert.equal(B.annotFontLabel('Comic Sans MS'), null);
         assert.equal(B.annotFontLabel(''), null);
     });
@@ -58,7 +77,7 @@ describe('HTML de la barre et des menus', () => {
     test('la barre contient ce qu’index.html utilise', () => {
         for (const needle of ['id="jam-annot-bar"', 'data-font', 'data-size-step="-1"', 'data-size-step="1"', 'data-size-label', 'data-menu="size"', 'data-menu="color"',
             'data-menu="hilite"', 'data-menu="insert"', 'data-cmd="bold"', 'data-cmd="italic"', 'data-cmd="underline"', 'data-cmd="strikeThrough"',
-            'data-cmd="justifyLeft"', 'data-cmd="justifyCenter"', 'data-cmd="justifyRight"', 'data-cmd="insertUnorderedList"', 'data-insert-staff', 'data-clear',
+            'data-cmd="justifyLeft"', 'data-cmd="justifyCenter"', 'data-cmd="justifyRight"', 'data-cmd="insertUnorderedList"', 'data-insert-staff', 'data-paste-staff', 'data-clear',
             'id="jam-annot-staff-host"', 'data-color-bar']) {
             assert.ok(bar.includes(needle), needle);
         }

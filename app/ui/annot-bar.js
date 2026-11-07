@@ -12,15 +12,28 @@ const ANNOT_SIZE_STEPS = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 
 const ANNOT_SIZE_PRESETS = [10, 12, 14, 16, 20, 24, 32, 48];
 
 // Polices : libellé affiché → valeur CSS (les mêmes que NOTE_FONTS de grid/grid-format.js, qui ne laisse passer que celles-ci).
+// « Real Book » (Kalam, la police des accords de la grille, fournie avec l'appli) est la première et la police par défaut des zones
+// (voir .jam-annot-text dans style.css). Les autres sont des polices du système, avec des polices de rechange pour Mac, Windows et Linux :
+// une police absente de la machine est remplacée par la suivante de sa liste.
+const ANNOT_FONT_DEFAULT_CSS = 'Kalam,cursive';
 const ANNOT_FONT_CHOICES = [
+    { label: 'Real Book', css: ANNOT_FONT_DEFAULT_CSS },
     { label: 'Système', css: "system-ui,-apple-system,'Segoe UI',sans-serif" },
     { label: 'Arial', css: 'Arial,Helvetica,sans-serif' },
     { label: 'Verdana', css: 'Verdana,Geneva,sans-serif' },
     { label: 'Trebuchet', css: "'Trebuchet MS',sans-serif" },
+    { label: 'Gill Sans', css: "'Gill Sans','Gill Sans MT',Calibri,sans-serif" },
+    { label: 'Futura', css: "Futura,'Century Gothic','Trebuchet MS',sans-serif" },
     { label: 'Georgia', css: 'Georgia,serif' },
     { label: 'Times', css: "'Times New Roman',Times,serif" },
+    { label: 'Palatino', css: "'Palatino Linotype',Palatino,'Book Antiqua',serif" },
+    { label: 'Baskerville', css: "Baskerville,'Baskerville Old Face',Georgia,serif" },
     { label: 'Machine à écrire', css: "'Courier New',Courier,monospace" },
-    { label: 'Manuscrite (Kalam)', css: 'Kalam,cursive' }
+    { label: 'Code (Menlo)', css: "Menlo,Monaco,Consolas,'DejaVu Sans Mono',monospace" },
+    { label: 'Titre (Impact)', css: "Impact,'Arial Narrow',sans-serif" },
+    { label: 'Feutre (Marker Felt)', css: "'Marker Felt','Segoe Print','Comic Sans MS',cursive" },
+    { label: 'Stylo (Bradley Hand)', css: "'Bradley Hand','Segoe Script','Comic Sans MS',cursive" },
+    { label: 'Calligraphie', css: "'Snell Roundhand','Brush Script MT','Lucida Handwriting',cursive" }
 ];
 
 const ANNOT_TEXT_COLORS = ['#0f172a', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#0891b2', '#2563eb', '#7c3aed', '#db2777', '#6b7280'];
@@ -88,6 +101,7 @@ function annotBarHtml() {
         <div class="ab-grp" role="group" aria-label="Insérer">
             ${btn('♯ ♩ ▾', 'data-menu="insert" aria-haspopup="true"', 'Insérer un symbole ou une nuance', 'ab-txt')}
             ${btn('<svg width="18" height="16" viewBox="0 0 18 16" aria-hidden="true"><path d="M1 3h16M1 6.5h16M1 10h16M1 13.5h16" stroke="currentColor" stroke-width="1.2" fill="none"/><ellipse cx="9" cy="10" rx="2.6" ry="1.9" transform="rotate(-20 9 10)" fill="currentColor"/><path d="M11.4 9V1.5" stroke="currentColor" stroke-width="1.3"/></svg> Portée', 'data-insert-staff="1"', 'Insérer une portée éditable à l\'endroit du curseur', 'ab-txt ab-staff')}
+            ${btn('Coller portée', 'data-paste-staff="1"', 'Coller la dernière portée copiée à l\'endroit du curseur (copier : clic sur la poignée ⠿ d\'une portée puis ⌘C, ou bouton Copier de la portée)', 'ab-txt')}
         </div>
         <span class="ab-sep"></span>
         ${btn('Effacer la mise en forme', 'data-clear="1"', 'Retire gras, couleur, taille, police… de la sélection', 'ab-txt ab-clear')}
@@ -129,5 +143,5 @@ function annotMenuHtml(kind, state = {}) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { ANNOT_SIZE_MIN, ANNOT_SIZE_MAX, ANNOT_SIZE_DEFAULT, ANNOT_SIZE_STEPS, ANNOT_FONT_CHOICES, nextAnnotSize, clampAnnotSize, annotFontLabel, annotBarHtml, annotMenuHtml };
+    module.exports = { ANNOT_SIZE_MIN, ANNOT_SIZE_MAX, ANNOT_SIZE_DEFAULT, ANNOT_SIZE_STEPS, ANNOT_FONT_DEFAULT_CSS, ANNOT_FONT_CHOICES, nextAnnotSize, clampAnnotSize, annotFontLabel, annotBarHtml, annotMenuHtml };
 }

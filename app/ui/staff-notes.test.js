@@ -211,3 +211,36 @@ describe('taille d’affichage de la portée', () => {
         }
     });
 });
+
+describe('copier-coller d\'une portée : staffClipText / splitStaffClips', () => {
+    test('le repère « [portée:…] » contient le texte canonique de la portée', () => {
+        assert.equal(S.staffClipText(P('t,4/4,0;q:c4 8:e4')), '[portée:t,4/4,0;q:c4 8:e4]');
+        assert.equal(S.staffClipText(P('b,6/8,-2,150;')), '[portée:b,6/8,-2,150;]');
+    });
+    test('un texte sans repère reste un seul morceau de texte', () => {
+        assert.deepEqual(S.splitStaffClips('Intro lente'), [{ text: 'Intro lente' }]);
+        assert.deepEqual(S.splitStaffClips(''), []);
+        assert.deepEqual(S.splitStaffClips(undefined), []);
+    });
+    test('texte et portées mélangés : ordre conservé, portées sous forme canonique', () => {
+        const parts = S.splitStaffClips('Début [portée:t,4/4,0;q:c4] milieu [portée:b,3/4,-1;h:f3]\n fin');
+        assert.deepEqual(parts, [{ text: 'Début ' }, { staff: 't,4/4,0;q:c4' }, { text: ' milieu ' }, { staff: 'b,3/4,-1;h:f3' }, { text: '\n fin' }]);
+    });
+    test('deux portées collées l\'une à l\'autre', () => {
+        assert.deepEqual(S.splitStaffClips('[portée:t,4/4,0;q:c4][portée:t,4/4,0;q:d4]'), [{ staff: 't,4/4,0;q:c4' }, { staff: 't,4/4,0;q:d4' }]);
+    });
+    test('une portée invalide reste du texte ordinaire (rien n\'est inventé)', () => {
+        for (const bad of ['[portée:x,4/4,0;q:c4]', '[portée:t,4/4,0;q:z9]', '[portée:]', '[portée:t,7/16,0;]']) {
+            assert.deepEqual(S.splitStaffClips(bad), [{ text: bad }], bad);
+        }
+    });
+    test('aller-retour : ce qui est copié est exactement ce qui est collé', () => {
+        for (const t of ['t,4/4,0;', 't,4/4,0;q:c4 8:e4 8:g4 qr h.:a4 w:c5', 'b,6/8,-2,160;8t:bb3 8t:b3 8t:bbb3']) {
+            assert.deepEqual(S.splitStaffClips(S.staffClipText(P(t))), [{ staff: t }], t);
+        }
+    });
+    test('un repère trop long (plus de 800 signes) n\'est pas lu', () => {
+        const long = `[portée:t,4/4,0;${'q:c4 '.repeat(200)}]`;
+        assert.deepEqual(S.splitStaffClips(long), [{ text: long }]);
+    });
+});

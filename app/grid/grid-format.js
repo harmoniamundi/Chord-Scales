@@ -30,15 +30,25 @@ const GRID_NOTE_MAX = 8000;
 const NOTE_MAX_STAVES = 8; // portées éditables par annotation
 
 // Polices proposées par la barre de mise en forme (nom de la première famille en minuscules → valeur CSS enregistrée).
-// Ce sont des polices du système, plus la police manuscrite Kalam fournie avec l'appli : aucune autre n'est acceptée.
+// Ce sont des polices du système, plus la police « Real Book » (Kalam) fournie avec l'appli : aucune autre n'est acceptée.
+// La liste doit rester identique à ANNOT_FONT_CHOICES (ui/annot-bar.js) : un test le vérifie.
 const NOTE_FONTS = {
     'system-ui': "system-ui,-apple-system,'Segoe UI',sans-serif",
     arial: 'Arial,Helvetica,sans-serif',
     verdana: 'Verdana,Geneva,sans-serif',
     'trebuchet ms': "'Trebuchet MS',sans-serif",
+    'gill sans': "'Gill Sans','Gill Sans MT',Calibri,sans-serif",
+    futura: "Futura,'Century Gothic','Trebuchet MS',sans-serif",
     georgia: 'Georgia,serif',
     'times new roman': "'Times New Roman',Times,serif",
+    'palatino linotype': "'Palatino Linotype',Palatino,'Book Antiqua',serif",
+    baskerville: "Baskerville,'Baskerville Old Face',Georgia,serif",
     'courier new': "'Courier New',Courier,monospace",
+    menlo: "Menlo,Monaco,Consolas,'DejaVu Sans Mono',monospace",
+    impact: "Impact,'Arial Narrow',sans-serif",
+    'marker felt': "'Marker Felt','Segoe Print','Comic Sans MS',cursive",
+    'bradley hand': "'Bradley Hand','Segoe Script','Comic Sans MS',cursive",
+    'snell roundhand': "'Snell Roundhand','Brush Script MT','Lucida Handwriting',cursive",
     kalam: 'Kalam,cursive'
 };
 

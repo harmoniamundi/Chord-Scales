@@ -64,7 +64,7 @@ describe('nseToolsHtml : barre d’outils de la portée', () => {
     const html = E.nseToolsHtml(S.parseStaff('b,6/8,-2;q:c3'));
     test('durées, point, triolet, silence, altérations et actions', () => {
         for (const needle of ['data-dur="w"', 'data-dur="h"', 'data-dur="q"', 'data-dur="8"', 'data-dur="16"', 'data-mod="dot"', 'data-mod="tri"', 'data-mod="rest"',
-            'data-alt="1"', 'data-alt="-1"', 'data-alt="0"', 'data-act="play"', 'data-act="undo"', 'data-act="del"', 'data-act="clear"', 'data-act="remove"', 'data-act="exit"']) {
+            'data-alt="1"', 'data-alt="-1"', 'data-alt="0"', 'data-act="play"', 'data-act="undo"', 'data-act="del"', 'data-act="copy"', 'data-act="paste"', 'data-act="clear"', 'data-act="remove"', 'data-act="exit"']) {
             assert.ok(html.includes(needle), needle);
         }
     });
@@ -94,5 +94,52 @@ describe('dimensions', () => {
     test('une ligne de portée contient la portée et ses lignes supplémentaires', () => {
         assert.equal(E.NSE_SPACING, 10);
         assert.ok(E.NSE_BAND >= E.NSE_TOP + 4 * E.NSE_SPACING + 3 * E.NSE_SPACING);
+    });
+});
+
+describe('nseToolState : ce que montrent les boutons durée / point / triolet / silence', () => {
+    const st = S.parseStaff('t,4/4,0;q.:c4 8:e4 hr');
+    const cur = { d: 'q', dot: false, tri: false, rest: false };
+    test('sans sélection : la valeur de la prochaine note', () => {
+        assert.deepEqual(E.nseToolState(st, -1, false, { d: '8', dot: true, tri: false, rest: false }), { d: '8', dot: true, tri: false, rest: false });
+    });
+    test('note choisie à la main : ses propres valeurs (le bouton agit sur elle)', () => {
+        assert.deepEqual(E.nseToolState(st, 0, false, cur), { d: 'q', dot: true, tri: false, rest: false });
+        assert.deepEqual(E.nseToolState(st, 1, false, cur), { d: '8', dot: false, tri: false, rest: false });
+        assert.deepEqual(E.nseToolState(st, 2, false, cur), { d: 'h', dot: false, tri: false, rest: true });
+    });
+    test('note qui vient d\'être posée (sélection automatique) : les boutons règlent la PROCHAINE note et la montrent', () => {
+        // une noire pointée vient d'être posée ; un clic sur « point » éteint le point des notes suivantes : le bouton doit s'éteindre
+        assert.deepEqual(E.nseToolState(st, 0, true, { d: 'q', dot: false, tri: false, rest: false }), { d: 'q', dot: false, tri: false, rest: false });
+        // un clic sur « croche » : la durée affichée est celle des notes suivantes, pas celle de la note posée
+        assert.equal(E.nseToolState(st, 0, true, { d: '8', dot: true, tri: false, rest: false }).d, '8');
+    });
+    test('indice hors limites : valeur de la prochaine note', () => {
+        assert.deepEqual(E.nseToolState(st, 9, false, cur), cur);
+    });
+});
+
+// Faux nœuds DOM (le test tourne sans navigateur) : texte, <br>, <div> et bloc portée.
+const T = (v) => ({ nodeType: 3, nodeValue: v });
+const El = (tag, kids = [], attrs = {}, cls = []) => ({ nodeType: 1, tagName: tag, childNodes: kids, classList: { contains: (c) => cls.includes(c) }, getAttribute: (k) => attrs[k] === undefined ? null : attrs[k] });
+const Staff = (txt) => El('DIV', [El('SVG'), El('DIV', [T('boutons')])], { 'data-staff': txt }, ['annot-staff']);
+
+describe('nseFragmentToClipText : texte copié d\'une sélection', () => {
+    test('texte et portée dans la même ligne', () => {
+        assert.equal(E.nseFragmentToClipText(El('DIV', [T('Intro '), Staff('t,4/4,0;q:c4'), T(' fin')])), 'Intro [portée:t,4/4,0;q:c4] fin');
+    });
+    test('le contenu dessiné de la portée (boutons, dessin) n\'est jamais copié', () => {
+        const out = E.nseFragmentToClipText(El('DIV', [Staff('t,4/4,0;q:c4')]));
+        assert.ok(!out.includes('boutons'));
+    });
+    test('lignes : <br> et blocs donnent des retours à la ligne, sans ligne vide en trop', () => {
+        assert.equal(E.nseFragmentToClipText(El('DIV', [T('a'), El('BR'), T('b'), El('DIV', [T('c')]), El('DIV', [Staff('t,4/4,0;q:d4')])])), 'a\nb\nc\n[portée:t,4/4,0;q:d4]');
+    });
+    test('une portée invalide est ignorée ; les espaces insécables deviennent des espaces', () => {
+        assert.equal(E.nseFragmentToClipText(El('DIV', [T('x\u00a0y'), Staff('n importe quoi')])), 'x y');
+    });
+    test('ce qui est copié se relit tel quel au collage', () => {
+        const txt = E.nseFragmentToClipText(El('DIV', [T('A '), Staff('t,4/4,0;q:c4'), Staff('b,3/4,-1;h:f3'), T(' B')]));
+        assert.deepEqual(S.splitStaffClips(txt), [{ text: 'A ' }, { staff: 't,4/4,0;q:c4' }, { staff: 'b,3/4,-1;h:f3' }, { text: ' B' }]);
     });
 });

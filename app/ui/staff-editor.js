@@ -4,12 +4,15 @@
 // ne garde que ce petit bloc (le dessin et la barre d'outils sont refaits à l'ouverture).
 // Écrire : choisir une durée, cliquer sur la portée (la note se pose à la hauteur cliquée, avant la note qui suit) ;
 // cliquer une note pour la sélectionner puis la glisser vers le haut ou le bas, ou utiliser les flèches ; Suppr. l'enlève.
+// Deux états : portée « en édition » (elle occupe toute la largeur de la zone, avec sa barre d'outils) ou portée « au repos »
+// (le cadre épouse la portée telle qu'elle est écrite ; elle se déplace par sa poignée ⠿ et se copie-colle d'une zone à l'autre).
 // Chargé par index.html via <script src="ui/staff-editor.js"> (après ui/staff-notes.js) et testé par ui/staff-editor.test.js.
 
 // Sous Node (tests), le format se charge ; en navigateur ce sont des globaux (ui/staff-notes.js).
 const NSE_N = (typeof parseStaff !== 'undefined')
     ? { parseStaff, formatStaff, staffDefault, layoutStaff, meterBeamUnits, pitchFromDia, pitchDia, pitchLabel, pitchMidi, midiToName, diaFromY, yFromDia,
-        playbackPlan, insertEvent, removeEvent, updateEvent, alterEvent, shiftEvent, cloneStaff, SN_KEY_NAMES, SN_KEY_LABELS, SN_BOTTOM_LINE, SN_METERS, SN_SIZE_MIN, SN_SIZE_MAX, SN_SIZE_STEP, SN_SIZE_DEFAULT, clampStaffSize }
+        playbackPlan, insertEvent, removeEvent, updateEvent, alterEvent, shiftEvent, cloneStaff, staffClipText, splitStaffClips,
+        SN_KEY_NAMES, SN_KEY_LABELS, SN_BOTTOM_LINE, SN_METERS, SN_SIZE_MIN, SN_SIZE_MAX, SN_SIZE_STEP, SN_SIZE_DEFAULT, clampStaffSize }
     : require('./staff-notes.js');
 
 const NSE_SPACING = 10;        // écart entre deux lignes de la portée (pixels)
@@ -17,11 +20,25 @@ const NSE_ABOVE = 3;           // lignes d'espace au-dessus de la portée
 const NSE_BAND = 110;          // hauteur d'une ligne de portée (système) avec ses lignes supplémentaires
 const NSE_TOP = NSE_ABOVE * NSE_SPACING; // position de la ligne du haut dans une ligne de portée
 const NSE_BLUE = '#2563eb';
+const NSE_PAD = 3;             // marge gardée autour de la portée quand le cadre épouse son dessin (pixels)
 
 // ----- Dessin -----
 
-// Dessine la portée `st` dans `host` (vide d'abord). opts : width (largeur disponible), selected (indice de l'événement à colorer).
-// Renvoie la géométrie pour les clics : { width, height, lines: [{ top, bottom, bottomY }], notes: [{ ev, x, y, line, rest, tieFromPrev }] }.
+// Boîte qui contient tout ce que le SVG a dessiné ({ x, y, w, h }), ou `fallback` si le navigateur ne sait pas la mesurer
+// (élément caché, ancien navigateur).
+function nseContentBox(svg, fallback) {
+    try {
+        const b = svg.getBBox();
+        if (b && b.width > 0 && b.height > 0) return { x: b.x, y: b.y, w: b.width, h: b.height };
+    } catch (e) { /* élément non affiché : mesure impossible */ }
+    return fallback;
+}
+
+// Dessine la portée `st` dans `host` (vide d'abord).
+// opts : width (largeur disponible), selected (indice de l'événement à colorer),
+//        compact (portée au repos : pas de prolongement vide à droite, et le dessin est recadré au plus juste pour que le cadre épouse la portée).
+// Renvoie la géométrie pour les clics : { width, height, view, compact, lines: [{ top, bottom, bottomY }], notes: [{ ev, x, y, line, rest, tieFromPrev }] }.
+// Les positions sont en unités du dessin ; `view` ({ x, y, w, h }) est la partie du dessin réellement affichée (tout le dessin hors mode compact).
 function drawNoteStaff(host, st, opts = {}) {
     const VF = Vex.Flow;
     host.innerHTML = '';
@@ -33,8 +50,10 @@ function drawNoteStaff(host, st, opts = {}) {
     const layout = NSE_N.layoutStaff(st);
     const beamUnits = NSE_N.meterBeamUnits(st.meter);
 
-    // 1. Notes, voix, barres, triolets de chaque mesure (sans position : elle vient après le découpage en lignes)
-    const meas = layout.measures.map((m) => {
+    // 1. Notes, voix, barres, triolets de chaque mesure (sans position : elle vient après le découpage en lignes).
+    // La mesure vide qui suit une mesure pleine ne sert qu'à poser la suite : elle n'est pas dessinée quand la portée est au repos.
+    const lastEmpty = layout.measures.length > 1 && layout.measures[layout.measures.length - 1].pieces.length === 0;
+    const meas = (opts.compact && lastEmpty ? layout.measures.slice(0, -1) : layout.measures).map((m) => {
         const notes = m.pieces.map((pc) => {
             let key;
             if (pc.p) key = `${pc.p.l}${({ '-2': 'bb', '-1': 'b', 0: '', 1: '#', 2: '##' })[pc.p.a]}/${pc.p.o}`;
@@ -101,7 +120,7 @@ function drawNoteStaff(host, st, opts = {}) {
         svg.setAttribute('width', String(Math.round(W * zoom))); svg.setAttribute('height', String(Math.round(height * zoom)));
         svg.style.width = `${Math.round(W * zoom)}px`; svg.style.maxWidth = '100%'; svg.style.height = 'auto'; // trop grand pour la zone : il se réduit sans se déformer
     }
-    const geo = { width: W, height, zoom, lines: [], notes: [] };
+    const geo = { width: W, height, zoom, view: { x: 0, y: 0, w: W, h: height }, compact: !!opts.compact, lines: [], notes: [] };
     const tieJobs = []; // { from: {note, line}, to: {note, line} }
     let tiePending = null;
     lines.forEach((ln, li) => {
@@ -134,7 +153,8 @@ function drawNoteStaff(host, st, opts = {}) {
             }
             x += w;
         });
-        if (isLastLine && W - 3 - x > 40) {
+        geo.right = Math.max(geo.right || 0, x);
+        if (isLastLine && !opts.compact && W - 3 - x > 40) {
             const tail = new VF.Stave(x, y, W - 3 - x, { space_above_staff_ln: NSE_ABOVE, space_below_staff_ln: 3 });
             tail.setBegBarType(VF.Barline.type.NONE);
             tail.setEndBarType(VF.Barline.type.NONE);
@@ -151,7 +171,118 @@ function drawNoteStaff(host, st, opts = {}) {
             }
         } catch (e) { /* liaison impossible à dessiner : la portée reste lisible */ }
     });
+    // Portée au repos : le cadre épouse la portée (largeur de ses mesures, hauteur de ses lignes, notes aiguës et graves comprises).
+    if (opts.compact && svg) {
+        const b = nseContentBox(svg, { x: 0, y: NSE_TOP - 20, w: Math.min(W, (geo.right || W) + NSE_PAD), h: height - NSE_TOP + 20 - 24 });
+        const x0 = Math.floor(b.x - NSE_PAD), y0 = Math.floor(b.y - NSE_PAD);
+        const view = { x: x0, y: y0, w: Math.ceil(b.x + b.w + NSE_PAD) - x0, h: Math.ceil(b.y + b.h + NSE_PAD) - y0 };
+        geo.view = view;
+        svg.setAttribute('viewBox', `${view.x} ${view.y} ${view.w} ${view.h}`);
+        svg.setAttribute('width', String(Math.round(view.w * zoom))); svg.setAttribute('height', String(Math.round(view.h * zoom)));
+        svg.style.width = `${Math.round(view.w * zoom)}px`;
+    }
     return geo;
+}
+
+// ----- Ce que montrent les boutons, copier-coller, déplacement (fonctions sans état) -----
+
+// Valeurs que montrent les boutons de durée, point, triolet et silence. Quand une note vient d'être posée (selAuto), elle reste sélectionnée
+// mais les boutons règlent la PROCHAINE note (cur) : ils doivent donc montrer cur, sinon le point semble resté allumé après un clic.
+function nseToolState(st, sel, selAuto, cur) {
+    const e = (sel >= 0 && !selAuto) ? st.ev[sel] : null;
+    return e ? { d: e.d, dot: !!e.dot, tri: !!e.tri, rest: !e.p } : { d: cur.d, dot: !!cur.dot, tri: !!cur.tri, rest: !!cur.rest };
+}
+
+// Texte brut d'un fragment de document (sélection copiée) : le texte, des retours à la ligne, et « [portée:…] » pour chaque portée.
+function nseFragmentToClipText(root) {
+    let out = '';
+    const walk = (node) => {
+        Array.from(node.childNodes).forEach((n) => {
+            if (n.nodeType === 3) { out += n.nodeValue; return; }
+            if (n.nodeType !== 1) return;
+            if (n.classList && n.classList.contains('annot-staff')) {
+                const st = NSE_N.parseStaff(n.getAttribute('data-staff') || '');
+                if (st) out += NSE_N.staffClipText(st);
+                return;
+            }
+            const tag = String(n.tagName || '').toUpperCase();
+            if (tag === 'BR') { out += '\n'; return; }
+            if ((tag === 'DIV' || tag === 'P' || tag === 'LI') && out && !out.endsWith('\n')) out += '\n';
+            walk(n);
+        });
+    };
+    walk(root);
+    return out.replace(/ /g, ' ');
+}
+
+// Position du texte sous un point de l'écran, comme Range (Chrome, Safari) ou position (Firefox) ; null si le navigateur ne sait pas.
+function nseCaretRangeFromPoint(x, y) {
+    if (document.caretRangeFromPoint) return document.caretRangeFromPoint(x, y);
+    if (document.caretPositionFromPoint) {
+        const p = document.caretPositionFromPoint(x, y);
+        if (!p) return null;
+        const r = document.createRange();
+        r.setStart(p.offsetNode, p.offset);
+        r.collapse(true);
+        return r;
+    }
+    return null;
+}
+
+function nseStaffAncestor(node, zone) {
+    let n = node && node.nodeType === 1 ? node : (node ? node.parentElement : null);
+    while (n && n !== zone) { if (n.classList && n.classList.contains('annot-staff')) return n; n = n.parentElement; }
+    return null;
+}
+
+// Où tomberait un bloc portée lâché au point (x, y) : { zone, range } (range réduit à un point d'insertion), ou null hors des zones.
+// Un point d'insertion tombé dans une portée est ramené juste avant ou juste après elle (selon la moitié visée).
+function nseDropTarget(zones, x, y) {
+    const zone = zones.find((z) => { const r = z.getBoundingClientRect(); return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; });
+    if (!zone) return null;
+    let range = nseCaretRangeFromPoint(x, y);
+    if (!range || !zone.contains(range.startContainer)) {
+        range = document.createRange();
+        range.selectNodeContents(zone);
+        range.collapse(false);
+    }
+    const host = nseStaffAncestor(range.startContainer, zone);
+    if (host) {
+        const r = host.getBoundingClientRect();
+        range = document.createRange();
+        if (x > (r.left + r.right) / 2) range.setStartAfter(host); else range.setStartBefore(host);
+        range.collapse(true);
+    }
+    return { zone, range };
+}
+
+// Position à l'écran du trait d'insertion pour `range` : { x, y, h }.
+function nseCaretRect(range) {
+    const rs = range.getClientRects();
+    if (rs.length && rs[0].height > 0) return { x: rs[0].left, y: rs[0].top, h: rs[0].height };
+    const c = range.startContainer, o = range.startOffset;
+    if (c.nodeType === 3 && c.nodeValue.length) {
+        const rr = document.createRange();
+        if (o < c.nodeValue.length) { rr.setStart(c, o); rr.setEnd(c, o + 1); } else { rr.setStart(c, o - 1); rr.setEnd(c, o); }
+        const q = rr.getClientRects()[0];
+        if (q && q.height > 0) return { x: o < c.nodeValue.length ? q.left : q.right, y: q.top, h: q.height };
+    }
+    // Entre deux nœuds : à la fin de la ligne qui précède si ce qui suit commence une nouvelle ligne (bloc), sinon au début de ce qui suit.
+    const kids = c.nodeType === 1 ? c.childNodes : null;
+    const next = kids && kids[o], prev = kids && kids[o - 1];
+    const inline = (n) => !!n && (n.nodeType === 3 ? n.nodeValue.length > 0 : (n.nodeType === 1 && /^inline/.test(getComputedStyle(n).display)));
+    const edge = (n, atEnd) => {
+        let rects;
+        if (n.nodeType === 3) { const rr = document.createRange(); rr.selectNodeContents(n); rects = rr.getClientRects(); } else rects = n.getClientRects();
+        const q = rects.length ? (atEnd ? rects[rects.length - 1] : rects[0]) : n.getBoundingClientRect();
+        return { x: atEnd ? q.right : q.left, y: q.top, h: q.height || 20 };
+    };
+    if (inline(prev) && !inline(next)) return edge(prev, true);
+    if (next && (next.nodeType === 1 || next.nodeType === 3)) return edge(next, false);
+    if (prev && (prev.nodeType === 1 || prev.nodeType === 3)) return edge(prev, true);
+    const el = c.nodeType === 1 ? c : c.parentElement;
+    const q = el.getBoundingClientRect();
+    return { x: q.left + 12, y: q.top + 10, h: 20 };
 }
 
 // ----- Barre d'outils de la portée (petites icônes dessinées, sans dépendre d'une police musicale) -----
@@ -170,6 +301,8 @@ function nseNoteIcon(d) {
 }
 
 const NSE_REST_ICON = '<svg width="20" height="22" viewBox="0 0 20 22" aria-hidden="true"><path d="M7 3l5 5-4 4.5 5 5.5c-3-1-5 .4-4.6 2.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const NSE_COPY_ICON = '<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="8.5" height="8.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 10.5V3.5A1.5 1.5 0 0 1 4.5 2H10.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+const NSE_PASTE_ICON = '<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="3" width="11" height="11.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="5.5" y="1.3" width="5" height="3.2" rx="1" fill="currentColor"/></svg>';
 const NSE_DURATION_TITLES = { w: 'Ronde (clavier : 5)', h: 'Blanche (clavier : 4)', q: 'Noire (clavier : 3)', '8': 'Croche (clavier : 2)', '16': 'Double-croche (clavier : 1)' };
 const NSE_DURATION_KEYS = { '1': '16', '2': '8', '3': 'q', '4': 'h', '5': 'w' };
 
@@ -215,6 +348,8 @@ function nseToolsHtml(st, cur) {
             <button type="button" class="ns-btn ns-play" data-act="play" title="Écouter la portée" aria-label="Écouter la portée">▶</button>
             <button type="button" class="ns-btn" data-act="undo" title="Annuler le dernier changement de la portée (⌘Z)" aria-label="Annuler">↶</button>
             <button type="button" class="ns-btn" data-act="del" title="Supprimer la note sélectionnée (Suppr.)" aria-label="Supprimer la note sélectionnée">⌫</button>
+            <button type="button" class="ns-btn" data-act="copy" title="Copier cette portée (⌘C) pour la coller ici ou dans une autre zone" aria-label="Copier la portée">${NSE_COPY_ICON}</button>
+            <button type="button" class="ns-btn" data-act="paste" title="Coller la portée copiée, juste après celle-ci (⌘V)" aria-label="Coller la portée copiée">${NSE_PASTE_ICON}</button>
             <button type="button" class="ns-btn ns-txt" data-act="clear" title="Effacer toutes les notes">Vider</button>
             <button type="button" class="ns-btn ns-txt ns-danger" data-act="remove" title="Supprimer cette portée">✕ Portée</button>
         </div>`;
@@ -256,6 +391,9 @@ function nseNearestLetter(p, letter, ks) {
 let NSE_ACTIVE = null; // la portée dont la barre d'outils est ouverte (une seule à la fois)
 
 // opts : isEditable() → l'annotation est modifiable ; onChange(view) après chaque modification ; onActivate(view) quand on clique dans la portée ;
+//        zones() → les zones d'annotation modifiables où l'on peut déposer la portée ; maxStaves : nombre de portées permis par zone ;
+//        onPick(view) quand le bloc est sélectionné par sa poignée ; onTransfer(view, zone, range) quand il est déposé dans une autre zone ;
+//        onCopy(view), onPaste(view) : boutons Copier / Coller de la barre d'outils ;
 //        audio : { ready() → Promise, now(), play(midi, secondes, durée) → nœud audio ou null, bpm() }
 class NoteStaffView {
     constructor(el, opts) {
@@ -272,36 +410,71 @@ class NoteStaffView {
         el.setAttribute('contenteditable', 'false');
         el.setAttribute('role', 'group');
         el.setAttribute('aria-label', 'Portée : motif musical');
-        el.innerHTML = '<div class="annot-staff-svg"></div><div class="annot-staff-tools" role="toolbar" aria-label="Édition de la portée"></div>';
+        el.innerHTML = '<div class="annot-staff-grip" contenteditable="false" title="Glisser pour déplacer la portée · cliquer pour la sélectionner (copier, couper)" aria-hidden="true">⠿</div>'
+            + '<div class="annot-staff-svg"></div><div class="annot-staff-tools" role="toolbar" aria-label="Édition de la portée"></div>';
         // La barre d'outils de la portée prend la place de la barre de texte tant que la portée est active (opts.toolsHost) ; sinon elle reste ici, cachée.
-        this.svgHost = el.firstElementChild;
-        this.tools = el.lastElementChild;
+        this.grip = el.querySelector('.annot-staff-grip');
+        this.svgHost = el.querySelector('.annot-staff-svg');
+        this.tools = el.querySelector('.annot-staff-tools');
         this._bind();
         this._renderTools();
         this.render();
-        if (typeof ResizeObserver !== 'undefined') {
-            this._ro = new ResizeObserver(() => {
-                const w = Math.floor(this.svgHost.clientWidth);
-                if (w > 0 && this.geo && Math.abs(w - this._lastWidth) > 6) this.render();
-            });
-            this._ro.observe(this.svgHost);
-        }
+        this._observe();
     }
 
     get editable() { return !!this.opts.isEditable(); }
 
-    destroy() { if (this._ro) this._ro.disconnect(); this.stop(); if (NSE_ACTIVE === this) NSE_ACTIVE = null; }
+    // En édition : la portée occupe toute la largeur de la zone, avec ses outils. Au repos : le cadre épouse la portée écrite.
+    get isActive() { return this.el.classList.contains('is-active'); }
+
+    // La zone d'annotation qui contient la portée (sa largeur fixe la largeur de mise en page).
+    _zone() { return this.el.closest('.jam-annot-text') || this.el.parentElement; }
+
+    // Redessine la portée quand la largeur de sa zone change (fenêtre redimensionnée, panneau replié…).
+    _observe() {
+        if (this._ro || typeof ResizeObserver === 'undefined') return;
+        const z = this._zone();
+        if (!z) return;
+        this._zoneW = Math.floor(z.clientWidth);
+        this._ro = new ResizeObserver(() => {
+            if (!this.el.isConnected) { this.destroy(); return; }
+            const zz = this._zone();
+            const w = zz ? Math.floor(zz.clientWidth) : 0;
+            if (w > 0 && Math.abs(w - this._zoneW) > 6) { this._zoneW = w; this.render(); }
+        });
+        this._ro.observe(z);
+    }
+
+    // Largeur (en pixels de l'écran) disponible pour mettre la portée en page : celle du bloc en édition, celle de la zone au repos.
+    // Les deux états découpent ainsi les lignes de la même façon : activer une portée ne change pas ses retours à la ligne.
+    _availWidth() {
+        if (this.isActive) return Math.floor(this.svgHost.clientWidth) || this._lastWidth || 600;
+        const z = this._zone();
+        if (!z) return this._lastWidth || 600;
+        const px = (v) => parseFloat(v) || 0;
+        const zs = getComputedStyle(z), es = getComputedStyle(this.el);
+        const w = Math.floor(z.clientWidth - px(zs.paddingLeft) - px(zs.paddingRight) - px(es.paddingLeft) - px(es.paddingRight) - px(es.borderLeftWidth) - px(es.borderRightWidth));
+        return w > 0 ? w : (this._lastWidth || 600);
+    }
+
+    destroy() {
+        if (this._ro) { this._ro.disconnect(); this._ro = null; }
+        if (this._outside) { document.removeEventListener('pointerdown', this._outside, true); this._outside = null; }
+        this.stop();
+        if (NSE_ACTIVE === this) NSE_ACTIVE = null;
+    }
 
     // Dessine la portée ; si VexFlow n'est pas là (ou échoue), un message remplace le dessin.
     render() {
-        this._lastWidth = Math.floor(this.svgHost.clientWidth) || this._lastWidth || 600;
+        const active = this.isActive;
+        this._lastWidth = this._availWidth();
         try {
-            this.geo = drawNoteStaff(this.svgHost, this.st, { width: this._lastWidth, selected: this.sel });
+            this.geo = drawNoteStaff(this.svgHost, this.st, { width: this._lastWidth, selected: active ? this.sel : -1, compact: !active });
         } catch (e) {
             this.geo = null;
             this.svgHost.textContent = 'Portée non affichable';
         }
-        const empty = this.st.ev.length === 0;
+        const empty = active && this.st.ev.length === 0;
         let hint = this.svgHost.querySelector('.annot-staff-hint');
         if (empty && !hint) {
             hint = document.createElement('div');
@@ -317,7 +490,7 @@ class NoteStaffView {
     // Boutons allumés selon la sélection (ou, sans sélection, selon les valeurs de la prochaine note).
     _refreshTools() {
         const e = this.sel >= 0 ? this.st.ev[this.sel] : null;
-        const v = e ? { d: e.d, dot: e.dot, tri: e.tri, rest: !e.p } : this.cur;
+        const v = nseToolState(this.st, this.sel, this.selAuto, this.cur);
         this.tools.querySelectorAll('[data-dur]').forEach(b => b.classList.toggle('is-on', b.dataset.dur === v.d));
         const on = (mod, val) => { const b = this.tools.querySelector(`[data-mod="${mod}"]`); if (b) b.classList.toggle('is-on', !!val); };
         on('dot', v.dot); on('tri', v.tri); on('rest', v.rest);
@@ -339,8 +512,11 @@ class NoteStaffView {
 
     activate() {
         if (NSE_ACTIVE && NSE_ACTIVE !== this) NSE_ACTIVE.deactivate();
+        const wasActive = this.isActive;
         NSE_ACTIVE = this;
         this.el.classList.add('is-active');
+        this.el.classList.remove('is-picked');
+        if (!wasActive) this.render(); // la portée prend toute la largeur de la zone
         const host = this.opts.toolsHost && this.opts.toolsHost();
         if (host && this.tools.parentNode !== host) host.appendChild(this.tools);
         if (this.opts.onActivate) this.opts.onActivate(this);
@@ -351,11 +527,14 @@ class NoteStaffView {
     }
 
     deactivate() {
+        const wasActive = this.isActive;
         this.el.classList.remove('is-active');
         if (this._outside) { document.removeEventListener('pointerdown', this._outside, true); this._outside = null; }
         this.stop();
         if (this.tools.parentNode !== this.el) this.el.appendChild(this.tools);
-        if (this.sel >= 0) { this.sel = -1; this.selAuto = false; this.render(); }
+        this.sel = -1;
+        this.selAuto = false;
+        if (wasActive) this.render(); // le cadre se resserre autour de la portée écrite
         if (NSE_ACTIVE === this) NSE_ACTIVE = null;
         if (this.opts.onDeactivate) this.opts.onDeactivate(this);
     }
@@ -405,15 +584,24 @@ class NoteStaffView {
         host.addEventListener('pointerdown', (ev) => this._pointerDown(ev));
         host.addEventListener('pointermove', (ev) => this._pointerMove(ev));
         host.addEventListener('pointerleave', () => this._hideGhost());
+        // Un clic sur le cadre (hors dessin) met aussi la portée en édition ; la poignée ⠿ déplace ou sélectionne le bloc.
+        this.el.addEventListener('pointerdown', (ev) => {
+            if (ev.target !== this.el || !this.editable || ev.button > 0 || this.isActive) return;
+            ev.preventDefault();
+            this.activate();
+        });
+        this.grip.addEventListener('pointerdown', (ev) => this._gripDown(ev));
     }
 
     _local(ev) {
         const svg = this.svgHost.querySelector('svg');
         const r = (svg || this.svgHost).getBoundingClientRect();
-        // Les positions de la géométrie sont en unités du dessin : on convertit les pixels de l'écran (la portée peut être agrandie ou réduite).
-        const k = this.geo && r.width > 0 ? this.geo.width / r.width : 1;
+        // Les positions de la géométrie sont en unités du dessin : on convertit les pixels de l'écran (la portée peut être agrandie ou réduite,
+        // et au repos seule une partie du dessin est affichée : geo.view).
+        const v = (this.geo && this.geo.view) || { x: 0, y: 0, w: this.geo ? this.geo.width : 1, h: 1 };
+        const k = this.geo && r.width > 0 ? v.w / r.width : 1;
         this._k = k;
-        return { x: (ev.clientX - r.left) * k, y: (ev.clientY - r.top) * k };
+        return { x: v.x + (ev.clientX - r.left) * k, y: v.y + (ev.clientY - r.top) * k };
     }
 
     _lineAt(y) {
@@ -453,6 +641,14 @@ class NoteStaffView {
     _pointerDown(ev) {
         if (!this.editable || ev.button > 0 || !this.geo) return;
         ev.preventDefault(); // garde le focus (et la sélection de texte) où ils sont
+        if (!this.isActive) {
+            // Portée au repos : ce premier clic la met seulement en édition (elle s'agrandit, les positions changent) ;
+            // si le clic tombe sur une note, celle-ci est sélectionnée.
+            const first = this._hitEvent(this._local(ev));
+            this.activate();
+            if (first >= 0 && this.st.ev[first]) { this.select(first, false); this._hearEvent(first); }
+            return;
+        }
         this.activate();
         const pt = this._local(ev);
         const hit = this._hitEvent(pt);
@@ -506,7 +702,7 @@ class NoteStaffView {
 
     // Survol à la souris : une note fantôme montre la hauteur qui sera posée.
     _pointerMove(ev) {
-        if (!this.editable || !this.geo || ev.buttons || ev.pointerType === 'touch' || this.cur.rest) { this._hideGhost(); return; }
+        if (!this.editable || !this.geo || !this.isActive || ev.buttons || ev.pointerType === 'touch' || this.cur.rest) { this._hideGhost(); return; }
         const pt = this._local(ev);
         if (this._hitEvent(pt) >= 0) { this._hideGhost(); return; }
         const line = this._lineAt(pt.y);
@@ -523,12 +719,120 @@ class NoteStaffView {
             this.svgHost.appendChild(g);
         }
         const back = 1 / (this._k || 1); // unités du dessin → pixels de l'écran
-        g.style.left = `${pt.x * back - 6}px`;
-        g.style.top = `${y * back - 4.5}px`;
+        const v = this.geo.view || { x: 0, y: 0 };
+        g.style.left = `${(pt.x - v.x) * back - 6}px`;
+        g.style.top = `${(y - v.y) * back - 4.5}px`;
         g.lastChild.textContent = NSE_N.pitchLabel(p);
     }
 
     _hideGhost() { const g = this.svgHost.querySelector('.annot-ghost'); if (g) g.remove(); }
+
+    // ----- Déplacer le bloc (poignée ⠿) : au repos seulement -----
+
+    // Le bloc peut être déposé dans la zone où il est, ou dans une autre zone modifiable qui a encore de la place.
+    _canDropIn(zone) {
+        return zone === this._zone() || zone.querySelectorAll('.annot-staff').length < (this.opts.maxStaves || 8);
+    }
+
+    // Clic sur la poignée : sélectionne le bloc (⌘C copie, ⌘X coupe, Suppr. l'enlève). Glisser : déplace le bloc dans le texte,
+    // à côté d'une autre portée, entre deux lignes ou dans l'autre zone d'annotation ; Échap annule.
+    _gripDown(ev) {
+        if (!this.editable || ev.button > 0 || this.isActive) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        const grip = this.grip, el = this.el;
+        const x0 = ev.clientX, y0 = ev.clientY;
+        const zones = () => (this.opts.zones ? this.opts.zones() : [this._zone()]).filter(Boolean);
+        let dragging = false, ghost = null, caret = null, target = null, timer = null, lastX = x0, lastY = y0;
+        try { grip.setPointerCapture(ev.pointerId); } catch (e) { /* non pris en charge */ }
+        const where = document.fullscreenElement || document.body;
+        const refresh = () => {
+            if (ghost) { ghost.style.left = `${lastX + 12}px`; ghost.style.top = `${lastY + 12}px`; }
+            target = nseDropTarget(zones(), lastX, lastY);
+            if (target && !this._canDropIn(target.zone)) target = null;
+            if (target && caret) {
+                const r = nseCaretRect(target.range);
+                caret.style.display = 'block';
+                caret.style.left = `${Math.round(r.x - 1)}px`; caret.style.top = `${Math.round(r.y)}px`; caret.style.height = `${Math.round(r.h)}px`;
+            } else if (caret) caret.style.display = 'none';
+        };
+        const begin = () => {
+            dragging = true;
+            el.classList.add('is-dragging-src');
+            ghost = document.createElement('div');
+            ghost.className = 'annot-drag-ghost';
+            const svg = this.svgHost.querySelector('svg');
+            if (svg) ghost.appendChild(svg.cloneNode(true));
+            caret = document.createElement('div');
+            caret.className = 'annot-drop-caret';
+            where.appendChild(ghost);
+            where.appendChild(caret);
+            // près du haut ou du bas d'une zone, elle défile toute seule
+            timer = setInterval(() => {
+                const z = zones().find((q) => { const r = q.getBoundingClientRect(); return lastX >= r.left && lastX <= r.right && lastY >= r.top && lastY <= r.bottom; });
+                if (!z) return;
+                const r = z.getBoundingClientRect();
+                if (lastY < r.top + 26) z.scrollTop -= 14; else if (lastY > r.bottom - 26) z.scrollTop += 14; else return;
+                refresh();
+            }, 50);
+        };
+        const end = (drop) => {
+            grip.removeEventListener('pointermove', onMove);
+            grip.removeEventListener('pointerup', onUp);
+            grip.removeEventListener('pointercancel', onCancel);
+            document.removeEventListener('keydown', onKey, true);
+            try { grip.releasePointerCapture(ev.pointerId); } catch (e) { /* déjà relâchée */ }
+            if (timer) clearInterval(timer);
+            if (ghost) ghost.remove();
+            if (caret) caret.remove();
+            el.classList.remove('is-dragging-src');
+            if (!dragging) { if (drop) this._pick(); return; }
+            if (drop && target) this._dropAt(target);
+        };
+        const onMove = (e2) => {
+            lastX = e2.clientX; lastY = e2.clientY;
+            if (!dragging) { if (Math.hypot(lastX - x0, lastY - y0) < 5) return; begin(); }
+            refresh();
+        };
+        const onUp = () => end(true);
+        const onCancel = () => end(false);
+        const onKey = (k) => { if (k.key === 'Escape') { k.preventDefault(); k.stopPropagation(); end(false); } };
+        grip.addEventListener('pointermove', onMove);
+        grip.addEventListener('pointerup', onUp);
+        grip.addEventListener('pointercancel', onCancel);
+        document.addEventListener('keydown', onKey, true);
+    }
+
+    // Sélectionne le bloc entier (comme une image dans un texte) : la zone prend le focus pour que ⌘C, ⌘X et Suppr. s'appliquent à lui.
+    _pick() {
+        if (this.opts.onPick) this.opts.onPick(this);
+        const sel = window.getSelection();
+        if (!sel) return;
+        const r = document.createRange();
+        r.selectNode(this.el);
+        sel.removeAllRanges();
+        sel.addRange(r);
+        this.el.classList.add('is-picked');
+    }
+
+    // Dépose le bloc au point d'insertion { zone, range } : déplacé dans le texte s'il reste dans sa zone, recréé dans l'autre sinon.
+    _dropAt(target) {
+        const el = this.el;
+        if (target.zone === this._zone()) {
+            const r = target.range;
+            const parent = el.parentNode;
+            const idx = Array.prototype.indexOf.call(parent.childNodes, el);
+            const inPlace = r.startContainer === parent && (r.startOffset === idx || r.startOffset === idx + 1);
+            if (!inPlace) {
+                r.insertNode(el);
+                target.zone.normalize(); // recolle les morceaux de texte coupés par l'insertion
+                this.commit();
+            }
+            this._pick();
+        } else if (this.opts.onTransfer) {
+            this.opts.onTransfer(this, target.zone, target.range);
+        }
+    }
 
     // ----- Barre d'outils -----
 
@@ -556,6 +860,8 @@ class NoteStaffView {
             else if (act === 'undo') this.undo();
             else if (act === 'del') this._deleteSelected();
             else if (act === 'clear') { this.sel = -1; this._apply(Object.assign(NSE_N.cloneStaff(this.st), { ev: [] })); }
+            else if (act === 'copy') { if (this.opts.onCopy) this.opts.onCopy(this); }
+            else if (act === 'paste') { if (this.opts.onPaste) this.opts.onPaste(this); }
             else if (act === 'remove') { if (this.opts.onRemove) this.opts.onRemove(this); }
             else if (act === 'exit') { this.deactivate(); if (this.opts.onFocusBack) this.opts.onFocusBack(this); }
         }
@@ -697,5 +1003,5 @@ function annotationHtmlForSave(ed) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { NSE_SPACING, NSE_BAND, NSE_TOP, nseToolsHtml, nseKeyAction, nseNearestLetter, nseNoteIcon, nseKeyOptions };
+    module.exports = { NSE_SPACING, NSE_BAND, NSE_TOP, nseToolsHtml, nseKeyAction, nseNearestLetter, nseNoteIcon, nseKeyOptions, nseToolState, nseFragmentToClipText };
 }
