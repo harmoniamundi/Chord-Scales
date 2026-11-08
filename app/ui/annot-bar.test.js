@@ -110,3 +110,26 @@ describe('HTML de la barre et des menus', () => {
         assert.equal(B.annotMenuHtml('inconnu'), '');
     });
 });
+
+describe('boutons de disposition des blocs : annotToolsHtml', () => {
+    const html = B.annotToolsHtml();
+    test('quatre boutons : aimant, cadre visible, premier plan, arrière-plan', () => {
+        assert.deepEqual(B.ANNOT_TOOLS.map(t => t.act), ['magnet', 'border', 'front', 'back']);
+        B.ANNOT_TOOLS.forEach(t => assert.ok(html.includes(`data-annot-act="${t.act}"`), t.act));
+        assert.equal((html.match(/<button/g) || []).length, 4);
+    });
+    test('l\'aimant est un interrupteur (aria-pressed) toujours disponible ; les autres attendent une sélection', () => {
+        const magnet = html.match(/<button[^>]*data-annot-act="magnet"[^>]*>/)[0];
+        assert.ok(magnet.includes('aria-pressed="false"') && !magnet.includes('disabled'));
+        ['border', 'front', 'back'].forEach(a => assert.ok(html.match(new RegExp(`<button[^>]*data-annot-act="${a}"[^>]*>`))[0].includes('disabled'), a));
+    });
+    test('chaque bouton a un titre, une icône et ne prend pas le focus', () => {
+        B.ANNOT_TOOLS.forEach(t => assert.ok(t.title.length > 10, t.act));
+        assert.equal((html.match(/<svg/g) || []).length, 4);
+        assert.equal((html.match(/onmousedown="event\.preventDefault\(\)"/g) || []).length, 4);
+        assert.ok(html.includes("app.jam.annotToolAct('magnet')"));
+    });
+    test('le bouton « Cadre » de la barre ne parle plus du curseur', () => {
+        assert.ok(!B.annotBarHtml().includes('à l\'endroit du curseur'));
+    });
+});

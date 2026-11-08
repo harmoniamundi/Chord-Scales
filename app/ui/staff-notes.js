@@ -105,11 +105,38 @@ function formatStaffPos(pos) {
     return x === 0 && y === 0 ? '' : `${x},${y}`;
 }
 
+// ----- Place d'un bloc sur le canevas de la zone -----
+// Depuis que la zone d'annotation est un canevas (ui/annot-canvas.js), chaque bloc (portée ou cadre de texte) a sa PROPRE place, indépendante de celle
+// des autres : « x,y » en pixels depuis le coin haut gauche de la zone (attribut data-at). Deux blocs peuvent se recouvrir.
+// L'ancien décalage relatif à la place dans le texte (data-pos, ci-dessus) n'est plus lu que pour reconstruire les annotations écrites avant ce changement.
+
+const SN_AT_MAX = 3000;
+
+function clampBlockAt(v) {
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) ? Math.max(0, Math.min(SN_AT_MAX, n)) : 0;
+}
+
+// Lit une place « x,y » (entiers positifs) ; renvoie { x, y } ou null si le texte n'est pas valide.
+function parseBlockAt(text) {
+    const m = /^(\d{1,4}),(\d{1,4})$/.exec(typeof text === 'string' ? text.trim() : '');
+    return m ? { x: clampBlockAt(m[1]), y: clampBlockAt(m[2]) } : null;
+}
+
+// Texte d'une place (« 0,0 » compris : contrairement au décalage, la place est toujours écrite), ou '' si elle est absente.
+function formatBlockAt(pos) {
+    if (!pos || pos.x === undefined || pos.y === undefined) return '';
+    return `${clampBlockAt(pos.x)},${clampBlockAt(pos.y)}`;
+}
+
+// Cadre visible ou non : seul « 0 » (cadre caché) est écrit, l'absence de l'attribut data-border veut dire « visible ».
+function parseBlockBorder(text) { return String(text === undefined || text === null ? '' : text).trim() !== '0'; }
+
 // ----- Cadres de texte (ui/text-frame.js) -----
 // Un cadre est un bloc glissé dans le texte d'une annotation, comme une portée, mais où l'on écrit du texte mis en forme.
-// Il est enregistré sous la forme <div class="annot-frame" data-frame="L,E" data-pos="x,y">texte…</div> :
+// Il est enregistré sous la forme <div class="annot-frame" data-frame="L,E" data-at="x,y" data-border="0">texte…</div> :
 //   L = largeur de mise en page du texte (pixels, avant agrandissement) ; E = échelle d'affichage en % (100 si absente) ;
-//   data-pos = décalage libre, comme pour une portée (voir ci-dessus).
+//   data-at = place sur le canevas de la zone, comme pour une portée (voir ci-dessus) ; data-border="0" = cadre caché (le texte seul reste visible).
 // Tirer sur les bords ou les coins du cadre change E : le cadre ET ce qu'il contient grandissent ou rétrécissent ensemble.
 // Format partagé par le script du cadre (affichage) et par grid-format.js (nettoyage des annotations, fichiers importés).
 
@@ -147,19 +174,27 @@ function formatFrameBox(box) {
 // ----- Copier-coller d'une portée (texte brut, pour passer d'une zone d'annotation à l'autre ou d'une fenêtre à l'autre) -----
 // Une portée copiée s'écrit « [portée:t,4/4,0;q:c4 8:e4] » ; dans un texte collé, chaque repère de ce genre redevient une portée.
 
-const SN_CLIP_RE = /\[portée:([^\]\n]{1,800})\]|\[cadre:(\d{1,4}(?:,\d{1,3})?);([^\]\n]{0,30000})\]/g;
+// Après le nom du bloc : sa place facultative « @x,y » (copie de plusieurs blocs : leurs places relatives sont gardées) et « ! » si son cadre est caché.
+const SN_CLIP_RE = /\[portée(?:@(\d{1,4}),(\d{1,4}))?(!)?:([^\]\n]{1,800})\]|\[cadre(?:@(\d{1,4}),(\d{1,4}))?(!)?:(\d{1,4}(?:,\d{1,3})?);([^\]\n]{0,30000})\]/g;
 
-function staffClipText(st) { return `[portée:${formatStaff(st)}]`; }
+// meta (facultatif) : { at: { x, y }, border: false } → place du bloc et cadre caché.
+function clipMeta(meta) {
+    if (!meta) return '';
+    const at = meta.at ? formatBlockAt(meta.at) : '';
+    return (at ? `@${at}` : '') + (meta.border === false ? '!' : '');
+}
+
+function staffClipText(st, meta) { return `[portée${clipMeta(meta)}:${formatStaff(st)}]`; }
 
 // Un cadre de texte copié s'écrit « [cadre:260,150;<texte mis en forme, encodé>] » : largeur / échelle, puis son HTML passé par encodeURIComponent
 // (aucun « ] » ni retour à la ligne). Le HTML doit encore être nettoyé par celui qui le colle (sanitizeNoteHtml, grid/grid-format.js).
-function frameClipText(box, html) {
-    return `[cadre:${formatFrameBox(box)};${encodeURIComponent(String(html || ''))}]`;
+function frameClipText(box, html, meta) {
+    return `[cadre${clipMeta(meta)}:${formatFrameBox(box)};${encodeURIComponent(String(html || ''))}]`;
 }
 
 // Découpe un texte collé en morceaux [{ text }] (texte ordinaire), [{ staff }] (texte d'une portée valide, sous sa forme canonique)
-// et [{ frame: { box, html } }] (cadre de texte : largeur / échelle canoniques et HTML décodé, à nettoyer).
-// Un repère invalide reste du texte ordinaire.
+// et [{ frame: { box, html } }] (cadre de texte : largeur / échelle canoniques et HTML décodé, à nettoyer). Un bloc copié avec sa place
+// et son cadre porte aussi `at` ({ x, y }) et `noBorder` (true si son cadre est caché). Un repère invalide reste du texte ordinaire.
 function splitStaffClips(text) {
     const src = String(text === undefined || text === null ? '' : text);
     const out = [];
@@ -167,14 +202,18 @@ function splitStaffClips(text) {
     SN_CLIP_RE.lastIndex = 0;
     while ((m = SN_CLIP_RE.exec(src))) {
         let piece = null;
-        if (m[1] !== undefined) {
-            const canon = canonicalStaff(m[1]);
+        if (m[4] !== undefined) {
+            const canon = canonicalStaff(m[4]);
             if (canon) piece = { staff: canon };
+            if (piece && m[1] !== undefined) piece.at = { x: clampBlockAt(m[1]), y: clampBlockAt(m[2]) };
+            if (piece && m[3]) piece.noBorder = true;
         } else {
-            const box = parseFrameBox(m[2]);
+            const box = parseFrameBox(m[8]);
             let html = null;
-            try { html = decodeURIComponent(m[3]); } catch (e) { /* encodage invalide */ }
+            try { html = decodeURIComponent(m[9]); } catch (e) { /* encodage invalide */ }
             if (box && html !== null) piece = { frame: { box: formatFrameBox(box), html } };
+            if (piece && m[5] !== undefined) piece.at = { x: clampBlockAt(m[5]), y: clampBlockAt(m[6]) };
+            if (piece && m[7]) piece.noBorder = true;
         }
         if (!piece) continue;
         if (m.index > pos) out.push({ text: src.slice(pos, m.index) });
@@ -366,7 +405,7 @@ function shiftEvent(st, index, steps) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { SN_POS_MAX, clampStaffPos, parseStaffPos, formatStaffPos,
+    module.exports = { SN_POS_MAX, clampStaffPos, parseStaffPos, formatStaffPos, SN_AT_MAX, clampBlockAt, parseBlockAt, formatBlockAt, parseBlockBorder,
         SN_FRAME_W_MIN, SN_FRAME_W_MAX, SN_FRAME_W_DEFAULT, SN_FRAME_SCALE_MIN, SN_FRAME_SCALE_MAX, SN_FRAME_SCALE_DEFAULT, clampFrameWidth, clampFrameScale, parseFrameBox, formatFrameBox,
         staffClipText, frameClipText, splitStaffClips, SN_UNITS, SN_DURATIONS, SN_METERS, SN_MAX_EVENTS, SN_MAX_LENGTH, SN_KEY_NAMES, SN_KEY_LABELS, SN_BOTTOM_LINE,
         SN_SIZE_MIN, SN_SIZE_MAX, SN_SIZE_STEP, SN_SIZE_DEFAULT, clampStaffSize,

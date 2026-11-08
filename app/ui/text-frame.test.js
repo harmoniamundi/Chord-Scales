@@ -110,13 +110,17 @@ describe('ntfResizeScale : bornes propres à une portée', () => {
 });
 
 describe('noteFrameStubHtml', () => {
-    test('bloc enregistrable : largeur / échelle, décalage et texte', () => {
+    test('bloc enregistrable : largeur / échelle, place, texte', () => {
         assert.equal(T.noteFrameStubHtml({ w: 260 }), '<div class="annot-frame" data-frame="260"></div>');
-        assert.equal(T.noteFrameStubHtml({ w: 300, s: 150 }, { x: 4, y: -2 }, '<b>a</b>'), '<div class="annot-frame" data-frame="300,150" data-pos="4,-2"><b>a</b></div>');
+        assert.equal(T.noteFrameStubHtml({ w: 300, s: 150 }, { x: 4, y: 2 }, '<b>a</b>'), '<div class="annot-frame" data-frame="300,150" data-at="4,2"><b>a</b></div>');
         assert.equal(T.noteFrameStubHtml(), '<div class="annot-frame" data-frame="260"></div>');
     });
+    test('bord caché : data-border="0" ; bord visible : rien', () => {
+        assert.equal(T.noteFrameStubHtml({ w: 260 }, { x: 4, y: 2 }, '', false), '<div class="annot-frame" data-frame="260" data-at="4,2" data-border="0"></div>');
+        assert.equal(T.noteFrameStubHtml({ w: 260 }, { x: 4, y: 2 }, '', true), '<div class="annot-frame" data-frame="260" data-at="4,2"></div>');
+    });
     test('le bloc fabriqué passe le nettoyage des annotations tel quel', () => {
-        const stub = T.noteFrameStubHtml({ w: 300, s: 150 }, { x: 4, y: -2 }, '<b>a</b>');
+        const stub = T.noteFrameStubHtml({ w: 300, s: 150 }, { x: 4, y: 2 }, '<b>a</b>', false);
         assert.equal(F.sanitizeNoteHtml(stub), stub);
     });
 });

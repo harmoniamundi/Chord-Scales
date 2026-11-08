@@ -220,7 +220,6 @@
 
             /* Plein écran de la grille (bouton dédié), jam lancée : la grille se comprime comme en
                mode normal pour laisser la place à la carte des gammes, déplacée dans la carte plein écran. */
-            #view-jam.jam-playing #jam-chord-card:fullscreen #jam-chord-sequence-display,
             #view-jam.jam-playing #jam-chord-card.jam-pseudo-fs #jam-chord-sequence-display {
                 flex: 0 1 auto;
                 min-height: 0;
@@ -236,38 +235,24 @@
 
         /* Mode plein écran de la grille d'accords : hors lecture, seul le panneau de grille est affiché ;
            jam lancée, la carte des gammes actives/suivantes y est déplacée et reste visible. */
-        #jam-chord-card:fullscreen {
-            width: 100vw;
-            height: 100vh;
-            box-sizing: border-box;
-            margin: 0;
-            border-radius: 0;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        #jam-chord-card:fullscreen #jam-chord-sequence-display,
         #jam-chord-card.jam-pseudo-fs #jam-chord-sequence-display {
             flex: 1 1 auto;
             min-height: 0;
             overflow: auto;
         }
 
-        #jam-chord-card:fullscreen .grid.grid-cols-3,
         #jam-chord-card.jam-pseudo-fs .grid.grid-cols-3 {
             flex-shrink: 0;
         }
 
         /* Hors lecture, le plein écran de la grille reste centré sur la grille seule (comportement d'origine) ;
            la carte des gammes (déplacée ici en plein écran) ne doit s'afficher que si la jam est lancée. */
-        #view-jam:not(.jam-playing) #jam-chord-card:fullscreen #jam-scales-card,
         #view-jam:not(.jam-playing) #jam-chord-card.jam-pseudo-fs #jam-scales-card {
             display: none;
         }
 
-        /* Plein écran SIMULÉ (iPhone : Safari n'a pas l'API Fullscreen pour un élément) :
-           la carte de la grille recouvre toute la fenêtre, avec les mêmes règles de contenu que le plein écran natif. */
+        /* Plein écran SIMULÉ (« faux » plein écran, sans API Fullscreen du navigateur) :
+           la carte de la grille recouvre toute la fenêtre. */
         #view-jam #jam-chord-card.jam-pseudo-fs {
             position: fixed !important;
             top: 0; right: 0; bottom: 0; left: 0;
@@ -290,10 +275,10 @@
         }
         #view-jam #jam-chord-card.jam-pseudo-fs > * { flex-shrink: 0; }
         #view-jam #jam-chord-card.jam-pseudo-fs > #jam-chord-sequence-display { flex: 1 1 auto; min-height: 0; }
-        /* Plein écran simulé (téléphone) : affichage épuré = grille + pied de grille uniquement,
+        /* Plein écran simulé épuré (téléphone, sans API Fullscreen) : grille + pied de grille uniquement,
            les gammes sont toujours masquées (jam arrêtée ou lancée) et la grille occupe toute la place restante. */
-        #view-jam #jam-chord-card.jam-pseudo-fs #jam-scales-card { display: none !important; }
-        #view-jam.jam-playing #jam-chord-card.jam-pseudo-fs > #jam-chord-sequence-display { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+        #view-jam #jam-chord-card.jam-pseudo-lean #jam-scales-card { display: none !important; }
+        #view-jam.jam-playing #jam-chord-card.jam-pseudo-lean > #jam-chord-sequence-display { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; }
         /* Pendant le plein écran simulé, la page derrière ne défile plus */
         html.jam-pseudo-fs-lock, html.jam-pseudo-fs-lock body { overflow: hidden !important; overscroll-behavior: none; }
 
@@ -392,7 +377,7 @@
         #jam-chord-sequence-display .jam-cell-top > span:last-child { min-width: 0; }
         #jam-chord-sequence-display .jam-add-cell { align-self: stretch; min-height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 1.5px dashed #2f6f57; background: rgba(16,185,129,.06); color: #34d399; font-size: 24px; line-height: 1; cursor: pointer; user-select: none; transition: background .12s, border-color .12s; }
         #jam-chord-sequence-display .jam-add-cell:hover { background: rgba(16,185,129,.16); border-color: #34d399; }
-        :root { --cs-build: '2026-11-07-e'; } /* numéro de version lu par la page */
+        :root { --cs-build: '2026-11-08-a'; } /* numéro de version lu par la page */
         .jm-pop { position: fixed; z-index: 2000; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); color: #e2e8f0; padding: 10px 12px 12px; font-size: 12px; }
         .jm-pop.jm-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; max-height: 62vh; }
         /* Pop-up « Orchestre » : fenêtre flottante à gauche de l'écran, sans voile, déplaçable par sa barre de titre */
@@ -849,19 +834,19 @@
    Gauche : annotation générale de la grille (fixe) ; droite : annotation de la mesure en cours / sélectionnée. */
 #jam-scale-visualizer.jam-annot-grid { align-items: stretch; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; grid-auto-rows: minmax(150px, auto); }
 .jam-annot-zone { display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 150px; }
-.jam-annot-head { flex: 0 0 auto; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; user-select: none; }
+.jam-annot-head { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; min-height: 22px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; user-select: none; }
 .jam-annot-text {
-    flex: 1 1 auto; width: 100%; min-height: 120px; box-sizing: border-box; overflow-y: auto;
+    position: relative; flex: 1 1 auto; width: 100%; min-height: 120px; box-sizing: border-box; overflow: auto;
     padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a;
     font: 400 15px/1.45 Kalam, cursive; /* police « Real Book » par défaut, comme les accords de la grille (ui/annot-bar.js : ANNOT_FONT_DEFAULT_CSS) */
-    white-space: pre-wrap; overflow-wrap: anywhere; cursor: text;
+    white-space: normal; overflow-wrap: anywhere; cursor: default; user-select: none; -webkit-user-select: none;
     box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
 }
-/* Zone vide : texte d'aide gris (il disparaît dès qu'on écrit) */
-.jam-annot-text:empty::before { content: attr(data-placeholder); color: #94a3b8; pointer-events: none; }
+/* Zone sans aucun bloc : texte d'aide gris (il disparaît dès qu'un bloc est posé). On n'écrit jamais en dehors d'un cadre. */
+.jam-annot-text:not(:has(.annot-staff, .annot-frame))::before { content: attr(data-placeholder); color: #94a3b8; pointer-events: none; }
 .jam-annot-text:focus { outline: 2px solid #3b82f6; outline-offset: 1px; }
-.jam-annot-text[contenteditable="false"] { cursor: default; }
-.jam-annot-text[contenteditable="false"]:focus { outline: none; }
+.jam-annot-text[data-editable="false"] { cursor: default; }
+.jam-annot-text[data-editable="false"]:focus { outline: none; }
 .jam-annot-text ul { margin: 2px 0 2px 1.3em; padding: 0; list-style: disc; }
 .jam-annot-text li { margin: 0; }
 
@@ -934,6 +919,7 @@
 .jam-annot-grid .ab-btn { height: 28px; }
 .jam-annot-grid .ab-sel { height: 28px; }
 .jam-annot-grid .ab-sep { height: 18px; }
+.jam-annot-grid .at-btn { height: 22px; }
 @media (min-width: 1024px) {
     #view-jam #jam-scales-card.jam-annot-mode { margin: 8px 12px 12px; }
     #view-jam:not(.jam-playing) #jam-scales-card.jam-annot-mode { min-height: 220px; }
@@ -973,9 +959,9 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
     #view-jam.jam-antiseche-hidden #jam-chord-card #jam-chord-sequence-display { flex: 1 1 auto !important; }
 }
 /* Plein écran : les antisèches (jam lancée) occupent toute la largeur libre de la carte, au lieu de rester calées à gauche */
-#view-jam.jam-playing #jam-chord-card:fullscreen #jam-scales-card { align-self: stretch; margin: 12px 0 0; }
+#view-jam.jam-playing #jam-chord-card.jam-pseudo-fs #jam-scales-card { align-self: stretch; margin: 12px 0 0; }
 /* Le bouton ne sert à rien là où les antisèches ne s'affichent jamais : plein écran à l'arrêt, plein écran simulé (téléphone) */
-#view-jam:not(.jam-playing) #jam-chord-card:fullscreen #jam-antiseche-btn, #view-jam #jam-chord-card.jam-pseudo-fs #jam-antiseche-btn { display: none; }
+#view-jam:not(.jam-playing) #jam-chord-card.jam-pseudo-fs #jam-antiseche-btn, #view-jam #jam-chord-card.jam-pseudo-lean #jam-antiseche-btn { display: none; }
 
 /* Portées éditables glissées dans le texte (ui/staff-editor.js).
    Au repos, le cadre épouse la portée écrite (le dessin est recadré par le script) : plusieurs portées, ou une portée et du texte, tiennent sur la même ligne.
@@ -996,24 +982,24 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 .annot-staff-svg .vf-stem path { stroke-width: 2.1; stroke-linecap: round; }
 .annot-staff-svg .vf-stavebarline rect { stroke: currentColor; stroke-width: .7; }
 .annot-staff.is-active .annot-staff-svg { overflow-x: auto; overflow-y: hidden; min-height: 110px; line-height: normal; }
-.jam-annot-text[contenteditable="true"] .annot-staff.is-active .annot-staff-svg { cursor: crosshair; }
+.jam-annot-text[data-editable="true"] .annot-staff.is-active .annot-staff-svg { cursor: crosshair; }
 /* Hors édition (zone modifiable), le bloc se saisit n'importe où : curseur « main », et le doigt le déplace sans faire défiler la page */
-.jam-annot-text[contenteditable="true"] .annot-staff:not(.is-active) { cursor: grab; touch-action: none; }
-.jam-annot-text[contenteditable="true"] .annot-staff:not(.is-active):active { cursor: grabbing; }
+.jam-annot-text[data-editable="true"] .annot-staff:not(.is-active) { cursor: grab; touch-action: none; }
+.jam-annot-text[data-editable="true"] .annot-staff:not(.is-active):active { cursor: grabbing; }
 /* Crayon ✎ : ouvre la portée en édition (un second clic en sort) ; visible au survol, toujours visible sur écran tactile */
 .annot-staff-edit, .annot-frame-edit { display: none; position: absolute; left: -9px; top: -9px; z-index: 3; width: 20px; height: 20px; padding: 0; align-items: center; justify-content: center; border: 0; border-radius: 10px;
     background: #2563eb; color: #fff; font: 700 12px/1 system-ui, sans-serif; cursor: pointer; box-shadow: 0 1px 4px rgba(0, 0, 0, .45); }
 .annot-staff-edit:hover, .annot-frame-edit:hover { background: #1d4ed8; }
-.jam-annot-text[contenteditable="true"] .annot-staff:hover > .annot-staff-edit,
-.jam-annot-text[contenteditable="true"] .annot-staff.is-picked > .annot-staff-edit,
-.jam-annot-text[contenteditable="true"] .annot-staff.is-active > .annot-staff-edit,
-.jam-annot-text[contenteditable="true"] .annot-frame:hover > .annot-frame-edit,
-.jam-annot-text[contenteditable="true"] .annot-frame.is-picked > .annot-frame-edit,
-.jam-annot-text[contenteditable="true"] .annot-frame.is-editing > .annot-frame-edit { display: flex; }
+.jam-annot-text[data-editable="true"] .annot-staff:hover > .annot-staff-edit,
+.jam-annot-text[data-editable="true"] .annot-staff.is-picked > .annot-staff-edit,
+.jam-annot-text[data-editable="true"] .annot-staff.is-active > .annot-staff-edit,
+.jam-annot-text[data-editable="true"] .annot-frame:hover > .annot-frame-edit,
+.jam-annot-text[data-editable="true"] .annot-frame.is-picked > .annot-frame-edit,
+.jam-annot-text[data-editable="true"] .annot-frame.is-editing > .annot-frame-edit { display: flex; }
 .annot-staff.is-active > .annot-staff-edit, .annot-frame.is-editing > .annot-frame-edit { background: #1e293b; box-shadow: 0 0 0 2px #3b82f6; }
 @media (hover: none) {
-    .jam-annot-text[contenteditable="true"] .annot-staff > .annot-staff-edit,
-    .jam-annot-text[contenteditable="true"] .annot-frame > .annot-frame-edit { display: flex; opacity: .85; width: 24px; height: 24px; left: -11px; top: -11px; border-radius: 12px; }
+    .jam-annot-text[data-editable="true"] .annot-staff > .annot-staff-edit,
+    .jam-annot-text[data-editable="true"] .annot-frame > .annot-frame-edit { display: flex; opacity: .85; width: 24px; height: 24px; left: -11px; top: -11px; border-radius: 12px; }
 }
 /* Pendant un déplacement : aperçu du bloc là où il sera déposé */
 .annot-drag-ghost { position: fixed; z-index: 2200; pointer-events: none; opacity: .85; background: #fff; border: 1px solid #3b82f6; border-radius: 8px; padding: 4px; line-height: 0;
@@ -1039,9 +1025,9 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 .annot-frame.is-editing .annot-frame-body:empty::before { content: attr(data-placeholder); color: #94a3b8; pointer-events: none; }
 .annot-frame.is-picked { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .45); }
 .annot-frame.is-dragging-src { opacity: .35; }
-.jam-annot-text[contenteditable="true"] .annot-frame:not(.is-editing) { cursor: grab; touch-action: none; }
-.jam-annot-text[contenteditable="true"] .annot-frame:not(.is-editing):hover { border-color: #3b82f6; }
-.jam-annot-text[contenteditable="true"] .annot-frame:not(.is-editing):active { cursor: grabbing; }
+.jam-annot-text[data-editable="true"] .annot-frame:not(.is-editing) { cursor: grab; touch-action: none; }
+.jam-annot-text[data-editable="true"] .annot-frame:not(.is-editing):hover { border-color: #3b82f6; }
+.jam-annot-text[data-editable="true"] .annot-frame:not(.is-editing):active { cursor: grabbing; }
 .annot-drag-ghost.annot-drag-ghost-frame { padding: 0; line-height: normal; overflow: hidden; border-radius: 6px; font: 400 15px/1.45 Kalam, cursive; color: #0f172a; }
 .annot-drag-ghost-frame .annot-frame-clip { position: absolute; inset: 0; }
 /* Outils de la portée active : ils prennent la place de la barre de texte (dans la barre collée en haut de l'onglet) ; cachés sinon */
@@ -1073,3 +1059,28 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 .ns-zoom { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 8px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #cbd5e1; font: 600 12px system-ui, sans-serif; cursor: pointer; }
 .ns-range { width: 84px; height: 18px; margin: 0; accent-color: #3b82f6; cursor: pointer; }
 .ns-zoom-val { min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; color: #e2e8f0; }
+
+/* ===== Canevas des annotations : chaque bloc (portée, cadre de texte) est posé à sa place (data-at), indépendamment des autres ; ils peuvent se recouvrir ===== */
+.jam-annot-text:not(.legacy-flow) > .annot-staff, .jam-annot-text:not(.legacy-flow) > .annot-frame { position: absolute; display: block; margin: 0; }
+/* Une portée en édition prend toute la largeur de la zone (sa hauteur et son rang d'empilement restent) */
+.jam-annot-text:not(.legacy-flow) > .annot-staff.is-active { left: 6px !important; right: 6px; width: auto; z-index: 20; }
+.jam-annot-text > .annot-frame.is-editing { z-index: 20; }
+/* Bloc sans bord : seul son contenu reste visible (un liseré apparaît au survol, à la sélection et à l'édition pour pouvoir le saisir) */
+.annot-staff.no-border, .annot-frame.no-border { border-color: transparent; background: transparent; box-shadow: none; }
+.jam-annot-text[data-editable="true"] .annot-staff.no-border:not(.is-active):hover, .jam-annot-text[data-editable="true"] .annot-frame.no-border:not(.is-editing):hover { border-style: dashed; border-color: #60a5fa; }
+.annot-staff.no-border.is-active, .annot-frame.no-border.is-editing { border-color: #3b82f6; background: #fff; box-shadow: 0 0 0 1px #3b82f6; }
+.annot-staff.no-border.is-picked, .annot-frame.no-border.is-picked { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .45); }
+/* Calque des repères d'alignement et du rectangle de sélection : il n'existe que le temps d'un geste */
+.annot-overlay { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: visible; pointer-events: none; z-index: 40; }
+.annot-guide { position: absolute; background: #ec4899; pointer-events: none; }
+.annot-guide-x { width: 1px; }
+.annot-guide-y { height: 1px; }
+.annot-marquee { position: absolute; box-sizing: border-box; border: 1px solid #3b82f6; background: rgba(59, 130, 246, .12); pointer-events: none; }
+/* Boutons de disposition, en tête de chaque zone : aimant, cadre visible, premier plan, arrière-plan */
+.jam-annot-tools { margin-left: auto; display: inline-flex; align-items: center; gap: 2px; text-transform: none; letter-spacing: 0; }
+.at-btn { height: 24px; min-width: 26px; padding: 0 5px; color: #94a3b8; }
+.at-btn:hover:not(:disabled) { color: #fff; }
+.at-btn:disabled { opacity: .35; cursor: default; }
+.at-btn.is-on { color: #fff; }
+.jam-annot-text.has-picks { outline: 1px solid rgba(59, 130, 246, .35); outline-offset: 1px; }
+#view-jam.jam-playing .jam-annot-tools { display: none; }

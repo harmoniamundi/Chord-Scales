@@ -565,3 +565,32 @@ describe('export : options, filtrage de la grille et des réglages', () => {
         assert.match(F.describeExport(F.exportOptionsFor('full')), /volumes et réverbération/);
     });
 });
+
+describe('annotations : place et bord des blocs (data-at, data-border)', () => {
+    const san = (h) => F.sanitizeNoteHtml(h, 2000);
+    test('une portée garde sa place et son bord caché', () => {
+        const h = '<div class="annot-staff" data-staff="t,4/4,0;q:c4" data-at="12,34" data-border="0"></div>';
+        assert.equal(san(h), h);
+    });
+    test('un cadre de texte aussi, avec son texte mis en forme', () => {
+        const h = '<div class="annot-frame" data-frame="200" data-at="1,2" data-border="0"><b>hi</b></div>';
+        assert.equal(san(h), h);
+    });
+    test('place invalide (négative, hors limite, texte) : retirée, le bloc reste', () => {
+        assert.equal(san('<div class="annot-staff" data-staff="t,4/4,0;q:c4" data-at="-5,9"></div>'), '<div class="annot-staff" data-staff="t,4/4,0;q:c4"></div>');
+        assert.equal(san('<div class="annot-staff" data-staff="t,4/4,0;q:c4" data-at="0,99999"></div>'), '<div class="annot-staff" data-staff="t,4/4,0;q:c4"></div>');
+        assert.equal(san('<div class="annot-staff" data-staff="t,4/4,0;q:c4" data-at="x"></div>'), '<div class="annot-staff" data-staff="t,4/4,0;q:c4"></div>');
+    });
+    test('seule la valeur « 0 » cache le bord ; le reste est ignoré', () => {
+        assert.equal(san('<div class="annot-staff" data-staff="t,4/4,0;q:c4" data-border="1"></div>'), '<div class="annot-staff" data-staff="t,4/4,0;q:c4"></div>');
+        assert.equal(san('<div class="annot-staff" data-staff="t,4/4,0;q:c4" data-border="non"></div>'), '<div class="annot-staff" data-staff="t,4/4,0;q:c4"></div>');
+    });
+    test('une annotation ancienne (data-pos, texte libre) est toujours acceptée pour être migrée à l\'ouverture', () => {
+        const h = '<div class="annot-staff" data-staff="t,4/4,0;q:c4" data-pos="3,-4"></div>';
+        assert.equal(san(h), h);
+        assert.equal(san('texte <b>libre</b>'), 'texte <b>libre</b>');
+    });
+    test('un attribut inconnu est retiré', () => {
+        assert.equal(san('<div class="annot-frame" data-frame="200" onclick="x()" data-evil="1">a</div>'), '<div class="annot-frame" data-frame="200">a</div>');
+    });
+});

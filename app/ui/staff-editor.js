@@ -1,17 +1,19 @@
 // ui/staff-editor.js — portées éditables dans les annotations (onglet « Annotations » du mode Jam) : dessin avec VexFlow
 // et édition à la souris, au doigt et au clavier. Le format, les mesures et les hauteurs sont dans ui/staff-notes.js.
-// Une portée est un élément <div class="annot-staff" data-staff="…"> glissé dans le texte de l'annotation ; le texte enregistré
-// ne garde que ce petit bloc (le dessin et la barre d'outils sont refaits à l'ouverture).
+// Une portée est un élément <div class="annot-staff" data-staff="…" data-at="x,y"> posé sur le canevas de la zone d'annotation (ui/annot-canvas.js) ;
+// le texte enregistré ne garde que ce petit bloc (le dessin et la barre d'outils sont refaits à l'ouverture). Elle a sa place à elle, indépendante
+// de celle des autres blocs, et son cadre peut être caché (data-border="0").
 // Écrire : choisir une durée, cliquer sur la portée (la note se pose à la hauteur cliquée, avant la note qui suit) ;
 // cliquer une note pour la sélectionner puis la glisser vers le haut ou le bas, ou utiliser les flèches ; Suppr. l'enlève.
 // Deux états : portée « en édition » (elle occupe toute la largeur de la zone, avec sa barre d'outils) ou portée « au repos »
-// (le cadre épouse la portée telle qu'elle est écrite ; elle se déplace en la glissant, hors édition, et se copie-colle d'une zone à l'autre).
+// (le cadre épouse la portée telle qu'elle est écrite ; elle se déplace en la glissant, hors édition, avec les autres blocs sélectionnés, et se copie-colle d'une zone à l'autre).
 // Chargé par index.html via <script src="ui/staff-editor.js"> (après ui/staff-notes.js) et testé par ui/staff-editor.test.js.
 
 // Sous Node (tests), le format se charge ; en navigateur ce sont des globaux (ui/staff-notes.js).
 const NSE_N = (typeof parseStaff !== 'undefined')
     ? { parseStaff, formatStaff, staffDefault, layoutStaff, meterBeamUnits, pitchFromDia, pitchDia, pitchLabel, pitchMidi, midiToName, diaFromY, yFromDia,
         playbackPlan, insertEvent, removeEvent, updateEvent, alterEvent, shiftEvent, cloneStaff, staffClipText, frameClipText, parseFrameBox, splitStaffClips, parseStaffPos, formatStaffPos, clampStaffPos,
+        parseBlockAt, formatBlockAt, clampBlockAt, parseBlockBorder,
         SN_KEY_NAMES, SN_KEY_LABELS, SN_BOTTOM_LINE, SN_METERS, SN_SIZE_MIN, SN_SIZE_MAX, SN_SIZE_STEP, SN_SIZE_DEFAULT, clampStaffSize }
     : require('./staff-notes.js');
 
@@ -229,76 +231,6 @@ function nseToolState(st, sel, selAuto, cur) {
     return e ? { d: e.d, dot: !!e.dot, tri: !!e.tri, rest: !e.p } : { d: cur.d, dot: !!cur.dot, tri: !!cur.tri, rest: !!cur.rest };
 }
 
-// Texte brut d'un fragment de document (sélection copiée) : le texte, des retours à la ligne, « [portée:…] » pour chaque portée et « [cadre:…] » pour chaque cadre de texte.
-function nseFragmentToClipText(root) {
-    let out = '';
-    const walk = (node) => {
-        Array.from(node.childNodes).forEach((n) => {
-            if (n.nodeType === 3) { out += n.nodeValue; return; }
-            if (n.nodeType !== 1) return;
-            if (n.classList && n.classList.contains('annot-staff')) {
-                const st = NSE_N.parseStaff(n.getAttribute('data-staff') || '');
-                if (st) out += NSE_N.staffClipText(st);
-                return;
-            }
-            if (n.classList && n.classList.contains('annot-frame')) { // cadre de texte (ui/text-frame.js) : largeur / échelle et texte mis en forme
-                const box = NSE_N.parseFrameBox(n.getAttribute('data-frame') || '');
-                const body = n.querySelector('.annot-frame-body');
-                if (box) out += NSE_N.frameClipText(box, body ? body.innerHTML : n.innerHTML);
-                return;
-            }
-            const tag = String(n.tagName || '').toUpperCase();
-            if (tag === 'BR') { out += '\n'; return; }
-            if ((tag === 'DIV' || tag === 'P' || tag === 'LI') && out && !out.endsWith('\n')) out += '\n';
-            walk(n);
-        });
-    };
-    walk(root);
-    return out.replace(/ /g, ' ');
-}
-
-// Position du texte sous un point de l'écran, comme Range (Chrome, Safari) ou position (Firefox) ; null si le navigateur ne sait pas.
-function nseCaretRangeFromPoint(x, y) {
-    if (document.caretRangeFromPoint) return document.caretRangeFromPoint(x, y);
-    if (document.caretPositionFromPoint) {
-        const p = document.caretPositionFromPoint(x, y);
-        if (!p) return null;
-        const r = document.createRange();
-        r.setStart(p.offsetNode, p.offset);
-        r.collapse(true);
-        return r;
-    }
-    return null;
-}
-
-// Bloc (portée ou cadre de texte, ui/text-frame.js) qui contient le nœud, ou null : un point d'insertion ne peut pas tomber à l'intérieur d'un bloc.
-function nseStaffAncestor(node, zone) {
-    let n = node && node.nodeType === 1 ? node : (node ? node.parentElement : null);
-    while (n && n !== zone) { if (n.classList && (n.classList.contains('annot-staff') || n.classList.contains('annot-frame'))) return n; n = n.parentElement; }
-    return null;
-}
-
-// Où tomberait un bloc portée lâché au point (x, y) : { zone, range } (range réduit à un point d'insertion), ou null hors des zones.
-// Un point d'insertion tombé dans une portée est ramené juste avant ou juste après elle (selon la moitié visée).
-function nseDropTarget(zones, x, y) {
-    const zone = zones.find((z) => { const r = z.getBoundingClientRect(); return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; });
-    if (!zone) return null;
-    let range = nseCaretRangeFromPoint(x, y);
-    if (!range || !zone.contains(range.startContainer)) {
-        range = document.createRange();
-        range.selectNodeContents(zone);
-        range.collapse(false);
-    }
-    const host = nseStaffAncestor(range.startContainer, zone);
-    if (host) {
-        const r = host.getBoundingClientRect();
-        range = document.createRange();
-        if (x > (r.left + r.right) / 2) range.setStartAfter(host); else range.setStartBefore(host);
-        range.collapse(true);
-    }
-    return { zone, range };
-}
-
 // ----- Barre d'outils de la portée (petites icônes dessinées, sans dépendre d'une police musicale) -----
 
 function nseNoteIcon(d) {
@@ -405,11 +337,10 @@ function nseNearestLetter(p, letter, ks) {
 let NSE_ACTIVE = null; // la portée dont la barre d'outils est ouverte (une seule à la fois)
 
 // opts : isEditable() → l'annotation est modifiable ; onChange(view) après chaque modification ; onActivate(view) quand on clique dans la portée ;
-//        zones() → les zones d'annotation modifiables où l'on peut déposer la portée ; maxStaves : nombre de portées permis par zone ;
-//        onPick(view) quand le bloc est sélectionné ; onTransfer(view, zone, range) quand il est déposé dans une autre zone ;
+//        canvas() → le canevas de la zone (ui/annot-canvas.js) : sélection et déplacement des blocs ;
 //        onCopy(view), onPaste(view) : boutons Copier / Coller de la barre d'outils ;
-//        onGrab(view) quand le bloc est saisi (avant tout déplacement) ;
-//        onMoved(view) quand le bloc vient d'être déplacé ou décalé (à enregistrer tout de suite, pour que ↶ l'annule) ;
+//        onGrab(view) quand le bloc est saisi pour être redimensionné (avant tout changement) ;
+//        onMoved(view) quand le bloc vient d'être redimensionné (à enregistrer tout de suite, pour que ↶ l'annule) ;
 //        audio : { ready() → Promise, now(), play(midi, secondes, durée) → nœud audio ou null, bpm() }
 class NoteStaffView {
     constructor(el, opts) {
@@ -430,7 +361,7 @@ class NoteStaffView {
             + '<div class="annot-staff-svg"></div><div class="annot-staff-tools" role="toolbar" aria-label="Édition de la portée"></div>';
         // La barre d'outils de la portée prend la place de la barre de texte tant que la portée est active (opts.toolsHost) ; sinon elle reste ici, cachée.
         this.editBtn = el.querySelector('.annot-staff-edit');
-        this.pos = NSE_N.parseStaffPos(el.getAttribute('data-pos') || '') || { x: 0, y: 0 }; // décalage libre (pixels) par rapport à la place dans le texte
+        this._initPlace();
         this._showPos();
         this.svgHost = el.querySelector('.annot-staff-svg');
         this.tools = el.querySelector('.annot-staff-tools');
@@ -444,6 +375,18 @@ class NoteStaffView {
 
     // En édition : la portée occupe toute la largeur de la zone, avec ses outils. Au repos : le cadre épouse la portée écrite.
     get isActive() { return this.el.classList.contains('is-active'); }
+
+    _canvas() { return this.opts.canvas ? this.opts.canvas() : null; }
+
+    // Place de la portée : data-at (place sur le canevas de la zone). Une portée écrite avant les canevas n'a que l'ancien décalage data-pos, relatif
+    // à sa place dans le texte : `legacy` jusqu'à ce que la zone ait reconstruit la mise en page (index.html, _annotMigrate).
+    _initPlace() {
+        const at = NSE_N.parseBlockAt(this.el.getAttribute('data-at') || '');
+        this.legacy = !at;
+        this.pos = at || NSE_N.parseStaffPos(this.el.getAttribute('data-pos') || '') || { x: 0, y: 0 };
+        this.border = NSE_N.parseBlockBorder(this.el.getAttribute('data-border'));
+        this.el.classList.toggle('no-border', !this.border);
+    }
 
     // La zone d'annotation qui contient la portée (sa largeur fixe la largeur de mise en page).
     _zone() { return this.el.closest('.jam-annot-text') || this.el.parentElement; }
@@ -531,6 +474,8 @@ class NoteStaffView {
     activate() {
         if (NSE_ACTIVE && NSE_ACTIVE !== this) NSE_ACTIVE.deactivate();
         const wasActive = this.isActive;
+        const cv = this._canvas();
+        if (cv) cv.clearSelection(true); // une portée en édition n'est pas « sélectionnée » : ses outils remplacent ceux du texte
         NSE_ACTIVE = this;
         this.el.classList.add('is-active');
         this.el.classList.remove('is-picked');
@@ -609,12 +554,12 @@ class NoteStaffView {
             if (!this.editable) return;
             if (this.isActive) { this.deactivate(); if (this.opts.onFocusBack) this.opts.onFocusBack(this); } else this.activate();
         });
-        // Hors édition, un clic-glisser n'importe où dans le bloc le déplace ; un clic le sélectionne ; un double-clic le remet à sa place dans le texte.
+        // Hors édition, un clic-glisser n'importe où dans le bloc le déplace (avec les autres blocs sélectionnés) ; un clic le sélectionne ; un double-clic l'ouvre en édition.
         this.el.addEventListener('pointerdown', (ev) => { if (!ev.target.closest('.annot-staff-edit')) this._blockDown(ev); });
         // Les bords et les coins redimensionnent le bloc, comme pour un cadre de texte : le curseur qui les survole change de forme.
         this.el.addEventListener('pointermove', (ev) => this._hover(ev));
         this.el.addEventListener('pointerleave', () => { if (!this._resizing) this.el.style.cursor = ''; });
-        this.el.addEventListener('dblclick', (ev) => { if (ev.target.closest('.annot-staff-edit')) return; ev.preventDefault(); ev.stopPropagation(); if (this.editable && !this.isActive) this.resetPos(); });
+        this.el.addEventListener('dblclick', (ev) => { if (ev.target.closest('.annot-staff-edit')) return; ev.preventDefault(); ev.stopPropagation(); if (this.editable && !this.isActive) this.activate(); });
     }
 
     _local(ev) {
@@ -744,58 +689,50 @@ class NoteStaffView {
 
     _hideGhost() { const g = this.svgHost.querySelector('.annot-ghost'); if (g) g.remove(); }
 
-    // ----- Déplacer le bloc  : au repos seulement -----
+    // ----- Place du bloc sur le canevas -----
 
-    // Décalage libre : le bloc garde sa place dans le texte et est simplement décalé de pos.x, pos.y pixels (data-pos, enregistré avec l'annotation).
+    // Affiche la place (data-at) : la portée est positionnée en absolu dans sa zone. Une portée « héritée » (pas encore migrée) garde l'ancien décalage relatif.
     _showPos() {
         const { x, y } = this.pos;
-        this.el.style.left = x ? `${x}px` : '';
-        this.el.style.top = y ? `${y}px` : '';
-        const t = NSE_N.formatStaffPos(this.pos);
-        if (t) this.el.setAttribute('data-pos', t); else this.el.removeAttribute('data-pos');
+        if (this.legacy) {
+            this.el.style.left = x ? `${x}px` : '';
+            this.el.style.top = y ? `${y}px` : '';
+            const t = NSE_N.formatStaffPos(this.pos);
+            if (t) this.el.setAttribute('data-pos', t); else this.el.removeAttribute('data-pos');
+            return;
+        }
+        this.el.style.left = `${x}px`;
+        this.el.style.top = `${y}px`;
+        this.el.setAttribute('data-at', NSE_N.formatBlockAt(this.pos));
+        this.el.removeAttribute('data-pos');
     }
 
-    // Pose le décalage (après l'avoir ramené dans la zone) ; renvoie true s'il a changé.
-    setPos(pos, opts = {}) {
-        let x = NSE_N.clampStaffPos(pos.x), y = NSE_N.clampStaffPos(pos.y);
-        if (opts.clamp !== false) {
-            const z = this._zone();
-            if (z && this.el.isConnected) {
-                const zr = z.getBoundingClientRect(), r = this.el.getBoundingClientRect();
-                const nat = { l: r.left - this.pos.x, t: r.top - this.pos.y };           // place du bloc sans décalage
-                const minX = zr.left + z.clientLeft - nat.l, maxX = zr.left + z.clientLeft + z.clientWidth - r.width - nat.l;
-                const minY = zr.top + z.clientTop - z.scrollTop - nat.t;                  // le haut du contenu de la zone
-                x = Math.max(Math.min(x, Math.floor(maxX)), Math.ceil(minX));
-                if (!(maxX >= minX)) x = Math.ceil(minX);
-                y = Math.max(y, Math.ceil(minY));
-            }
-        }
-        if (x === this.pos.x && y === this.pos.y) return false;
+    // Pose la place (entiers positifs, sur le canevas) ; renvoie true si elle a changé. N'enregistre rien (voir commit).
+    setAt(pos) {
+        const x = NSE_N.clampBlockAt(pos.x), y = NSE_N.clampBlockAt(pos.y);
+        if (!this.legacy && x === this.pos.x && y === this.pos.y) return false;
+        this.legacy = false;
         this.pos = { x, y };
         this._showPos();
         return true;
     }
 
-    // Décale le bloc de dx, dy pixels (flèches du clavier quand il est sélectionné).
-    nudge(dx, dy) {
-        if (!this.setPos({ x: this.pos.x + dx, y: this.pos.y + dy })) return false;
-        this.commit();
-        if (this.opts.onMoved) this.opts.onMoved(this, true);
+    // Place le bloc pour que son coin haut gauche tombe en `desired` { left, top } (pixels de l'écran).
+    placeAt(desired) {
+        const z = this._zone();
+        if (!z) return;
+        const r = z.getBoundingClientRect();
+        this.setAt({ x: Math.max(0, desired.left - r.left - z.clientLeft + z.scrollLeft), y: Math.max(0, desired.top - r.top - z.clientTop + z.scrollTop) });
+    }
+
+    // Bord du bloc visible ou non (la portée, elle, reste affichée) ; renvoie true si cela change.
+    setBorder(on) {
+        on = !!on;
+        if (on === this.border) return false;
+        this.border = on;
+        this.el.classList.toggle('no-border', !on);
+        if (on) this.el.removeAttribute('data-border'); else this.el.setAttribute('data-border', '0');
         return true;
-    }
-
-    // Remet le bloc à sa place dans le texte (double-clic sur le bloc).
-    resetPos() {
-        if (!this.pos.x && !this.pos.y) return;
-        this.pos = { x: 0, y: 0 };
-        this._showPos();
-        this.commit();
-        if (this.opts.onMoved) this.opts.onMoved(this);
-    }
-
-    // Le bloc peut être déposé dans la zone où il est, ou dans une autre zone modifiable qui a encore de la place.
-    _canDropIn(zone) {
-        return zone === this._zone() || zone.querySelectorAll('.annot-staff').length < (this.opts.maxStaves || 8);
     }
 
     // ----- Redimensionner : bords et coins (hors édition), comme un cadre de texte (ui/text-frame.js) -----
@@ -816,6 +753,8 @@ class NoteStaffView {
 
     _resizeDown(ev, zone) {
         const el = this.el;
+        const cv = this._canvas();
+        if (cv) cv.select([el], 'set', true);
         if (this.opts.onGrab) this.opts.onGrab(this);
         const r0 = el.getBoundingClientRect();
         const s0 = this.st.size || NSE_N.SN_SIZE_DEFAULT, pos0 = { ...this.pos };
@@ -861,117 +800,23 @@ class NoteStaffView {
         document.addEventListener('keydown', onKey, true);
     }
 
-    // Hors édition, appui sur le bloc : un clic le sélectionne (⌘C copie, ⌘X coupe, Suppr. l'enlève, les flèches le décalent d'un pixel). Glisser : déplace le bloc
-    // au pixel près, là où l'aperçu se trouve (il garde alors sa place dans le texte, avec un décalage), y compris dans l'autre zone ;
-    // Échap annule. Un décalage de moins de 3 pixels revient à la place du texte (touche Alt enfoncée : pas d'aimant).
+    // Hors édition, appui sur le bloc : un clic le sélectionne (Maj / ⌘ / Ctrl + clic : ajoute ou retire le bloc de la sélection ; ⌘C copie, ⌘X coupe, Suppr. enlève,
+    // les flèches décalent d'un pixel). Un appui sur un bord ou un coin le redimensionne ; ailleurs, glisser déplace toute la sélection (ui/annot-canvas.js).
     _blockDown(ev) {
         if (!this.editable || ev.button > 0 || this.isActive) return;
         ev.preventDefault();
         ev.stopPropagation();
         const zone = this._zoneAt(ev);
-        if (zone) { this._resizeDown(ev, zone); return; }
-        const el = this.el, grip = el;
-        if (this.opts.onGrab) this.opts.onGrab(this);
-        const x0 = ev.clientX, y0 = ev.clientY;
-        const r0 = el.getBoundingClientRect();
-        const gx = x0 - r0.left, gy = y0 - r0.top;      // où le bloc a été saisi
-        const zones = () => (this.opts.zones ? this.opts.zones() : [this._zone()]).filter(Boolean);
-        let dragging = false, ghost = null, timer = null, lastX = x0, lastY = y0, alt = false;
-        try { grip.setPointerCapture(ev.pointerId); } catch (e) { /* non pris en charge */ }
-        const where = document.fullscreenElement || document.body;
-        const refresh = () => { if (ghost) { ghost.style.left = `${Math.round(lastX - gx)}px`; ghost.style.top = `${Math.round(lastY - gy)}px`; } };
-        const begin = () => {
-            dragging = true;
-            el.classList.add('is-dragging-src');
-            ghost = document.createElement('div');
-            ghost.className = 'annot-drag-ghost';
-            ghost.style.boxSizing = 'border-box'; ghost.style.width = `${Math.round(r0.width)}px`; ghost.style.height = `${Math.round(r0.height)}px`; ghost.style.maxWidth = 'none';
-            const svg = this.svgHost.querySelector('svg');
-            if (svg) ghost.appendChild(svg.cloneNode(true));
-            where.appendChild(ghost);
-            // près du haut ou du bas d'une zone, elle défile toute seule
-            timer = setInterval(() => {
-                const z = zones().find((q) => { const r = q.getBoundingClientRect(); return lastX >= r.left && lastX <= r.right && lastY >= r.top && lastY <= r.bottom; });
-                if (!z) return;
-                const r = z.getBoundingClientRect();
-                if (lastY < r.top + 26) z.scrollTop -= 14; else if (lastY > r.bottom - 26) z.scrollTop += 14; else return;
-            }, 50);
-        };
-        const end = (drop) => {
-            grip.removeEventListener('pointermove', onMove);
-            grip.removeEventListener('pointerup', onUp);
-            grip.removeEventListener('pointercancel', onCancel);
-            document.removeEventListener('keydown', onKey, true);
-            try { grip.releasePointerCapture(ev.pointerId); } catch (e) { /* déjà relâchée */ }
-            if (timer) clearInterval(timer);
-            if (ghost) ghost.remove();
-            el.classList.remove('is-dragging-src');
-            if (!dragging) { if (drop) this._pick(); return; }
-            if (!drop) return;
-            const target = nseDropTarget(zones(), lastX, lastY);       // la zone sous le pointeur
-            if (!target || !this._canDropIn(target.zone)) return;      // lâché hors d'une zone : rien ne bouge
-            this._dropAt(target, { left: lastX - gx, top: lastY - gy }, !alt);
-        };
-        const onMove = (e2) => {
-            lastX = e2.clientX; lastY = e2.clientY; alt = !!e2.altKey;
-            if (!dragging) { if (Math.hypot(lastX - x0, lastY - y0) < 5) return; begin(); }
-            refresh();
-        };
-        const onUp = (e2) => { alt = !!(e2 && e2.altKey); end(true); };
-        const onCancel = () => end(false);
-        const onKey = (k) => { if (k.key === 'Escape') { k.preventDefault(); k.stopPropagation(); end(false); } };
-        grip.addEventListener('pointermove', onMove);
-        grip.addEventListener('pointerup', onUp);
-        grip.addEventListener('pointercancel', onCancel);
-        document.addEventListener('keydown', onKey, true);
+        const cv = this._canvas();
+        const additive = ev.shiftKey || ev.metaKey || ev.ctrlKey;
+        if (zone && !additive) this._resizeDown(ev, zone);
+        else if (cv) cv.startMove(this, ev);
     }
 
-    // Sélectionne le bloc entier (comme une image dans un texte) : la zone prend le focus pour que ⌘C, ⌘X, Suppr. et les flèches s'appliquent à lui.
+    // Sélectionne le bloc (seul) : la zone prend le focus pour que ⌘C, ⌘X, Suppr. et les flèches s'appliquent à lui.
     _pick() {
-        if (this.opts.onPick) this.opts.onPick(this);
-        const sel = window.getSelection();
-        if (!sel) return;
-        const r = document.createRange();
-        r.selectNode(this.el);
-        sel.removeAllRanges();
-        sel.addRange(r);
-        this.el.classList.add('is-picked');
-    }
-
-    // Place le bloc pour que son coin haut gauche tombe en `desired` { left, top } (pixels de l'écran) : on mesure sa place dans le texte sans décalage,
-    // le décalage est la différence. `snap` : un écart de 3 pixels ou moins revient à la place du texte.
-    placeAt(desired, snap = true) {
-        this.pos = { x: 0, y: 0 };
-        this._showPos();
-        const r = this.el.getBoundingClientRect();
-        let x = Math.round(desired.left - r.left), y = Math.round(desired.top - r.top);
-        if (snap && Math.abs(x) <= 3 && Math.abs(y) <= 3) { x = 0; y = 0; }
-        this.setPos({ x, y });
-    }
-
-    // Dépose le bloc : il s'accroche au texte près du coin haut gauche de l'aperçu (dans la zone sous le pointeur) puis y est décalé au pixel près.
-    // Autre zone : le bloc y est recréé (onTransfer) et décalé de la même façon.
-    _dropAt(target, desired, snap) {
-        const el = this.el, zone = target.zone;
-        const zr = zone.getBoundingClientRect();
-        const ax = Math.max(zr.left + 2, Math.min(zr.right - 2, desired.left + 8)), ay = Math.max(zr.top + 2, Math.min(zr.bottom - 2, desired.top + 8));
-        const anchor = nseDropTarget([zone], ax, ay) || target;
-        if (zone === this._zone()) {
-            const r = anchor.range;
-            const parent = el.parentNode;
-            const idx = Array.prototype.indexOf.call(parent.childNodes, el);
-            const inPlace = r.startContainer === parent && (r.startOffset === idx || r.startOffset === idx + 1);
-            if (!inPlace) {
-                r.insertNode(el);
-                zone.normalize(); // recolle les morceaux de texte coupés par l'insertion
-            }
-            this.placeAt(desired, snap);
-            this.commit();
-            if (this.opts.onMoved) this.opts.onMoved(this);
-            this._pick();
-        } else if (this.opts.onTransfer) {
-            this.opts.onTransfer(this, zone, anchor.range, desired, snap);
-        }
+        const cv = this._canvas();
+        if (cv) cv.select([this.el], 'set', true);
     }
 
     // ----- Barre d'outils -----
@@ -1116,10 +961,10 @@ class NoteStaffView {
     }
 }
 
-// Petit bloc enregistré dans l'annotation pour une portée (le dessin n'est pas enregistré).
-function noteStaffStubHtml(st, pos) {
-    const p = NSE_N.formatStaffPos(pos);
-    return `<div class="annot-staff" data-staff="${NSE_N.formatStaff(st || NSE_N.staffDefault())}"${p ? ` data-pos="${p}"` : ''}></div>`;
+// Petit bloc enregistré dans l'annotation pour une portée (le dessin n'est pas enregistré) : son texte, sa place sur le canevas et son bord (caché si border === false).
+function noteStaffStubHtml(st, at, border) {
+    const p = NSE_N.formatBlockAt(at);
+    return `<div class="annot-staff" data-staff="${NSE_N.formatStaff(st || NSE_N.staffDefault())}"${p ? ` data-at="${p}"` : ''}${border === false ? ' data-border="0"' : ''}></div>`;
 }
 
 // Transforme chaque bloc « annot-staff » de `root` en portée éditable (ou simplement affichée si l'annotation est en lecture seule).
@@ -1130,32 +975,51 @@ function hydrateNoteStaves(root, opts) {
     });
 }
 
-// Copie du contenu d'un champ d'annotation où chaque portée (et chaque cadre de texte) est remplacée par son petit bloc enregistrable.
-function annotationHtmlForSave(ed) {
-    const c = ed.cloneNode(true);
-    c.querySelectorAll('.annot-staff').forEach((el) => {
-        const st = NSE_N.parseStaff(el.getAttribute('data-staff') || '');
-        const stub = document.createElement('div');
-        stub.className = 'annot-staff';
-        stub.setAttribute('data-staff', NSE_N.formatStaff(st || NSE_N.staffDefault()));
-        const pos = NSE_N.formatStaffPos(NSE_N.parseStaffPos(el.getAttribute('data-pos') || ''));
-        if (pos) stub.setAttribute('data-pos', pos);
-        el.replaceWith(stub);
-    });
-    // Cadres de texte (ui/text-frame.js) : seul leur texte est gardé, avec leur largeur / échelle et leur décalage.
-    c.querySelectorAll('.annot-frame').forEach((el) => {
-        const stub = document.createElement('div');
-        stub.className = 'annot-frame';
+// Petit bloc enregistrable d'une portée ou d'un cadre de texte affiché (sans son dessin, ses boutons ni ses outils) : son texte, sa place sur le canevas,
+// son bord et, pour un cadre, son texte mis en forme. `at` remplace la place affichée (bloc recréé ailleurs). Un bloc hérité (pas encore migré) garde data-pos.
+function nseBlockStub(el, at) {
+    const isFrame = el.classList.contains('annot-frame');
+    const stub = document.createElement('div');
+    stub.className = isFrame ? 'annot-frame' : 'annot-staff';
+    if (isFrame) {
         stub.setAttribute('data-frame', el.getAttribute('data-frame') || '');
-        const pos = el.getAttribute('data-pos');
-        if (pos) stub.setAttribute('data-pos', pos);
         const body = el.querySelector('.annot-frame-body');
         stub.innerHTML = body ? body.innerHTML : '';
-        el.replaceWith(stub);
-    });
+    } else {
+        const st = NSE_N.parseStaff(el.getAttribute('data-staff') || '');
+        stub.setAttribute('data-staff', NSE_N.formatStaff(st || NSE_N.staffDefault()));
+    }
+    const place = at ? NSE_N.formatBlockAt(at) : NSE_N.formatBlockAt(NSE_N.parseBlockAt(el.getAttribute('data-at') || ''));
+    if (place) stub.setAttribute('data-at', place);
+    else { const pos = NSE_N.formatStaffPos(NSE_N.parseStaffPos(el.getAttribute('data-pos') || '')); if (pos) stub.setAttribute('data-pos', pos); }
+    if (!NSE_N.parseBlockBorder(el.getAttribute('data-border'))) stub.setAttribute('data-border', '0');
+    return stub;
+}
+
+// Copie du contenu d'un champ d'annotation où chaque portée (et chaque cadre de texte) est remplacée par son petit bloc enregistrable.
+// Le champ ne contient que des blocs : le calque des repères (.annot-overlay) n'est pas enregistré.
+function annotationHtmlForSave(ed) {
+    const c = ed.cloneNode(true);
+    c.querySelectorAll('.annot-overlay').forEach(o => o.remove());
+    c.querySelectorAll('.annot-staff, .annot-frame').forEach((el) => el.replaceWith(nseBlockStub(el)));
     return c.innerHTML;
 }
 
+// Texte brut des blocs `els` pour le presse-papiers : « [portée@x,y:…] » pour chaque portée, « [cadre@x,y:…] » pour chaque cadre de texte (un « ! » après la place
+// quand son cadre est caché). La place relative des blocs copiés ensemble est ainsi gardée au collage.
+function nseBlocksToClipText(els) {
+    return els.map((n) => {
+        const meta = { at: NSE_N.parseBlockAt(n.getAttribute('data-at') || ''), border: NSE_N.parseBlockBorder(n.getAttribute('data-border')) };
+        if (n.classList.contains('annot-staff')) {
+            const st = NSE_N.parseStaff(n.getAttribute('data-staff') || '');
+            return st ? NSE_N.staffClipText(st, meta) : '';
+        }
+        const box = NSE_N.parseFrameBox(n.getAttribute('data-frame') || '');
+        const body = n.querySelector('.annot-frame-body');
+        return box ? NSE_N.frameClipText(box, body ? body.innerHTML : n.innerHTML, meta) : '';
+    }).join('');
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { nseHandDrawn, nseSmallTimeSig, NSE_TIMESIG_SCALE, NSE_SPACING, NSE_BAND, NSE_TOP, nseToolsHtml, nseKeyAction, nseNearestLetter, nseNoteIcon, nseKeyOptions, nseToolState, nseFragmentToClipText };
+    module.exports = { nseHandDrawn, nseSmallTimeSig, NSE_TIMESIG_SCALE, NSE_SPACING, NSE_BAND, NSE_TOP, nseToolsHtml, nseKeyAction, nseNearestLetter, nseNoteIcon, nseKeyOptions, nseToolState, nseBlocksToClipText, noteStaffStubHtml };
 }

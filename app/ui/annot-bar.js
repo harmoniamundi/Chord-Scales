@@ -105,14 +105,36 @@ function annotBarHtml() {
         <span class="ab-sep"></span>
         <div class="ab-grp" role="group" aria-label="Insérer">
             ${btn('♯ ♩ ▾', 'data-menu="insert" aria-haspopup="true"', 'Insérer un symbole ou une nuance', 'ab-txt')}
-            ${btn('<svg width="18" height="16" viewBox="0 0 18 16" aria-hidden="true"><path d="M1 3h16M1 6.5h16M1 10h16M1 13.5h16" stroke="currentColor" stroke-width="1.2" fill="none"/><ellipse cx="9" cy="10" rx="2.6" ry="1.9" transform="rotate(-20 9 10)" fill="currentColor"/><path d="M11.4 9V1.5" stroke="currentColor" stroke-width="1.3"/></svg> Portée', 'data-insert-staff="1"', 'Insérer une portée éditable à l\'endroit du curseur', 'ab-txt ab-staff')}
-            ${btn(ANNOT_FRAME_ICON + ' Cadre', 'data-insert-frame="1"', 'Créer un cadre de texte à l\'endroit du curseur : on écrit dedans ; une fois sorti de l\'édition, on le déplace, et on l\'agrandit ou le réduit en tirant sur ses bords et ses coins (le texte suit)', 'ab-txt ab-frame')}
+            ${btn('<svg width="18" height="16" viewBox="0 0 18 16" aria-hidden="true"><path d="M1 3h16M1 6.5h16M1 10h16M1 13.5h16" stroke="currentColor" stroke-width="1.2" fill="none"/><ellipse cx="9" cy="10" rx="2.6" ry="1.9" transform="rotate(-20 9 10)" fill="currentColor"/><path d="M11.4 9V1.5" stroke="currentColor" stroke-width="1.3"/></svg> Portée', 'data-insert-staff="1"', 'Ajouter une portée éditable (à la première place libre de la zone)', 'ab-txt ab-staff')}
+            ${btn(ANNOT_FRAME_ICON + ' Cadre', 'data-insert-frame="1"', 'Ajouter un cadre de texte (ou double-clic sur le fond de la zone) : on écrit dedans ; une fois sorti de l\'édition, on le déplace, et on l\'agrandit ou le réduit en tirant sur ses bords et ses coins (le texte suit)', 'ab-txt ab-frame')}
         </div>
         <span class="ab-sep"></span>
         ${btn(ANNOT_CLEAR_ICON, 'data-clear="1"', 'Effacer la mise en forme : retire gras, couleur, taille, police… de la sélection', 'ab-clear')}
         <div id="jam-annot-staff-host" class="ab-staff-host"></div>
     </div>`;
 }
+
+// Boutons de disposition, en tête de chaque zone d'annotation : aimant (léger magnétisme entre blocs), cadre visible / caché,
+// premier plan, arrière-plan. L'aimant est un réglage de la page ; les trois autres s'appliquent aux blocs sélectionnés de la zone.
+// Les boutons ne prennent pas le focus (la sélection de blocs, ou le texte en cours d'écriture, reste en place).
+const ANNOT_TOOL_ICONS = {
+    magnet: '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 7v1.2a5 5 0 0 0 10 0V7" fill="none" stroke="currentColor" stroke-width="3"/><path d="M3 1.8V5.4M13 1.8V5.4" fill="none" stroke="currentColor" stroke-width="3" opacity=".5"/></svg>',
+    border: '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2.4 1.8"/><path d="M5 6.5h6M5 9.5h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+    front: '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".55"/><rect x="6" y="6" width="8" height="8" rx="1" fill="currentColor"/></svg>',
+    back: '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="6" y="6" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".55"/><rect x="2" y="2" width="8" height="8" rx="1" fill="currentColor"/></svg>'
+};
+const ANNOT_TOOLS = [
+    { act: 'magnet', title: 'Aimant : les blocs se collent légèrement les uns aux autres et aux bords quand on les déplace (Alt pour l\'ignorer le temps d\'un geste)' },
+    { act: 'border', title: 'Cadre visible / caché pour les blocs sélectionnés' },
+    { act: 'front', title: 'Mettre les blocs sélectionnés au premier plan' },
+    { act: 'back', title: 'Mettre les blocs sélectionnés à l\'arrière-plan' }
+];
+function annotToolsHtml() {
+    const b = ANNOT_TOOLS.map(t => `<button type="button" class="ab-btn at-btn" data-annot-act="${t.act}" title="${t.title}" aria-label="${t.title}"${t.act === 'magnet' ? ' aria-pressed="false"' : ' disabled'}
+        onmousedown="event.preventDefault()" onclick="app.jam.annotToolAct('${t.act}')">${ANNOT_TOOL_ICONS[t.act]}</button>`).join('');
+    return `<span class="jam-annot-tools" role="group" aria-label="Disposition des blocs">${b}</span>`;
+}
+
 
 // Contenu des menus flottants. state : { size } pour le menu de taille.
 function annotMenuHtml(kind, state = {}) {
@@ -148,5 +170,5 @@ function annotMenuHtml(kind, state = {}) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { ANNOT_SIZE_MIN, ANNOT_SIZE_MAX, ANNOT_SIZE_DEFAULT, ANNOT_SIZE_STEPS, ANNOT_FONT_DEFAULT_CSS, ANNOT_FONT_CHOICES, nextAnnotSize, clampAnnotSize, annotFontLabel, annotBarHtml, annotMenuHtml };
+    module.exports = { ANNOT_SIZE_MIN, ANNOT_SIZE_MAX, ANNOT_SIZE_DEFAULT, ANNOT_SIZE_STEPS, ANNOT_FONT_DEFAULT_CSS, ANNOT_FONT_CHOICES, nextAnnotSize, clampAnnotSize, annotFontLabel, annotBarHtml, annotMenuHtml, annotToolsHtml, ANNOT_TOOLS };
 }

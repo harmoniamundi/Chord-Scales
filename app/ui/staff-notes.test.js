@@ -322,3 +322,60 @@ describe('copier-coller d\'un cadre de texte : frameClipText / splitStaffClips',
         for (const bad of ['[cadre:abc;x]', '[cadre:260;%E0%A4%A]', '[cadre:260,1500;x]', '[cadre:260]']) assert.deepEqual(S.splitStaffClips(bad), [{ text: bad }], bad);
     });
 });
+
+describe('place d\'un bloc sur le canevas (data-at) et bord visible (data-border)', () => {
+    test('lecture : deux entiers positifs « x,y »', () => {
+        assert.deepEqual(S.parseBlockAt('12,34'), { x: 12, y: 34 });
+        assert.deepEqual(S.parseBlockAt('0,0'), { x: 0, y: 0 });
+        assert.deepEqual(S.parseBlockAt(' 7,9 '), { x: 7, y: 9 });
+        assert.deepEqual(S.parseBlockAt(`${S.SN_AT_MAX + 1},0`), { x: S.SN_AT_MAX, y: 0 }); // au-delà de la limite : ramené à la limite
+    });
+    test('lecture : tout le reste est refusé (négatif, décimal, trop de chiffres, texte)', () => {
+        for (const bad of ['', null, undefined, 'x', '1', '1,2,3', '-1,5', '5,-1', '1.5,2', '1,2.5', '0,99999', '7 , 9', '１,２']) assert.equal(S.parseBlockAt(bad), null, String(bad));
+    });
+    test('écriture : aller-retour identique, texte vide sans place', () => {
+        assert.equal(S.formatBlockAt({ x: 12, y: 34 }), '12,34');
+        assert.deepEqual(S.parseBlockAt(S.formatBlockAt({ x: 12, y: 34 })), { x: 12, y: 34 });
+        assert.equal(S.formatBlockAt(null), '');
+        assert.equal(S.formatBlockAt(undefined), '');
+    });
+    test('clampBlockAt : entier entre 0 et la limite', () => {
+        assert.equal(S.clampBlockAt(-8), 0);
+        assert.equal(S.clampBlockAt(12.6), 13);
+        assert.equal(S.clampBlockAt(1e9), S.SN_AT_MAX);
+        assert.equal(S.clampBlockAt(NaN), 0);
+    });
+    test('bord : visible par défaut, caché seulement avec « 0 »', () => {
+        assert.equal(S.parseBlockBorder(null), true);
+        assert.equal(S.parseBlockBorder(''), true);
+        assert.equal(S.parseBlockBorder('1'), true);
+        assert.equal(S.parseBlockBorder('0'), false);
+    });
+});
+
+describe('copier-coller avec la place et le bord : [portée@x,y!:…] et [cadre@x,y!:…]', () => {
+    const st = S.parseStaff('t,4/4,0;q:c4');
+    test('une portée avec sa place ; le « ! » dit que son cadre est caché', () => {
+        assert.equal(S.staffClipText(st, { at: { x: 12, y: 34 }, border: true }), '[portée@12,34:t,4/4,0;q:c4]');
+        assert.equal(S.staffClipText(st, { at: { x: 12, y: 34 }, border: false }), '[portée@12,34!:t,4/4,0;q:c4]');
+        assert.equal(S.staffClipText(st), '[portée:t,4/4,0;q:c4]');
+    });
+    test('relecture : place et bord caché sont rendus, et seulement s\'ils sont notés', () => {
+        assert.deepEqual(S.splitStaffClips('[portée@12,34!:t,4/4,0;q:c4]'), [{ staff: 't,4/4,0;q:c4', at: { x: 12, y: 34 }, noBorder: true }]);
+        assert.deepEqual(S.splitStaffClips('[portée@12,34:t,4/4,0;q:c4]'), [{ staff: 't,4/4,0;q:c4', at: { x: 12, y: 34 } }]);
+        assert.deepEqual(S.splitStaffClips('[portée:t,4/4,0;q:c4]'), [{ staff: 't,4/4,0;q:c4' }]);
+    });
+    test('un cadre de texte : place, bord caché, texte mis en forme', () => {
+        const t = S.frameClipText({ w: 200, s: 150 }, '<b>a</b>', { at: { x: 5, y: 6 }, border: false });
+        assert.match(t, /^\[cadre@5,6!:200,150;/);
+        assert.deepEqual(S.splitStaffClips(t), [{ frame: { box: '200,150', html: '<b>a</b>' }, at: { x: 5, y: 6 }, noBorder: true }]);
+    });
+    test('plusieurs blocs copiés ensemble gardent leur place relative', () => {
+        const txt = S.staffClipText(st, { at: { x: 10, y: 10 } }) + S.frameClipText({ w: 260 }, 'x', { at: { x: 300, y: 40 } });
+        const parts = S.splitStaffClips(txt);
+        assert.deepEqual(parts.map(p => p.at), [{ x: 10, y: 10 }, { x: 300, y: 40 }]);
+    });
+    test('une place illisible : le repère reste du texte ordinaire', () => {
+        for (const bad of ['[portée@-1,5:t,4/4,0;q:c4]', '[portée@x,y:t,4/4,0;q:c4]', '[cadre@1:260;x]']) assert.deepEqual(S.splitStaffClips(bad), [{ text: bad }], bad);
+    });
+});

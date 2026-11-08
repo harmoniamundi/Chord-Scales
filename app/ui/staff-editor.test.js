@@ -4,6 +4,7 @@ const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const E = require('./staff-editor.js');
 const S = require('./staff-notes.js');
+const F = require('../grid/grid-format.js');
 
 describe('nseKeyAction : touche → action', () => {
     test('flèches : hauteur (Maj = octave) et déplacement de la sélection', () => {
@@ -119,28 +120,50 @@ describe('nseToolState : ce que montrent les boutons durée / point / triolet / 
     });
 });
 
-// Faux nœuds DOM (le test tourne sans navigateur) : texte, <br>, <div> et bloc portée.
-const T = (v) => ({ nodeType: 3, nodeValue: v });
-const El = (tag, kids = [], attrs = {}, cls = []) => ({ nodeType: 1, tagName: tag, childNodes: kids, classList: { contains: (c) => cls.includes(c) }, getAttribute: (k) => attrs[k] === undefined ? null : attrs[k] });
-const Staff = (txt) => El('DIV', [El('SVG'), El('DIV', [T('boutons')])], { 'data-staff': txt }, ['annot-staff']);
+// Faux éléments DOM (le test tourne sans navigateur) : attributs, classes, et le texte d'un cadre.
+const El = (cls, attrs = {}, body = null) => ({
+    classList: { contains: (c) => cls.includes(c) },
+    getAttribute: (k) => attrs[k] === undefined ? null : attrs[k],
+    querySelector: (sel) => (sel === '.annot-frame-body' && body !== null ? { innerHTML: body } : null),
+    innerHTML: body || ''
+});
+const Staff = (txt, extra = {}) => El(['annot-staff'], Object.assign({ 'data-staff': txt }, extra));
+const Frame = (box, html, extra = {}) => El(['annot-frame'], Object.assign({ 'data-frame': box }, extra), html);
 
-describe('nseFragmentToClipText : texte copié d\'une sélection', () => {
-    test('texte et portée dans la même ligne', () => {
-        assert.equal(E.nseFragmentToClipText(El('DIV', [T('Intro '), Staff('t,4/4,0;q:c4'), T(' fin')])), 'Intro [portée:t,4/4,0;q:c4] fin');
+describe('nseBlocksToClipText : blocs sélectionnés → presse-papiers', () => {
+    test('une portée avec sa place', () => {
+        assert.equal(E.nseBlocksToClipText([Staff('t,4/4,0;q:c4', { 'data-at': '12,34' })]), '[portée@12,34:t,4/4,0;q:c4]');
     });
-    test('le contenu dessiné de la portée (boutons, dessin) n\'est jamais copié', () => {
-        const out = E.nseFragmentToClipText(El('DIV', [Staff('t,4/4,0;q:c4')]));
-        assert.ok(!out.includes('boutons'));
+    test('un bloc sans place (annotation ancienne) : repère sans place', () => {
+        assert.equal(E.nseBlocksToClipText([Staff('t,4/4,0;q:c4')]), '[portée:t,4/4,0;q:c4]');
     });
-    test('lignes : <br> et blocs donnent des retours à la ligne, sans ligne vide en trop', () => {
-        assert.equal(E.nseFragmentToClipText(El('DIV', [T('a'), El('BR'), T('b'), El('DIV', [T('c')]), El('DIV', [Staff('t,4/4,0;q:d4')])])), 'a\nb\nc\n[portée:t,4/4,0;q:d4]');
+    test('le cadre caché est noté par un « ! »', () => {
+        assert.equal(E.nseBlocksToClipText([Staff('t,4/4,0;q:c4', { 'data-at': '12,34', 'data-border': '0' })]), '[portée@12,34!:t,4/4,0;q:c4]');
+        assert.match(E.nseBlocksToClipText([Frame('200', 'a', { 'data-at': '5,6', 'data-border': '0' })]), /^\[cadre@5,6!:200;/);
     });
-    test('une portée invalide est ignorée ; les espaces insécables deviennent des espaces', () => {
-        assert.equal(E.nseFragmentToClipText(El('DIV', [T('x\u00a0y'), Staff('n importe quoi')])), 'x y');
+    test('portée et cadre ensemble : chacun garde sa place, dans l\'ordre', () => {
+        const txt = E.nseBlocksToClipText([Staff('t,4/4,0;q:c4', { 'data-at': '10,10' }), Frame('200,150', '<b>a</b>', { 'data-at': '60,70' })]);
+        const parts = S.splitStaffClips(txt);
+        assert.equal(parts.length, 2);
+        assert.deepEqual(parts[0].at, { x: 10, y: 10 });
+        assert.deepEqual(parts[1].at, { x: 60, y: 70 });
+        assert.equal(parts[1].frame.html, '<b>a</b>');
     });
-    test('ce qui est copié se relit tel quel au collage', () => {
-        const txt = E.nseFragmentToClipText(El('DIV', [T('A '), Staff('t,4/4,0;q:c4'), Staff('b,3/4,-1;h:f3'), T(' B')]));
-        assert.deepEqual(S.splitStaffClips(txt), [{ text: 'A ' }, { staff: 't,4/4,0;q:c4' }, { staff: 'b,3/4,-1;h:f3' }, { text: ' B' }]);
+    test('une portée invalide est ignorée', () => {
+        assert.equal(E.nseBlocksToClipText([Staff('n importe quoi')]), '');
+    });
+});
+
+describe('noteStaffStubHtml : bloc enregistré pour une portée', () => {
+    test('portée par défaut, place et bord', () => {
+        assert.match(E.noteStaffStubHtml(), /^<div class="annot-staff" data-staff="[^"]+"><\/div>$/);
+        assert.match(E.noteStaffStubHtml(undefined, { x: 12, y: 34 }), / data-at="12,34"/);
+        assert.match(E.noteStaffStubHtml(undefined, { x: 12, y: 34 }, false), / data-border="0"/);
+        assert.ok(!/data-border/.test(E.noteStaffStubHtml(undefined, { x: 12, y: 34 }, true)));
+    });
+    test('passe le nettoyage des annotations tel quel', () => {
+        const stub = E.noteStaffStubHtml(undefined, { x: 12, y: 34 }, false);
+        assert.equal(F.sanitizeNoteHtml(stub), stub);
     });
 });
 

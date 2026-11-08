@@ -8,7 +8,7 @@ const GF_THEORY = (typeof scalesDb !== 'undefined')
     : require('../theory.js');
 // Portées éditables des annotations (ui/staff-notes.js) : une portée n'est gardée que si son texte est valide.
 const GF_STAFF = (typeof parseStaff !== 'undefined')
-    ? { parseStaff, formatStaff, parseStaffPos, formatStaffPos, parseFrameBox, formatFrameBox }
+    ? { parseStaff, formatStaff, parseStaffPos, formatStaffPos, parseBlockAt, formatBlockAt, parseBlockBorder, parseFrameBox, formatFrameBox }
     : require('../ui/staff-notes.js');
 
 // Repères de partie proposés par le menu « Partie » ; les lettres A–Z restent acceptées (anciennes grilles, parties auto)
@@ -136,6 +136,15 @@ function sanitizeNoteHtml(raw, maxText = MEASURE_NOTE_MAX) {
         if (/[^\s ]/.test(t)) hasText = true;
         out += t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     };
+    // Place d'un bloc : « data-at » (place sur le canevas de la zone) ou, pour une annotation écrite avant les canevas, l'ancien décalage « data-pos »
+    // (relatif à la place dans le texte : le navigateur s'en sert une fois pour reconstruire la mise en page, voir index.html, _annotMigrate) ;
+    // « data-border="0" » = cadre caché.
+    const blockPlace = (a) => {
+        const at = GF_STAFF.formatBlockAt(GF_STAFF.parseBlockAt(a['data-at'] || ''));
+        const pos = at ? '' : GF_STAFF.formatStaffPos(GF_STAFF.parseStaffPos(a['data-pos'] || ''));
+        const hidden = a['data-border'] !== undefined && !GF_STAFF.parseBlockBorder(a['data-border']);
+        return (at ? ` data-at="${at}"` : (pos ? ` data-pos="${pos}"` : '')) + (hidden ? ' data-border="0"' : '');
+    };
     const readAttrs = (raw) => {
         const attrs = {};
         raw.replace(/([a-zA-Z-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g, (all, k, a, b, c) => { attrs[k.toLowerCase()] = decodeNoteEntities(a !== undefined ? a : (b !== undefined ? b : c)); return all; });
@@ -153,8 +162,7 @@ function sanitizeNoteHtml(raw, maxText = MEASURE_NOTE_MAX) {
             const sa = readAttrs(m[3]);
             const text = GF_STAFF.parseStaff(sa['data-staff'] || '');
             if (text && staves < NOTE_MAX_STAVES && count < 400 && !stack.some(e => e.kind === 'frame')) {
-                const pos = GF_STAFF.formatStaffPos(GF_STAFF.parseStaffPos(sa['data-pos'] || '')); // décalage libre (pixels), facultatif
-                out += `<div class="annot-staff" data-staff="${GF_STAFF.formatStaff(text)}"${pos ? ` data-pos="${pos}"` : ''}></div>`;
+                out += `<div class="annot-staff" data-staff="${GF_STAFF.formatStaff(text)}"${blockPlace(sa)}></div>`;
                 staves++; count++; hasText = true;
             }
             continue;
@@ -165,8 +173,7 @@ function sanitizeNoteHtml(raw, maxText = MEASURE_NOTE_MAX) {
             const fa = readAttrs(m[3]);
             const box = GF_STAFF.parseFrameBox(fa['data-frame'] || '');
             if (box) {
-                const fpos = GF_STAFF.formatStaffPos(GF_STAFF.parseStaffPos(fa['data-pos'] || ''));
-                out += `<div class="annot-frame" data-frame="${GF_STAFF.formatFrameBox(box)}"${fpos ? ` data-pos="${fpos}"` : ''}>`;
+                out += `<div class="annot-frame" data-frame="${GF_STAFF.formatFrameBox(box)}"${blockPlace(fa)}>`;
                 stack.push({ kind: 'frame', emitted: true });
                 frames++; count++; hasText = true;
                 continue;

@@ -1,18 +1,20 @@
 // ui/text-frame.js — cadres de texte dans les annotations (onglet « Annotations » du mode Jam).
-// Un cadre est un bloc <div class="annot-frame" data-frame="L,E" data-pos="x,y"> glissé dans le texte de l'annotation, comme une portée
-// (ui/staff-editor.js), mais où l'on écrit du texte mis en forme (la barre de mise en forme de l'onglet s'applique à ce texte).
+// Un cadre est un bloc <div class="annot-frame" data-frame="L,E" data-at="x,y" data-border="0"> posé sur le canevas de la zone d'annotation
+// (ui/annot-canvas.js), comme une portée (ui/staff-editor.js), mais où l'on écrit du texte mis en forme (la barre de mise en forme de l'onglet s'applique
+// à ce texte). Tout le texte d'une annotation est dans des cadres : on n'écrit jamais dans la zone elle-même. Le cadre a une place à lui (data-at), indépendante
+// de celle des autres blocs, et son bord peut être caché (data-border="0" : le texte seul reste visible).
 // Deux états, comme pour la portée :
 //  - « en édition » (.is-editing) : le texte du cadre est modifiable (crayon ✎, double-clic sur le cadre, ou création par le bouton « Cadre » ;
 //    Échap, un second clic sur ✎ ou un clic ailleurs en sort) ;
-//  - « au repos » : le cadre se sélectionne d'un clic (Suppr. l'enlève), se déplace en le glissant (au pixel près, y compris dans l'autre zone),
-//    et s'agrandit ou se réduit en tirant sur ses bords et ses coins (le curseur qui les survole change de forme). Le texte suit : tirer
+//  - « au repos » : le cadre se sélectionne d'un clic (Maj / ⌘ / Ctrl pour en choisir plusieurs, Suppr. les enlève), se déplace en le glissant avec les autres
+//    blocs sélectionnés (au pixel près, avec repères d'alignement et aimant, y compris dans l'autre zone), et s'agrandit ou se réduit en tirant sur ses bords et ses coins (le curseur qui les survole change de forme). Le texte suit : tirer
 //    change l'échelle d'affichage E (25 à 400 %), donc la taille visible de tout ce que contient le cadre ; la mise en page du texte ne bouge pas.
 // Le texte enregistré ne garde que ce petit bloc et son texte mis en forme (format et nettoyage : ui/staff-notes.js et grid/grid-format.js).
 // Chargé par index.html via <script src="app/ui/text-frame.js"> (après ui/staff-editor.js) et testé par ui/text-frame.test.js.
 
 // Sous Node (tests), le format se charge ; en navigateur ce sont des globaux (ui/staff-notes.js).
 const NTF_N = (typeof parseFrameBox !== 'undefined')
-    ? { parseFrameBox, formatFrameBox, parseStaffPos, formatStaffPos, clampStaffPos, SN_FRAME_W_DEFAULT, SN_FRAME_SCALE_MIN, SN_FRAME_SCALE_MAX, SN_FRAME_SCALE_DEFAULT }
+    ? { parseFrameBox, formatFrameBox, parseStaffPos, formatStaffPos, clampStaffPos, parseBlockAt, formatBlockAt, clampBlockAt, parseBlockBorder, SN_FRAME_W_DEFAULT, SN_FRAME_SCALE_MIN, SN_FRAME_SCALE_MAX, SN_FRAME_SCALE_DEFAULT }
     : require('./staff-notes.js');
 
 const NTF_EDGE = 6;          // épaisseur (pixels) de la zone sensible le long des bords, à la souris
@@ -63,11 +65,12 @@ function ntfResizeScale(zone, w0, h0, s0, dx, dy, opts = {}) {
     return { s, ax: sx > 0 ? 0 : (sx < 0 ? 1 : 0.5), ay: sy > 0 ? 0 : (sy < 0 ? 1 : 0.5) };
 }
 
-// Petit bloc enregistré dans l'annotation pour un cadre : sa largeur / échelle, son décalage libre et son texte (déjà en HTML restreint).
-function noteFrameStubHtml(box, pos, innerHtml) {
+// Petit bloc enregistré dans l'annotation pour un cadre : sa largeur / échelle, sa place sur le canevas, son bord (caché si border === false)
+// et son texte (déjà en HTML restreint).
+function noteFrameStubHtml(box, at, innerHtml, border) {
     const b = NTF_N.formatFrameBox(box || { w: NTF_N.SN_FRAME_W_DEFAULT });
-    const p = NTF_N.formatStaffPos(pos);
-    return `<div class="annot-frame" data-frame="${b}"${p ? ` data-pos="${p}"` : ''}>${innerHtml || ''}</div>`;
+    const p = NTF_N.formatBlockAt(at);
+    return `<div class="annot-frame" data-frame="${b}"${p ? ` data-at="${p}"` : ''}${border === false ? ' data-border="0"' : ''}>${innerHtml || ''}</div>`;
 }
 
 // ----- Cadre -----
@@ -75,17 +78,16 @@ function noteFrameStubHtml(box, pos, innerHtml) {
 let NTF_ACTIVE = null; // le cadre dont le texte est en cours d'édition (un seul à la fois)
 
 // opts : isEditable() → l'annotation est modifiable ; keepOpen(cible) → un clic sur cette cible (barre, menus) ne fait pas sortir de l'édition ;
-//        onChange(view) après chaque changement (texte à la sortie de l'édition, position, taille) ; onActivate(view) / onDeactivate(view) ;
-//        onFocusBack(view) quand on sort de l'édition au clavier ou par le crayon (le curseur revient dans le texte de la zone) ;
-//        zones() → les zones d'annotation modifiables où l'on peut déposer le cadre ; maxFrames : nombre de cadres permis par zone ;
-//        onGrab(view) quand le cadre est saisi ; onPick(view) quand il est sélectionné ; onMoved(view, serie) quand il vient d'être déplacé,
-//        décalé ou redimensionné ; onTransfer(view, zone, range, desired, snap) quand il est déposé dans une autre zone.
+//        onChange(view) après chaque changement (texte à la sortie de l'édition, place, taille) ; onActivate(view) / onDeactivate(view) ;
+//        onFocusBack(view) quand on sort de l'édition au clavier ou par le crayon (le focus revient à la zone) ;
+//        canvas() → le canevas de la zone (ui/annot-canvas.js) : sélection et déplacement des blocs ;
+//        onGrab(view) quand le cadre est saisi (redimensionnement) ; onMoved(view) quand il vient d'être redimensionné.
 class NoteFrameView {
     constructor(el, opts) {
         this.el = el;
         this.opts = opts;
         this.box = NTF_N.parseFrameBox(el.getAttribute('data-frame') || '') || { w: NTF_N.SN_FRAME_W_DEFAULT, s: NTF_N.SN_FRAME_SCALE_DEFAULT };
-        this.pos = NTF_N.parseStaffPos(el.getAttribute('data-pos') || '') || { x: 0, y: 0 };
+        this._initPlace();
         const inner = el.innerHTML;
         el.__noteFrame = this;
         el.setAttribute('contenteditable', 'false');
@@ -105,6 +107,18 @@ class NoteFrameView {
     get editable() { return !!this.opts.isEditable(); }
 
     get isActive() { return this.el.classList.contains('is-editing'); }
+
+    _canvas() { return this.opts.canvas ? this.opts.canvas() : null; }
+
+    // Place du cadre : data-at (place sur le canevas de la zone). Un cadre écrit avant les canevas n'a que l'ancien décalage data-pos, relatif à sa place
+    // dans le texte : `legacy` jusqu'à ce que la zone ait reconstruit la mise en page (index.html, _annotMigrate).
+    _initPlace() {
+        const at = NTF_N.parseBlockAt(this.el.getAttribute('data-at') || '');
+        this.legacy = !at;
+        this.pos = at || NTF_N.parseStaffPos(this.el.getAttribute('data-pos') || '') || { x: 0, y: 0 };
+        this.border = NTF_N.parseBlockBorder(this.el.getAttribute('data-border'));
+        this.el.classList.toggle('no-border', !this.border);
+    }
 
     // La zone d'annotation qui contient le cadre (sa largeur limite celle du cadre).
     _zone() { return this.el.closest('.jam-annot-text') || this.el.parentElement; }
@@ -141,6 +155,8 @@ class NoteFrameView {
         if (!this.editable) return;
         if (NTF_ACTIVE && NTF_ACTIVE !== this) NTF_ACTIVE.deactivate();
         if (typeof NSE_ACTIVE !== 'undefined' && NSE_ACTIVE) NSE_ACTIVE.deactivate();
+        const cv = this._canvas();
+        if (cv) cv.clearSelection(true); // un cadre en édition n'est pas « sélectionné » : la barre s'applique à son texte
         NTF_ACTIVE = this;
         this.el.classList.add('is-editing');
         this.el.classList.remove('is-picked');
@@ -181,6 +197,16 @@ class NoteFrameView {
         this.el.setAttribute('data-frame', NTF_N.formatFrameBox(this.box));
         this._showPos();
         if (this.opts.onChange) this.opts.onChange(this);
+    }
+
+    // Bord du cadre visible ou non (le texte, lui, reste affiché) ; renvoie true si cela change.
+    setBorder(on) {
+        on = !!on;
+        if (on === this.border) return false;
+        this.border = on;
+        this.el.classList.toggle('no-border', !on);
+        if (on) this.el.removeAttribute('data-border'); else this.el.setAttribute('data-border', '0');
+        return true;
     }
 
     // ----- Souris et doigt -----
@@ -238,7 +264,10 @@ class NoteFrameView {
         ev.preventDefault();
         ev.stopPropagation();
         const zone = this._zoneAt(ev);
-        if (zone) this._resizeDown(ev, zone); else this._moveDown(ev);
+        const cv = this._canvas();
+        const additive = ev.shiftKey || ev.metaKey || ev.ctrlKey;
+        if (zone && !additive) this._resizeDown(ev, zone);
+        else if (cv) cv.startMove(this, ev);
     }
 
     // ----- Redimensionner : bords et coins (hors édition) -----
@@ -255,6 +284,8 @@ class NoteFrameView {
 
     _resizeDown(ev, zone) {
         const el = this.el;
+        const cv = this._canvas();
+        if (cv) cv.select([el], 'set', true);
         if (this.opts.onGrab) this.opts.onGrab(this);
         const r0 = el.getBoundingClientRect();
         const s0 = this.box.s, pos0 = { ...this.pos };
@@ -304,164 +335,46 @@ class NoteFrameView {
         document.addEventListener('keydown', onKey, true);
     }
 
-    // ----- Déplacer le cadre : hors édition, comme un bloc portée -----
+    // ----- Place du cadre sur le canevas -----
 
-    // Décalage libre : le cadre garde sa place dans le texte et est simplement décalé de pos.x, pos.y pixels (data-pos, enregistré avec l'annotation).
+    // Affiche la place (data-at) : le cadre est positionné en absolu dans sa zone. Un cadre « hérité » (pas encore migré) garde l'ancien décalage relatif.
     _showPos() {
         const { x, y } = this.pos;
-        this.el.style.left = x ? `${x}px` : '';
-        this.el.style.top = y ? `${y}px` : '';
-        const t = NTF_N.formatStaffPos(this.pos);
-        if (t) this.el.setAttribute('data-pos', t); else this.el.removeAttribute('data-pos');
+        if (this.legacy) {
+            this.el.style.left = x ? `${x}px` : '';
+            this.el.style.top = y ? `${y}px` : '';
+            const t = NTF_N.formatStaffPos(this.pos);
+            if (t) this.el.setAttribute('data-pos', t); else this.el.removeAttribute('data-pos');
+            return;
+        }
+        this.el.style.left = `${x}px`;
+        this.el.style.top = `${y}px`;
+        this.el.setAttribute('data-at', NTF_N.formatBlockAt(this.pos));
+        this.el.removeAttribute('data-pos');
     }
 
-    // Pose le décalage (après l'avoir ramené dans la zone) ; renvoie true s'il a changé.
-    setPos(pos, opts = {}) {
-        let x = NTF_N.clampStaffPos(pos.x), y = NTF_N.clampStaffPos(pos.y);
-        if (opts.clamp !== false) {
-            const z = this._zone();
-            if (z && this.el.isConnected) {
-                const zr = z.getBoundingClientRect(), r = this.el.getBoundingClientRect();
-                const nat = { l: r.left - this.pos.x, t: r.top - this.pos.y };           // place du cadre sans décalage
-                const minX = zr.left + z.clientLeft - nat.l, maxX = zr.left + z.clientLeft + z.clientWidth - r.width - nat.l;
-                const minY = zr.top + z.clientTop - z.scrollTop - nat.t;                  // le haut du contenu de la zone
-                x = Math.max(Math.min(x, Math.floor(maxX)), Math.ceil(minX));
-                if (!(maxX >= minX)) x = Math.ceil(minX);
-                y = Math.max(y, Math.ceil(minY));
-            }
-        }
-        if (x === this.pos.x && y === this.pos.y) return false;
+    // Pose la place (entiers positifs, sur le canevas) ; renvoie true si elle a changé. N'enregistre rien (voir commit).
+    setAt(pos) {
+        const x = NTF_N.clampBlockAt(pos.x), y = NTF_N.clampBlockAt(pos.y);
+        if (!this.legacy && x === this.pos.x && y === this.pos.y) return false;
+        this.legacy = false;
         this.pos = { x, y };
         this._showPos();
         return true;
     }
 
-    // Décale le cadre de dx, dy pixels (flèches du clavier quand il est sélectionné).
-    nudge(dx, dy) {
-        if (!this.setPos({ x: this.pos.x + dx, y: this.pos.y + dy })) return false;
-        this.commit();
-        if (this.opts.onMoved) this.opts.onMoved(this, true);
-        return true;
+    // Place le cadre pour que son coin haut gauche tombe en `desired` { left, top } (pixels de l'écran).
+    placeAt(desired) {
+        const z = this._zone();
+        if (!z) return;
+        const r = z.getBoundingClientRect();
+        this.setAt({ x: Math.max(0, desired.left - r.left - z.clientLeft + z.scrollLeft), y: Math.max(0, desired.top - r.top - z.clientTop + z.scrollTop) });
     }
 
-    // Remet le cadre à sa place dans le texte.
-    resetPos() {
-        if (!this.pos.x && !this.pos.y) return;
-        this.pos = { x: 0, y: 0 };
-        this.commit();
-        if (this.opts.onMoved) this.opts.onMoved(this);
-    }
-
-    // Place le cadre pour que son coin haut gauche tombe en `desired` { left, top } (pixels de l'écran) : on mesure sa place dans le texte sans décalage,
-    // le décalage est la différence. `snap` : un écart de 3 pixels ou moins revient à la place du texte.
-    placeAt(desired, snap = true) {
-        this.pos = { x: 0, y: 0 };
-        this._showPos();
-        const r = this.el.getBoundingClientRect();
-        let x = Math.round(desired.left - r.left), y = Math.round(desired.top - r.top);
-        if (snap && Math.abs(x) <= 3 && Math.abs(y) <= 3) { x = 0; y = 0; }
-        this.setPos({ x, y });
-    }
-
-    // Le cadre peut être déposé dans la zone où il est, ou dans une autre zone modifiable qui a encore de la place.
-    _canDropIn(zone) {
-        return zone === this._zone() || zone.querySelectorAll('.annot-frame').length < (this.opts.maxFrames || 8);
-    }
-
-    // Appui au milieu du cadre : un clic le sélectionne (Suppr. l'enlève, les flèches le décalent) ; glisser le déplace au pixel près,
-    // là où l'aperçu se trouve, y compris dans l'autre zone ; Échap annule. Un décalage de 3 pixels ou moins revient à la place du texte (Alt : pas d'aimant).
-    _moveDown(ev) {
-        const el = this.el, grip = el;
-        if (this.opts.onGrab) this.opts.onGrab(this);
-        const x0 = ev.clientX, y0 = ev.clientY;
-        const r0 = el.getBoundingClientRect();
-        const gx = x0 - r0.left, gy = y0 - r0.top;      // où le cadre a été saisi
-        const zones = () => (this.opts.zones ? this.opts.zones() : [this._zone()]).filter(Boolean);
-        let dragging = false, ghost = null, timer = null, lastX = x0, lastY = y0, alt = false;
-        try { grip.setPointerCapture(ev.pointerId); } catch (e) { /* non pris en charge */ }
-        const where = document.fullscreenElement || document.body;
-        const refresh = () => { if (ghost) { ghost.style.left = `${Math.round(lastX - gx)}px`; ghost.style.top = `${Math.round(lastY - gy)}px`; } };
-        const begin = () => {
-            dragging = true;
-            el.classList.add('is-dragging-src');
-            ghost = document.createElement('div');
-            ghost.className = 'annot-drag-ghost annot-drag-ghost-frame';
-            ghost.style.boxSizing = 'border-box'; ghost.style.width = `${Math.round(r0.width)}px`; ghost.style.height = `${Math.round(r0.height)}px`; ghost.style.maxWidth = 'none';
-            const clip = el.querySelector('.annot-frame-clip');
-            if (clip) ghost.appendChild(clip.cloneNode(true));
-            where.appendChild(ghost);
-            // près du haut ou du bas d'une zone, elle défile toute seule
-            timer = setInterval(() => {
-                const z = zones().find((q) => { const r = q.getBoundingClientRect(); return lastX >= r.left && lastX <= r.right && lastY >= r.top && lastY <= r.bottom; });
-                if (!z) return;
-                const r = z.getBoundingClientRect();
-                if (lastY < r.top + 26) z.scrollTop -= 14; else if (lastY > r.bottom - 26) z.scrollTop += 14; else return;
-            }, 50);
-        };
-        const end = (drop) => {
-            grip.removeEventListener('pointermove', onMove);
-            grip.removeEventListener('pointerup', onUp);
-            grip.removeEventListener('pointercancel', onCancel);
-            document.removeEventListener('keydown', onKey, true);
-            try { grip.releasePointerCapture(ev.pointerId); } catch (e) { /* déjà relâché */ }
-            if (timer) clearInterval(timer);
-            if (ghost) ghost.remove();
-            el.classList.remove('is-dragging-src');
-            if (!dragging) { if (drop) this._pick(); return; }
-            if (!drop) return;
-            const target = nseDropTarget(zones(), lastX, lastY);       // la zone sous le pointeur
-            if (!target || !this._canDropIn(target.zone)) return;      // lâché hors d'une zone : rien ne bouge
-            this._dropAt(target, { left: lastX - gx, top: lastY - gy }, !alt);
-        };
-        const onMove = (e2) => {
-            lastX = e2.clientX; lastY = e2.clientY; alt = !!e2.altKey;
-            if (!dragging) { if (Math.hypot(lastX - x0, lastY - y0) < 5) return; begin(); }
-            refresh();
-        };
-        const onUp = (e2) => { alt = !!(e2 && e2.altKey); end(true); };
-        const onCancel = () => end(false);
-        const onKey = (k) => { if (k.key === 'Escape') { k.preventDefault(); k.stopPropagation(); end(false); } };
-        grip.addEventListener('pointermove', onMove);
-        grip.addEventListener('pointerup', onUp);
-        grip.addEventListener('pointercancel', onCancel);
-        document.addEventListener('keydown', onKey, true);
-    }
-
-    // Sélectionne le cadre entier (comme une image dans un texte) : la zone prend le focus pour que Suppr. et les flèches s'appliquent à lui.
+    // Sélectionne le cadre (seul) : la zone prend le focus pour que Suppr., les flèches et ⌘C s'appliquent à lui.
     _pick() {
-        if (this.opts.onPick) this.opts.onPick(this);
-        const sel = window.getSelection();
-        if (!sel) return;
-        const r = document.createRange();
-        r.selectNode(this.el);
-        sel.removeAllRanges();
-        sel.addRange(r);
-        this.el.classList.add('is-picked');
-    }
-
-    // Dépose le cadre : il s'accroche au texte près du coin haut gauche de l'aperçu (dans la zone sous le pointeur) puis y est décalé au pixel près.
-    // Autre zone : le cadre y est recréé (onTransfer) et décalé de la même façon.
-    _dropAt(target, desired, snap) {
-        const el = this.el, zone = target.zone;
-        const zr = zone.getBoundingClientRect();
-        const ax = Math.max(zr.left + 2, Math.min(zr.right - 2, desired.left + 8)), ay = Math.max(zr.top + 2, Math.min(zr.bottom - 2, desired.top + 8));
-        const anchor = nseDropTarget([zone], ax, ay) || target;
-        if (zone === this._zone()) {
-            const r = anchor.range;
-            const parent = el.parentNode;
-            const idx = Array.prototype.indexOf.call(parent.childNodes, el);
-            const inPlace = r.startContainer === parent && (r.startOffset === idx || r.startOffset === idx + 1);
-            if (!inPlace) {
-                r.insertNode(el);
-                zone.normalize(); // recolle les morceaux de texte coupés par l'insertion
-            }
-            this.placeAt(desired, snap);
-            this.commit();
-            if (this.opts.onMoved) this.opts.onMoved(this);
-            this._pick();
-        } else if (this.opts.onTransfer) {
-            this.opts.onTransfer(this, zone, anchor.range, desired, snap);
-        }
+        const cv = this._canvas();
+        if (cv) cv.select([this.el], 'set', true);
     }
 }
 
