@@ -724,4 +724,45 @@ describe('annotations : portées (navigateur)', { skip: !pw && 'Playwright non i
         assert.deepEqual(errors, []);
         await close();
     });
+    test('faux plein écran de la zone d\'annotation : recouvre la fenêtre sans API plein écran, édition, portée déplaçable, sorties', async () => {
+        const { page, errors, close } = await openAnnotations();
+        const card = () => page.evaluate(() => { const r = document.getElementById('jam-scales-card').getBoundingClientRect();
+            return { x: r.x, y: r.y, w: r.width, h: r.height, vw: innerWidth, vh: innerHeight, native: !!document.fullscreenElement }; });
+        const hOf = () => page.evaluate(() => document.getElementById('jam-annot-general').getBoundingClientRect().height);
+        // mise en page compacte : la carte n'a plus ses 20 px de marge intérieure
+        assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('jam-scales-card')).paddingTop), '8px');
+        const h0 = await hOf();
+        await page.click('#jam-annot-fs-btn');
+        await page.waitForTimeout(150);
+        const c = await card();
+        assert.ok(c.x === 0 && c.y === 0 && Math.abs(c.w - c.vw) < 1 && Math.abs(c.h - c.vh) < 1, 'la carte recouvre toute la fenêtre');
+        assert.equal(c.native, false, 'pas de plein écran du navigateur');
+        assert.ok(await hOf() > h0, 'la zone gagne de la hauteur');
+        assert.equal(await page.evaluate(() => document.documentElement.classList.contains('jam-annot-fs-lock')), true);
+        // on écrit, on pose une portée, on la déplace
+        await page.click('#jam-annot-general');
+        await page.keyboard.type('Texte en grand');
+        await addStaff(page, '#jam-annot-general', [40, 60]);
+        const before = (await staves(page, '#jam-annot-general'))[0];
+        await dragBlock(page, '#jam-annot-general', 0, before.x + 120, before.y + 60);
+        await page.waitForTimeout(150);
+        const after = (await staves(page, '#jam-annot-general'))[0];
+        assert.ok(after.x > before.x + 60 && after.y > before.y + 30, `la portée suit la souris en faux plein écran (${before.x},${before.y}) → (${after.x},${after.y})`);
+        // Échap pendant la saisie valide la zone sans fermer ; un second Échap ferme
+        await page.click('#jam-annot-general');
+        await page.keyboard.press('Escape');
+        assert.equal(await page.evaluate(() => app.jam.annotFs), true);
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(100);
+        assert.equal(await page.evaluate(() => app.jam.annotFs), false);
+        assert.equal(await page.evaluate(() => document.documentElement.classList.contains('jam-annot-fs-lock')), false);
+        assert.match(await page.evaluate(() => app.jam.gridNote), /Texte en grand/);
+        // un autre onglet le ferme aussi et cache le bouton
+        await page.click('#jam-annot-fs-btn');
+        await page.evaluate(() => app.jam.setVisMode('notes'));
+        assert.equal(await page.evaluate(() => app.jam.annotFs), false);
+        assert.equal(await page.isVisible('#jam-annot-fs-btn'), false);
+        assert.deepEqual(errors, []);
+        await close();
+    });
 });

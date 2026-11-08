@@ -110,7 +110,7 @@ Exemples :
 | Commande | Contrôle |
 |---|---|
 | `npm test` | Tous les tests unitaires (plus de 1 400) + cohérence du projet. Quelques secondes. |
-| `npm run test:e2e` | L'appli entière dans un navigateur : chargement, Entraînement, portée, tous les styles de la Jam, lecture/arrêt, changement d'orchestre, plage sélectionnée ; et (`e2e/annotations.e2e.js`) les blocs portée des annotations : police, cadre resserré, crayon, point, déplacement au pixel près et annulation, copier-coller entre zones. |
+| `npm run test:e2e` | L'appli entière dans un navigateur : chargement, Entraînement, portée, tous les styles de la Jam, lecture/arrêt, changement d'orchestre, plage sélectionnée ; et (`e2e/annotations.e2e.js`) les blocs portée des annotations : police, cadre resserré, crayon, point, déplacement au pixel près et annulation, copier-coller entre zones ; le faux plein écran de la zone d'annotation. |
 | `npm run test:offline` | Le mode hors ligne pour de vrai : visite en ligne, puis réseau coupé ; la page se recharge, les 13 instruments se décodent, la portée et la police s'affichent, aucune requête ne part vers un autre site. |
 
 Installation du test navigateur (une fois) : `npm install` puis `npx playwright install chromium`. Sans cela, ses scénarios sont simplement ignorés.

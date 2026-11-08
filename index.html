@@ -437,7 +437,7 @@
                 </div>
 
                 <div id="jam-scales-card" class="flex-1 bg-[#252525] border border-[#333333] rounded-xl p-5 shadow flex flex-col justify-between overflow-hidden min-h-0">
-                    <div class="flex justify-between items-center gap-2 mb-3 shrink-0 flex-wrap">
+                    <div class="jam-scales-head flex justify-between items-center gap-2 mb-3 shrink-0 flex-wrap">
                         <div class="flex items-center gap-2 flex-wrap">
                             <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Antisèches</h3>
                             <button onclick="app.jam.toggleShowTargetNotes()" id="jam-btn-toggle-target" class="px-2 py-0.5 rounded text-[11px] font-semibold transition bg-[#1a1a1a] text-slate-500 border border-[#333333]">Notes cibles</button>
@@ -448,6 +448,9 @@
                             </button>
                         </div>
                         <div class="flex items-center gap-2 flex-wrap">
+                            <button onclick="app.jam.toggleAnnotFullscreen()" id="jam-annot-fs-btn" type="button" title="Agrandir la zone d'annotation (faux plein écran)" aria-label="Agrandir la zone d'annotation (faux plein écran)" aria-pressed="false" class="jam-annot-fs-btn p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-[#333333] transition" style="display:none">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M21 16v5h-5"/></svg>
+                            </button>
                             <div class="flex bg-[#1a1a1a] p-1 rounded-lg text-xs font-medium border border-[#333333]">
                                 <button onclick="app.jam.setVisMode('staff')" id="jam-vmode-staff" class="py-1 px-2.5 rounded-md transition bg-[#3a3a3c] text-white shadow-sm">Portée</button>
                                 <button onclick="app.jam.setVisMode('annotations')" id="jam-vmode-annotations" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Annotations</button>
@@ -593,6 +596,7 @@
                 this.perfMode = 'auto';
                 try { const m = localStorage.getItem('jamPerfMode'); if (['auto', 'full', 'light', 'minimal'].indexOf(m) >= 0) this.perfMode = m; } catch (e) {}
                 this.perfTier = this._initialPerfTier();
+                this.annotFs = false; // faux plein écran de la zone d'annotation (voir toggleAnnotFullscreen)
                 this.antisechesHidden = false; // panneau « Antisèches » masqué (touche mémorisée)
                 try { this.antisechesHidden = localStorage.getItem('jamAntisechesHidden') === '1'; } catch (e) {}
                 this._perfPrev = null; this._perfLog = []; this._perfCooldown = 0;
@@ -5425,7 +5429,45 @@
                     btn.classList.toggle('text-white', !this.antisechesHidden);
                     btn.classList.toggle('text-slate-400', !!this.antisechesHidden);
                 }
-                if (this.antisechesHidden) this.annotDeactivate(); // la zone qu'on éditait disparaît : son texte est validé
+                if (this.antisechesHidden) { this._setAnnotFullscreen(false); this.annotDeactivate(); } // la zone qu'on éditait disparaît : son texte est validé
+            }
+
+            // Faux plein écran de la zone d'annotation : la carte « Antisèches » recouvre toute la fenêtre (CSS seul,
+            // l'API plein écran du navigateur n'est pas utilisée). Disponible dans l'onglet Annotations uniquement ;
+            // Échap (hors saisie), le bouton, un autre onglet ou le masquage des antisèches le referment.
+            toggleAnnotFullscreen() { this._setAnnotFullscreen(!this.annotFs); }
+
+            _setAnnotFullscreen(on) {
+                const card = document.getElementById('jam-scales-card');
+                if (!card) return;
+                on = !!on && this.visMode === 'annotations' && !this.antisechesHidden;
+                this.annotFs = on;
+                card.classList.toggle('jam-annot-fs', on);
+                document.documentElement.classList.toggle('jam-annot-fs-lock', on);
+                const btn = document.getElementById('jam-annot-fs-btn');
+                if (btn) {
+                    btn.title = on ? 'Quitter le faux plein écran (Échap)' : 'Agrandir la zone d\'annotation (faux plein écran)';
+                    btn.setAttribute('aria-label', btn.title);
+                    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+                    btn.classList.toggle('text-white', on);
+                    btn.innerHTML = on
+                        ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3v6H3M15 3v6h6M9 21v-6H3M21 15h-6v6"/></svg>'
+                        : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M21 16v5h-5"/></svg>';
+                }
+                if (on && !this._annotFsKey) {
+                    this._annotFsKey = (ev) => {
+                        if (ev.key !== 'Escape' || ev.defaultPrevented) return;
+                        const ae = document.activeElement;
+                        if ((ae && ae.closest && ae.closest('.jam-annot-text')) || document.querySelector('.ab-menu, .jm-pop:not(.hidden)')) return; // d'abord on valide la saisie / ferme le menu
+                        this.annotDeactivate();
+                        this._setAnnotFullscreen(false);
+                    };
+                    document.addEventListener('keydown', this._annotFsKey);
+                } else if (!on && this._annotFsKey) {
+                    document.removeEventListener('keydown', this._annotFsKey);
+                    this._annotFsKey = null;
+                }
+                if (on) window.scrollTo(0, 0);
             }
 
             toggleGridFullscreen() {
@@ -5530,6 +5572,9 @@
                     const el = document.getElementById(id);
                     if (el) el.style.display = annot ? 'none' : '';
                 });
+                const fsBtn = document.getElementById('jam-annot-fs-btn');
+                if (fsBtn) fsBtn.style.display = annot ? '' : 'none';
+                if (!annot && this.annotFs) this._setAnnotFullscreen(false);
                 this.renderJamScales();
                 // Pendant la jam, la hauteur réservée à la zone est recalculée en entrant dans l'onglet Annotations ou en le quittant.
                 if (this.isPlaying && (annot || prev === 'annotations')) this.lockScalesHeight();
