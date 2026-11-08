@@ -297,3 +297,28 @@ describe('cadres de texte : largeur et échelle', () => {
         assert.equal(S.clampFrameScale(1e6), S.SN_FRAME_SCALE_MAX);
     });
 });
+
+describe('copier-coller d\'un cadre de texte : frameClipText / splitStaffClips', () => {
+    test('le repère est une seule ligne, sans « ] » à l\'intérieur, et se relit à l\'identique', () => {
+        const html = '<b>Gras</b> ] [ et <i>retour</i><div>ligne 2</div>\néàç';
+        const clip = S.frameClipText({ w: 300, s: 150 }, html);
+        assert.ok(clip.startsWith('[cadre:300,150;') && clip.endsWith(']'));
+        assert.ok(!clip.slice(0, -1).includes(']') && !clip.includes('\n'));
+        assert.deepEqual(S.splitStaffClips(clip), [{ frame: { box: '300,150', html } }]);
+    });
+    test('l\'échelle de 100 % est omise ; la largeur est ramenée dans les bornes', () => {
+        assert.ok(S.frameClipText({ w: 260, s: 100 }, 'a').startsWith('[cadre:260;'));
+        assert.deepEqual(S.splitStaffClips('[cadre:5,9;a]'), [{ frame: { box: '80,25', html: 'a' } }]);
+    });
+    test('texte, portée et cadre mêlés dans l\'ordre', () => {
+        const st = S.staffClipText(S.parseStaff('t,4/4,0;q:c4'));
+        const fr = S.frameClipText({ w: 260 }, 'x');
+        assert.deepEqual(S.splitStaffClips(`avant ${st} milieu ${fr} après`), [{ text: 'avant ' }, { staff: 't,4/4,0;q:c4' }, { text: ' milieu ' }, { frame: { box: '260', html: 'x' } }, { text: ' après' }]);
+    });
+    test('un cadre vide se copie et se colle', () => {
+        assert.deepEqual(S.splitStaffClips(S.frameClipText({ w: 260 }, '')), [{ frame: { box: '260', html: '' } }]);
+    });
+    test('repère invalide (largeur illisible, encodage cassé) : reste du texte ordinaire', () => {
+        for (const bad of ['[cadre:abc;x]', '[cadre:260;%E0%A4%A]', '[cadre:260,1500;x]', '[cadre:260]']) assert.deepEqual(S.splitStaffClips(bad), [{ text: bad }], bad);
+    });
+});

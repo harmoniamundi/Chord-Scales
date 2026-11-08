@@ -5894,7 +5894,7 @@
                 }
             }
 
-            // Collage en texte brut : pas de mise en forme venue d'ailleurs. Un repère « [portée:…] » (voir annotCopy) redevient une portée.
+            // Collage en texte brut : pas de mise en forme venue d'ailleurs. Un repère « [portée:…] » ou « [cadre:…] » (voir annotCopy) redevient une portée ou un cadre de texte.
             annotPaste(ev) {
                 ev.preventDefault();
                 const ed = ev.currentTarget;
@@ -5902,14 +5902,14 @@
                 if (!t) return;
                 const parts = splitStaffClips(t);
                 const inFrame = !!(ev.target && ev.target.closest && ev.target.closest('.annot-frame-body'));
-                if (inFrame) document.execCommand('insertText', false, parts.map(p => p.text || '').join('')); // un cadre ne contient que du texte : pas de portée dedans
-                else if (!parts.some(p => p.staff)) document.execCommand('insertText', false, t);
+                if (inFrame) document.execCommand('insertText', false, parts.map(p => p.text || '').join('')); // un cadre ne contient que du texte : ni portée ni autre cadre dedans
+                else if (!parts.some(p => p.staff || p.frame)) document.execCommand('insertText', false, t);
                 else this._annotPasteParts(ed, parts);
             }
 
-            // Copier / couper : quand la sélection contient une portée (ou qu'une portée est en édition et qu'aucun texte n'est sélectionné),
-            // le presse-papiers reçoit le texte avec un repère « [portée:…] » à la place de chaque portée, que le collage sait relire,
-            // y compris dans l'autre zone d'annotation. Sans portée concernée, la copie du navigateur suit son cours.
+            // Copier / couper : quand la sélection contient une portée ou un cadre de texte (ou qu'une portée est en édition et qu'aucun texte n'est sélectionné),
+            // le presse-papiers reçoit le texte avec un repère « [portée:…] » ou « [cadre:…] » à la place de chaque bloc, que le collage sait relire,
+            // y compris dans l'autre zone d'annotation. Sans bloc concerné (ou texte copié dans un cadre en édition), la copie du navigateur suit son cours.
             annotCopy(ev, cut = false) {
                 const ed = ev.currentTarget;
                 if (!ed || !ev.clipboardData) return;
@@ -5917,7 +5917,7 @@
                 let text = null, removeActive = null;
                 if (sel && sel.rangeCount && !sel.isCollapsed && ed.contains(sel.getRangeAt(0).commonAncestorContainer)) {
                     const frag = sel.getRangeAt(0).cloneContents();
-                    if (frag.querySelector('.annot-staff')) text = nseFragmentToClipText(frag);
+                    if (frag.querySelector('.annot-staff, .annot-frame')) text = nseFragmentToClipText(frag);
                 } else {
                     const sv = (typeof NSE_ACTIVE !== 'undefined') ? NSE_ACTIVE : null;
                     if (sv && ed.contains(sv.el)) { text = staffClipText(sv.st); removeActive = sv; }
@@ -5938,12 +5938,25 @@
             _annotPasteParts(ed, parts) {
                 if (!this._annotIsEditable(ed)) return;
                 let room = NOTE_MAX_STAVES - ed.querySelectorAll('.annot-staff').length;
+                let roomFrames = NOTE_MAX_FRAMES - ed.querySelectorAll('.annot-frame').length;
                 const sel = window.getSelection();
                 let range = (sel && sel.rangeCount && ed.contains(sel.getRangeAt(0).commonAncestorContainer)) ? sel.getRangeAt(0) : null;
                 if (!range) { range = document.createRange(); range.selectNodeContents(ed); range.collapse(false); }
                 if (!range.collapsed) range.deleteContents();
                 for (const p of parts) {
-                    if (p.staff) {
+                    if (p.frame) {
+                        if (roomFrames <= 0) continue;
+                        const holder = document.createElement('div');
+                        holder.innerHTML = sanitizeNoteHtml(noteFrameStubHtml(parseFrameBox(p.frame.box), null, p.frame.html), ed.id === 'jam-annot-general' ? GRID_NOTE_MAX : MEASURE_NOTE_MAX);
+                        const stub = holder.firstChild;
+                        if (!stub || !stub.classList || !stub.classList.contains('annot-frame')) continue; // texte du cadre refusé par le nettoyage
+                        stub.setAttribute('contenteditable', 'false'); // sinon le navigateur placerait le curseur, et la suite du collage, dans le texte du cadre
+                        range.insertNode(stub);
+                        roomFrames--;
+                        range = document.createRange();
+                        range.setStartAfter(stub);
+                        range.collapse(true);
+                    } else if (p.staff) {
                         if (room <= 0) continue;
                         const holder = document.createElement('div');
                         holder.innerHTML = noteStaffStubHtml(parseStaff(p.staff));

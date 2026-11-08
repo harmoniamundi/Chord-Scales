@@ -11,7 +11,7 @@
 // Sous Node (tests), le format se charge ; en navigateur ce sont des globaux (ui/staff-notes.js).
 const NSE_N = (typeof parseStaff !== 'undefined')
     ? { parseStaff, formatStaff, staffDefault, layoutStaff, meterBeamUnits, pitchFromDia, pitchDia, pitchLabel, pitchMidi, midiToName, diaFromY, yFromDia,
-        playbackPlan, insertEvent, removeEvent, updateEvent, alterEvent, shiftEvent, cloneStaff, staffClipText, splitStaffClips, parseStaffPos, formatStaffPos, clampStaffPos,
+        playbackPlan, insertEvent, removeEvent, updateEvent, alterEvent, shiftEvent, cloneStaff, staffClipText, frameClipText, parseFrameBox, splitStaffClips, parseStaffPos, formatStaffPos, clampStaffPos,
         SN_KEY_NAMES, SN_KEY_LABELS, SN_BOTTOM_LINE, SN_METERS, SN_SIZE_MIN, SN_SIZE_MAX, SN_SIZE_STEP, SN_SIZE_DEFAULT, clampStaffSize }
     : require('./staff-notes.js');
 
@@ -229,7 +229,7 @@ function nseToolState(st, sel, selAuto, cur) {
     return e ? { d: e.d, dot: !!e.dot, tri: !!e.tri, rest: !e.p } : { d: cur.d, dot: !!cur.dot, tri: !!cur.tri, rest: !!cur.rest };
 }
 
-// Texte brut d'un fragment de document (sélection copiée) : le texte, des retours à la ligne, et « [portée:…] » pour chaque portée.
+// Texte brut d'un fragment de document (sélection copiée) : le texte, des retours à la ligne, « [portée:…] » pour chaque portée et « [cadre:…] » pour chaque cadre de texte.
 function nseFragmentToClipText(root) {
     let out = '';
     const walk = (node) => {
@@ -239,6 +239,12 @@ function nseFragmentToClipText(root) {
             if (n.classList && n.classList.contains('annot-staff')) {
                 const st = NSE_N.parseStaff(n.getAttribute('data-staff') || '');
                 if (st) out += NSE_N.staffClipText(st);
+                return;
+            }
+            if (n.classList && n.classList.contains('annot-frame')) { // cadre de texte (ui/text-frame.js) : largeur / échelle et texte mis en forme
+                const box = NSE_N.parseFrameBox(n.getAttribute('data-frame') || '');
+                const body = n.querySelector('.annot-frame-body');
+                if (box) out += NSE_N.frameClipText(box, body ? body.innerHTML : n.innerHTML);
                 return;
             }
             const tag = String(n.tagName || '').toUpperCase();
@@ -605,6 +611,9 @@ class NoteStaffView {
         });
         // Hors édition, un clic-glisser n'importe où dans le bloc le déplace ; un clic le sélectionne ; un double-clic le remet à sa place dans le texte.
         this.el.addEventListener('pointerdown', (ev) => { if (!ev.target.closest('.annot-staff-edit')) this._blockDown(ev); });
+        // Les bords et les coins redimensionnent le bloc, comme pour un cadre de texte : le curseur qui les survole change de forme.
+        this.el.addEventListener('pointermove', (ev) => this._hover(ev));
+        this.el.addEventListener('pointerleave', () => { if (!this._resizing) this.el.style.cursor = ''; });
         this.el.addEventListener('dblclick', (ev) => { if (ev.target.closest('.annot-staff-edit')) return; ev.preventDefault(); ev.stopPropagation(); if (this.editable && !this.isActive) this.resetPos(); });
     }
 
@@ -789,6 +798,69 @@ class NoteStaffView {
         return zone === this._zone() || zone.querySelectorAll('.annot-staff').length < (this.opts.maxStaves || 8);
     }
 
+    // ----- Redimensionner : bords et coins (hors édition), comme un cadre de texte (ui/text-frame.js) -----
+    // Tirer change la taille de la portée (le même réglage que le curseur « Taille » : 50 à 200 %, par pas de 10) ; le coin ou le bord opposé reste en place.
+
+    // Zone sensible sous le pointeur ('' = le milieu du bloc, ou le crayon).
+    _zoneAt(ev) {
+        if (ev.target.closest && ev.target.closest('.annot-staff-edit')) return '';
+        const r = this.el.getBoundingClientRect();
+        const touch = ev.pointerType === 'touch';
+        return ntfHitZone(ev.clientX - r.left, ev.clientY - r.top, r.width, r.height, touch ? NTF_EDGE_TOUCH : NTF_EDGE, touch ? NTF_CORNER_TOUCH : NTF_CORNER);
+    }
+
+    _hover(ev) {
+        if (ev.buttons || this._resizing || ev.pointerType === 'touch') return;
+        this.el.style.cursor = (!this.editable || this.isActive) ? '' : ntfCursor(this._zoneAt(ev));
+    }
+
+    _resizeDown(ev, zone) {
+        const el = this.el;
+        if (this.opts.onGrab) this.opts.onGrab(this);
+        const r0 = el.getBoundingClientRect();
+        const s0 = this.st.size || NSE_N.SN_SIZE_DEFAULT, pos0 = { ...this.pos };
+        const x0 = ev.clientX, y0 = ev.clientY;
+        let changed = false;
+        this._resizing = true;
+        el.style.cursor = ntfCursor(zone);
+        try { el.setPointerCapture(ev.pointerId); } catch (e) { /* non pris en charge */ }
+        const setSize = (s) => this._apply(Object.assign(NSE_N.cloneStaff(this.st), { size: s }), { noHistory: true });
+        const end = (drop) => {
+            el.removeEventListener('pointermove', onMove);
+            el.removeEventListener('pointerup', onUp);
+            el.removeEventListener('pointercancel', onCancel);
+            document.removeEventListener('keydown', onKey, true);
+            try { el.releasePointerCapture(ev.pointerId); } catch (e) { /* déjà relâché */ }
+            this._resizing = false;
+            el.style.cursor = '';
+            if (!drop) {
+                if (changed) { setSize(s0); this.pos = pos0; this._showPos(); }
+                return;
+            }
+            if (!changed) { this._pick(); return; }
+            this.commit();
+            if (this.opts.onMoved) this.opts.onMoved(this);
+            this._pick();
+        };
+        const onMove = (e2) => {
+            if (!changed && Math.hypot(e2.clientX - x0, e2.clientY - y0) < 3) return;
+            const res = ntfResizeScale(zone, r0.width, r0.height, s0, e2.clientX - x0, e2.clientY - y0, { min: NSE_N.SN_SIZE_MIN, max: NSE_N.SN_SIZE_MAX });
+            const s = NSE_N.clampStaffSize(res.s);
+            if (s === (this.st.size || NSE_N.SN_SIZE_DEFAULT)) { changed = changed || s !== s0; return; }
+            changed = true;
+            setSize(s);
+            const r1 = el.getBoundingClientRect();
+            this.placeAt({ left: r0.left + res.ax * (r0.width - r1.width), top: r0.top + res.ay * (r0.height - r1.height) }, false);
+        };
+        const onUp = () => end(true);
+        const onCancel = () => end(false);
+        const onKey = (k) => { if (k.key === 'Escape') { k.preventDefault(); k.stopPropagation(); end(false); } };
+        el.addEventListener('pointermove', onMove);
+        el.addEventListener('pointerup', onUp);
+        el.addEventListener('pointercancel', onCancel);
+        document.addEventListener('keydown', onKey, true);
+    }
+
     // Hors édition, appui sur le bloc : un clic le sélectionne (⌘C copie, ⌘X coupe, Suppr. l'enlève, les flèches le décalent d'un pixel). Glisser : déplace le bloc
     // au pixel près, là où l'aperçu se trouve (il garde alors sa place dans le texte, avec un décalage), y compris dans l'autre zone ;
     // Échap annule. Un décalage de moins de 3 pixels revient à la place du texte (touche Alt enfoncée : pas d'aimant).
@@ -796,6 +868,8 @@ class NoteStaffView {
         if (!this.editable || ev.button > 0 || this.isActive) return;
         ev.preventDefault();
         ev.stopPropagation();
+        const zone = this._zoneAt(ev);
+        if (zone) { this._resizeDown(ev, zone); return; }
         const el = this.el, grip = el;
         if (this.opts.onGrab) this.opts.onGrab(this);
         const x0 = ev.clientX, y0 = ev.clientY;

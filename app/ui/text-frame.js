@@ -46,7 +46,7 @@ function ntfCursor(zone) {
 
 // Nouvelle échelle (%) quand on tire la poignée `zone` de (dx, dy) pixels, le cadre faisant w0 × h0 pixels à l'écran à l'échelle s0.
 // Un coin suit la diagonale (la projection du déplacement sur elle), un bord suit sa seule direction ; le cadre garde ses proportions.
-// opts.maxScale : échelle maximale (le cadre ne dépasse pas la largeur de la zone) ; opts.baseWidth : largeur de mise en page (fixe l'échelle minimale
+// opts.min / opts.max : bornes de l'échelle (25 à 400 % par défaut) ; opts.maxScale : échelle maximale (le cadre ne dépasse pas la largeur de la zone) ; opts.baseWidth : largeur de mise en page (fixe l'échelle minimale
 // pour que le cadre ne devienne pas plus étroit que NTF_MIN_WIDTH pixels).
 // Renvoie { s, ax, ay } : s = échelle, (ax, ay) = point du cadre qui reste en place pendant le tirage (0, .5 ou 1 sur chaque axe : le coin ou le bord opposé).
 function ntfResizeScale(zone, w0, h0, s0, dx, dy, opts = {}) {
@@ -56,7 +56,7 @@ function ntfResizeScale(zone, w0, h0, s0, dx, dy, opts = {}) {
     if (sx && sy) r = 1 + (sx * dx * w0 + sy * dy * h0) / (w0 * w0 + h0 * h0);
     else if (sx) r = (w0 + sx * dx) / w0;
     else if (sy) r = (h0 + sy * dy) / h0;
-    let lo = NTF_N.SN_FRAME_SCALE_MIN, hi = NTF_N.SN_FRAME_SCALE_MAX;
+    let lo = opts.min > 0 ? opts.min : NTF_N.SN_FRAME_SCALE_MIN, hi = opts.max > 0 ? opts.max : NTF_N.SN_FRAME_SCALE_MAX; // une portée a ses propres bornes (50 à 200 %)
     if (opts.baseWidth > 0) lo = Math.max(lo, Math.ceil(NTF_MIN_WIDTH / opts.baseWidth * 100));
     if (opts.maxScale > 0) hi = Math.min(hi, Math.max(lo, s0, Math.floor(opts.maxScale))); // déjà plus grand que la zone : on peut seulement réduire, sans saut
     const s = Math.max(lo, Math.min(hi, Math.round(s0 * (Number.isFinite(r) ? r : 1))));
@@ -204,6 +204,13 @@ class NoteFrameView {
             this.activate();
         });
         this.body.addEventListener('keydown', (ev) => {
+            // ⌘A / Ctrl+A dans un cadre en édition : sélectionne le texte du cadre, pas toute la zone (la frappe suivante effacerait tous les blocs)
+            if ((ev.metaKey || ev.ctrlKey) && !ev.altKey && String(ev.key).toLowerCase() === 'a' && this.isActive) {
+                ev.preventDefault();
+                const sel = window.getSelection();
+                if (sel) { const r = document.createRange(); r.selectNodeContents(this.body); sel.removeAllRanges(); sel.addRange(r); }
+                return;
+            }
             if (ev.key !== 'Escape' || !this.isActive) return;
             ev.preventDefault(); ev.stopPropagation();
             this.deactivate();

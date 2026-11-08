@@ -147,22 +147,38 @@ function formatFrameBox(box) {
 // ----- Copier-coller d'une portée (texte brut, pour passer d'une zone d'annotation à l'autre ou d'une fenêtre à l'autre) -----
 // Une portée copiée s'écrit « [portée:t,4/4,0;q:c4 8:e4] » ; dans un texte collé, chaque repère de ce genre redevient une portée.
 
-const SN_CLIP_RE = /\[portée:([^\]\n]{1,800})\]/g;
+const SN_CLIP_RE = /\[portée:([^\]\n]{1,800})\]|\[cadre:(\d{1,4}(?:,\d{1,3})?);([^\]\n]{0,30000})\]/g;
 
 function staffClipText(st) { return `[portée:${formatStaff(st)}]`; }
 
-// Découpe un texte collé en morceaux [{ text }] (texte ordinaire) et [{ staff }] (texte d'une portée valide, sous sa forme canonique).
-// Un repère dont la portée est invalide reste du texte ordinaire.
+// Un cadre de texte copié s'écrit « [cadre:260,150;<texte mis en forme, encodé>] » : largeur / échelle, puis son HTML passé par encodeURIComponent
+// (aucun « ] » ni retour à la ligne). Le HTML doit encore être nettoyé par celui qui le colle (sanitizeNoteHtml, grid/grid-format.js).
+function frameClipText(box, html) {
+    return `[cadre:${formatFrameBox(box)};${encodeURIComponent(String(html || ''))}]`;
+}
+
+// Découpe un texte collé en morceaux [{ text }] (texte ordinaire), [{ staff }] (texte d'une portée valide, sous sa forme canonique)
+// et [{ frame: { box, html } }] (cadre de texte : largeur / échelle canoniques et HTML décodé, à nettoyer).
+// Un repère invalide reste du texte ordinaire.
 function splitStaffClips(text) {
     const src = String(text === undefined || text === null ? '' : text);
     const out = [];
     let pos = 0, m;
     SN_CLIP_RE.lastIndex = 0;
     while ((m = SN_CLIP_RE.exec(src))) {
-        const canon = canonicalStaff(m[1]);
-        if (!canon) continue;
+        let piece = null;
+        if (m[1] !== undefined) {
+            const canon = canonicalStaff(m[1]);
+            if (canon) piece = { staff: canon };
+        } else {
+            const box = parseFrameBox(m[2]);
+            let html = null;
+            try { html = decodeURIComponent(m[3]); } catch (e) { /* encodage invalide */ }
+            if (box && html !== null) piece = { frame: { box: formatFrameBox(box), html } };
+        }
+        if (!piece) continue;
         if (m.index > pos) out.push({ text: src.slice(pos, m.index) });
-        out.push({ staff: canon });
+        out.push(piece);
         pos = m.index + m[0].length;
     }
     if (pos < src.length) out.push({ text: src.slice(pos) });
@@ -352,7 +368,7 @@ function shiftEvent(st, index, steps) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { SN_POS_MAX, clampStaffPos, parseStaffPos, formatStaffPos,
         SN_FRAME_W_MIN, SN_FRAME_W_MAX, SN_FRAME_W_DEFAULT, SN_FRAME_SCALE_MIN, SN_FRAME_SCALE_MAX, SN_FRAME_SCALE_DEFAULT, clampFrameWidth, clampFrameScale, parseFrameBox, formatFrameBox,
-        staffClipText, splitStaffClips, SN_UNITS, SN_DURATIONS, SN_METERS, SN_MAX_EVENTS, SN_MAX_LENGTH, SN_KEY_NAMES, SN_KEY_LABELS, SN_BOTTOM_LINE,
+        staffClipText, frameClipText, splitStaffClips, SN_UNITS, SN_DURATIONS, SN_METERS, SN_MAX_EVENTS, SN_MAX_LENGTH, SN_KEY_NAMES, SN_KEY_LABELS, SN_BOTTOM_LINE,
         SN_SIZE_MIN, SN_SIZE_MAX, SN_SIZE_STEP, SN_SIZE_DEFAULT, clampStaffSize,
         staffDefault, parseStaff, formatStaff, canonicalStaff, eventUnits, meterUnits, meterBeamUnits, decomposeUnits, layoutStaff,
         pitchDia, keyAlter, pitchFromDia, pitchMidi, midiToName, pitchLabel, diaFromY, yFromDia, playbackPlan,

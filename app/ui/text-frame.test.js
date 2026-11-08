@@ -101,6 +101,14 @@ describe('ntfResizeScale : l\'échelle suit le tirage, le cadre garde ses propor
     });
 });
 
+describe('ntfResizeScale : bornes propres à une portée', () => {
+    test('opts.min / opts.max remplacent 25 à 400 %', () => {
+        assert.equal(T.ntfResizeScale('e', 200, 100, 100, 100000, 0, { min: 50, max: 200 }).s, 200);
+        assert.equal(T.ntfResizeScale('e', 200, 100, 100, -100000, 0, { min: 50, max: 200 }).s, 50);
+        assert.equal(T.ntfResizeScale('se', 200, 100, 100, 100, 50, { min: 50, max: 200 }).s, 150);
+    });
+});
+
 describe('noteFrameStubHtml', () => {
     test('bloc enregistrable : largeur / échelle, décalage et texte', () => {
         assert.equal(T.noteFrameStubHtml({ w: 260 }), '<div class="annot-frame" data-frame="260"></div>');
