@@ -42,8 +42,9 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
 
     const G = '#jam-annot-general', M = '#jam-annot-measure';
 
-    // Ouvre l'appli sur l'onglet Annotations, avec une mesure sélectionnée (la zone de droite est alors modifiable).
-    async function openAnnotations(viewport = { width: 1400, height: 1500 }) {
+    // Ouvre l'appli sur l'onglet Annotations, avec une mesure sélectionnée. Par défaut, les deux zones sont mises en mode édition (crayon à côté du titre) ;
+    // { edit: false } les laisse en lecture (blocs figés, zoom).
+    async function openAnnotations(viewport = { width: 1400, height: 1500 }, opts = {}) {
         const ctx = await browser.newContext({ viewport, permissions: ['clipboard-read', 'clipboard-write'] });
         const page = await ctx.newPage();
         const errors = [];
@@ -54,7 +55,12 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
         await page.evaluate(() => app.jam.setVisMode('annotations'));
         await page.waitForSelector('#jam-annot-general');
         await page.click('#jam-chord-sequence-display .jam-cell >> nth=1');
-        await page.waitForFunction(() => document.getElementById('jam-annot-measure').getAttribute('data-editable') === 'true');
+        await page.waitForFunction(() => document.getElementById('jam-annot-measure').getAttribute('data-can-edit') === 'true');
+        if (opts.edit !== false) {
+            await page.click('[data-annot-mode="general"]');
+            await page.click('[data-annot-mode="measure"]');
+            await page.waitForFunction(() => ['jam-annot-general', 'jam-annot-measure'].every(i => document.getElementById(i).getAttribute('data-editable') === 'true'));
+        }
         return { page, errors, close: () => ctx.close() };
     }
 
@@ -243,11 +249,11 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
         // sélectionné, un cadre caché montre un liseré bleu : il reste facile à saisir
         assert.equal(a.picked, true);
         assert.equal((await borderOf(0)).color, 'rgb(59, 130, 246)');
-        // non sélectionné : le trait et le fond sont transparents, seul le texte reste
+        // non sélectionné : le fond est transparent, seul le texte reste ; en mode édition un liseré pointillé pâle le garde repérable
         const z = await zoneBox(page);
         await page.mouse.click(z.x + z.width - 40, z.y + z.height - 40);
         await page.mouse.move(5, 5);
-        assert.equal((await borderOf(0)).color, 'rgba(0, 0, 0, 0)', 'le trait est transparent');
+        assert.equal((await borderOf(0)).color, 'rgba(96, 165, 250, 0.6)', 'liseré pointillé pâle en mode édition');
         assert.equal((await borderOf(0)).bg, 'rgba(0, 0, 0, 0)', 'et le fond aussi : seul le texte reste');
         assert.equal((await borderOf(1)).color, 'rgb(148, 163, 184)', 'B garde son trait');
         await page.mouse.click(...await centerOf(page, G, 0));
@@ -265,6 +271,10 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
         await page.keyboard.press('Control+Z');
         await page.waitForTimeout(250);
         assert.deepEqual((await blocks(page)).map(x => x.border), [null, null]);
+        // hors édition, un cadre caché est vraiment sans trait : seul son texte reste
+        await page.evaluate(() => { app.jam._annotZoneEl('general').querySelectorAll('.annot-frame').forEach(f => f.classList.add('no-border')); });
+        await page.click('[data-annot-mode="general"]');
+        assert.equal((await borderOf(0)).color, 'rgba(0, 0, 0, 0)', 'en lecture le trait est transparent');
         assert.deepEqual(errors, []);
         await close();
     });
@@ -892,19 +902,24 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
     });
 
     test('la barre de mise en forme n\'apparaît que pendant l\'édition, et les zones prennent la place libre', async () => {
-        const { page, errors, close } = await openAnnotations();
+        const { page, errors, close } = await openAnnotations(undefined, { edit: false });
         const bar = () => page.locator('#jam-annot-bar').isVisible();
         const zoneH = () => page.evaluate(() => Math.round(document.getElementById('jam-annot-general').getBoundingClientRect().height));
         assert.equal(await bar(), false, 'pas de barre quand on n\'édite pas');
         const idleH = await zoneH();
-        const b = await zoneBox(page);
-        await page.mouse.click(b.x + b.width - 12, b.y + b.height - 12);       // clic sur le fond de la zone
+        await page.click('[data-annot-mode="general"]');                       // le crayon met la zone en édition
         assert.equal(await bar(), true, 'la barre apparaît quand on édite');
         assert.ok(await zoneH() < idleH, 'les zones cèdent la place à la barre');
-        await page.mouse.click(5, 5);                                          // clic ailleurs : on sort de l'édition
+        await page.mouse.click(5, 5);                                          // clic ailleurs : la barre se range, la zone reste en édition
         await page.waitForTimeout(150);
         assert.equal(await bar(), false, 'la barre disparaît en sortant');
         assert.equal(await zoneH(), idleH, 'les zones reprennent la place');
+        assert.equal((await zone(page)).editable, 'true', 'la zone reste en mode édition');
+        const b = await zoneBox(page);
+        await page.mouse.click(b.x + b.width - 12, b.y + b.height - 12);       // clic sur le fond de la zone : la barre revient
+        assert.equal(await bar(), true);
+        await page.mouse.click(5, 5);
+        await page.waitForTimeout(150);
         // un bloc choisi d'un clic ne fait pas surgir la barre (rien ne bouge sous le pointeur)
         await addStaff(page, G, [50, 45]);
         await page.mouse.click(5, 5);
@@ -1001,6 +1016,208 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
         assert.deepEqual(errors, []);
         await close();
     });
+
+    // ----- Mode édition (crayon à côté du titre) et zoom de lecture -----
+    const zone = (page, z = G) => page.evaluate((id) => {
+        const e = document.querySelector(id), zn = e.closest('.jam-annot-zone');
+        return { editable: e.getAttribute('data-editable'), canEdit: e.getAttribute('data-can-edit'), editing: zn.classList.contains('is-editing'),
+            pen: zn.querySelector('[data-annot-mode]').getAttribute('aria-pressed'), tools: getComputedStyle(zn.querySelector('.jam-annot-tools')).display,
+            zoomUi: getComputedStyle(zn.querySelector('.jam-annot-zoom')).display, label: zn.querySelector('[data-zoom-act="reset"]').textContent, ph: e.dataset.placeholder };
+    }, z);
+    const pencilShown = (page, z = G) => page.evaluate((id) => Array.from(document.querySelectorAll(`${id} .annot-staff-edit, ${id} .annot-frame-edit`)).map(b => getComputedStyle(b).display !== 'none'), z);
+
+    test('crayon à côté du titre : par défaut la zone est en lecture (blocs figés), le crayon passe en édition et en sort', async () => {
+        const { page, errors, close } = await openAnnotations(undefined, { edit: false });
+        let z = await zone(page);
+        assert.equal(z.editable, 'false'); assert.equal(z.editing, false); assert.equal(z.pen, 'false');
+        assert.equal(z.tools, 'none', 'pas d\'outils de disposition hors édition'); assert.notEqual(z.zoomUi, 'none', 'le zoom est là');
+        assert.match(z.ph, /crayon/);
+        assert.equal(await page.locator('#jam-annot-bar').isVisible(), false);
+        // hors édition : ni création, ni crayons de bloc
+        const b = await zoneBox(page);
+        await page.mouse.dblclick(b.x + 80, b.y + 60);
+        assert.equal((await blocks(page)).length, 0, 'pas de création en lecture');
+        // le crayon active l'édition de cette zone seulement
+        await page.click('[data-annot-mode="general"]');
+        z = await zone(page);
+        assert.equal(z.editable, 'true'); assert.equal(z.editing, true); assert.equal(z.pen, 'true');
+        assert.notEqual(z.tools, 'none'); assert.equal(z.zoomUi, 'none');
+        assert.equal((await zone(page, M)).editable, 'false', 'l\'autre zone reste en lecture');
+        assert.equal(await page.locator('#jam-annot-bar').isVisible(), true, 'la barre de mise en forme vient avec l\'édition');
+        // un cadre se crée, puis le crayon ferme l'édition : le bloc est figé
+        await newFrame(page, G, 30, 40, 'Bonjour');
+        const a0 = (await blocks(page))[0].at;
+        await page.click('[data-annot-mode="general"]');
+        z = await zone(page);
+        assert.equal(z.editable, 'false'); assert.equal(z.editing, false);
+        assert.equal(await page.locator('#jam-annot-bar').isVisible(), false, 'la barre se range');
+        assert.deepEqual(await pencilShown(page), [false], 'plus de crayon sur le bloc');
+        await dragBlock(page, G, 0, 90, 50);
+        assert.equal((await blocks(page))[0].at, a0, 'le bloc ne bouge pas');
+        const c = await centerOf(page, G, 0);
+        await page.mouse.click(...c);
+        assert.equal((await blocks(page))[0].picked, false, 'ni sélection');
+        await page.mouse.dblclick(...c);
+        assert.equal((await blocks(page)).filter(x => x.active).length, 0, 'ni édition du texte');
+        assert.match((await blocks(page))[0].text, /Bonjour/);
+        assert.match(await note(page), /Bonjour/, 'le texte est enregistré à la sortie');
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('mode édition : crayons de bloc toujours visibles, bloc sans bord repérable, outils de disposition', async () => {
+        const { page, errors, close } = await openAnnotations();
+        await newFrame(page, G, 30, 40, 'A');
+        await addStaff(page, G, [50, 45]);
+        await page.mouse.click(5, 5);
+        await page.waitForTimeout(150);
+        assert.deepEqual(await pencilShown(page), [true, true], 'un crayon sur chaque bloc sans survol');
+        // un cadre sans bord garde un trait pointillé repérable
+        await page.evaluate(() => document.querySelector('#jam-annot-general > .annot-frame').click());
+        await page.evaluate(() => { const f = app.jam._annotZoneEl('general').querySelector('.annot-frame'); f.classList.add('no-border'); });
+        const st = await page.evaluate(() => getComputedStyle(document.querySelector('#jam-annot-general > .annot-frame')).borderTopStyle);
+        assert.equal(st, 'dashed');
+        assert.equal(await page.locator('#jam-annot-general').evaluate(e => getComputedStyle(e).borderTopColor), 'rgb(96, 165, 250)', 'zone cerclée de bleu');
+        // sortie : crayons et outils disparaissent
+        await page.click('[data-annot-mode="general"]');
+        assert.deepEqual(await pencilShown(page), [false, false]);
+        assert.equal(await page.locator('#jam-annot-general').evaluate(e => getComputedStyle(e).borderTopColor), 'rgb(203, 213, 225)');
+        assert.equal((await zone(page)).tools, 'none');
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('chaque zone a son crayon ; le crayon d\'une zone ne change pas l\'autre ; jam lancée : édition coupée', async () => {
+        const { page, errors, close } = await openAnnotations(undefined, { edit: false });
+        await page.click('[data-annot-mode="measure"]');
+        assert.equal((await zone(page, M)).editable, 'true');
+        assert.equal((await zone(page, G)).editable, 'false');
+        await page.click('[data-annot-mode="general"]');
+        assert.equal((await zone(page, M)).editable, 'true', 'les deux zones peuvent être en édition');
+        assert.equal((await zone(page, G)).editable, 'true');
+        // le lancement de la jam coupe l'édition (pas de crayon), le zoom reste
+        await page.evaluate(() => { app.jam.isPlaying = true; document.getElementById('view-jam').classList.add('jam-playing'); app.jam.renderJamScales(); });
+        assert.equal((await zone(page, G)).editable, 'false');
+        assert.equal((await zone(page, M)).editable, 'false');
+        assert.equal(await page.locator('[data-annot-mode="general"]').isVisible(), false, 'pas de crayon pendant la jam');
+        assert.equal(await page.locator('[data-zoom-act="in"]').first().isVisible(), true, 'le zoom reste');
+        await page.evaluate(() => { app.jam.isPlaying = false; document.getElementById('view-jam').classList.remove('jam-playing'); app.jam.renderJamScales(); });
+        assert.equal((await zone(page, G)).editing, false, 'l\'édition ne revient pas toute seule');
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('zoom de lecture : boutons − / + / 100 %, bornes, enregistré ; blocs agrandis depuis le coin de la zone', async () => {
+        const { page, errors, close } = await openAnnotations();
+        await newFrame(page, G, 40, 30, 'Zoom');
+        const b0 = (await blocks(page))[0];
+        await page.click('[data-annot-mode="general"]');                       // lecture
+        const zb = await zoneBox(page);
+        const geo = async () => { const b = (await blocks(page))[0]; return { x: b.sx - zb.x, y: b.sy - zb.y, w: b.sw, h: b.sh }; };
+        const g1 = await geo();
+        await page.locator('.jam-annot-zone').first().locator('[data-zoom-act="in"]').click();
+        assert.equal((await zone(page)).label, '125 %');
+        const g2 = await geo();
+        assert.ok(Math.abs(g2.w - g1.w * 1.25) < 1.5 && Math.abs(g2.h - g1.h * 1.25) < 1.5, 'taille ×1,25');
+        assert.ok(Math.abs(g2.x - g1.x * 1.25) < 2 && Math.abs(g2.y - g1.y * 1.25) < 2, 'place ×1,25 depuis le coin de la zone');
+        assert.equal((await blocks(page))[0].at, b0.at, 'la place enregistrée ne change pas');
+        for (let i = 0; i < 12; i++) await page.locator('.jam-annot-zone').first().locator('[data-zoom-act="in"]').click({ force: true }).catch(() => {});
+        assert.equal((await zone(page)).label, '300 %');
+        assert.equal(await page.locator('.jam-annot-zone').first().locator('[data-zoom-act="in"]').isDisabled(), true);
+        for (let i = 0; i < 12; i++) await page.locator('.jam-annot-zone').first().locator('[data-zoom-act="out"]').click({ force: true }).catch(() => {});
+        assert.equal((await zone(page)).label, '50 %');
+        await page.locator('.jam-annot-zone').first().locator('[data-zoom-act="reset"]').click();
+        assert.equal((await zone(page)).label, '100 %');
+        assert.equal(await page.evaluate(() => document.querySelector('#jam-annot-general > .annot-frame').style.transform), '');
+        // enregistré
+        await page.locator('.jam-annot-zone').first().locator('[data-zoom-act="in"]').click();
+        assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('jamAnnotZoom')).general), 1.25);
+        // l'autre zone a son propre zoom
+        assert.equal((await zone(page, M)).label, '100 %');
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('zoom de lecture : Ctrl + molette zoome autour du pointeur, la molette seule fait défiler', async () => {
+        const { page, errors, close } = await openAnnotations();
+        await newFrame(page, G, 200, 100, 'Cible');
+        await page.click('[data-annot-mode="general"]');
+        const zb = await zoneBox(page);
+        await page.mouse.move(zb.x + 220, zb.y + 110);
+        await page.keyboard.down('Control');
+        await page.mouse.wheel(0, -100);
+        await page.keyboard.up('Control');
+        const lab = (await zone(page)).label;
+        assert.notEqual(lab, '100 %', 'Ctrl + molette zoome');
+        assert.ok(parseInt(lab, 10) > 100);
+        // agrandi autour du coin de la zone : le bloc s'éloigne du coin, et la zone devient défilable quand le contenu dépasse
+        const b = (await blocks(page))[0];
+        assert.ok(b.sx - zb.x > 200 && b.sw > b.w, 'bloc agrandi depuis le coin de la zone');
+        for (let i = 0; i < 8; i++) { await page.keyboard.down('Control'); await page.mouse.wheel(0, -100); await page.keyboard.up('Control'); }
+        assert.equal((await zone(page)).label, '300 %');
+        assert.equal(await page.evaluate(() => { const e = document.getElementById('jam-annot-general'); return e.scrollWidth > e.clientWidth || e.scrollHeight > e.clientHeight; }), true, 'la zone défile');
+        await page.evaluate(() => { const e = document.getElementById('jam-annot-general'); e.scrollLeft = 0; e.scrollTop = 0; });
+        const lab3 = (await zone(page)).label;
+        // molette sans touche : pas de zoom
+        await page.mouse.wheel(0, 50);
+        assert.equal((await zone(page)).label, lab3);
+        // en mode édition la molette ne zoome pas
+        await page.click('[data-annot-mode="general"]');
+        await page.keyboard.down('Control');
+        await page.mouse.wheel(0, -100);
+        await page.keyboard.up('Control');
+        assert.equal(await page.evaluate(() => app.jam.annotZoom.general), 3);
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('zoom : revient à 100 % pendant l\'édition (déplacements justes), puis se retrouve à la sortie ; relu après redessin', async () => {
+        const { page, errors, close } = await openAnnotations();
+        await newFrame(page, G, 60, 50, 'X');
+        await page.click('[data-annot-mode="general"]');
+        await page.locator('.jam-annot-zone').first().locator('[data-zoom-act="in"]').click();
+        await page.locator('.jam-annot-zone').first().locator('[data-zoom-act="in"]').click();   // 150 %
+        const zoomed = (await blocks(page))[0];
+        assert.ok(zoomed.sw > zoomed.w * 1.4, 'agrandi en lecture');
+        await page.click('[data-annot-mode="general"]');                      // édition
+        assert.equal(await page.evaluate(() => document.querySelector('#jam-annot-general > .annot-frame').style.transform), '', 'pas de transformation en édition');
+        const e = (await blocks(page))[0];
+        assert.ok(Math.abs(e.sw - e.w) < 1, 'taille normale en édition');
+        const at0 = e.at;
+        await dragBlock(page, G, 0, 40, 25);
+        const moved = (await blocks(page))[0].at;
+        assert.notEqual(moved, at0);
+        await page.click('[data-annot-mode="general"]');                      // lecture : 150 % retrouvé, au nouvel endroit
+        assert.equal((await zone(page)).label, '150 %');
+        const r = (await blocks(page))[0];
+        assert.ok(r.sw > r.w * 1.4);
+        // redessin de la zone (annotation de la grille relue) : le zoom est réappliqué
+        await page.evaluate(() => { app.jam.renderJamScales(); });
+        const r2 = (await blocks(page))[0];
+        assert.ok(r2.sw > r2.w * 1.4, 'zoom conservé après redessin');
+        // rechargement : zoom retrouvé
+        await page.reload();
+        await page.waitForFunction(() => typeof app !== 'undefined' && app.jam);
+        assert.equal(await page.evaluate(() => app.jam.annotZoom.general), 1.5);
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('sortir du mode édition pendant la saisie dans un cadre : texte validé, rien ne reste actif', async () => {
+        const { page, errors, close } = await openAnnotations();
+        const b = await zoneBox(page);
+        await page.mouse.dblclick(b.x + 50, b.y + 40);
+        await page.waitForSelector('#jam-annot-general > .annot-frame.is-editing');
+        await page.keyboard.type('Encore');
+        await page.click('[data-annot-mode="general"]');
+        await page.waitForTimeout(200);
+        assert.match(await note(page), /Encore/);
+        assert.equal((await blocks(page)).filter(x => x.active).length, 0);
+        assert.equal(await page.evaluate(() => !!document.activeElement.closest && !!document.activeElement.closest('#jam-annot-general')), false);
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
 });
 
 describe('plein écran de la grille : faux plein écran (navigateur)', { skip: !pw && 'Playwright non installé : npm install && npx playwright install chromium' }, () => {

@@ -377,7 +377,7 @@
         #jam-chord-sequence-display .jam-cell-top > span:last-child { min-width: 0; }
         #jam-chord-sequence-display .jam-add-cell { align-self: stretch; min-height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 1.5px dashed #2f6f57; background: rgba(16,185,129,.06); color: #34d399; font-size: 24px; line-height: 1; cursor: pointer; user-select: none; transition: background .12s, border-color .12s; }
         #jam-chord-sequence-display .jam-add-cell:hover { background: rgba(16,185,129,.16); border-color: #34d399; }
-        :root { --cs-build: '2026-11-08-a'; } /* numéro de version lu par la page */
+        :root { --cs-build: '2026-11-08-b'; } /* numéro de version lu par la page */
         .jm-pop { position: fixed; z-index: 2000; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); color: #e2e8f0; padding: 10px 12px 12px; font-size: 12px; }
         .jm-pop.jm-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; max-height: 62vh; }
         /* Pop-up « Orchestre » : fenêtre flottante à gauche de l'écran, sans voile, déplaçable par sa barre de titre */
@@ -986,20 +986,16 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 /* Hors édition (zone modifiable), le bloc se saisit n'importe où : curseur « main », et le doigt le déplace sans faire défiler la page */
 .jam-annot-text[data-editable="true"] .annot-staff:not(.is-active) { cursor: grab; touch-action: none; }
 .jam-annot-text[data-editable="true"] .annot-staff:not(.is-active):active { cursor: grabbing; }
-/* Crayon ✎ : ouvre la portée en édition (un second clic en sort) ; visible au survol, toujours visible sur écran tactile */
+/* Crayon ✎ : ouvre le bloc en édition (un second clic en sort) ; visible sur tous les blocs en mode édition de la zone, absent hors édition */
 .annot-staff-edit, .annot-frame-edit { display: none; position: absolute; left: -9px; top: -9px; z-index: 3; width: 20px; height: 20px; padding: 0; align-items: center; justify-content: center; border: 0; border-radius: 10px;
     background: #2563eb; color: #fff; font: 700 12px/1 system-ui, sans-serif; cursor: pointer; box-shadow: 0 1px 4px rgba(0, 0, 0, .45); }
 .annot-staff-edit:hover, .annot-frame-edit:hover { background: #1d4ed8; }
-.jam-annot-text[data-editable="true"] .annot-staff:hover > .annot-staff-edit,
-.jam-annot-text[data-editable="true"] .annot-staff.is-picked > .annot-staff-edit,
-.jam-annot-text[data-editable="true"] .annot-staff.is-active > .annot-staff-edit,
-.jam-annot-text[data-editable="true"] .annot-frame:hover > .annot-frame-edit,
-.jam-annot-text[data-editable="true"] .annot-frame.is-picked > .annot-frame-edit,
-.jam-annot-text[data-editable="true"] .annot-frame.is-editing > .annot-frame-edit { display: flex; }
+.jam-annot-text[data-editable="true"] .annot-staff > .annot-staff-edit,
+.jam-annot-text[data-editable="true"] .annot-frame > .annot-frame-edit { display: flex; } /* en mode édition, le crayon de chaque bloc est toujours visible */
 .annot-staff.is-active > .annot-staff-edit, .annot-frame.is-editing > .annot-frame-edit { background: #1e293b; box-shadow: 0 0 0 2px #3b82f6; }
 @media (hover: none) {
     .jam-annot-text[data-editable="true"] .annot-staff > .annot-staff-edit,
-    .jam-annot-text[data-editable="true"] .annot-frame > .annot-frame-edit { display: flex; opacity: .85; width: 24px; height: 24px; left: -11px; top: -11px; border-radius: 12px; }
+    .jam-annot-text[data-editable="true"] .annot-frame > .annot-frame-edit { opacity: .85; width: 24px; height: 24px; left: -11px; top: -11px; border-radius: 12px; }
 }
 /* Pendant un déplacement : aperçu du bloc là où il sera déposé */
 .annot-drag-ghost { position: fixed; z-index: 2200; pointer-events: none; opacity: .85; background: #fff; border: 1px solid #3b82f6; border-radius: 8px; padding: 4px; line-height: 0;
@@ -1067,7 +1063,8 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 .jam-annot-text > .annot-frame.is-editing { z-index: 20; }
 /* Bloc sans bord : seul son contenu reste visible (un liseré apparaît au survol, à la sélection et à l'édition pour pouvoir le saisir) */
 .annot-staff.no-border, .annot-frame.no-border { border-color: transparent; background: transparent; box-shadow: none; }
-.jam-annot-text[data-editable="true"] .annot-staff.no-border:not(.is-active):hover, .jam-annot-text[data-editable="true"] .annot-frame.no-border:not(.is-editing):hover { border-style: dashed; border-color: #60a5fa; }
+.jam-annot-text[data-editable="true"] .annot-staff.no-border:not(.is-active):not(.is-picked), .jam-annot-text[data-editable="true"] .annot-frame.no-border:not(.is-editing):not(.is-picked) { border-style: dashed; border-color: rgba(96, 165, 250, .6); } /* mode édition : un bloc sans bord reste repérable */
+.jam-annot-text[data-editable="true"] .annot-staff.no-border:not(.is-active):hover, .jam-annot-text[data-editable="true"] .annot-frame.no-border:not(.is-editing):hover { border-color: #60a5fa; }
 .annot-staff.no-border.is-active, .annot-frame.no-border.is-editing { border-color: #3b82f6; background: #fff; box-shadow: 0 0 0 1px #3b82f6; }
 .annot-staff.no-border.is-picked, .annot-frame.no-border.is-picked { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .45); }
 /* Calque des repères d'alignement et du rectangle de sélection : il n'existe que le temps d'un geste */
@@ -1084,3 +1081,19 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 .at-btn.is-on { color: #fff; }
 .jam-annot-text.has-picks { outline: 1px solid rgba(59, 130, 246, .35); outline-offset: 1px; }
 #view-jam.jam-playing .jam-annot-tools { display: none; }
+
+/* Mode édition (crayon à côté du titre) : zone cerclée de bleu, outils de disposition visibles ; hors édition, zoom de lecture à la place */
+.jam-annot-pencil { height: 22px; min-width: 24px; padding: 0 5px; color: #94a3b8; }
+.jam-annot-pencil:hover:not(:disabled) { color: #fff; }
+.jam-annot-pencil:disabled { opacity: .35; cursor: default; }
+.jam-annot-pencil.is-on { color: #fff; }
+#view-jam.jam-playing .jam-annot-pencil { display: none; }
+.jam-annot-zone:not(.is-editing) .jam-annot-tools { display: none; }
+.jam-annot-zone.is-editing .jam-annot-zoom { display: none; }
+.jam-annot-zoom { margin-left: auto; display: inline-flex; align-items: center; gap: 2px; text-transform: none; letter-spacing: 0; }
+.jam-annot-zbtn { min-width: 26px; font-variant-numeric: tabular-nums; }
+.jam-annot-zbtn[data-zoom-act="reset"] { min-width: 46px; font-size: 11px; }
+.jam-annot-text[data-editable="true"] { border-color: #60a5fa; }
+/* Zone verrouillée : le doigt la fait défiler, le pincement zoome (géré en JS) ; les blocs agrandis partent du coin haut gauche */
+.jam-annot-text[data-editable="false"] { touch-action: pan-x pan-y; }
+.jam-annot-text:not(.legacy-flow) > .annot-staff, .jam-annot-text:not(.legacy-flow) > .annot-frame { transform-origin: 0 0; }

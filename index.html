@@ -598,6 +598,11 @@
                 try { const m = localStorage.getItem('jamPerfMode'); if (['auto', 'full', 'light', 'minimal'].indexOf(m) >= 0) this.perfMode = m; } catch (e) {}
                 this.perfTier = this._initialPerfTier();
                 this.annotMagnet = (() => { try { return localStorage.getItem('jamAnnotMagnet') === '1'; } catch (e) { return false; } })(); // aimant entre blocs d'annotation
+                this.annotEdit = { general: false, measure: false }; // mode édition de chaque zone d'annotation (crayon à côté du titre) ; hors édition, les blocs sont figés
+                this.annotZoom = (() => { // zoom de lecture de chaque zone (hors édition), gardé d'une visite à l'autre
+                    let o = {}; try { o = JSON.parse(localStorage.getItem('jamAnnotZoom') || '{}') || {}; } catch (e) {}
+                    try { return { general: acClampZoom(o.general), measure: acClampZoom(o.measure) }; } catch (e) { return { general: 1, measure: 1 }; } // (fichier ancien : la bannière de version le signale)
+                })();
                 this.annotFs = false; // faux plein écran de la zone d'annotation (voir toggleAnnotFullscreen)
                 this.antisechesHidden = false; // panneau « Antisèches » masqué (touche mémorisée)
                 try { this.antisechesHidden = localStorage.getItem('jamAntisechesHidden') === '1'; } catch (e) {}
@@ -5795,13 +5800,13 @@
                                 oncopy="app.jam.annotCopy(event)" oncut="app.jam.annotCopy(event, true)" ondrop="event.preventDefault()"`;
                     container.innerHTML = `${annotBarHtml()}
                         <div class="jam-annot-zone">
-                            <div class="jam-annot-head"><span class="jam-annot-title">Grille</span>${annotToolsHtml()}</div>
-                            <div id="jam-annot-general" class="jam-annot-text" data-editable="true" role="group" spellcheck="false"
+                            <div class="jam-annot-head"><span class="jam-annot-title">Grille</span>${annotModeHtml('general')}${annotZoomHtml('general')}${annotToolsHtml()}</div>
+                            <div id="jam-annot-general" class="jam-annot-text" data-editable="false" data-can-edit="false" role="group" spellcheck="false"
                                 aria-label="Annotations générales de la grille" data-placeholder="Double-cliquez pour ajouter un cadre de texte…" ${handlers}></div>
                         </div>
                         <div class="jam-annot-zone">
-                            <div class="jam-annot-head"><span class="jam-annot-title" id="jam-annot-measure-head">Mesure</span>${annotToolsHtml()}</div>
-                            <div id="jam-annot-measure" class="jam-annot-text" data-editable="false" role="group" spellcheck="false"
+                            <div class="jam-annot-head"><span class="jam-annot-title" id="jam-annot-measure-head">Mesure</span>${annotModeHtml('measure')}${annotZoomHtml('measure')}${annotToolsHtml()}</div>
+                            <div id="jam-annot-measure" class="jam-annot-text" data-editable="false" data-can-edit="false" role="group" spellcheck="false"
                                 aria-label="Annotations de la mesure" ${handlers}></div>
                         </div>`;
                     general = container.querySelector('#jam-annot-general');
@@ -5834,12 +5839,133 @@
                 }
                 if (head.textContent !== label) head.textContent = label;
                 box.dataset.measure = measureNum;
-                box.setAttribute('data-editable', editable ? 'true' : 'false');
-                box.tabIndex = editable ? 0 : -1;
-                box.setAttribute('aria-readonly', editable ? 'false' : 'true');
-                box.dataset.placeholder = placeholder;
-                if (!editable && this._annotActive === box) this.annotDeactivate();
+                general.setAttribute('data-can-edit', this.isPlaying ? 'false' : 'true'); // jam lancée : lecture seule (et zoom), le mode édition est coupé
+                box.setAttribute('data-can-edit', editable ? 'true' : 'false');
+                this._annotSyncMode();
                 if (!(focused(box) && editable)) setHtml(box, step ? sanitizeNoteHtml(step.note || '', MEASURE_NOTE_MAX) : '');
+                this._annotApplyZoom(general); this._annotApplyZoom(box);
+            }
+
+            // ----- Mode édition (crayon à côté du titre de chaque zone) et zoom de lecture -----
+            // « can-edit » = la zone peut être modifiée (une mesure est choisie, la jam n'est pas lancée) ; « editable » = elle l'est maintenant (can-edit ET crayon allumé).
+            // Hors édition les blocs sont figés (pas de crayons, de déplacement, de sélection ni de création) et la zone se lit, avec un zoom.
+            _annotZoneEl(which) { return document.getElementById(which === 'general' ? 'jam-annot-general' : 'jam-annot-measure'); }
+            _annotZoneKey(ed) { return ed && ed.id === 'jam-annot-general' ? 'general' : 'measure'; }
+
+            _annotSyncMode() {
+                ANNOT_ZONES.forEach((w) => {
+                    const ed = this._annotZoneEl(w);
+                    if (!ed) return;
+                    const can = ed.getAttribute('data-can-edit') === 'true';
+                    if (!can) this.annotEdit[w] = false;
+                    const on = can && !!this.annotEdit[w];
+                    const was = this._annotIsEditable(ed);
+                    ed.setAttribute('data-editable', on ? 'true' : 'false');
+                    ed.tabIndex = on ? 0 : -1;
+                    ed.setAttribute('aria-readonly', on ? 'false' : 'true');
+                    const hasStep = w === 'general' || (this.currentStepIndex >= 0 && this.currentStepIndex < this.grid.length);
+                    ed.dataset.placeholder = this.isPlaying ? '' : !hasStep ? 'Cliquez sur une mesure de la grille pour l\'annoter'
+                        : on ? 'Double-cliquez pour ajouter un cadre de texte…' : 'Aucune annotation — cliquez sur le crayon pour en ajouter';
+                    const zone = ed.closest('.jam-annot-zone');
+                    if (zone) {
+                        zone.classList.toggle('is-editing', on);
+                        const pen = zone.querySelector('[data-annot-mode]');
+                        if (pen) { pen.classList.toggle('is-on', on); pen.setAttribute('aria-pressed', on ? 'true' : 'false'); pen.disabled = !can; }
+                    }
+                    if (was && !on) { // on quitte l'édition : texte validé, sélection vidée, barre rangée
+                        if (this._annotActive === ed) this.annotDeactivate();
+                        else if (ed.__canvas) ed.__canvas.clearSelection(true);
+                        if (ed.contains(document.activeElement)) { try { document.activeElement.blur(); } catch (e) {} }
+                    }
+                    if (was !== on) this._annotApplyZoom(ed);
+                    this._annotRefreshZoomUi(w);
+                });
+            }
+
+            // Le crayon d'une zone : entre dans l'édition (la zone devient active, la barre de mise en forme vient) ou en sort.
+            annotToggleMode(which) {
+                const ed = this._annotZoneEl(which);
+                if (!ed || ed.getAttribute('data-can-edit') !== 'true') return;
+                this.annotEdit[which] = !this.annotEdit[which];
+                this._annotSyncMode();
+                if (this.annotEdit[which]) {
+                    try { ed.focus({ preventScroll: true }); } catch (e) {}
+                    this._annotQuiet = false;
+                    this.annotActivate(ed);
+                    this._annotRefreshState();
+                }
+            }
+
+            // Zoom de lecture : chaque bloc est agrandi autour du coin haut gauche de la zone (transform), à 100 % pendant l'édition.
+            _annotApplyZoom(ed) {
+                if (!ed) return;
+                const w = this._annotZoneKey(ed);
+                const z = this._annotIsEditable(ed) ? 1 : this.annotZoom[w];
+                ed.classList.toggle('is-zoomed', z !== 1);
+                ed.querySelectorAll(':scope > .annot-staff, :scope > .annot-frame').forEach((b) => {
+                    const m = /^\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)/.exec(b.getAttribute('data-at') || '');
+                    if (z === 1 || !m || ed.classList.contains('legacy-flow')) { b.style.transform = ''; return; }
+                    const o = acZoomOffset({ x: parseFloat(m[1]), y: parseFloat(m[2]) }, z);
+                    b.style.transform = `translate(${o.x}px, ${o.y}px) scale(${z})`;
+                });
+            }
+
+            _annotRefreshZoomUi(which) {
+                const zone = this._annotZoneEl(which) && this._annotZoneEl(which).closest('.jam-annot-zone');
+                if (!zone) return;
+                const z = this.annotZoom[which];
+                const reset = zone.querySelector('[data-zoom-act="reset"]'), out = zone.querySelector('[data-zoom-act="out"]'), inn = zone.querySelector('[data-zoom-act="in"]');
+                if (reset) { reset.textContent = `${Math.round(z * 100)} %`; reset.classList.toggle('is-on', z !== 1); }
+                if (out) out.disabled = z <= AC_ZOOM_MIN;
+                if (inn) inn.disabled = z >= AC_ZOOM_MAX;
+            }
+
+            // Nouveau zoom (ancre = point de l'écran qui reste en place ; par défaut le centre de la zone).
+            _annotSetZoom(which, z1, anchor) {
+                const ed = this._annotZoneEl(which);
+                if (!ed || this._annotIsEditable(ed)) return;
+                const z0 = this.annotZoom[which];
+                z1 = acClampZoom(z1);
+                if (z1 === z0) return;
+                const r = ed.getBoundingClientRect();
+                const px = (anchor ? anchor.x - r.left : r.width / 2) - ed.clientLeft, py = (anchor ? anchor.y - r.top : r.height / 2) - ed.clientTop;
+                this.annotZoom[which] = z1;
+                try { localStorage.setItem('jamAnnotZoom', JSON.stringify(this.annotZoom)); } catch (e) {}
+                this._annotApplyZoom(ed);
+                ed.scrollLeft = acZoomScroll(ed.scrollLeft, px, z0, z1);
+                ed.scrollTop = acZoomScroll(ed.scrollTop, py, z0, z1);
+                this._annotRefreshZoomUi(which);
+            }
+
+            annotZoomAct(which, act) {
+                const z = this.annotZoom[which];
+                this._annotSetZoom(which, act === 'reset' ? 1 : acZoomStep(z, act === 'in' ? 1 : -1), null);
+            }
+
+            // Gestes de zoom d'une zone verrouillée : Ctrl / ⌘ + molette (et pincement du pavé tactile), pincement de Safari, pincement à deux doigts.
+            _annotBindZoom(ed) {
+                if (ed.__zoomBound) return;
+                ed.__zoomBound = true;
+                const which = () => this._annotZoneKey(ed), locked = () => !this._annotIsEditable(ed);
+                ed.addEventListener('wheel', (ev) => {
+                    if (!(ev.ctrlKey || ev.metaKey) || !locked()) return;
+                    ev.preventDefault();
+                    this._annotSetZoom(which(), acZoomWheel(this.annotZoom[which()], ev.deltaY, ev.deltaMode), { x: ev.clientX, y: ev.clientY });
+                }, { passive: false });
+                let z0 = 1;
+                ed.addEventListener('gesturestart', (ev) => { if (!locked()) return; ev.preventDefault(); z0 = this.annotZoom[which()]; });
+                ed.addEventListener('gesturechange', (ev) => { if (!locked()) return; ev.preventDefault(); this._annotSetZoom(which(), z0 * ev.scale, { x: ev.clientX, y: ev.clientY }); });
+                if ('ongesturestart' in window) return; // Safari : les gestes ci-dessus suffisent
+                let d0 = 0;
+                const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+                ed.addEventListener('touchstart', (ev) => { d0 = locked() && ev.touches.length === 2 ? dist(ev.touches) || 0 : 0; z0 = this.annotZoom[which()]; }, { passive: true });
+                ed.addEventListener('touchmove', (ev) => {
+                    if (!d0 || ev.touches.length !== 2 || !locked()) return;
+                    ev.preventDefault();
+                    const t = ev.touches;
+                    this._annotSetZoom(which(), z0 * dist(t) / d0, { x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
+                }, { passive: false });
+                ed.addEventListener('touchend', () => { d0 = 0; }, { passive: true });
             }
 
             _annotIsEditable(el) { return !!el && el.getAttribute('data-editable') === 'true'; }
@@ -6192,7 +6318,7 @@
                     if (!t || !t.closest) return;
                     const m = this._annotMenu;
                     if (m && !m.el.contains(t) && !m.anchor.contains(t)) this._annotCloseMenu();
-                    if (t.closest('.jam-annot-text, #jam-annot-bar, .ab-menu, .jam-annot-tools')) return;
+                    if (t.closest('.jam-annot-text, #jam-annot-bar, .ab-menu, .jam-annot-head')) return; // l'en-tête (crayon, zoom, outils) ne fait pas ranger la barre : la page ne saute pas sous le doigt
                     this.annotDeactivate();
                 };
                 this._annotSelChange = () => { this._annotSaveSel(); this._annotRefreshState(); };
@@ -6579,12 +6705,14 @@
             // convertie : voir _annotMigrate.
             _annotHydrate(ed) {
                 if (!ed.__canvas && typeof AnnotCanvas === 'function') new AnnotCanvas(ed, this._annotCanvasOpts(ed));
+                this._annotBindZoom(ed);
                 const legacy = this._annotIsLegacy(ed);
                 if (legacy && !ed.clientWidth) return; // zone cachée : impossible de mesurer la mise en page, on attend qu'elle s'affiche
                 if (legacy) { ed.classList.add('legacy-flow'); this._annotWrapLoose(ed); }
                 if (typeof hydrateNoteStaves === 'function') hydrateNoteStaves(ed, this._annotStaffOpts(ed));
                 if (typeof hydrateNoteFrames === 'function') hydrateNoteFrames(ed, this._annotFrameOpts(ed));
                 if (legacy) this._annotMigrate(ed);
+                this._annotApplyZoom(ed);
             }
 
             // L'annotation contient-elle du texte libre, ou des blocs qui n'ont pas encore de place sur le canevas (data-at) ?
@@ -8397,7 +8525,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-08-a';
+        var BUILD = '2026-11-08-b';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }
@@ -8414,8 +8542,8 @@
                 'app/grid/grid-format.js': typeof NOTE_FONTS !== 'undefined' && !!NOTE_FONTS.menlo && typeof sanitizeNoteHtml === 'function' && sanitizeNoteHtml('<div class="annot-frame" data-frame="200" data-at="5,5" data-border="0">x</div>', 300).indexOf('data-border') >= 0,
                 'app/ui/staff-editor.js': typeof nseToolState === 'function' && typeof nseBlocksToClipText === 'function' && typeof NoteStaffView === 'function' && typeof NoteStaffView.prototype.setBorder === 'function',
                 'app/ui/text-frame.js': typeof NoteFrameView === 'function' && typeof NoteFrameView.prototype.setBorder === 'function',
-                'app/ui/annot-canvas.js': typeof AnnotCanvas === 'function',
-                'app/ui/annot-bar.js': typeof ANNOT_FONT_DEFAULT_CSS !== 'undefined' && typeof annotToolsHtml === 'function'
+                'app/ui/annot-canvas.js': typeof AnnotCanvas === 'function' && typeof acZoomOffset === 'function',
+                'app/ui/annot-bar.js': typeof ANNOT_FONT_DEFAULT_CSS !== 'undefined' && typeof annotToolsHtml === 'function' && typeof annotModeHtml === 'function'
             };
             Object.keys(needed).forEach(function (f) { seen[f] = needed[f] ? BUILD : ''; });
             var old = Object.keys(seen).filter(function (f) { return seen[f] !== BUILD; });

@@ -8,7 +8,7 @@
 const HARM_THEORY = (typeof lookupChord !== 'undefined')
     ? { lookupChord, chordInfo, chordTypes, chordRootName, bassNoteName }
     : require('../theory.js');
-const HARMONY_BUILD = '2026-11-08-a'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
+const HARMONY_BUILD = '2026-11-08-b'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
 if (typeof romanDeg === 'undefined' && typeof require === 'function') {
     var { romanDeg, chordFamily, convertRomanText, convertRomanLabel } = require('./generation.js');
 }

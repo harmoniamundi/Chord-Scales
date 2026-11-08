@@ -121,3 +121,57 @@ describe('acFreeSpot : première place libre pour un nouveau bloc', () => {
         assert.ok(Number.isFinite(p.x) && Number.isFinite(p.y));
     });
 });
+
+describe('zoom de lecture : acClampZoom, acZoomStep, acZoomWheel, acZoomOffset, acZoomScroll', () => {
+    test('acClampZoom : bornes 50 % – 300 %, valeur invalide = 100 %', () => {
+        assert.equal(C.acClampZoom(1), 1);
+        assert.equal(C.acClampZoom(0.1), C.AC_ZOOM_MIN);
+        assert.equal(C.acClampZoom(9), C.AC_ZOOM_MAX);
+        assert.equal(C.acClampZoom('1.5'), 1.5);
+        assert.equal(C.acClampZoom('abc'), 1);
+        assert.equal(C.acClampZoom(null), 1);
+        assert.equal(C.acClampZoom(-2), 1);
+        assert.equal(C.acClampZoom(1.23456), 1.23);
+    });
+    test('les crans sont croissants, bornes comprises, et contiennent 100 %', () => {
+        const s = C.AC_ZOOM_STEPS;
+        assert.ok(s.every((v, i) => i === 0 || v > s[i - 1]));
+        assert.equal(s[0], C.AC_ZOOM_MIN);
+        assert.equal(s[s.length - 1], C.AC_ZOOM_MAX);
+        assert.ok(s.includes(1));
+    });
+    test('acZoomStep : cran suivant / précédent, même depuis une valeur intermédiaire, et arrêt aux bornes', () => {
+        assert.equal(C.acZoomStep(1, 1), 1.25);
+        assert.equal(C.acZoomStep(1, -1), 0.8);
+        assert.equal(C.acZoomStep(1.1, 1), 1.25);
+        assert.equal(C.acZoomStep(1.1, -1), 1);
+        assert.equal(C.acZoomStep(C.AC_ZOOM_MAX, 1), C.AC_ZOOM_MAX);
+        assert.equal(C.acZoomStep(C.AC_ZOOM_MIN, -1), C.AC_ZOOM_MIN);
+        let z = 1; for (let i = 0; i < 20; i++) z = C.acZoomStep(z, 1);
+        assert.equal(z, C.AC_ZOOM_MAX);
+    });
+    test('acZoomWheel : molette vers le haut agrandit, vers le bas réduit, avec un cran maximal et les bornes', () => {
+        assert.ok(C.acZoomWheel(1, -5) > 1);
+        assert.ok(C.acZoomWheel(1, 5) < 1);
+        assert.equal(C.acZoomWheel(1, 0), 1);
+        assert.equal(C.acZoomWheel(1, -1000), C.acZoomWheel(1, -30)); // un seul événement ne fait pas sauter le zoom
+        assert.equal(C.acZoomWheel(C.AC_ZOOM_MAX, -30), C.AC_ZOOM_MAX);
+        assert.equal(C.acZoomWheel(C.AC_ZOOM_MIN, 30), C.AC_ZOOM_MIN);
+        assert.equal(C.acZoomWheel(1, 'x'), 1);
+    });
+    test('acZoomOffset : le bloc posé en (x, y) se retrouve en (x·z, y·z) après scale(z) autour de son coin', () => {
+        assert.deepEqual(C.acZoomOffset({ x: 100, y: 20 }, 1), { x: 0, y: 0 });
+        assert.deepEqual(C.acZoomOffset({ x: 100, y: 20 }, 2), { x: 100, y: 20 });
+        assert.deepEqual(C.acZoomOffset({ x: 100, y: 20 }, 0.5), { x: -50, y: -10 });
+        assert.deepEqual(C.acZoomOffset({}, 2), { x: 0, y: 0 });
+    });
+    test('acZoomScroll : le point sous le pointeur reste en place', () => {
+        // pointeur à 60 px sans défilement à 100 % : le point de contenu est à 60 ; après ×2 il serait à 120 → défilement 60 pour le garder sous le pointeur
+        const s1 = C.acZoomScroll(0, 60, 1, 2);
+        assert.equal(s1, 60);
+        assert.equal((0 + 60) / 1, (s1 + 60) / 2);
+        const s2 = C.acZoomScroll(30, 10, 2, 1.5);
+        assert.ok(Math.abs((30 + 10) / 2 - (s2 + 10) / 1.5) < 1e-9);
+        assert.equal(C.acZoomScroll(0, 10, 2, 1), 0); // jamais négatif
+    });
+});

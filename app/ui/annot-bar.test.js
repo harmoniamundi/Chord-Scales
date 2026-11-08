@@ -133,3 +133,21 @@ describe('boutons de disposition des blocs : annotToolsHtml', () => {
         assert.ok(!B.annotBarHtml().includes('à l\'endroit du curseur'));
     });
 });
+
+describe('en-tête des zones : crayon du mode édition et zoom de lecture', () => {
+    test('annotModeHtml : un interrupteur par zone, avec titre et sans prise de focus', () => {
+        B.ANNOT_ZONES.forEach((z) => {
+            const h = B.annotModeHtml(z);
+            assert.ok(h.includes(`data-annot-mode="${z}"`) && h.includes('aria-pressed="false"'));
+            assert.ok(h.includes(`app.jam.annotToggleMode('${z}')`) && h.includes('onmousedown="event.preventDefault()"'));
+            assert.ok(/title="[^"]{10,}"/.test(h) && h.includes('<svg'));
+        });
+        assert.deepEqual(B.ANNOT_ZONES, ['general', 'measure']);
+    });
+    test('annotZoomHtml : −, 100 %, + reliés à la zone', () => {
+        const h = B.annotZoomHtml('measure');
+        ['out', 'reset', 'in'].forEach(a => { assert.ok(h.includes(`data-zoom-act="${a}"`), a); assert.ok(h.includes(`app.jam.annotZoomAct('measure', '${a}')`), a); });
+        assert.equal((h.match(/<button/g) || []).length, 3);
+        assert.equal((h.match(/onmousedown="event\.preventDefault\(\)"/g) || []).length, 3);
+    });
+});

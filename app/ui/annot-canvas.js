@@ -14,6 +14,9 @@ const AC_DRAG_MIN = 5;        // déplacement minimal (pixels) avant qu'un appui
 const AC_MARGIN = 12;         // marge de la première place libre
 const AC_CASCADE = 22;        // décalage entre deux blocs créés l'un après l'autre
 const AC_BLOCKS = '.annot-staff, .annot-frame';
+const AC_ZOOM_MIN = 0.5;      // zoom de lecture : de 50 % à 300 %
+const AC_ZOOM_MAX = 3;
+const AC_ZOOM_STEPS = [0.5, 0.67, 0.8, 1, 1.25, 1.5, 2, 2.5, 3]; // crans des boutons − / +
 
 // ----- Fonctions pures (rectangles { x, y, w, h } en pixels du canevas) -----
 
@@ -90,6 +93,40 @@ function acFreeSpot(rects, start) {
         if (!rects.some(r => Math.abs(r.x - p.x) < 8 && Math.abs(r.y - p.y) < 8)) return p;
     }
     return { x: Math.round(x0), y: Math.round(y0) };
+}
+
+// ----- Zoom de lecture (zone verrouillée) : chaque bloc est agrandi autour du coin haut gauche de la zone -----
+
+// Zoom ramené dans les bornes (valeur invalide : 100 %), arrondi au centième.
+function acClampZoom(z) {
+    const v = Number(z);
+    if (!isFinite(v) || v <= 0) return 1;
+    return Math.round(Math.min(AC_ZOOM_MAX, Math.max(AC_ZOOM_MIN, v)) * 100) / 100;
+}
+
+// Cran suivant (dir > 0) ou précédent (dir < 0) à partir d'un zoom quelconque.
+function acZoomStep(z, dir) {
+    const v = acClampZoom(z), eps = 0.001;
+    if (dir > 0) { const n = AC_ZOOM_STEPS.find(s => s > v + eps); return n === undefined ? AC_ZOOM_MAX : n; }
+    const prev = AC_ZOOM_STEPS.filter(s => s < v - eps);
+    return prev.length ? prev[prev.length - 1] : AC_ZOOM_MIN;
+}
+
+// Zoom après un cran de molette (Ctrl / ⌘ + molette, ou pincement du pavé tactile) : exponentiel, avec un cran maximal par événement.
+function acZoomWheel(z, deltaY, deltaMode = 0) {
+    const d = Math.max(-30, Math.min(30, Number(deltaY) * (deltaMode === 1 ? 12 : 1) || 0));
+    return acClampZoom(acClampZoom(z) * Math.exp(-d * 0.01));
+}
+
+// Décalage CSS (translate) d'un bloc posé en (x, y) pour que scale(z) autour du coin de la zone le mette en (x·z, y·z).
+function acZoomOffset(at, z) {
+    const k = acClampZoom(z) - 1;
+    return { x: (Number(at.x) || 0) * k, y: (Number(at.y) || 0) * k };
+}
+
+// Défilement à donner à un axe après un changement de zoom z0 → z1, pour que le point sous le pointeur (à p pixels du bord visible) ne bouge pas.
+function acZoomScroll(scroll, p, z0, z1) {
+    return Math.max(0, (scroll + p) * (z1 / z0) - p);
 }
 
 // ----- Le canevas d'une zone -----
@@ -364,5 +401,6 @@ class AnnotCanvas {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { AC_SNAP, AC_DRAG_MIN, AC_MARGIN, AC_CASCADE, AC_BLOCKS, acBounds, acIntersects, acNormRect, acClampMove, acSnap, acFreeSpot };
+    module.exports = { AC_SNAP, AC_DRAG_MIN, AC_MARGIN, AC_CASCADE, AC_BLOCKS, acBounds, acIntersects, acNormRect, acClampMove, acSnap, acFreeSpot,
+        AC_ZOOM_MIN, AC_ZOOM_MAX, AC_ZOOM_STEPS, acClampZoom, acZoomStep, acZoomWheel, acZoomOffset, acZoomScroll };
 }

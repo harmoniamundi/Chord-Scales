@@ -135,6 +135,20 @@ function annotToolsHtml() {
     return `<span class="jam-annot-tools" role="group" aria-label="Disposition des blocs">${b}</span>`;
 }
 
+// ----- En-tête de chaque zone : crayon (mode édition) et zoom de lecture -----
+// Le mode édition se règle zone par zone (« Grille », « Mesure ») ; hors édition les blocs sont figés et la zone se lit, avec un zoom.
+const ANNOT_PENCIL_ICON = '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M11.2 2.2a1.6 1.6 0 0 1 2.3 0l.3.3a1.6 1.6 0 0 1 0 2.3L5.6 13 2 14l1-3.6z" fill="currentColor"/></svg>';
+const ANNOT_ZONES = ['general', 'measure'];
+function annotModeHtml(which) {
+    const t = 'Modifier les annotations (déplacer, écrire, ajouter des blocs)';
+    return `<button type="button" class="ab-btn jam-annot-pencil" data-annot-mode="${which}" aria-pressed="false" title="${t}" aria-label="${t}"
+        onmousedown="event.preventDefault()" onclick="app.jam.annotToggleMode('${which}')">${ANNOT_PENCIL_ICON}</button>`;
+}
+function annotZoomHtml(which) {
+    const b = (act, label, title) => `<button type="button" class="ab-btn at-btn jam-annot-zbtn" data-zoom-act="${act}" title="${title}" aria-label="${title}"
+        onmousedown="event.preventDefault()" onclick="app.jam.annotZoomAct('${which}', '${act}')">${label}</button>`;
+    return `<span class="jam-annot-zoom" role="group" aria-label="Zoom de lecture">${b('out', '−', 'Dézoomer')}${b('reset', '100 %', 'Zoom à 100 %')}${b('in', '+', 'Zoomer')}</span>`;
+}
 
 // Contenu des menus flottants. state : { size } pour le menu de taille.
 function annotMenuHtml(kind, state = {}) {
@@ -170,5 +184,5 @@ function annotMenuHtml(kind, state = {}) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { ANNOT_SIZE_MIN, ANNOT_SIZE_MAX, ANNOT_SIZE_DEFAULT, ANNOT_SIZE_STEPS, ANNOT_FONT_DEFAULT_CSS, ANNOT_FONT_CHOICES, nextAnnotSize, clampAnnotSize, annotFontLabel, annotBarHtml, annotMenuHtml, annotToolsHtml, ANNOT_TOOLS };
+    module.exports = { ANNOT_SIZE_MIN, ANNOT_SIZE_MAX, ANNOT_SIZE_DEFAULT, ANNOT_SIZE_STEPS, ANNOT_FONT_DEFAULT_CSS, ANNOT_FONT_CHOICES, nextAnnotSize, clampAnnotSize, annotFontLabel, annotBarHtml, annotMenuHtml, annotToolsHtml, ANNOT_TOOLS, ANNOT_ZONES, annotModeHtml, annotZoomHtml };
 }
