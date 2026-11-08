@@ -886,7 +886,8 @@
 .ab-bar { display: block; width: 16px; height: 3px; border-radius: 1px; background: #dc2626; }
 .ab-hl { padding: 0 3px; border-radius: 3px; background: #fef08a; color: #0f172a; font-size: 12px; font-weight: 700; }
 .ab-sel { height: 30px; max-width: 150px; padding: 0 6px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #e2e8f0; font: 600 12px system-ui, sans-serif; cursor: pointer; }
-.ab-clear { color: #cbd5e1; }
+.ab-clear { color: #cbd5e1; min-width: 32px; padding: 0 6px; }
+.ab-frame svg { flex: 0 0 auto; }
 @media (max-width: 639px) {
     /* Téléphone : une seule ligne qui défile sous le doigt, pour ne pas prendre la moitié de l'écran */
     .annot-bar { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
@@ -961,15 +962,19 @@
 .jam-annot-text[contenteditable="true"] .annot-staff:not(.is-active) { cursor: grab; touch-action: none; }
 .jam-annot-text[contenteditable="true"] .annot-staff:not(.is-active):active { cursor: grabbing; }
 /* Crayon ✎ : ouvre la portée en édition (un second clic en sort) ; visible au survol, toujours visible sur écran tactile */
-.annot-staff-edit { display: none; position: absolute; left: -9px; top: -9px; z-index: 3; width: 20px; height: 20px; padding: 0; align-items: center; justify-content: center; border: 0; border-radius: 10px;
+.annot-staff-edit, .annot-frame-edit { display: none; position: absolute; left: -9px; top: -9px; z-index: 3; width: 20px; height: 20px; padding: 0; align-items: center; justify-content: center; border: 0; border-radius: 10px;
     background: #2563eb; color: #fff; font: 700 12px/1 system-ui, sans-serif; cursor: pointer; box-shadow: 0 1px 4px rgba(0, 0, 0, .45); }
-.annot-staff-edit:hover { background: #1d4ed8; }
+.annot-staff-edit:hover, .annot-frame-edit:hover { background: #1d4ed8; }
 .jam-annot-text[contenteditable="true"] .annot-staff:hover > .annot-staff-edit,
 .jam-annot-text[contenteditable="true"] .annot-staff.is-picked > .annot-staff-edit,
-.jam-annot-text[contenteditable="true"] .annot-staff.is-active > .annot-staff-edit { display: flex; }
-.annot-staff.is-active > .annot-staff-edit { background: #1e293b; box-shadow: 0 0 0 2px #3b82f6; }
+.jam-annot-text[contenteditable="true"] .annot-staff.is-active > .annot-staff-edit,
+.jam-annot-text[contenteditable="true"] .annot-frame:hover > .annot-frame-edit,
+.jam-annot-text[contenteditable="true"] .annot-frame.is-picked > .annot-frame-edit,
+.jam-annot-text[contenteditable="true"] .annot-frame.is-editing > .annot-frame-edit { display: flex; }
+.annot-staff.is-active > .annot-staff-edit, .annot-frame.is-editing > .annot-frame-edit { background: #1e293b; box-shadow: 0 0 0 2px #3b82f6; }
 @media (hover: none) {
-    .jam-annot-text[contenteditable="true"] .annot-staff > .annot-staff-edit { display: flex; opacity: .85; width: 24px; height: 24px; left: -11px; top: -11px; border-radius: 12px; }
+    .jam-annot-text[contenteditable="true"] .annot-staff > .annot-staff-edit,
+    .jam-annot-text[contenteditable="true"] .annot-frame > .annot-frame-edit { display: flex; opacity: .85; width: 24px; height: 24px; left: -11px; top: -11px; border-radius: 12px; }
 }
 /* Pendant un déplacement : aperçu du bloc là où il sera déposé */
 .annot-drag-ghost { position: fixed; z-index: 2200; pointer-events: none; opacity: .85; background: #fff; border: 1px solid #3b82f6; border-radius: 8px; padding: 4px; line-height: 0;
@@ -979,6 +984,27 @@
 .annot-ghost { position: absolute; pointer-events: none; width: 0; height: 0; }
 .annot-ghost i { position: absolute; left: 0; top: 0; width: 12px; height: 9px; border-radius: 50%; background: rgba(37, 99, 235, .4); transform: rotate(-20deg); }
 .annot-ghost span { position: absolute; left: 16px; top: -3px; padding: 0 4px; border-radius: 4px; background: #1e293b; color: #fff; font: 600 10px/16px system-ui, sans-serif; white-space: nowrap; }
+/* Cadres de texte glissés dans le texte (ui/text-frame.js). Le texte est mis en page à sa largeur d'origine puis agrandi / réduit d'un bloc (transform: scale) :
+   le cadre prend la taille obtenue. Hors édition, le cadre se saisit partout (curseur main) et ses bords et ses coins le redimensionnent (le script
+   change alors le curseur). En édition (.is-editing), le texte est modifiable. */
+.annot-frame { display: inline-block; vertical-align: top; position: relative; box-sizing: content-box; margin: 4px 8px 4px 0; background: #fff;
+    border: 1px solid #94a3b8; border-radius: 6px; white-space: normal; user-select: none; -webkit-user-select: none; cursor: default; color: #0f172a;
+    text-align: left; }
+.annot-frame-clip { position: absolute; inset: 0; overflow: hidden; border-radius: 5px; }
+.annot-frame-body { position: absolute; left: 0; top: 0; box-sizing: border-box; min-height: 2.4em; padding: 5px 8px; transform-origin: 0 0; outline: none;
+    font: inherit; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; }
+.annot-frame-body ul { margin: 2px 0 2px 1.3em; padding: 0; list-style: disc; }
+.annot-frame-body li { margin: 0; }
+.annot-frame.is-editing { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; cursor: text; user-select: text; -webkit-user-select: text; }
+.annot-frame.is-editing .annot-frame-body { cursor: text; }
+.annot-frame.is-editing .annot-frame-body:empty::before { content: attr(data-placeholder); color: #94a3b8; pointer-events: none; }
+.annot-frame.is-picked { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .45); }
+.annot-frame.is-dragging-src { opacity: .35; }
+.jam-annot-text[contenteditable="true"] .annot-frame:not(.is-editing) { cursor: grab; touch-action: none; }
+.jam-annot-text[contenteditable="true"] .annot-frame:not(.is-editing):hover { border-color: #3b82f6; }
+.jam-annot-text[contenteditable="true"] .annot-frame:not(.is-editing):active { cursor: grabbing; }
+.annot-drag-ghost.annot-drag-ghost-frame { padding: 0; line-height: normal; overflow: hidden; border-radius: 6px; font: 400 15px/1.45 Kalam, cursive; color: #0f172a; }
+.annot-drag-ghost-frame .annot-frame-clip { position: absolute; inset: 0; }
 /* Outils de la portée active : ils prennent la place de la barre de texte (dans la barre collée en haut de l'onglet) ; cachés sinon */
 .annot-staff > .annot-staff-tools { display: none; }
 .ab-staff-host { display: none; }

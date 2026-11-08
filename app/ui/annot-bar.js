@@ -1,6 +1,6 @@
 // ui/annot-bar.js — barre de mise en forme de l'onglet « Annotations » (mode Jam), comme dans un traitement de texte :
 // police, taille (boutons − / + et menu avec curseur), gras / italique / souligné / barré, alignement, puces, couleur du texte,
-// surlignage, symboles et nuances, portée à insérer. Fonctions pures : elles ne font que fabriquer le HTML ;
+// surlignage, symboles et nuances, portée et cadre de texte à insérer, effacement de la mise en forme. Fonctions pures : elles ne font que fabriquer le HTML ;
 // les clics, la sélection du texte et les menus flottants sont dans index.html (JamEngine, « Onglet Annotations »).
 // Chargé par index.html via <script src="ui/annot-bar.js"> et testé par ui/annot-bar.test.js.
 
@@ -67,6 +67,11 @@ function annotAlignIcon(kind) {
     return `<svg width="16" height="14" viewBox="0 0 16 14" aria-hidden="true"><path d="M1 2h14M${x[0]} 5.5h${x[1]}M1 9h14M${x[0]} 12.5h${x[1]}" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>`;
 }
 
+// Icônes de la barre (dessinées en SVG, comme les autres : elles prennent la couleur du texte du bouton).
+// Cadre : un rectangle avec des lignes de texte. Effacer la mise en forme : un T barré d'une croix (le « Tx » des traitements de texte).
+const ANNOT_FRAME_ICON = '<svg width="18" height="16" viewBox="0 0 18 16" aria-hidden="true"><rect x="1.5" y="1.5" width="15" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M4.5 5.5h9M4.5 8.5h9M4.5 11.5h5.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" fill="none"/></svg>';
+const ANNOT_CLEAR_ICON = '<svg width="18" height="16" viewBox="0 0 18 16" aria-hidden="true"><path d="M2 2.5h9M6.5 2.5v10M4.5 12.5h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/><path d="M11.5 8l4.5 4.5M16 8l-4.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>';
+
 // La barre elle-même (toujours visible dans l'onglet ; les boutons n'agissent que lorsqu'une zone de texte est active).
 function annotBarHtml() {
     const btn = (label, attrs, title, cls = '') => `<button type="button" class="ab-btn ${cls}" ${attrs} title="${title}" aria-label="${title}">${label}</button>`;
@@ -101,10 +106,10 @@ function annotBarHtml() {
         <div class="ab-grp" role="group" aria-label="Insérer">
             ${btn('♯ ♩ ▾', 'data-menu="insert" aria-haspopup="true"', 'Insérer un symbole ou une nuance', 'ab-txt')}
             ${btn('<svg width="18" height="16" viewBox="0 0 18 16" aria-hidden="true"><path d="M1 3h16M1 6.5h16M1 10h16M1 13.5h16" stroke="currentColor" stroke-width="1.2" fill="none"/><ellipse cx="9" cy="10" rx="2.6" ry="1.9" transform="rotate(-20 9 10)" fill="currentColor"/><path d="M11.4 9V1.5" stroke="currentColor" stroke-width="1.3"/></svg> Portée', 'data-insert-staff="1"', 'Insérer une portée éditable à l\'endroit du curseur', 'ab-txt ab-staff')}
-            ${btn('Coller portée', 'data-paste-staff="1"', 'Coller la dernière portée copiée à l\'endroit du curseur (copier : clic sur la poignée ⠿ d\'une portée puis ⌘C, ou bouton Copier de la portée)', 'ab-txt')}
+            ${btn(ANNOT_FRAME_ICON + ' Cadre', 'data-insert-frame="1"', 'Créer un cadre de texte à l\'endroit du curseur : on écrit dedans ; une fois sorti de l\'édition, on le déplace, et on l\'agrandit ou le réduit en tirant sur ses bords et ses coins (le texte suit)', 'ab-txt ab-frame')}
         </div>
         <span class="ab-sep"></span>
-        ${btn('Effacer la mise en forme', 'data-clear="1"', 'Retire gras, couleur, taille, police… de la sélection', 'ab-txt ab-clear')}
+        ${btn(ANNOT_CLEAR_ICON, 'data-clear="1"', 'Effacer la mise en forme : retire gras, couleur, taille, police… de la sélection', 'ab-clear')}
         <div id="jam-annot-staff-host" class="ab-staff-host"></div>
     </div>`;
 }

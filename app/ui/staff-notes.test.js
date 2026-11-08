@@ -270,3 +270,30 @@ describe('décalage libre d\'un bloc portée (data-pos)', () => {
         assert.deepEqual(S.parseStaffPos(S.formatStaffPos({ x: -120, y: 33 })), { x: -120, y: 33 });
     });
 });
+
+describe('cadres de texte : largeur et échelle', () => {
+    test('lecture : « L » ou « L,E », bornes appliquées', () => {
+        assert.deepEqual(S.parseFrameBox('260'), { w: 260, s: 100 });
+        assert.deepEqual(S.parseFrameBox('260,150'), { w: 260, s: 150 });
+        assert.deepEqual(S.parseFrameBox(' 300,60 '), { w: 300, s: 60 });
+        assert.deepEqual(S.parseFrameBox('10,5'), { w: S.SN_FRAME_W_MIN, s: S.SN_FRAME_SCALE_MIN });
+        assert.deepEqual(S.parseFrameBox('1500,999'), { w: S.SN_FRAME_W_MAX, s: S.SN_FRAME_SCALE_MAX });
+    });
+    test('texte invalide → null', () => {
+        for (const bad of ['', 'abc', '260,', ',150', '260,150,3', '-260', '26.5', '12345', '260,1500', null, undefined, 260]) assert.equal(S.parseFrameBox(bad), null, String(bad));
+    });
+    test('écriture : l\'échelle de 100 % est omise ; aller-retour', () => {
+        assert.equal(S.formatFrameBox({ w: 260, s: 100 }), '260');
+        assert.equal(S.formatFrameBox({ w: 260, s: 150 }), '260,150');
+        assert.equal(S.formatFrameBox({ w: 260 }), '260');
+        assert.equal(S.formatFrameBox({}), String(S.SN_FRAME_W_DEFAULT));
+        assert.equal(S.formatFrameBox({ w: 9999, s: 9999 }), `${S.SN_FRAME_W_MAX},${S.SN_FRAME_SCALE_MAX}`);
+        for (const t of ['80', '260', '300,25', '1200,400', '500,133']) assert.equal(S.formatFrameBox(S.parseFrameBox(t)), t);
+    });
+    test('bornes', () => {
+        assert.equal(S.clampFrameWidth('x'), S.SN_FRAME_W_DEFAULT);
+        assert.equal(S.clampFrameScale('x'), S.SN_FRAME_SCALE_DEFAULT);
+        assert.equal(S.clampFrameScale(1), S.SN_FRAME_SCALE_MIN);
+        assert.equal(S.clampFrameScale(1e6), S.SN_FRAME_SCALE_MAX);
+    });
+});

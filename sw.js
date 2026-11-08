@@ -74,6 +74,7 @@ const SHELL_FILES = [
     'app/ui/measure-editor.js',
     'app/ui/staff-model.js',
     'app/ui/staff-editor.js',
+    'app/ui/text-frame.js',
     'app/ui/annot-bar.js',
     'app/ui/chord-display.js',
     'app/ui/pastilles.js',

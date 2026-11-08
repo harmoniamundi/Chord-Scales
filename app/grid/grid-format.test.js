@@ -390,6 +390,54 @@ describe('sanitizeNoteHtml : taille de portée', () => {
     });
 });
 
+describe('sanitizeNoteHtml : cadres de texte', () => {
+    const S = F.sanitizeNoteHtml;
+    const frame = (box, inner, pos) => `<div class="annot-frame" data-frame="${box}"${pos ? ` data-pos="${pos}"` : ''}>${inner}</div>`;
+    test('un cadre valide est gardé, avec son texte mis en forme, sa largeur / échelle et son décalage', () => {
+        assert.equal(S(`avant${frame('260,150', '<b>Gras</b> et <i>italique</i>', '12,-3')}après`), `avant${frame('260,150', '<b>Gras</b> et <i>italique</i>', '12,-3')}après`);
+        assert.equal(S(frame('300', 'a')), frame('300', 'a'));
+    });
+    test('l\'échelle de 100 % s\'écrit sans elle ; largeur et échelle sont ramenées dans les bornes', () => {
+        assert.equal(S(frame('300,100', 'a')), frame('300', 'a'));
+        assert.equal(S(frame('5,9', 'a')), frame('80,25', 'a'));
+        assert.equal(S(frame('2000,999', 'a')), frame('1200,400', 'a'));
+    });
+    test('un cadre vide est conservé (c\'est un cadre qu\'on vient de créer)', () => {
+        assert.equal(S(frame('260', '')), frame('260', ''));
+    });
+    test('décalage invalide ou nul : retiré', () => {
+        assert.equal(S(frame('260', 'a', '0,0')), frame('260', 'a'));
+        assert.equal(S(frame('260', 'a', 'x,y')), frame('260', 'a'));
+    });
+    test('un cadre invalide devient un simple bloc de texte (le texte est gardé)', () => {
+        assert.equal(S('<div data-frame="abc">texte</div>'), '<div>texte</div>');
+        assert.equal(S('<div data-frame="">texte</div>'), '<div>texte</div>');
+    });
+    test('le contenu est nettoyé comme le reste : scripts, attributs et éléments inconnus retirés', () => {
+        const dirty = '<div class="annot-frame" data-frame="260" onclick="evil()"><script>alert(1)</script><span style="color:#ff0000;position:fixed" onmouseover="x()">rouge</span><img src="x"><a href="javascript:evil()">lien</a></div>';
+        assert.equal(S(dirty), frame('260', '<span style="color:#ff0000">rouge</span>lien'));
+    });
+    test('pas de cadre dans un cadre, pas de portée dans un cadre', () => {
+        assert.equal(S(frame('300', `a<div data-frame="200">interne</div>b<div class="annot-staff" data-staff="t,4/4,0;q:c4"></div>c`)), frame('300', 'a<div>interne</div>bc'));
+    });
+    test('des blocs div dans le cadre (retours à la ligne du navigateur) sont gardés, et le cadre se referme au bon endroit', () => {
+        assert.equal(S(`${frame('260', 'ligne 1<div>ligne 2</div><div>ligne 3</div>')}suite`), `${frame('260', 'ligne 1<div>ligne 2</div><div>ligne 3</div>')}suite`);
+    });
+    test('8 cadres au plus par annotation', () => {
+        const ten = Array.from({ length: 10 }, (_, i) => frame('260', `t${i}`)).join('');
+        assert.equal((S(ten).match(/annot-frame/g) || []).length, F.NOTE_MAX_FRAMES);
+    });
+    test('le texte du cadre compte dans la limite de l\'annotation', () => {
+        const out = S(frame('260', 'x'.repeat(5000)), 100);
+        assert.ok(out.startsWith('<div class="annot-frame"') && out.endsWith('</div>'));
+        assert.equal((out.match(/x/g) || []).length, 100);
+    });
+    test('idempotent : nettoyer deux fois donne le même résultat', () => {
+        const once = S(`a${frame('260,150', '<b>g</b><div>l2</div>', '4,5')}b`);
+        assert.equal(S(once), once);
+    });
+});
+
 describe('export : options, filtrage de la grille et des réglages', () => {
     const full = () => [
         step({ measures: 1, fnLabel: 'ii7', modKey: { root: 5, minor: false }, harmonicFunction: 'secondaryDominant', note: '<b>gras</b>', partStart: 'A', section: 'A1', phrase: 'A1', repeatStart: true, bassRootIndex: 7,

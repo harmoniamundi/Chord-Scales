@@ -105,6 +105,45 @@ function formatStaffPos(pos) {
     return x === 0 && y === 0 ? '' : `${x},${y}`;
 }
 
+// ----- Cadres de texte (ui/text-frame.js) -----
+// Un cadre est un bloc glissé dans le texte d'une annotation, comme une portée, mais où l'on écrit du texte mis en forme.
+// Il est enregistré sous la forme <div class="annot-frame" data-frame="L,E" data-pos="x,y">texte…</div> :
+//   L = largeur de mise en page du texte (pixels, avant agrandissement) ; E = échelle d'affichage en % (100 si absente) ;
+//   data-pos = décalage libre, comme pour une portée (voir ci-dessus).
+// Tirer sur les bords ou les coins du cadre change E : le cadre ET ce qu'il contient grandissent ou rétrécissent ensemble.
+// Format partagé par le script du cadre (affichage) et par grid-format.js (nettoyage des annotations, fichiers importés).
+
+const SN_FRAME_W_MIN = 80;
+const SN_FRAME_W_MAX = 1200;
+const SN_FRAME_W_DEFAULT = 260;
+const SN_FRAME_SCALE_MIN = 25;
+const SN_FRAME_SCALE_MAX = 400;
+const SN_FRAME_SCALE_DEFAULT = 100;
+
+function clampFrameWidth(v) {
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) ? Math.max(SN_FRAME_W_MIN, Math.min(SN_FRAME_W_MAX, n)) : SN_FRAME_W_DEFAULT;
+}
+
+function clampFrameScale(v) {
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) ? Math.max(SN_FRAME_SCALE_MIN, Math.min(SN_FRAME_SCALE_MAX, n)) : SN_FRAME_SCALE_DEFAULT;
+}
+
+// Lit « L » ou « L,E » ; renvoie { w, s } (valeurs ramenées dans les bornes) ou null si le texte n'est pas valide.
+function parseFrameBox(text) {
+    const m = /^(\d{1,4})(?:,(\d{1,3}))?$/.exec(typeof text === 'string' ? text.trim() : '');
+    return m ? { w: clampFrameWidth(m[1]), s: m[2] === undefined ? SN_FRAME_SCALE_DEFAULT : clampFrameScale(m[2]) } : null;
+}
+
+// Texte canonique : « L » quand l'échelle est de 100 %, « L,E » sinon.
+function formatFrameBox(box) {
+    const b = box || {};
+    const w = clampFrameWidth(b.w === undefined ? SN_FRAME_W_DEFAULT : b.w);
+    const s = clampFrameScale(b.s === undefined ? SN_FRAME_SCALE_DEFAULT : b.s);
+    return s === SN_FRAME_SCALE_DEFAULT ? String(w) : `${w},${s}`;
+}
+
 // ----- Copier-coller d'une portée (texte brut, pour passer d'une zone d'annotation à l'autre ou d'une fenêtre à l'autre) -----
 // Une portée copiée s'écrit « [portée:t,4/4,0;q:c4 8:e4] » ; dans un texte collé, chaque repère de ce genre redevient une portée.
 
@@ -311,7 +350,9 @@ function shiftEvent(st, index, steps) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { SN_POS_MAX, clampStaffPos, parseStaffPos, formatStaffPos, staffClipText, splitStaffClips, SN_UNITS, SN_DURATIONS, SN_METERS, SN_MAX_EVENTS, SN_MAX_LENGTH, SN_KEY_NAMES, SN_KEY_LABELS, SN_BOTTOM_LINE,
+    module.exports = { SN_POS_MAX, clampStaffPos, parseStaffPos, formatStaffPos,
+        SN_FRAME_W_MIN, SN_FRAME_W_MAX, SN_FRAME_W_DEFAULT, SN_FRAME_SCALE_MIN, SN_FRAME_SCALE_MAX, SN_FRAME_SCALE_DEFAULT, clampFrameWidth, clampFrameScale, parseFrameBox, formatFrameBox,
+        staffClipText, splitStaffClips, SN_UNITS, SN_DURATIONS, SN_METERS, SN_MAX_EVENTS, SN_MAX_LENGTH, SN_KEY_NAMES, SN_KEY_LABELS, SN_BOTTOM_LINE,
         SN_SIZE_MIN, SN_SIZE_MAX, SN_SIZE_STEP, SN_SIZE_DEFAULT, clampStaffSize,
         staffDefault, parseStaff, formatStaff, canonicalStaff, eventUnits, meterUnits, meterBeamUnits, decomposeUnits, layoutStaff,
         pitchDia, keyAlter, pitchFromDia, pitchMidi, midiToName, pitchLabel, diaFromY, yFromDia, playbackPlan,

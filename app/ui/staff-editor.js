@@ -265,9 +265,10 @@ function nseCaretRangeFromPoint(x, y) {
     return null;
 }
 
+// Bloc (portée ou cadre de texte, ui/text-frame.js) qui contient le nœud, ou null : un point d'insertion ne peut pas tomber à l'intérieur d'un bloc.
 function nseStaffAncestor(node, zone) {
     let n = node && node.nodeType === 1 ? node : (node ? node.parentElement : null);
-    while (n && n !== zone) { if (n.classList && n.classList.contains('annot-staff')) return n; n = n.parentElement; }
+    while (n && n !== zone) { if (n.classList && (n.classList.contains('annot-staff') || n.classList.contains('annot-frame'))) return n; n = n.parentElement; }
     return null;
 }
 
@@ -1055,7 +1056,7 @@ function hydrateNoteStaves(root, opts) {
     });
 }
 
-// Copie du contenu d'un champ d'annotation où chaque portée est remplacée par son petit bloc enregistrable.
+// Copie du contenu d'un champ d'annotation où chaque portée (et chaque cadre de texte) est remplacée par son petit bloc enregistrable.
 function annotationHtmlForSave(ed) {
     const c = ed.cloneNode(true);
     c.querySelectorAll('.annot-staff').forEach((el) => {
@@ -1065,6 +1066,17 @@ function annotationHtmlForSave(ed) {
         stub.setAttribute('data-staff', NSE_N.formatStaff(st || NSE_N.staffDefault()));
         const pos = NSE_N.formatStaffPos(NSE_N.parseStaffPos(el.getAttribute('data-pos') || ''));
         if (pos) stub.setAttribute('data-pos', pos);
+        el.replaceWith(stub);
+    });
+    // Cadres de texte (ui/text-frame.js) : seul leur texte est gardé, avec leur largeur / échelle et leur décalage.
+    c.querySelectorAll('.annot-frame').forEach((el) => {
+        const stub = document.createElement('div');
+        stub.className = 'annot-frame';
+        stub.setAttribute('data-frame', el.getAttribute('data-frame') || '');
+        const pos = el.getAttribute('data-pos');
+        if (pos) stub.setAttribute('data-pos', pos);
+        const body = el.querySelector('.annot-frame-body');
+        stub.innerHTML = body ? body.innerHTML : '';
         el.replaceWith(stub);
     });
     return c.innerHTML;

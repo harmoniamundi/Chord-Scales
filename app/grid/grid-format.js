@@ -8,7 +8,7 @@ const GF_THEORY = (typeof scalesDb !== 'undefined')
     : require('../theory.js');
 // Portées éditables des annotations (ui/staff-notes.js) : une portée n'est gardée que si son texte est valide.
 const GF_STAFF = (typeof parseStaff !== 'undefined')
-    ? { parseStaff, formatStaff, parseStaffPos, formatStaffPos }
+    ? { parseStaff, formatStaff, parseStaffPos, formatStaffPos, parseFrameBox, formatFrameBox }
     : require('../ui/staff-notes.js');
 
 // Repères de partie proposés par le menu « Partie » ; les lettres A–Z restent acceptées (anciennes grilles, parties auto)
@@ -28,6 +28,7 @@ const BAND_DENSITY_DEFAULTS = { guitar: 0.6, classic: 0.5, piazzolla: 0.5, balka
 const MEASURE_NOTE_MAX = 2000;
 const GRID_NOTE_MAX = 8000;
 const NOTE_MAX_STAVES = 8; // portées éditables par annotation
+const NOTE_MAX_FRAMES = 8; // cadres de texte par annotation (le texte d'un cadre compte dans la limite de l'annotation ; pas de cadre dans un cadre, ni de portée)
 
 // Polices proposées par la barre de mise en forme (nom de la première famille en minuscules → valeur CSS enregistrée).
 // Ce sont des polices du système, plus la police « Real Book » (Kalam) fournie avec l'appli : aucune autre n'est acceptée.
@@ -125,7 +126,7 @@ function sanitizeNoteHtml(raw, maxText = MEASURE_NOTE_MAX) {
     if (typeof raw !== 'string' || !raw) return '';
     const src = raw.replace(/\r\n?/g, '\n').replace(/<(script|style)\b[\s\S]*?<\/\1\s*>/gi, '').replace(/<!--[\s\S]*?-->/g, '');
     const re = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/g;
-    let out = '', pos = 0, left = maxText, count = 0, hasText = false, m, skip = 0, staves = 0;
+    let out = '', pos = 0, left = maxText, count = 0, hasText = false, m, skip = 0, staves = 0, frames = 0;
     const stack = [];
     const addText = (chunk) => {
         if (!chunk || left <= 0) return;
@@ -151,21 +152,34 @@ function sanitizeNoteHtml(raw, maxText = MEASURE_NOTE_MAX) {
             skip = 1;
             const sa = readAttrs(m[3]);
             const text = GF_STAFF.parseStaff(sa['data-staff'] || '');
-            if (text && staves < NOTE_MAX_STAVES && count < 400) {
+            if (text && staves < NOTE_MAX_STAVES && count < 400 && !stack.some(e => e.kind === 'frame')) {
                 const pos = GF_STAFF.formatStaffPos(GF_STAFF.parseStaffPos(sa['data-pos'] || '')); // décalage libre (pixels), facultatif
                 out += `<div class="annot-staff" data-staff="${GF_STAFF.formatStaff(text)}"${pos ? ` data-pos="${pos}"` : ''}></div>`;
                 staves++; count++; hasText = true;
             }
             continue;
         }
+        // Cadre de texte : un <div data-frame="…"> dont le contenu (texte mis en forme) est nettoyé comme le reste. Un cadre invalide, ou placé
+        // dans un autre cadre, devient un simple bloc de texte.
+        if (!closing && name === 'div' && /\bdata-frame\s*=/i.test(m[3]) && frames < NOTE_MAX_FRAMES && count < 400 && stack.length < 16 && !stack.some(e => e.kind === 'frame')) {
+            const fa = readAttrs(m[3]);
+            const box = GF_STAFF.parseFrameBox(fa['data-frame'] || '');
+            if (box) {
+                const fpos = GF_STAFF.formatStaffPos(GF_STAFF.parseStaffPos(fa['data-pos'] || ''));
+                out += `<div class="annot-frame" data-frame="${GF_STAFF.formatFrameBox(box)}"${fpos ? ` data-pos="${fpos}"` : ''}>`;
+                stack.push({ kind: 'frame', emitted: true });
+                frames++; count++; hasText = true;
+                continue;
+            }
+        }
         const kind = NOTE_TAGS[name];
         if (!kind) continue;
         if (kind === 'br') { if (!closing && count < 400) { out += '<br>'; count++; } continue; }
         if (closing) {
             let k = stack.length - 1;
-            while (k >= 0 && stack[k].kind !== kind) k--;
+            while (k >= 0 && stack[k].kind !== kind && !(kind === 'div' && stack[k].kind === 'frame')) k--; // un </div> ferme aussi un cadre
             if (k < 0) continue;
-            while (stack.length > k) { const e = stack.pop(); if (e.emitted) out += `</${e.kind}>`; }
+            while (stack.length > k) { const e = stack.pop(); if (e.emitted) out += `</${e.kind === 'frame' ? 'div' : e.kind}>`; }
             continue;
         }
         let style = '';
@@ -185,7 +199,7 @@ function sanitizeNoteHtml(raw, maxText = MEASURE_NOTE_MAX) {
         stack.push({ kind, emitted: emit });
     }
     if (!skip) addText(src.slice(pos));
-    while (stack.length) { const e = stack.pop(); if (e.emitted) out += `</${e.kind}>`; }
+    while (stack.length) { const e = stack.pop(); if (e.emitted) out += `</${e.kind === 'frame' ? 'div' : e.kind}>`; }
     if (!hasText) return '';
     // éléments vides, retours à la ligne et espaces de fin (le navigateur en laisse toujours un en fin de champ)
     let prev;
@@ -396,6 +410,6 @@ function describeExport(opts) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { MEASURE_NOTE_MAX, GRID_NOTE_MAX, NOTE_FONTS, NOTE_MAX_STAVES, sanitizeNoteHtml, BAND_DENSITY_DEFAULTS, PART_LABELS, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings,
+    module.exports = { MEASURE_NOTE_MAX, GRID_NOTE_MAX, NOTE_FONTS, NOTE_MAX_STAVES, NOTE_MAX_FRAMES, sanitizeNoteHtml, BAND_DENSITY_DEFAULTS, PART_LABELS, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings,
         EXPORT_OPTIONS, EXPORT_MODES, exportOptionsFor, exportOptionsNormalized, filterGridForExport, filterSettingsForExport, describeExport };
 }

@@ -458,4 +458,151 @@ describe('annotations : portées (navigateur)', { skip: !pw && 'Playwright non i
         assert.deepEqual(errors, []);
         await close();
     });
+    // ----- Cadres de texte -----
+    const frameBox = (page, zoneSel = '#jam-annot-general', i = 0) => page.evaluate(({ s, i }) => {
+        const f = document.querySelectorAll(`${s} .annot-frame`)[i];
+        const r = f.getBoundingClientRect(), b = f.querySelector('.annot-frame-body').getBoundingClientRect();
+        return { x: r.x, y: r.y, w: r.width, h: r.height, bw: b.width, bh: b.height, frame: f.getAttribute('data-frame'), pos: f.getAttribute('data-pos'), editing: f.classList.contains('is-editing'), picked: f.classList.contains('is-picked') };
+    }, { s: zoneSel, i });
+    const frameCursor = (page, zoneSel = '#jam-annot-general') => page.evaluate((s) => getComputedStyle(document.querySelector(`${s} .annot-frame`)).cursor, zoneSel);
+
+    test('barre : plus de « Coller portée », bouton « Cadre », effacer la mise en forme = un symbole', async () => {
+        const { page, errors, close } = await openAnnotations();
+        await page.click('#jam-annot-general');
+        assert.equal(await page.locator('#jam-annot-bar [data-paste-staff]').count(), 0);
+        assert.ok(!(await page.innerText('#jam-annot-bar')).includes('Coller portée'));
+        assert.equal(await page.locator('#jam-annot-bar [data-insert-frame]').count(), 1);
+        const clear = page.locator('#jam-annot-bar [data-clear]');
+        assert.equal(await clear.locator('svg').count(), 1);
+        assert.equal((await clear.innerText()).trim(), '');
+        assert.match(await clear.getAttribute('title'), /^Effacer la mise en forme/);
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('cadre de texte : création, écriture mise en forme, sortie, enregistrement', async () => {
+        const { page, errors, close } = await openAnnotations();
+        await page.click('#jam-annot-general');
+        await page.click('[data-insert-frame]');
+        await page.waitForSelector('#jam-annot-general .annot-frame.is-editing');
+        assert.match(await page.evaluate(() => document.activeElement.className), /annot-frame-body/);
+        await page.keyboard.type('Bonjour le cadre');
+        await page.keyboard.press('Shift+Home');
+        await page.click('[data-cmd="bold"]');
+        assert.match(await page.innerHTML('#jam-annot-general .annot-frame-body'), /<b>|font-weight/);
+        assert.match(await page.evaluate(() => document.activeElement.className), /annot-frame-body/, 'la barre ne prend pas le focus');
+        await page.keyboard.press('Escape');
+        await page.waitForFunction(() => !document.querySelector('#jam-annot-general .annot-frame').classList.contains('is-editing'));
+        assert.equal(await page.evaluate(() => document.querySelector('#jam-annot-general .annot-frame-body').getAttribute('contenteditable')), null);
+        assert.equal(await page.evaluate(() => document.activeElement.id), 'jam-annot-general');
+        await page.waitForTimeout(900);
+        const saved = await page.evaluate(() => app.jam.gridNote);
+        assert.match(saved, /<div class="annot-frame" data-frame="\d+"/);
+        assert.ok(saved.includes('Bonjour le cadre'));
+        // pas de portée dans un cadre : « Portée » place la portée après lui
+        await page.hover('#jam-annot-general .annot-frame');
+        await page.click('#jam-annot-general .annot-frame-edit');
+        await page.waitForSelector('#jam-annot-general .annot-frame.is-editing');
+        await page.click('[data-insert-staff]');
+        await page.waitForSelector('#jam-annot-general .annot-staff');
+        assert.equal(await page.locator('#jam-annot-general .annot-frame .annot-staff').count(), 0);
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('cadre de texte : curseurs des bords et des coins, redimensionnement (le contenu suit), déplacement, Échap', async () => {
+        const { page, errors, close } = await openAnnotations();
+        await page.click('#jam-annot-general');
+        await page.click('[data-insert-frame]');
+        await page.waitForSelector('#jam-annot-general .annot-frame.is-editing');
+        await page.keyboard.type('Thème A : jouer piano');
+        await page.keyboard.press('Escape');
+        await page.waitForFunction(() => !document.querySelector('#jam-annot-general .annot-frame').classList.contains('is-editing'));
+        const m0 = await frameBox(page);
+        const at = async (dx, dy) => { await page.mouse.move(m0.x + dx, m0.y + dy); await page.waitForTimeout(30); return frameCursor(page); };
+        assert.equal(await at(m0.w / 2, m0.h / 2), 'grab');
+        assert.equal(await at(m0.w - 2, m0.h / 2), 'ew-resize');
+        assert.equal(await at(2, m0.h / 2), 'ew-resize');
+        assert.equal(await at(m0.w / 2, 2), 'ns-resize');
+        assert.equal(await at(m0.w / 2, m0.h - 2), 'ns-resize');
+        assert.equal(await at(m0.w - 2, m0.h - 2), 'nwse-resize');
+        assert.equal(await at(m0.w - 2, 2), 'nesw-resize');
+        // coin bas droit : le cadre et son contenu grandissent, le coin haut gauche reste en place, les proportions aussi
+        await page.mouse.move(m0.x + m0.w - 2, m0.y + m0.h - 2);
+        await page.mouse.down();
+        await page.mouse.move(m0.x + m0.w + 60, m0.y + m0.h + 30, { steps: 8 });
+        await page.mouse.move(m0.x + m0.w + 120, m0.y + m0.h + 60, { steps: 8 });
+        await page.mouse.up();
+        await page.waitForTimeout(100);
+        const m1 = await frameBox(page);
+        assert.ok(m1.w > m0.w + 50 && m1.h > m0.h + 10, `cadre agrandi ${m0.w}×${m0.h} → ${m1.w}×${m1.h}`);
+        assert.ok(m1.bw > m0.bw + 50, 'le texte du cadre est affiché plus grand');
+        assert.ok(Math.abs(m1.bw / m1.bh - m0.bw / m0.bh) < 0.03, 'proportions conservées');
+        assert.ok(Math.abs(m1.x - m0.x) <= 2 && Math.abs(m1.y - m0.y) <= 2, 'coin opposé en place');
+        assert.match(m1.frame, /^\d+,\d+$/);
+        assert.equal(m1.picked, true);
+        // bord droit vers la gauche : réduit, bord gauche en place ; Échap pendant le tirage annule
+        await page.mouse.move(m1.x + m1.w - 2, m1.y + m1.h / 2);
+        await page.mouse.down();
+        await page.mouse.move(m1.x + m1.w - 80, m1.y + m1.h / 2, { steps: 8 });
+        const mid = await frameBox(page);
+        await page.keyboard.press('Escape');
+        await page.mouse.up();
+        await page.waitForTimeout(100);
+        const m2 = await frameBox(page);
+        assert.ok(mid.w < m1.w - 40, 'réduit pendant le tirage');
+        assert.ok(Math.abs(m2.w - m1.w) <= 1, 'Échap annule le tirage');
+        // déplacement par le milieu : taille inchangée, décalage enregistré
+        await page.mouse.move(m2.x + m2.w / 2, m2.y + m2.h / 2);
+        await page.mouse.down();
+        await page.mouse.move(m2.x + m2.w / 2 + 40, m2.y + m2.h / 2 + 50, { steps: 10 });
+        await page.mouse.up();
+        await page.waitForTimeout(100);
+        const m3 = await frameBox(page);
+        assert.ok(m3.x > m2.x + 30 && m3.y > m2.y + 30, 'déplacé');
+        assert.ok(Math.abs(m3.w - m2.w) <= 1 && Math.abs(m3.h - m2.h) <= 1, 'taille inchangée');
+        assert.ok(m3.pos, 'décalage enregistré');
+        // changer d'onglet puis revenir : même échelle, même taille, même texte
+        await page.waitForTimeout(900);
+        await page.evaluate(() => app.jam.setVisMode('staff'));
+        await page.evaluate(() => app.jam.setVisMode('annotations'));
+        await page.waitForSelector('#jam-annot-general .annot-frame');
+        const m4 = await frameBox(page);
+        assert.equal(m4.frame, m3.frame);
+        assert.ok(Math.abs(m4.w - m3.w) <= 2 && Math.abs(m4.h - m3.h) <= 3);
+        assert.ok((await page.innerText('#jam-annot-general')).includes('Thème A'));
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('cadre de texte : sélection, Suppr., glisser dans l\'autre zone', async () => {
+        const { page, errors, close } = await openAnnotations();
+        await page.click('#jam-annot-general');
+        await page.click('[data-insert-frame]');
+        await page.waitForSelector('#jam-annot-general .annot-frame.is-editing');
+        await page.keyboard.type('Second');
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(100);
+        const f = page.locator('#jam-annot-general .annot-frame');
+        const bx = await f.boundingBox();
+        const zr = await page.locator('#jam-annot-measure').boundingBox();
+        await page.mouse.move(bx.x + bx.width / 2, bx.y + bx.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(zr.x + 80, zr.y + 60, { steps: 12 });
+        await page.mouse.move(zr.x + 100, zr.y + 70, { steps: 4 });
+        await page.mouse.up();
+        await page.waitForTimeout(300);
+        assert.equal(await page.locator('#jam-annot-measure .annot-frame').count(), 1);
+        assert.equal(await page.locator('#jam-annot-general .annot-frame').count(), 0);
+        assert.ok((await page.innerText('#jam-annot-measure')).includes('Second'));
+        const b2 = await page.locator('#jam-annot-measure .annot-frame').boundingBox();
+        await page.mouse.click(b2.x + b2.width / 2, b2.y + b2.height / 2);
+        await page.waitForTimeout(100);
+        assert.equal(await page.evaluate(() => document.querySelector('#jam-annot-measure .annot-frame').classList.contains('is-picked')), true);
+        await page.keyboard.press('Delete');
+        await page.waitForTimeout(200);
+        assert.equal(await page.locator('#jam-annot-measure .annot-frame').count(), 0);
+        assert.deepEqual(errors, []);
+        await close();
+    });
 });

@@ -511,6 +511,7 @@
     <script src="app/ui/measure-editor.js"></script>
     <script src="app/ui/staff-model.js"></script>
     <script src="app/ui/staff-editor.js"></script>
+    <script src="app/ui/text-frame.js"></script>
     <script src="app/ui/annot-bar.js"></script>
     <script src="app/ui/chord-display.js"></script>
     <script src="app/ui/pastilles.js"></script>
@@ -5747,7 +5748,8 @@
             // Ce sont des champs éditables (contenteditable) : le texte est gardé en HTML restreint (grid/grid-format.js,
             // sanitizeNoteHtml). Une barre de mise en forme, collée en haut de l'onglet (ui/annot-bar.js), s'applique à la zone
             // où l'on écrit : police, taille (boutons − / + et curseur), style, couleurs, alignement, symboles, portée éditable.
-            // Les portées (ui/staff-editor.js) sont des blocs « annot-staff » glissés dans le texte.
+            // Les portées (ui/staff-editor.js) sont des blocs « annot-staff » glissés dans le texte ; les cadres de texte (ui/text-frame.js), des blocs « annot-frame »
+            // où l'on écrit à son tour (déplaçables et redimensionnables hors édition).
             // Les zones sont créées une fois : seuls leurs textes sont remis à jour, pour ne jamais couper une saisie en cours.
             _renderJamAnnotations(container) {
                 let general = container.querySelector('#jam-annot-general');
@@ -5867,11 +5869,12 @@
                 // Un bloc portée sélectionné (clic dessus) se décale avec les flèches : 1 pixel, 10 avec Maj.
                 const arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
                 if (arrows[ev.key] && !ev.metaKey && !ev.ctrlKey && !ev.altKey && ev.currentTarget) {
-                    const picked = ev.currentTarget.querySelector('.annot-staff.is-picked:not(.is-active)');
-                    if (picked && picked.__noteStaff) {
+                    const picked = ev.currentTarget.querySelector('.annot-staff.is-picked:not(.is-active), .annot-frame.is-picked:not(.is-editing)');
+                    const block = picked && (picked.__noteStaff || picked.__noteFrame);
+                    if (block) {
                         const k = ev.shiftKey ? 10 : 1;
                         ev.preventDefault();
-                        picked.__noteStaff.nudge(arrows[ev.key][0] * k, arrows[ev.key][1] * k);
+                        block.nudge(arrows[ev.key][0] * k, arrows[ev.key][1] * k);
                         return;
                     }
                 }
@@ -5898,7 +5901,9 @@
                 const t = (ev.clipboardData || window.clipboardData).getData('text/plain');
                 if (!t) return;
                 const parts = splitStaffClips(t);
-                if (!parts.some(p => p.staff)) document.execCommand('insertText', false, t);
+                const inFrame = !!(ev.target && ev.target.closest && ev.target.closest('.annot-frame-body'));
+                if (inFrame) document.execCommand('insertText', false, parts.map(p => p.text || '').join('')); // un cadre ne contient que du texte : pas de portée dedans
+                else if (!parts.some(p => p.staff)) document.execCommand('insertText', false, t);
                 else this._annotPasteParts(ed, parts);
             }
 
@@ -5966,6 +5971,7 @@
                 if (!this._staffClip || !this._annotEnsureActive()) return;
                 const ed = this._annotActive;
                 if (!this._annotIsEditable(ed)) return;
+                this._annotLeaveFrame();
                 this._annotRestoreSel();
                 this._annotPasteParts(ed, [{ staff: this._staffClip }]);
             }
@@ -6004,7 +6010,7 @@
                 else if ((b = t.closest('[data-menu]'))) this._annotToggleMenu(b.dataset.menu, b);
                 else if ((b = t.closest('[data-cmd]'))) this.annotCmd(b.dataset.cmd);
                 else if (t.closest('[data-insert-staff]')) this.annotInsertStaff();
-                else if (t.closest('[data-paste-staff]')) this.annotPasteStaff();
+                else if (t.closest('[data-insert-frame]')) this.annotInsertFrame();
                 else if (t.closest('[data-clear]')) { this.annotCmd('removeFormat'); this.annotCmd('justifyLeft'); }
             }
 
@@ -6032,6 +6038,7 @@
                 const ed = this._annotActive;
                 this._annotQuiet = false;
                 if (typeof NSE_ACTIVE !== 'undefined' && NSE_ACTIVE) NSE_ACTIVE.deactivate();
+                if (typeof NTF_ACTIVE !== 'undefined' && NTF_ACTIVE) NTF_ACTIVE.deactivate();
                 this._annotCloseMenu();
                 this._annotGlobalOff();
                 this._annotActive = null;
@@ -6049,7 +6056,7 @@
                     const m = this._annotMenu;
                     if (m && !m.el.contains(t) && !m.anchor.contains(t)) this._annotCloseMenu();
                     if (t.closest('.jam-annot-text, #jam-annot-bar, .ab-menu')) {
-                        if (this._annotQuiet && t.closest('.jam-annot-text') && !t.closest('.annot-staff')) { this._annotQuiet = false; this._annotRefreshState(); } // clic dans le texte : la barre revient
+                        if (this._annotQuiet && t.closest('.jam-annot-text') && !t.closest('.annot-staff, .annot-frame')) { this._annotQuiet = false; this._annotRefreshState(); } // clic dans le texte : la barre revient
                         return;
                     }
                     this.annotDeactivate();
@@ -6066,13 +6073,13 @@
                 document.removeEventListener('selectionchange', this._annotSelChange);
             }
 
-            // Les portées comprises dans la sélection (cliquées, ou englobées par un glisser) sont encadrées : ⌘C / ⌘X les prennent.
+            // Les portées et cadres de texte compris dans la sélection (cliqués, ou englobés par un glisser) sont encadrés : ⌘C / ⌘X / Suppr. les prennent.
             _annotMarkPicked() {
                 const ed = this._annotActive, sel = window.getSelection();
                 if (!ed) return;
-                ed.querySelectorAll('.annot-staff').forEach((el) => {
+                ed.querySelectorAll('.annot-staff, .annot-frame').forEach((el) => {
                     let on = false;
-                    try { on = !!(sel && sel.rangeCount && !sel.isCollapsed && !el.classList.contains('is-active') && sel.containsNode(el, false)); } catch (e) {}
+                    try { on = !!(sel && sel.rangeCount && !sel.isCollapsed && !el.classList.contains('is-active') && !el.classList.contains('is-editing') && sel.containsNode(el, false)); } catch (e) {}
                     el.classList.toggle('is-picked', on);
                 });
             }
@@ -6085,14 +6092,45 @@
                 if (ed.contains(r.commonAncestorContainer)) this._annotRange = r.cloneRange();
             }
 
+            // Cadre de texte dont le texte est en cours d'édition dans le champ actif (ui/text-frame.js), ou null.
+            _annotFrameEditing() {
+                const f = (typeof NTF_ACTIVE !== 'undefined') ? NTF_ACTIVE : null;
+                const ed = this._annotActive;
+                return (f && f.isActive && f.el.isConnected && ed && ed.contains(f.el)) ? f : null;
+            }
+
+            // Élément où l'on écrit : le texte du cadre en cours d'édition s'il y en a un, sinon le champ lui-même.
+            _annotHost() {
+                const f = this._annotFrameEditing();
+                return f ? f.body : this._annotActive;
+            }
+
+            // Sort de l'édition du cadre (s'il y en a un) et place le curseur juste après lui, dans le texte de la zone.
+            _annotLeaveFrame() {
+                const f = this._annotFrameEditing();
+                if (!f) return;
+                const ed = this._annotActive;
+                f.deactivate();
+                try { ed.focus({ preventScroll: true }); } catch (e) {}
+                const sel = window.getSelection();
+                if (!sel) return;
+                const r = document.createRange();
+                r.setStartAfter(f.el);
+                r.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(r);
+                this._annotRange = r.cloneRange();
+            }
+
             _annotRestoreSel(keepFocus = false) {
                 const ed = this._annotActive, sel = window.getSelection();
                 if (!ed || !sel) return false;
-                const inside = sel.rangeCount && ed.contains(sel.getRangeAt(0).commonAncestorContainer);
-                if (inside && (keepFocus || document.activeElement === ed)) return true;
-                if (!keepFocus) ed.focus({ preventScroll: true });
+                const host = this._annotHost(); // le champ, ou le texte du cadre en cours d'édition
+                const inside = sel.rangeCount && host.contains(sel.getRangeAt(0).commonAncestorContainer);
+                if (inside && (keepFocus || document.activeElement === host)) return true;
+                if (!keepFocus) host.focus({ preventScroll: true });
                 let r = inside ? sel.getRangeAt(0).cloneRange() : this._annotRange;
-                if (!(r && ed.contains(r.commonAncestorContainer))) { r = document.createRange(); r.selectNodeContents(ed); r.collapse(false); }
+                if (!(r && host.contains(r.commonAncestorContainer))) { r = document.createRange(); r.selectNodeContents(host); r.collapse(false); }
                 sel.removeAllRanges();
                 sel.addRange(r);
                 return true;
@@ -6276,6 +6314,71 @@
                 }
             }
 
+            // ----- Cadres de texte (ui/text-frame.js) -----
+            // Réglages communs à tous les cadres d'un champ. Le texte d'un cadre se met en forme avec la barre habituelle (elle reste affichée).
+            _annotFrameOpts(ed) {
+                return {
+                    isEditable: () => this._annotIsEditable(ed),
+                    keepOpen: (t) => !!(t && t.closest && t.closest('#jam-annot-bar, .ab-menu')), // la barre et ses menus ne font pas sortir de l'édition
+                    onChange: () => { this._annotMoveUndo = false; this._annotMoveRedo = false; this._annotStaffChanged(ed); },
+                    onMoved: (view, serie) => { this._annotMoveUndo = true; this._annotMoveRedo = false; if (serie) this._annotStaffChanged(ed); else this._annotCommit(ed); },
+                    onActivate: () => { this._annotQuiet = false; this.annotActivate(ed); this._annotStaffMode(false); this._annotRefreshState(); },
+                    onDeactivate: () => this._annotRefreshState(),
+                    onFocusBack: (view) => {
+                        try { ed.focus({ preventScroll: true }); } catch (e) {}
+                        const sel = window.getSelection();
+                        if (sel && view && view.el.isConnected) { const r = document.createRange(); r.setStartAfter(view.el); r.collapse(true); sel.removeAllRanges(); sel.addRange(r); }
+                    },
+                    zones: () => Array.from(document.querySelectorAll('.jam-annot-text')).filter(z => this._annotIsEditable(z)),
+                    maxFrames: NOTE_MAX_FRAMES,
+                    onGrab: () => { if (this._annotStaffTimer) this._annotCommit(ed); },
+                    onPick: () => { if (!this._annotActive) this._annotQuiet = true; this.annotActivate(ed); try { ed.focus({ preventScroll: true }); } catch (e) {} this._annotRefreshState(); },
+                    onTransfer: (view, zone, range, desired, snap) => this._annotTransferFrame(view, zone, range, desired, snap)
+                };
+            }
+
+            // Un cadre lâché dans l'autre zone d'annotation : il y est recréé (texte, largeur et échelle conservés) au point d'insertion, puis retiré de la zone d'origine.
+            _annotTransferFrame(view, zone, range, desired, snap) {
+                const from = view.el.closest('.jam-annot-text');
+                if (!from || !zone || !this._annotIsEditable(zone) || zone.querySelectorAll('.annot-frame').length >= NOTE_MAX_FRAMES) return;
+                const before = new Set(zone.querySelectorAll('.annot-frame'));
+                const holder = document.createElement('div');
+                holder.innerHTML = noteFrameStubHtml(view.box, null, view.body.innerHTML);
+                range.insertNode(holder.firstChild);
+                view.destroy();
+                view.el.remove();
+                this._annotHydrate(zone);
+                this._annotCommit(from);
+                this._annotCommit(zone);
+                const added = Array.from(zone.querySelectorAll('.annot-frame')).find(el => !before.has(el));
+                if (added && added.__noteFrame) {
+                    if (desired) added.__noteFrame.placeAt(desired, snap !== false);
+                    this._annotCommit(zone);
+                    this._annotMoveUndo = true; this._annotMoveRedo = false;
+                    added.__noteFrame._pick();
+                }
+            }
+
+            // Bouton « Cadre » de la barre : un cadre de texte à l'endroit du curseur (suivi d'une ligne pour continuer à écrire), ouvert en édition.
+            annotInsertFrame() {
+                if (!this._annotEnsureActive()) return;
+                const ed = this._annotActive;
+                if (!this._annotIsEditable(ed)) return;
+                if (ed.querySelectorAll('.annot-frame').length >= NOTE_MAX_FRAMES) return;
+                this._annotLeaveFrame(); // pas de cadre dans un cadre : le nouveau se place juste après celui qu'on éditait
+                const before = new Set(ed.querySelectorAll('.annot-frame'));
+                this._annotRestoreSel();
+                const w = Math.max(SN_FRAME_W_MIN, Math.min(SN_FRAME_W_DEFAULT, Math.floor(ed.clientWidth - 48)));
+                const stub = noteFrameStubHtml({ w });
+                let ok = false;
+                try { ok = document.execCommand('insertHTML', false, `${stub}<div><br></div>`); } catch (e) {}
+                if (!ok) ed.insertAdjacentHTML('beforeend', `${stub}<div><br></div>`);
+                this._annotHydrate(ed);
+                const added = Array.from(ed.querySelectorAll('.annot-frame')).find(el => !before.has(el));
+                if (added && added.__noteFrame) { added.__noteFrame.activate(); added.scrollIntoView({ block: 'nearest' }); }
+                this._annotStaffChanged(ed);
+            }
+
             // Une portée est active : ses outils remplacent ceux du texte dans la barre (et inversement).
             _annotStaffMode(on) {
                 const bar = document.getElementById('jam-annot-bar');
@@ -6284,6 +6387,7 @@
 
             _annotHydrate(ed) {
                 if (typeof hydrateNoteStaves === 'function') hydrateNoteStaves(ed, this._annotStaffOpts(ed));
+                if (typeof hydrateNoteFrames === 'function') hydrateNoteFrames(ed, this._annotFrameOpts(ed));
             }
 
             // Les changements d'une portée sont enregistrés peu après le dernier (une seule entrée d'annulation pour une série de notes).
@@ -6319,6 +6423,7 @@
                 const ed = this._annotActive;
                 if (!this._annotIsEditable(ed)) return;
                 if (ed.querySelectorAll('.annot-staff').length >= NOTE_MAX_STAVES) return;
+                this._annotLeaveFrame(); // pas de portée dans un cadre de texte : elle se place juste après celui qu'on éditait
                 const before = new Set(ed.querySelectorAll('.annot-staff'));
                 this._annotRestoreSel();
                 let ok = false;

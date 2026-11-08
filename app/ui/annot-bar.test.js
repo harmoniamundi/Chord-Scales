@@ -77,10 +77,20 @@ describe('HTML de la barre et des menus', () => {
     test('la barre contient ce qu’index.html utilise', () => {
         for (const needle of ['id="jam-annot-bar"', 'data-font', 'data-size-step="-1"', 'data-size-step="1"', 'data-size-label', 'data-menu="size"', 'data-menu="color"',
             'data-menu="hilite"', 'data-menu="insert"', 'data-cmd="bold"', 'data-cmd="italic"', 'data-cmd="underline"', 'data-cmd="strikeThrough"',
-            'data-cmd="justifyLeft"', 'data-cmd="justifyCenter"', 'data-cmd="justifyRight"', 'data-cmd="insertUnorderedList"', 'data-insert-staff', 'data-paste-staff', 'data-clear',
+            'data-cmd="justifyLeft"', 'data-cmd="justifyCenter"', 'data-cmd="justifyRight"', 'data-cmd="insertUnorderedList"', 'data-insert-staff', 'data-insert-frame', 'data-clear',
             'id="jam-annot-staff-host"', 'data-color-bar']) {
             assert.ok(bar.includes(needle), needle);
         }
+    });
+    test('plus de bouton « Coller portée » ; « Cadre » ajouté ; « Effacer la mise en forme » est un bouton à symbole (sans texte)', () => {
+        assert.ok(!bar.includes('data-paste-staff'));
+        assert.ok(!bar.includes('Coller portée'));
+        assert.ok(/data-insert-frame="1"[^>]*>[^<]*<svg[\s\S]*?<\/svg> Cadre<\/button>/.test(bar), 'bouton Cadre : icône puis libellé');
+        const clear = /<button[^>]*data-clear="1"[^>]*>([\s\S]*?)<\/button>/.exec(bar);
+        assert.ok(clear, 'bouton d\'effacement présent');
+        assert.ok(clear[1].startsWith('<svg') && clear[1].endsWith('</svg>'), 'seulement un symbole');
+        assert.ok(/data-clear="1"[^>]*title="Effacer la mise en forme/.test(bar) && /data-clear="1"[^>]*aria-label="Effacer la mise en forme/.test(bar), 'nom accessible conservé');
+        assert.ok(!bar.includes('>Effacer la mise en forme<'), 'plus de libellé écrit');
     });
     test('toutes les polices sont dans la liste déroulante', () => {
         B.ANNOT_FONT_CHOICES.forEach(f => assert.ok(bar.includes(`>${f.label}</option>`), f.label));
