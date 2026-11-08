@@ -377,7 +377,7 @@
         #jam-chord-sequence-display .jam-cell-top > span:last-child { min-width: 0; }
         #jam-chord-sequence-display .jam-add-cell { align-self: stretch; min-height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 1.5px dashed #2f6f57; background: rgba(16,185,129,.06); color: #34d399; font-size: 24px; line-height: 1; cursor: pointer; user-select: none; transition: background .12s, border-color .12s; }
         #jam-chord-sequence-display .jam-add-cell:hover { background: rgba(16,185,129,.16); border-color: #34d399; }
-        :root { --cs-build: '2026-11-08-c'; } /* numéro de version lu par la page */
+        :root { --cs-build: '2026-11-08-d'; } /* numéro de version lu par la page */
         .jm-pop { position: fixed; z-index: 2000; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); color: #e2e8f0; padding: 10px 12px 12px; font-size: 12px; }
         .jm-pop.jm-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; max-height: 62vh; }
         /* Pop-up « Orchestre » : fenêtre flottante à gauche de l'écran, sans voile, déplaçable par sa barre de titre */
@@ -969,10 +969,9 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 .annot-staff { display: inline-block; vertical-align: middle; position: relative; box-sizing: border-box; max-width: 100%; margin: 4px 8px 4px 0; padding: 4px; background: #fff;
     border: 1px solid #cbd5e1; border-radius: 8px; white-space: normal; user-select: none; -webkit-user-select: none; cursor: default; color: #0f172a;
     font: 400 13px/1.3 system-ui, -apple-system, sans-serif; text-align: left; }
-/* En édition le bloc reprend sa place dans le texte et toute la largeur ; son décalage libre (left / top) revient quand on en sort */
-.annot-staff.is-active { left: 0 !important; top: 0 !important; }
+/* En édition le bloc reste où il est (même place, même taille de départ) : il s'allonge seulement pour offrir une portée vide où écrire la suite */
 .annot-staff:not(.is-active) .annot-staff-svg svg { max-width: 100%; }
-.annot-staff.is-active { display: block; margin: 6px 0; border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
+.annot-staff.is-active { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
 .annot-staff.is-picked { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .45); }
 .annot-staff.is-dragging-src { opacity: .35; }
 .annot-staff-svg { position: relative; line-height: 0; }
@@ -1054,12 +1053,17 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 /* Curseur de taille de la portée (barre d'outils de la portée) */
 .ns-zoom { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 8px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #cbd5e1; font: 600 12px system-ui, sans-serif; cursor: pointer; }
 .ns-range { width: 84px; height: 18px; margin: 0; accent-color: #3b82f6; cursor: pointer; }
+.ns-num { width: 56px; height: 30px; padding: 0 4px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #e2e8f0; font: 600 12px system-ui, sans-serif; text-align: center; }
+.ns-num::placeholder { color: #94a3b8; font-weight: 500; }
+.ns-sel-tup { max-width: 104px; } .ns-sel-inline { max-width: 118px; }
+.ns-tempo, .ns-swing { gap: 4px; }
+.annot-staff-flash { position: absolute; left: 6px; right: 6px; bottom: 4px; padding: 3px 8px; border-radius: 6px; background: rgba(15, 23, 42, .88); color: #fde68a; font-size: 11px; line-height: 1.3; text-align: center; pointer-events: none; z-index: 4; }
 .ns-zoom-val { min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; color: #e2e8f0; }
 
 /* ===== Canevas des annotations : chaque bloc (portée, cadre de texte) est posé à sa place (data-at), indépendamment des autres ; ils peuvent se recouvrir ===== */
 .jam-annot-text:not(.legacy-flow) > .annot-staff, .jam-annot-text:not(.legacy-flow) > .annot-frame { position: absolute; display: block; margin: 0; }
-/* Une portée en édition prend toute la largeur de la zone (sa hauteur et son rang d'empilement restent) */
-.jam-annot-text:not(.legacy-flow) > .annot-staff.is-active { left: 6px !important; right: 6px; width: auto; z-index: 20; }
+/* Une portée en édition passe au-dessus des autres blocs ; elle garde sa place et prend la largeur de son dessin */
+.jam-annot-text:not(.legacy-flow) > .annot-staff.is-active { width: max-content; max-width: none; z-index: 20; }
 .jam-annot-text > .annot-frame.is-editing { z-index: 20; }
 /* Bloc sans bord : seul son contenu reste visible (un liseré apparaît au survol, à la sélection et à l'édition pour pouvoir le saisir) */
 .annot-staff.no-border, .annot-frame.no-border { border-color: transparent; background: transparent; box-shadow: none; }
@@ -1096,5 +1100,5 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 /* Zone verrouillée : le doigt la fait défiler, le pincement zoome (géré en JS) ; les blocs agrandis partent du coin haut gauche */
 .jam-annot-text[data-editable="false"] { touch-action: pan-x pan-y; }
 .jam-annot-text.is-zoomed:not(.legacy-flow) > .annot-staff, .jam-annot-text.is-zoomed:not(.legacy-flow) > .annot-frame { transform: scale(var(--z, 1)); transform-origin: calc(var(--bx, 0px) * -1) calc(var(--by, 0px) * -1); }
-.jam-annot-text.is-zoomed:not(.legacy-flow) > .annot-staff.is-active { --bx: 6px !important; } /* la portée en édition prend la largeur de la zone : son coin est à 6 px */
 .jam-annot-text.is-zoomed > .annot-overlay { transform: scale(var(--z, 1)); transform-origin: 0 0; } /* repères et rectangle de sélection, tracés aux coordonnées du canevas */
+.ns-tempo .ns-num, .ns-swing .ns-sel-inline { border: 0; background: transparent; height: 26px; }

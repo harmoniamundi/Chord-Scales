@@ -165,7 +165,7 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
         assert.ok(Math.abs(f.x - 120) <= 3 && Math.abs(f.y - 60) <= 3, `cadre posé là où l'on a double-cliqué (${f.x},${f.y})`);
         assert.equal(f.at, `${f.x},${f.y}`);
         assert.equal(f.text, 'Thème A');
-        assert.match(await note(page), /^<div class="annot-frame" data-frame="\d+" data-at="\d+,\d+">Thème A<\/div>$/);
+        assert.match(await note(page), /^<div class="annot-frame" data-frame="\d+" data-at="\d+,\d+" data-border="0">Thème A<\/div>$/, 'un cadre neuf est créé sans bordure');
         // un double-clic sur un bloc ne crée pas un autre cadre
         assert.equal((await blocks(page)).length, 1);
         assert.deepEqual(errors, []);
@@ -230,6 +230,11 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
         await newFrame(page, G, 30, 40, 'A');
         await newFrame(page, G, 330, 40, 'B');
         const btn = tool(page, G, 'border');
+        assert.deepEqual((await blocks(page)).map(x => x.border), ['0', '0'], 'un cadre neuf est créé sans bordure');
+        for (const i of [0, 1]) { await page.mouse.click(...await centerOf(page, G, i)); await btn.click(); await settle(page); }   // on les rend visibles tous les deux
+        assert.deepEqual((await blocks(page)).map(x => x.border), [null, null]);
+        const zz = await zoneBox(page);
+        await page.mouse.click(zz.x + zz.width - 40, zz.y + zz.height - 40);
         assert.equal(await btn.isDisabled(), true, 'rien de sélectionné : le bouton attend');
         const borderOf = (i) => page.evaluate((k) => { const e = document.querySelectorAll('#jam-annot-general > .annot-frame')[k]; return { color: getComputedStyle(e).borderTopColor, bg: getComputedStyle(e).backgroundColor }; }, i);
         assert.notEqual((await borderOf(0)).color, 'rgba(0, 0, 0, 0)');
@@ -446,7 +451,7 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
         await page.keyboard.press('Control+A');
         await page.keyboard.press('Control+C');
         const clip = await page.evaluate(() => navigator.clipboard.readText());
-        assert.match(clip, /^\[cadre@\d+,\d+:\d+;A\]\[cadre@\d+,\d+:\d+;B\]$/);
+        assert.match(clip, /^\[cadre@\d+,\d+!?:\d+;A\]\[cadre@\d+,\d+!?:\d+;B\]$/);
         // coller dans l'autre zone
         await wake(page, M);
         await page.keyboard.press('Control+V');
@@ -542,7 +547,9 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
         let st = (await blocks(page))[1];
         const zone = await page.evaluate(() => document.getElementById('jam-annot-general').clientWidth);
         assert.equal(st.active, true);
-        assert.ok(st.w > zone - 40, `en édition, la portée prend la largeur de la zone (${st.w} / ${zone})`);
+        assert.equal(st.at, s.at, 'en édition la portée reste à sa place (elle n\'est pas déplacée en haut du cadre)');
+        assert.ok(Math.abs(st.x - s.x) <= 1 && Math.abs(st.y - s.y) <= 1, `même coin haut gauche (${st.x},${st.y} / ${s.x},${s.y})`);
+        assert.ok(st.w >= s.w && st.w < zone, `elle s'allonge seulement pour offrir une portée vide (${s.w} → ${st.w} / ${zone})`);
         await page.click(`${G} .annot-staff-edit`);
         st = (await blocks(page))[1];
         assert.equal(st.active, false);
@@ -573,7 +580,12 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
         await back.click();
         await settle(page);
         assert.deepEqual(await order(), ['staff', 'frame'], 'de nouveau à l\'arrière-plan');
-        // cadre caché pour la portée aussi
+        // une portée neuve est créée sans bordure ; le bouton la montre, puis la recache
+        assert.equal((await blocks(page))[0].border, '0', 'sans bordure par défaut');
+        await border.click();
+        await settle(page);
+        assert.equal((await blocks(page))[0].border, null);
+        assert.equal((await blocks(page))[0].noBorder, false);
         await border.click();
         await settle(page);
         assert.equal((await blocks(page))[0].border, '0');
@@ -1268,7 +1280,8 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
             const zb = await zoneBox(page);
             const sb = await page.locator(`${G} .annot-staff.is-active`).boundingBox();
             const sl = await page.evaluate(() => document.getElementById('jam-annot-general').scrollLeft);
-            assert.ok(Math.abs(sb.x - (zb.x + 1 + 6 * z - sl)) <= 3, `la portée en édition part à 6 px du bord, zoom compris (${sb.x} / ${zb.x + 1 + 6 * z - sl})`);
+            const atX = await page.evaluate(() => Number(document.querySelector('#jam-annot-general .annot-staff').getAttribute('data-at').split(',')[0]));
+            assert.ok(Math.abs(sb.x - (zb.x + 1 + atX * z - sl)) <= 3, `la portée en édition reste à sa place, zoom compris (${sb.x} / ${zb.x + 1 + atX * z - sl})`);
             let x = 110;
             for (const dy of [50, 45, 60]) { await page.mouse.click(box.x + x * z, box.y + dy * z); x += 70; }
             const st = await page.evaluate(() => document.querySelector('#jam-annot-general .annot-staff').getAttribute('data-staff'));
@@ -1279,6 +1292,135 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
         const a = await run(0), b = await run(3);   // 100 % puis 200 %
         assert.ok(/;.+/.test(a), 'des notes ont été posées : ' + a);
         assert.equal(b, a, 'mêmes notes à 200 % qu\'à 100 %');
+    });
+
+    // ----- Édition de portée : levée, tuplets, tempo et swing -----
+    const staffText = (page) => page.evaluate(() => document.querySelector('#jam-annot-general .annot-staff').getAttribute('data-staff'));
+    async function openNewStaff(page) {
+        await wake(page, G);
+        await page.click('[data-insert-staff]');
+        await page.waitForSelector(`${G} .annot-staff.is-active`);
+        return page.locator(`${G} .annot-staff.is-active .annot-staff-svg`).boundingBox();
+    }
+
+    test('portée neuve : sans bordure, et en édition elle reste à sa place', async () => {
+        const { page, errors, close } = await openAnnotations();
+        await openNewStaff(page);
+        const s = (await blocks(page))[0];
+        assert.equal(s.border, '0', 'sans bordure par défaut');
+        assert.equal(s.active, true);
+        const at = s.at;
+        await page.mouse.click(...await centerOf(page, G, 0));
+        await page.click(`${G} .annot-staff-edit`);
+        await page.waitForFunction((z) => !document.querySelector(`${z} .annot-staff.is-active`), G);
+        const r = (await blocks(page))[0];
+        assert.equal(r.at, at);
+        assert.ok(Math.abs(r.x - s.x) <= 1 && Math.abs(r.y - s.y) <= 1, 'même place en édition et au repos');
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('levée : un clic derrière la barre de la 1re mesure incomplète fait des notes écrites une anacrouse', async () => {
+        const { page, errors, close } = await openAnnotations();
+        const box = await openNewStaff(page);
+        await page.mouse.click(box.x + 110, box.y + 50);
+        await page.waitForTimeout(150);
+        const b2 = await page.locator(`${G} .annot-staff.is-active .annot-staff-svg`).boundingBox();
+        await page.mouse.click(b2.x + 170, b2.y + 45);
+        await page.waitForTimeout(150);
+        assert.match(await staffText(page), /^t,4\/4,0;q:[a-g]#?\d q:[a-g]#?\d$/, 'deux noires dans la 1re mesure, sans levée');
+        // clic derrière la barre de mesure : les deux noires deviennent la levée, la nouvelle note ouvre la mesure suivante
+        const xe = await page.evaluate(() => document.querySelector('#jam-annot-general .annot-staff').__noteStaff.geo.measures[0].xe);
+        const b3 = await page.locator(`${G} .annot-staff.is-active .annot-staff-svg`).boundingBox();
+        await page.mouse.click(b3.x + xe + 40, b3.y + 40);
+        await page.waitForTimeout(150);
+        assert.match(await staffText(page), /^t,4\/4,0,pu2;q:[a-g]#?\d q:[a-g]#?\d q:[a-g]#?\d$/);
+        assert.equal(await page.evaluate(() => document.querySelector('[data-act="pickup"]').classList.contains('is-on')), true, 'le bouton Levée est allumé');
+        // le bouton Levée la défait
+        await page.click('[data-act="pickup"]');
+        await page.waitForTimeout(150);
+        assert.match(await staffText(page), /^t,4\/4,0;q:/);
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('levée : un clic DANS la mesure (avant la barre) continue la mesure sans levée', async () => {
+        const { page, errors, close } = await openAnnotations();
+        const box = await openNewStaff(page);
+        await page.mouse.click(box.x + 110, box.y + 50);
+        await page.waitForTimeout(150);
+        const geo = await page.evaluate(() => { const g = document.querySelector('#jam-annot-general .annot-staff').__noteStaff.geo; return { xs: g.measures[0].noteX, xe: g.measures[0].xe }; });
+        const b2 = await page.locator(`${G} .annot-staff.is-active .annot-staff-svg`).boundingBox();
+        await page.mouse.click(b2.x + geo.xe - 12, b2.y + 45);
+        await page.waitForTimeout(150);
+        assert.match(await staffText(page), /^t,4\/4,0;q:[a-g]#?\d q:[a-g]#?\d$/);
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('tuplet : une noire devient un vrai triolet de croches (trois notes liées), puis revient noire', async () => {
+        const { page, errors, close } = await openAnnotations();
+        const box = await openNewStaff(page);
+        await page.mouse.click(box.x + 110, box.y + 50);
+        await page.waitForTimeout(150);
+        const note = await staffText(page);
+        const pitch = note.match(/q:([a-g]#?\d)$/)[1];
+        // sélectionner la note, choisir « Triolet »
+        const pos = await page.evaluate(() => { const v = document.querySelector('#jam-annot-general .annot-staff').__noteStaff; const n = v.geo.notes[0]; return { x: n.x, y: n.y }; });
+        const b2 = await page.locator(`${G} .annot-staff.is-active .annot-staff-svg`).boundingBox();
+        await page.mouse.click(b2.x + pos.x, b2.y + pos.y);
+        await page.selectOption('[data-set="tuplet"]', '3');
+        await page.waitForTimeout(200);
+        assert.equal(await staffText(page), `t,4/4,0;(3 8:${pitch} 8:${pitch} 8:${pitch})`);
+        const shape = await page.evaluate(() => { const svg = document.querySelector('#jam-annot-general .annot-staff-svg svg'); return { heads: svg.querySelectorAll('.vf-notehead').length, beams: svg.querySelectorAll('.vf-beam').length }; });
+        assert.equal(shape.heads, 3, 'trois vraies notes dessinées');
+        assert.ok(shape.beams >= 1, 'liées par une ligature');
+        // un quintolet de doubles-croches est proposé aussi ; « Tuplet » (0) défait
+        await page.selectOption('[data-set="tuplet"]', '5');
+        await page.waitForTimeout(200);
+        assert.equal(await staffText(page), `t,4/4,0;(5 16:${pitch} 16:${pitch} 16:${pitch} 16:${pitch} 16:${pitch})`);
+        await page.selectOption('[data-set="tuplet"]', '0');
+        await page.waitForTimeout(200);
+        assert.equal(await staffText(page), note);
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('tuplet réglé avant d\'écrire : un clic pose le groupe complet', async () => {
+        const { page, errors, close } = await openAnnotations();
+        const box = await openNewStaff(page);
+        await page.click('[data-dur="8"]');
+        await page.selectOption('[data-set="tuplet"]', '3');
+        await page.mouse.click(box.x + 110, box.y + 50);
+        await page.waitForTimeout(200);
+        assert.match(await staffText(page), /^t,4\/4,0;\(3 8:([a-g]#?\d) 8:\1 8:\1\)$/);
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('tempo et swing de la portée : réglés dans la barre, enregistrés dans la portée', async () => {
+        const { page, errors, close } = await openAnnotations();
+        const box = await openNewStaff(page);
+        await page.mouse.click(box.x + 110, box.y + 50);
+        await page.waitForTimeout(150);
+        await page.fill('[data-set="bpm"]', '132');
+        await page.press('[data-set="bpm"]', 'Tab');
+        await page.selectOption('[data-set="swing"]', '67');
+        await page.waitForTimeout(200);
+        assert.match(await staffText(page), /^t,4\/4,0,bpm132,sw67;q:/);
+        await settle(page);
+        assert.match(await note(page), /bpm132,sw67/, 'enregistré dans l\'annotation');
+        // tempo vide : tempo de la jam
+        await page.fill('[data-set="bpm"]', '');
+        await page.press('[data-set="bpm"]', 'Tab');
+        await page.waitForTimeout(200);
+        assert.match(await staffText(page), /^t,4\/4,0,sw67;q:/);
+        // mesure composée : pas de swing
+        await page.selectOption('[data-set="meter"]', '6/8');
+        await page.waitForTimeout(200);
+        assert.equal(await page.locator('[data-set="swing"]').isDisabled(), true);
+        assert.deepEqual(errors, []);
+        await close();
     });
 
     test('sortir du mode édition pendant la saisie dans un cadre : texte validé, rien ne reste actif', async () => {

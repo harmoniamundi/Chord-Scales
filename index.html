@@ -6210,7 +6210,7 @@
                         const w = Math.max(SN_FRAME_W_MIN, Math.min(SN_FRAME_W_DEFAULT, Math.floor(ed.clientWidth - 48)));
                         const at = acFreeSpot(rects);
                         const esc = txt.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                        if (add(sanitizeNoteHtml(noteFrameStubHtml({ w }, at, esc), max), at, w)) roomFrames--;
+                        if (add(sanitizeNoteHtml(noteFrameStubHtml({ w }, at, esc, false), max), at, w)) roomFrames--;
                     }
                 }
                 if (!made.length) return;
@@ -6683,7 +6683,7 @@
                 const w = Math.max(SN_FRAME_W_MIN, Math.min(SN_FRAME_W_DEFAULT, Math.floor(ed.clientWidth - 48)));
                 const before = new Set(ed.querySelectorAll('.annot-frame'));
                 const holder = document.createElement('div');
-                holder.innerHTML = noteFrameStubHtml({ w }, this._annotNewSpot(ed, at && Number.isFinite(at.x) ? at : null, w));
+                holder.innerHTML = noteFrameStubHtml({ w }, this._annotNewSpot(ed, at && Number.isFinite(at.x) ? at : null, w), undefined, false);
                 ed.appendChild(holder.firstChild);
                 this._annotHydrate(ed);
                 const added = Array.from(ed.querySelectorAll('.annot-frame')).find(el => !before.has(el));
@@ -6799,7 +6799,7 @@
                 this._annotLeaveFrame();
                 const before = new Set(ed.querySelectorAll('.annot-staff'));
                 const holder = document.createElement('div');
-                holder.innerHTML = noteStaffStubHtml(undefined, this._annotNewSpot(ed, null, 260));
+                holder.innerHTML = noteStaffStubHtml(undefined, this._annotNewSpot(ed, null, 260), false);
                 ed.appendChild(holder.firstChild);
                 this._annotHydrate(ed);
                 const added = Array.from(ed.querySelectorAll('.annot-staff')).find(el => !before.has(el));
@@ -8521,7 +8521,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-08-c';
+        var BUILD = '2026-11-08-d';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }
@@ -8534,9 +8534,9 @@
             };
             // Fichiers nouveaux de la version : s'ils sont absents (mal placés ou pas envoyés), ils ne définissent pas leur fonction.
             var needed = {
-                'app/ui/staff-notes.js': typeof splitStaffClips === 'function' && typeof parseBlockAt === 'function',
+                'app/ui/staff-notes.js': typeof splitStaffClips === 'function' && typeof parseBlockAt === 'function' && typeof staffMakeTuplet === 'function' && typeof staffSetPickup === 'function' && typeof setStaffSwing === 'function',
                 'app/grid/grid-format.js': typeof NOTE_FONTS !== 'undefined' && !!NOTE_FONTS.menlo && typeof sanitizeNoteHtml === 'function' && sanitizeNoteHtml('<div class="annot-frame" data-frame="200" data-at="5,5" data-border="0">x</div>', 300).indexOf('data-border') >= 0,
-                'app/ui/staff-editor.js': typeof nseToolState === 'function' && typeof nseBlocksToClipText === 'function' && typeof NoteStaffView === 'function' && typeof NoteStaffView.prototype.setBorder === 'function',
+                'app/ui/staff-editor.js': typeof nseToolState === 'function' && typeof nseBlocksToClipText === 'function' && typeof NoteStaffView === 'function' && typeof NoteStaffView.prototype.setBorder === 'function' && typeof NoteStaffView.prototype._setTuplet === 'function' && typeof nseSwingOptions === 'function',
                 'app/ui/text-frame.js': typeof NoteFrameView === 'function' && typeof NoteFrameView.prototype.setBorder === 'function',
                 'app/ui/annot-canvas.js': typeof AnnotCanvas === 'function' && typeof acZoomOffset === 'function',
                 'app/ui/annot-bar.js': typeof ANNOT_FONT_DEFAULT_CSS !== 'undefined' && typeof annotToolsHtml === 'function' && typeof annotModeHtml === 'function'

@@ -25,12 +25,12 @@ describe('nseKeyAction : touche → action', () => {
         assert.deepEqual(E.nseKeyAction('G'), { type: 'letter', letter: 'g' });
         assert.equal(E.nseKeyAction('h'), null);
     });
-    test('altérations, point, triolet, silence, durées 1 à 5', () => {
+    test('altérations, point, triolet (tuplet), silence, durées 1 à 5', () => {
         assert.deepEqual(E.nseKeyAction('#'), { type: 'alter', delta: 1 });
         assert.deepEqual(E.nseKeyAction('-'), { type: 'alter', delta: -1 });
         assert.deepEqual(E.nseKeyAction('n'), { type: 'alter', delta: null });
         assert.deepEqual(E.nseKeyAction('.'), { type: 'mod', mod: 'dot' });
-        assert.deepEqual(E.nseKeyAction('t'), { type: 'mod', mod: 'tri' });
+        assert.deepEqual(E.nseKeyAction('t'), { type: 'tuplet', n: 3 });
         assert.deepEqual(E.nseKeyAction('r'), { type: 'mod', mod: 'rest' });
         assert.deepEqual(['1', '2', '3', '4', '5'].map(k => E.nseKeyAction(k).dur), ['16', '8', 'q', 'h', 'w']);
         assert.equal(E.nseKeyAction('6'), null);
@@ -47,7 +47,7 @@ describe('nseKeyAction : touche → action', () => {
 });
 
 describe('nseNearestLetter : lettre demandée à l’octave la plus proche', () => {
-    const near = (p, l, ks = 0) => S.formatStaff({ clef: 't', meter: '4/4', ks, ev: [{ d: 'q', dot: false, tri: false, p: E.nseNearestLetter(p, l, ks) }] }).split(';')[1];
+    const near = (p, l, ks = 0) => S.formatStaff({ clef: 't', meter: '4/4', ks, ev: [{ d: 'q', dot: false, tu: 0, p: E.nseNearestLetter(p, l, ks) }] }).split(';')[1];
     test('sans changer d’octave quand c’est le plus proche', () => {
         assert.equal(near({ l: 'c', o: 4, a: 0 }, 'e'), 'q:e4');
         assert.equal(near({ l: 'e', o: 4, a: 0 }, 'a'), 'q:a4'); // la3 est à 4 degrés de mi4, la4 à 3 : la4 est plus proche
@@ -64,10 +64,21 @@ describe('nseNearestLetter : lettre demandée à l’octave la plus proche', () 
 describe('nseToolsHtml : barre d’outils de la portée', () => {
     const html = E.nseToolsHtml(S.parseStaff('b,6/8,-2;q:c3'));
     test('durées, point, triolet, silence, altérations et actions', () => {
-        for (const needle of ['data-dur="w"', 'data-dur="h"', 'data-dur="q"', 'data-dur="8"', 'data-dur="16"', 'data-mod="dot"', 'data-mod="tri"', 'data-mod="rest"',
+        for (const needle of ['data-dur="w"', 'data-dur="h"', 'data-dur="q"', 'data-dur="8"', 'data-dur="16"', 'data-mod="dot"', 'data-set="tuplet"', 'data-mod="rest"', 'data-act="pickup"', 'data-set="bpm"', 'data-set="swing"',
             'data-alt="1"', 'data-alt="-1"', 'data-alt="0"', 'data-act="play"', 'data-act="undo"', 'data-act="del"', 'data-act="copy"', 'data-act="paste"', 'data-act="clear"', 'data-act="remove"', 'data-act="exit"']) {
             assert.ok(html.includes(needle), needle);
         }
+    });
+    test('tuplet : choix de 2 à 9, celui de la portée est coché ; tempo (vide = tempo de la jam) et swing', () => {
+        const sel = (h, key) => h.slice(h.indexOf(`data-set="${key}"`), h.indexOf('</select>', h.indexOf(`data-set="${key}"`)));
+        const tup = sel(E.nseToolsHtml(S.parseStaff('t,4/4,0;q:c4'), { d: 'q', dot: false, tu: 5, rest: false }), 'tuplet');
+        for (const n of [2, 3, 4, 5, 6, 7, 9]) assert.ok(tup.includes(`<option value="${n}"`), `tuplet ${n}`);
+        assert.ok(tup.includes('<option value="5" selected>'));
+        assert.ok(/data-set="bpm"[^>]*value=""/.test(html), 'pas de tempo propre : champ vide');
+        assert.ok(/data-set="bpm"[^>]*value="132"/.test(E.nseToolsHtml(S.parseStaff('t,4/4,0,bpm132;q:c4'))));
+        assert.ok(sel(E.nseToolsHtml(S.parseStaff('t,4/4,0,sw67;q:c4')), 'swing').includes('<option value="67" selected>'));
+        assert.ok(sel(E.nseToolsHtml(S.parseStaff('t,4/4,0,sw62;q:c4')), 'swing').includes('<option value="62" selected>'), 'une valeur inhabituelle reste proposée');
+        assert.ok(/data-set="swing"[^>]*disabled/.test(html), 'mesure composée (6/8) : pas de swing');
     });
     test('curseur de taille : bornes et valeur de la portée', () => {
         assert.ok(html.includes('data-set="size"') && html.includes('min="50"') && html.includes('max="200"') && html.includes('value="100"'));
@@ -77,7 +88,8 @@ describe('nseToolsHtml : barre d’outils de la portée', () => {
         assert.ok(html.includes('<option value="b" selected>'));
         assert.ok(html.includes('<option value="6/8" selected>'));
         assert.ok(html.includes('<option value="-2" selected>'));
-        assert.equal((html.match(/<option value="-?\d"[ >]/g) || []).length, 15, 'les 15 armures, de 7 bémols à 7 dièses');
+        const ks = html.slice(html.indexOf('data-set="ks"'), html.indexOf('</select>', html.indexOf('data-set="ks"')));
+        assert.equal((ks.match(/<option value="-?\d"[ >]/g) || []).length, 15, 'les 15 armures, de 7 bémols à 7 dièses');
     });
     test('les icônes de durée sont des dessins (pas de police musicale)', () => {
         for (const d of ['w', 'h', 'q', '8', '16']) assert.ok(E.nseNoteIcon(d).startsWith('<svg'), d);
@@ -100,20 +112,20 @@ describe('dimensions', () => {
 
 describe('nseToolState : ce que montrent les boutons durée / point / triolet / silence', () => {
     const st = S.parseStaff('t,4/4,0;q.:c4 8:e4 hr');
-    const cur = { d: 'q', dot: false, tri: false, rest: false };
+    const cur = { d: 'q', dot: false, tu: 0, rest: false };
     test('sans sélection : la valeur de la prochaine note', () => {
-        assert.deepEqual(E.nseToolState(st, -1, false, { d: '8', dot: true, tri: false, rest: false }), { d: '8', dot: true, tri: false, rest: false });
+        assert.deepEqual(E.nseToolState(st, -1, false, { d: '8', dot: true, tu: 0, rest: false }), { d: '8', dot: true, tu: 0, rest: false });
     });
     test('note choisie à la main : ses propres valeurs (le bouton agit sur elle)', () => {
-        assert.deepEqual(E.nseToolState(st, 0, false, cur), { d: 'q', dot: true, tri: false, rest: false });
-        assert.deepEqual(E.nseToolState(st, 1, false, cur), { d: '8', dot: false, tri: false, rest: false });
-        assert.deepEqual(E.nseToolState(st, 2, false, cur), { d: 'h', dot: false, tri: false, rest: true });
+        assert.deepEqual(E.nseToolState(st, 0, false, cur), { d: 'q', dot: true, tu: 0, rest: false });
+        assert.deepEqual(E.nseToolState(st, 1, false, cur), { d: '8', dot: false, tu: 0, rest: false });
+        assert.deepEqual(E.nseToolState(st, 2, false, cur), { d: 'h', dot: false, tu: 0, rest: true });
     });
     test('note qui vient d\'être posée (sélection automatique) : les boutons règlent la PROCHAINE note et la montrent', () => {
         // une noire pointée vient d'être posée ; un clic sur « point » éteint le point des notes suivantes : le bouton doit s'éteindre
-        assert.deepEqual(E.nseToolState(st, 0, true, { d: 'q', dot: false, tri: false, rest: false }), { d: 'q', dot: false, tri: false, rest: false });
+        assert.deepEqual(E.nseToolState(st, 0, true, { d: 'q', dot: false, tu: 0, rest: false }), { d: 'q', dot: false, tu: 0, rest: false });
         // un clic sur « croche » : la durée affichée est celle des notes suivantes, pas celle de la note posée
-        assert.equal(E.nseToolState(st, 0, true, { d: '8', dot: true, tri: false, rest: false }).d, '8');
+        assert.equal(E.nseToolState(st, 0, true, { d: '8', dot: true, tu: 0, rest: false }).d, '8');
     });
     test('indice hors limites : valeur de la prochaine note', () => {
         assert.deepEqual(E.nseToolState(st, 9, false, cur), cur);

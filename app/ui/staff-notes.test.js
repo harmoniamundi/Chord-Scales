@@ -4,21 +4,28 @@ const assert = require('node:assert/strict');
 const S = require('./staff-notes.js');
 
 const P = (t) => S.parseStaff(t);
-const pieces = (st) => S.layoutStaff(st).measures.map(m => m.pieces.map(x => `${x.d}${x.dot ? '.' : ''}${x.tri ? 't' : ''}${x.p ? '' : 'r'}${x.tieNext ? '~' : ''}`).join(' '));
+const pieces = (st) => S.layoutStaff(st).measures.map(m => m.pieces.map(x => `${x.d}${x.dot ? '.' : ''}${x.tu ? 't' : ''}${x.p ? '' : 'r'}${x.tieNext ? '~' : ''}`).join(' '));
 
 describe('parseStaff / formatStaff : format texte', () => {
     test('portée vide et exemple complet : aller-retour identique', () => {
-        for (const t of ['t,4/4,0;', 't,4/4,0;q:c4 8:e4 8:g4 qr h.:a4 w:c5', 'b,6/8,-2;8t:bb3 8t:b3 8t:bbb3 16.:f##5', 't,3/4,7;q.:c#5 8:cb4']) {
+        for (const t of ['t,4/4,0;', 't,4/4,0;q:c4 8:e4 8:g4 qr h.:a4 w:c5', 'b,6/8,-2;(3 8:bb3 8:b3 8:bbb3) 16.:f##5', 't,3/4,7;q.:c#5 8:cb4', 't,4/4,0;(5 16:c4 16:d4 16:e4 16:f4 16:g4) q:a4']) {
             assert.equal(S.formatStaff(P(t)), t, t);
         }
+    });
+    test('ancienne écriture « 8t:… » (groupes de trois) : relue, puis réécrite avec parenthèses', () => {
+        assert.equal(S.formatStaff(P('b,6/8,-2;8t:bb3 8t:b3 8t:bbb3 16.:f##5')), 'b,6/8,-2;(3 8:bb3 8:b3 8:bbb3) 16.:f##5');
+        assert.equal(S.formatStaff(P('t,4/4,0;qt:c4 qt:d4 qt:e4 h:f4')), 't,4/4,0;(3 q:c4 q:d4 q:e4) h:f4');
     });
     test('l’en-tête seul (sans point-virgule) est accepté et devient canonique', () => {
         assert.equal(S.formatStaff(P('t,4/4,0')), 't,4/4,0;');
     });
     test('valeurs lues : durée, point, triolet, hauteur, silence', () => {
         const st = P('b,2/4,-3;8.t:eb3 qr');
-        assert.deepEqual(st.ev[0], { d: '8', dot: true, tri: true, p: { l: 'e', o: 3, a: -1 } });
-        assert.deepEqual(st.ev[1], { d: 'q', dot: false, tri: false, p: null });
+        assert.deepEqual(st.ev[0], { d: '8', dot: true, tu: 3, gs: true, p: { l: 'e', o: 3, a: -1 } });
+        assert.deepEqual(st.ev[1], { d: 'q', dot: false, tu: 0, gs: false, p: null });
+        const tp = P('t,4/4,0;(5 16:c4 16r 16:e4 16:f4 16:g4) q:a4');
+        assert.deepEqual(tp.ev.map(e => [e.tu, e.gs]), [[5, true], [5, false], [5, false], [5, false], [5, false], [0, false]]);
+        assert.equal(tp.ev[1].p, null);
         assert.equal(st.clef, 'b'); assert.equal(st.meter, '2/4'); assert.equal(st.ks, -3);
     });
     test('textes invalides refusés', () => {
@@ -27,9 +34,9 @@ describe('parseStaff / formatStaff : format texte', () => {
             assert.equal(S.parseStaff(bad), null, String(bad));
         }
     });
-    test('64 événements acceptés, 65 refusés ; longueur maximale', () => {
-        assert.equal(P(`t,4/4,0;${Array(64).fill('16:c4').join(' ')}`).ev.length, 64);
-        assert.equal(P(`t,4/4,0;${Array(65).fill('16:c4').join(' ')}`), null);
+    test('96 événements acceptés, 97 refusés ; longueur maximale', () => {
+        assert.equal(P(`t,4/4,0;${Array(96).fill('16:c4').join(' ')}`).ev.length, 96);
+        assert.equal(P(`t,4/4,0;${Array(97).fill('16:c4').join(' ')}`), null);
         assert.equal(S.parseStaff('t,4/4,0;' + 'q:c4 '.repeat(200)), null);
     });
     test('canonicalStaff : forme canonique ou null', () => {
@@ -158,10 +165,11 @@ describe('modifications (la portée d’origine n’est jamais changée)', () =>
         assert.equal(S.formatStaff(S.insertEvent(st, -3, { d: 'h', dot: true, p: { l: 'a', o: 3, a: 0 } })), 't,4/4,0;h.:a3 q:c4 q:d4');
         assert.equal(S.formatStaff(st), 't,4/4,0;q:c4 q:d4');
     });
-    test('insertEvent : plus rien au-delà de 64 événements', () => {
-        let st = P(`t,4/4,0;${Array(64).fill('16:c4').join(' ')}`);
+    test('insertEvent : plus rien au-delà de 96 événements', () => {
+        let st = P(`t,4/4,0;${Array(96).fill('16:c4').join(' ')}`);
         st = S.insertEvent(st, 0, { d: 'q', p: null });
-        assert.equal(st.ev.length, 64);
+        assert.equal(st.ev.length, 96);
+        assert.equal(S.staffInsertTupletGroup(st, 0, { d: '8', p: null }, 3).ev.length, 96, 'un tuplet entier ou rien');
     });
     test('removeEvent', () => {
         assert.equal(S.formatStaff(S.removeEvent(base(), 0)), 't,4/4,0;q:d4');
@@ -169,7 +177,7 @@ describe('modifications (la portée d’origine n’est jamais changée)', () =>
     });
     test('updateEvent : durée, point, triolet, hauteur, silence', () => {
         assert.equal(S.formatStaff(S.updateEvent(base(), 0, { d: 'h', dot: true })), 't,4/4,0;h.:c4 q:d4');
-        assert.equal(S.formatStaff(S.updateEvent(base(), 1, { tri: true })), 't,4/4,0;q:c4 qt:d4');
+        assert.equal(S.formatStaff(S.updateEvent(base(), 1, { tri: true })), 't,4/4,0;q:c4 q:d4', 'le triolet ne se règle plus note par note (voir staffMakeTuplet)');
         assert.equal(S.formatStaff(S.updateEvent(base(), 0, { p: null })), 't,4/4,0;qr q:d4');
         assert.equal(S.formatStaff(S.updateEvent(base(), 1, { p: { l: 'g', o: 4, a: 1 } })), 't,4/4,0;q:c4 q:g#4');
         assert.equal(S.formatStaff(S.updateEvent(base(), 0, { d: 'zz' })), 't,4/4,0;q:c4 q:d4', 'durée inconnue ignorée');
@@ -192,7 +200,7 @@ describe('taille d’affichage de la portée', () => {
     test('par défaut 100 % : absente du texte ; autre taille : 4e champ de l’en-tête, aller-retour identique', () => {
         assert.equal(P('t,4/4,0;q:c4').size, 100);
         assert.equal(S.formatStaff(P('t,4/4,0,100;q:c4')), 't,4/4,0;q:c4');
-        for (const t of ['t,4/4,0,60;q:c4', 'b,6/8,-2,150;8t:bb3', 't,3/4,7,200;']) assert.equal(S.formatStaff(P(t)), t, t);
+        for (const t of ['t,4/4,0,60;q:c4', 'b,6/8,-2,150;(3 8:bb3)', 't,3/4,7,200;']) assert.equal(S.formatStaff(P(t)), t, t);
         assert.equal(P('t,4/4,0,150;q:c4').size, 150);
         assert.equal(P('t,4/4,0,50;q:c4').size, 50);
         assert.equal(S.formatStaff(P('t,4/4,0,50;q:c4')), 't,4/4,0,50;q:c4');
@@ -238,7 +246,7 @@ describe('copier-coller d\'une portée : staffClipText / splitStaffClips', () =>
         }
     });
     test('aller-retour : ce qui est copié est exactement ce qui est collé', () => {
-        for (const t of ['t,4/4,0;', 't,4/4,0;q:c4 8:e4 8:g4 qr h.:a4 w:c5', 'b,6/8,-2,160;8t:bb3 8t:b3 8t:bbb3']) {
+        for (const t of ['t,4/4,0;', 't,4/4,0;q:c4 8:e4 8:g4 qr h.:a4 w:c5', 'b,6/8,-2,160;(3 8:bb3 8:b3 8:bbb3)', 't,4/4,0,pu1,bpm96,sw67;8:c4 q:d4 q:e4 q:f4 q:g4']) {
             assert.deepEqual(S.splitStaffClips(S.staffClipText(P(t))), [{ staff: t }], t);
         }
     });
@@ -377,5 +385,186 @@ describe('copier-coller avec la place et le bord : [portée@x,y!:…] et [cadre@
     });
     test('une place illisible : le repère reste du texte ordinaire', () => {
         for (const bad of ['[portée@-1,5:t,4/4,0;q:c4]', '[portée@x,y:t,4/4,0;q:c4]', '[cadre@1:260;x]']) assert.deepEqual(S.splitStaffClips(bad), [{ text: bad }], bad);
+    });
+});
+
+describe('levée (anacrouse)', () => {
+    test('pu1 : la 1re mesure est incomplète, la mesure suivante est pleine', () => {
+        const L = S.layoutStaff(P('t,4/4,0,pu1;q:c4 q:d4 q:e4 q:f4 q:g4'));
+        assert.equal(L.pickup, true);
+        assert.deepEqual(L.measures.map(m => [m.used, m.pickup]), [[24, true], [96, false]]);
+    });
+    test('sans pu, la même portée se découpe en mesures pleines', () => {
+        const L = S.layoutStaff(P('t,4/4,0;q:c4 q:d4 q:e4 q:f4 q:g4'));
+        assert.equal(L.pickup, false);
+        assert.deepEqual(L.measures.map(m => m.used), [96, 24]);
+    });
+    test('une levée plus longue qu’une mesure, ou qui coupe un tuplet, n’est pas une levée', () => {
+        assert.equal(S.layoutStaff(P('t,4/4,0,pu5;q:c4 q:d4 q:e4 q:f4 q:g4')).pickup, false);
+        assert.equal(P('t,4/4,0,pu2;(3 8:c4 8:d4 8:e4) q:f4'), null, 'levée au milieu d’un tuplet : texte refusé');
+        assert.equal(S.layoutStaff(P('t,4/4,0,pu3;(3 8:c4 8:d4 8:e4) q:f4')).pickup, true);
+    });
+    test('staffSetPickup : fixe, défait, ne coupe jamais un tuplet', () => {
+        const st = P('t,4/4,0;(3 8:c4 8:d4 8:e4) q:f4 q:g4');
+        assert.equal(S.formatStaff(S.staffSetPickup(st, 3)), 't,4/4,0,pu3;(3 8:c4 8:d4 8:e4) q:f4 q:g4');
+        assert.equal(S.staffSetPickup(st, 1).pu, 3, 'au milieu d’un tuplet : jusqu’à sa fin');
+        assert.equal(S.staffSetPickup(S.staffSetPickup(st, 3), 0).pu, 0);
+        assert.equal(S.staffSetPickup(st, 99).pu, 5);
+        assert.equal(st.pu, 0, 'la portée d’origine ne change pas');
+    });
+    test('staffEventEnd : fin de la note, ou de son tuplet', () => {
+        const st = P('t,4/4,0;q:c4 (3 8:c4 8:d4 8:e4) q:f4');
+        assert.deepEqual([0, 1, 2, 3, 4].map(i => S.staffEventEnd(st, i)), [1, 4, 4, 4, 5]);
+    });
+    test('insertEvent : avant la fin de la levée elle s’allonge ; à sa fin, la note ouvre la mesure suivante (sauf joinPickup)', () => {
+        const st = P('t,4/4,0,pu2;q:c4 q:d4 h:e4');
+        assert.equal(S.insertEvent(st, 1, { d: '8', p: null }).pu, 3);
+        assert.equal(S.insertEvent(st, 2, { d: '8', p: null }).pu, 2);
+        assert.equal(S.insertEvent(st, 2, { d: '8', p: null }, { joinPickup: true }).pu, 3);
+        assert.equal(S.insertEvent(st, 3, { d: '8', p: null }, { joinPickup: true }).pu, 2);
+    });
+    test('removeEvent : la levée raccourcit avec ses notes', () => {
+        const st = P('t,4/4,0,pu2;q:c4 q:d4 h:e4');
+        assert.equal(S.removeEvent(st, 0).pu, 1);
+        assert.equal(S.removeEvent(st, 2).pu, 2);
+    });
+    test('la levée est swinguée comme si elle finissait sur le temps fort ; la lecture démarre sans attente', () => {
+        const plan = S.playbackPlan(P('t,4/4,0,pu1,sw67;8:c4 8:d4 8:e4 8:f4 8:g4')).map(x => [Math.round(x.at * 100) / 100, Math.round(x.len * 100) / 100]);
+        assert.deepEqual(plan, [[0, 0.33], [0.33, 0.67], [1, 0.33], [1.33, 0.67], [2, 0.33]]);
+    });
+});
+
+describe('tuplets (triolet, quintolet… : de vraies notes)', () => {
+    const q3 = () => P('t,4/4,0;q:c4 q:d4 h:e4');
+    test('durée réelle = durée écrite × M / N', () => {
+        const u = (t) => P(`t,4/4,0;${t}`).ev.map(S.eventUnits);
+        assert.deepEqual(u('(3 8:c4 8:d4 8:e4)').map(x => Math.round(x * 1e6) / 1e6), [8, 8, 8]);
+        assert.deepEqual(u('(5 16:c4 16:d4 16:e4 16:f4 16:g4)').map(x => Math.round(x * 1e6) / 1e6), [4.8, 4.8, 4.8, 4.8, 4.8]);
+        assert.deepEqual(u('(2 8:c4 8:d4)').map(x => Math.round(x * 1e6) / 1e6), [18, 18]);
+        assert.ok(Math.abs(u('(7 16:c4 16:d4 16:e4 16:f4 16:g4 16:a4 16:b4)').reduce((a, b) => a + b) - 24) < 1e-6);
+        assert.ok(Math.abs(u('(6 16:c4 16:d4 16:e4 16:f4 16:g4 16:a4)').reduce((a, b) => a + b) - 24) < 1e-6);
+    });
+    test('un groupe de N notes occupe exactement la place de M notes de même valeur : la mesure se remplit', () => {
+        const L = S.layoutStaff(P('t,4/4,0;(3 q:c4 q:d4 q:e4) (5 16:c4 16:d4 16:e4 16:f4 16:g4) q:f4 q:g4'));
+        assert.equal(L.measures.length, 2);
+        assert.ok(Math.abs(L.measures[0].used - 96) < 1e-6, String(L.measures[0].used));
+    });
+    test('staffTupletChoices : seulement les tuplets dont la valeur écrite existe', () => {
+        assert.deepEqual(S.staffTupletChoices(P('t,4/4,0;q:c4').ev[0]), [3, 5, 6, 7]);
+        assert.deepEqual(S.staffTupletChoices(P('t,4/4,0;h:c4').ev[0]), [3, 5, 6, 7, 9]);
+        assert.deepEqual(S.staffTupletChoices(P('t,4/4,0;8:c4').ev[0]), [3]);
+        assert.deepEqual(S.staffTupletChoices(P('t,4/4,0;q.:c4').ev[0]).includes(2), true, 'noire pointée : duolet');
+        assert.deepEqual(S.staffTupletChoices(P('t,4/4,0;(3 8:c4 8:d4 8:e4)').ev[0]), [], 'déjà un tuplet');
+    });
+    test('staffMakeTuplet : une noire devient un vrai triolet de 3 croches, même hauteur, même durée', () => {
+        const st = q3();
+        const t = S.staffMakeTuplet(st, 0, 3);
+        assert.equal(S.formatStaff(t), 't,4/4,0;(3 8:c4 8:c4 8:c4) q:d4 h:e4');
+        assert.equal(S.staffWrittenUnits === undefined, false);
+        assert.equal(S.layoutStaff(t).measures[0].used, S.layoutStaff(st).measures[0].used, 'durée totale inchangée');
+        assert.equal(S.formatStaff(S.staffMakeTuplet(st, 0, 5)), 't,4/4,0;(5 16:c4 16:c4 16:c4 16:c4 16:c4) q:d4 h:e4');
+        assert.equal(S.formatStaff(st), 't,4/4,0;q:c4 q:d4 h:e4', 'la portée d’origine ne change pas');
+    });
+    test('staffMakeTuplet : un silence donne un tuplet de silences ; impossible → null', () => {
+        assert.equal(S.formatStaff(S.staffMakeTuplet(P('t,4/4,0;qr'), 0, 3)), 't,4/4,0;(3 8r 8r 8r)');
+        assert.equal(S.staffMakeTuplet(P('t,4/4,0;8:c4'), 0, 5), null, 'une croche ne se coupe pas en quintolet');
+        assert.equal(S.staffMakeTuplet(P('t,4/4,0;(3 8:c4 8:d4 8:e4)'), 0, 3), null, 'déjà dans un tuplet');
+        assert.equal(S.staffMakeTuplet(q3(), 9, 3), null);
+    });
+    test('staffMakeTuplet : la levée suit', () => {
+        const t = S.staffMakeTuplet(P('t,4/4,0,pu1;q:c4 q:d4'), 0, 3);
+        assert.equal(t.pu, 3);
+    });
+    test('staffDissolveTuplet : le groupe redevient une note ; autre durée → notes libres', () => {
+        const t = S.staffMakeTuplet(q3(), 0, 3);
+        assert.equal(S.formatStaff(S.staffDissolveTuplet(t, 1)), 't,4/4,0;q:c4 q:d4 h:e4');
+        assert.equal(S.staffDissolveTuplet(q3(), 0), null);
+        const dup = P('t,4/4,0;(2 8:c4 8:d4) q:e4');
+        assert.equal(S.formatStaff(S.staffDissolveTuplet(dup, 0)), 't,4/4,0;q.:c4 q:e4');
+    });
+    test('removeEvent : une note de tuplet devient un silence ; le groupe de silences part d’un bloc', () => {
+        const t = S.staffMakeTuplet(q3(), 0, 3);
+        const r = S.removeEvent(t, 1);
+        assert.equal(S.formatStaff(r), 't,4/4,0;(3 8:c4 8r 8:c4) q:d4 h:e4');
+        const rr = S.removeEvent(S.removeEvent(S.removeEvent(t, 0), 1), 2);
+        assert.equal(S.formatStaff(rr), 't,4/4,0;(3 8r 8r 8r) q:d4 h:e4');
+        assert.equal(S.formatStaff(S.removeEvent(rr, 1)), 't,4/4,0;q:d4 h:e4');
+        assert.equal(S.layoutStaff(r).measures[0].used, 96, 'la durée est gardée');
+    });
+    test('staffInsertTupletGroup : N notes d’un coup ; staffInsertBoundary : jamais au milieu d’un groupe', () => {
+        const st = q3();
+        assert.equal(S.formatStaff(S.staffInsertTupletGroup(st, 1, { d: '8', dot: false, p: { l: 'c', o: 4, a: 0 } }, 3)), 't,4/4,0;q:c4 (3 8:c4 8:c4 8:c4) q:d4 h:e4');
+        const t = S.staffMakeTuplet(st, 0, 3);
+        assert.deepEqual([0, 1, 2, 3].map(i => S.staffInsertBoundary(t, i, true)), [0, 3, 3, 3]);
+        assert.deepEqual([0, 1, 2, 3].map(i => S.staffInsertBoundary(t, i, false)), [0, 0, 0, 3]);
+    });
+    test('lecture : les notes d’un triolet se répartissent à égale distance dans le temps de deux croches', () => {
+        const plan = S.playbackPlan(P('t,4/4,0;(3 8:c4 8:d4 8:e4) q:f4')).map(x => [Math.round(x.at * 1000) / 1000, Math.round(x.len * 1000) / 1000]);
+        assert.deepEqual(plan, [[0, 0.333], [0.333, 0.333], [0.667, 0.333], [1, 1]]);
+    });
+});
+
+describe('groupes de notes liées par une ligature (règles d’écriture)', () => {
+    const groups = (t) => { const st = P(t); return S.staffBeamGroups(S.layoutStaff(st).measures[0], st.meter); };
+    test('4/4 : croches regroupées par temps ou par deux temps selon la mesure ; les noires ne sont jamais liées', () => {
+        assert.deepEqual(groups('t,4/4,0;8:c4 8:d4 8:e4 8:f4 q:g4 q:a4'), [[0, 1], [2, 3]]);
+    });
+    test('3/8 : les trois croches sont liées en un seul groupe (pas 2 + 1)', () => {
+        assert.deepEqual(groups('t,3/8,0;8:c4 8:d4 8:e4'), [[0, 1, 2]]);
+    });
+    test('7/8 : 2 + 2 + 3', () => {
+        assert.deepEqual(groups('t,7/8,0;8:c4 8:d4 8:e4 8:f4 8:g4 8:a4 8:b4'), [[0, 1], [2, 3], [4, 5, 6]]);
+    });
+    test('6/8 : deux groupes de trois croches', () => {
+        assert.deepEqual(groups('t,6/8,0;8:c4 8:d4 8:e4 8:f4 8:g4 8:a4'), [[0, 1, 2], [3, 4, 5]]);
+    });
+    test('une note de plus d’une croche ou un silence coupe le groupe', () => {
+        assert.deepEqual(groups('t,4/4,0;8:c4 8:d4 q:e4 8:f4 8:g4 h:a4'), [[0, 1], [3, 4]]);
+    });
+});
+
+describe('tempo et swing de lecture', () => {
+    test('en-tête : bpmN et swN dans n’importe quel ordre, forme canonique stable', () => {
+        const st = P('t,4/4,0,sw67,bpm132;q:c4');
+        assert.equal(st.bpm, 132); assert.equal(st.swing, 67);
+        assert.equal(S.formatStaff(st), 't,4/4,0,bpm132,sw67;q:c4');
+        assert.equal(S.formatStaff(P(S.formatStaff(st))), 't,4/4,0,bpm132,sw67;q:c4');
+    });
+    test('valeurs par défaut absentes du texte ; valeurs hors bornes refusées', () => {
+        const st = P('t,4/4,0;q:c4');
+        assert.equal(st.bpm, 0); assert.equal(st.swing, 50);
+        for (const bad of ['t,4/4,0,bpm0;q:c4', 't,4/4,0,sw50;q:c4', 't,4/4,0,bpm5;q:c4', 't,4/4,0,bpm900;q:c4', 't,4/4,0,sw49;q:c4', 't,4/4,0,sw99;q:c4']) assert.equal(P(bad), null, bad);
+    });
+    test('staffTempo : celui de la portée, sinon celui de la jam, sinon 100', () => {
+        assert.equal(S.staffTempo({ bpm: 0 }, 0), 100);
+        assert.equal(S.staffTempo({ bpm: 0 }, 90), 90);
+        assert.equal(S.staffTempo({ bpm: 140 }, 90), 140);
+    });
+    test('setStaffTempo / setStaffSwing : bornés, la portée d’origine ne change pas', () => {
+        const st = P('t,4/4,0;q:c4');
+        assert.equal(S.setStaffTempo(st, 1000).bpm, 300);
+        assert.equal(S.setStaffTempo(st, 10).bpm, 30);
+        assert.equal(S.setStaffTempo(S.setStaffTempo(st, 120), '').bpm, 0, 'vide : tempo de la jam');
+        assert.equal(S.setStaffSwing(st, 80).swing, 75);
+        assert.equal(S.setStaffSwing(st, 67).swing, 67);
+        assert.equal(st.bpm, 0); assert.equal(st.swing, 50);
+    });
+    test('swing 67 % : les croches deviennent longue-brève (2/3 + 1/3 de temps) ; 50 % : droites', () => {
+        const r = (t) => S.playbackPlan(P(t)).map(x => [Math.round(x.at * 100) / 100, Math.round(x.len * 100) / 100]);
+        assert.deepEqual(r('t,4/4,0,sw67;8:c4 8:d4 8:e4 8:f4'), [[0, 0.67], [0.67, 0.33], [1, 0.67], [1.67, 0.33]]);
+        assert.deepEqual(r('t,4/4,0;8:c4 8:d4 8:e4 8:f4'), [[0, 0.5], [0.5, 0.5], [1, 0.5], [1.5, 0.5]]);
+    });
+    test('pas de swing en mesure composée (6/8) ni sur les notes d’un tuplet ; la durée totale est conservée', () => {
+        const r = (t) => S.playbackPlan(P(t)).map(x => [Math.round(x.at * 100) / 100, Math.round(x.len * 100) / 100]);
+        assert.deepEqual(r('t,6/8,0,sw67;8:c4 8:d4 8:e4 8:f4'), [[0, 0.5], [0.5, 0.5], [1, 0.5], [1.5, 0.5]]);
+        assert.deepEqual(r('t,4/4,0,sw75;(3 8:c4 8:d4 8:e4) q:f4'), [[0, 0.33], [0.33, 0.33], [0.67, 0.33], [1, 1]]);
+        assert.equal(S.staffMeterAllowsSwing('6/8'), false);
+        assert.equal(S.staffMeterAllowsSwing('4/4'), true);
+        const plan = S.playbackPlan(P('t,4/4,0,sw75;8:c4 8:d4 q:e4 h:f4'));
+        const end = plan[plan.length - 1]; assert.ok(Math.abs(end.at + end.len - 4) < 1e-9);
+    });
+    test('copier-coller : tempo et swing sont gardés', () => {
+        const t = 't,4/4,0,bpm132,sw67;q:c4';
+        assert.deepEqual(S.splitStaffClips(S.staffClipText(P(t))), [{ staff: t }]);
     });
 });
