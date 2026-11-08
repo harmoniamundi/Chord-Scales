@@ -124,6 +124,12 @@ function acZoomOffset(at, z) {
     return { x: (Number(at.x) || 0) * k, y: (Number(at.y) || 0) * k };
 }
 
+// Zoom d'une zone (réglé par index.html : zone.__zoom) ; 1 si la zone n'est pas agrandie ni réduite.
+function acZoomOf(zone) {
+    const z = zone && Number(zone.__zoom);
+    return z > 0 ? z : 1;
+}
+
 // Défilement à donner à un axe après un changement de zoom z0 → z1, pour que le point sous le pointeur (à p pixels du bord visible) ne bouge pas.
 function acZoomScroll(scroll, p, z0, z1) {
     return Math.max(0, (scroll + p) * (z1 / z0) - p);
@@ -154,13 +160,16 @@ class AnnotCanvas {
     // Rectangle d'un bloc dans les coordonnées du canevas (origine : coin haut gauche de la zone, défilement compris).
     rectOf(el) { return { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight }; }
 
-    // Place d'un point de l'écran sur le canevas.
+    // Zoom de la zone (1 = 100 %) : les blocs sont agrandis par une transformation CSS, leurs places (data-at) restent celles du canevas à 100 %.
+    get zoom() { return acZoomOf(this.zone); }
+
+    // Place d'un point de l'écran sur le canevas (à 100 %, quel que soit le zoom de la zone).
     pointOf(clientX, clientY, zone = this.zone) {
-        const r = zone.getBoundingClientRect();
-        return { x: Math.round(clientX - r.left - zone.clientLeft + zone.scrollLeft), y: Math.round(clientY - r.top - zone.clientTop + zone.scrollTop) };
+        const r = zone.getBoundingClientRect(), z = acZoomOf(zone);
+        return { x: Math.round((clientX - r.left - zone.clientLeft + zone.scrollLeft) / z), y: Math.round((clientY - r.top - zone.clientTop + zone.scrollTop) / z) };
     }
 
-    zoneSize() { return { w: this.zone.clientWidth, h: Math.max(this.zone.clientHeight, this.zone.scrollHeight) }; }
+    zoneSize() { return { w: this.zone.clientWidth, h: Math.max(this.zone.clientHeight, this.zone.scrollHeight / this.zoom) }; }
 
     // ----- Sélection -----
 
@@ -315,7 +324,7 @@ class AnnotCanvas {
             if (over === this.zone) {
                 clearGhosts();
                 items.forEach(i => i.el.classList.remove('is-dragging-src'));
-                const rawDx = (lastX - x0) + (this.zone.scrollLeft - sl0), rawDy = (lastY - y0) + (this.zone.scrollTop - st0);
+                const zm = this.zoom, rawDx = ((lastX - x0) + (this.zone.scrollLeft - sl0)) / zm, rawDy = ((lastY - y0) + (this.zone.scrollTop - st0)) / zm;
                 const c = acClampMove(bbox, rawDx, rawDy, this.zone.clientWidth);
                 let dx = c.dx, dy = c.dy;
                 const moved = { x: bbox.x + dx, y: bbox.y + dy, w: bbox.w, h: bbox.h };
@@ -369,7 +378,8 @@ class AnnotCanvas {
             const points = items.map((i) => {
                 const left = lastX - (x0 - i.s0.left), top = lastY - (y0 - i.s0.top);
                 const r = over.getBoundingClientRect();
-                return { x: Math.max(0, Math.round(left - r.left - over.clientLeft + over.scrollLeft)), y: Math.max(0, Math.round(top - r.top - over.clientTop + over.scrollTop)) };
+                const zo = acZoomOf(over);
+                return { x: Math.max(0, Math.round((left - r.left - over.clientLeft + over.scrollLeft) / zo)), y: Math.max(0, Math.round((top - r.top - over.clientTop + over.scrollTop) / zo)) };
             });
             if (this.opts.onTransfer) this.opts.onTransfer(items, over, points);
         };
@@ -402,5 +412,5 @@ class AnnotCanvas {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { AC_SNAP, AC_DRAG_MIN, AC_MARGIN, AC_CASCADE, AC_BLOCKS, acBounds, acIntersects, acNormRect, acClampMove, acSnap, acFreeSpot,
-        AC_ZOOM_MIN, AC_ZOOM_MAX, AC_ZOOM_STEPS, acClampZoom, acZoomStep, acZoomWheel, acZoomOffset, acZoomScroll };
+        AC_ZOOM_MIN, AC_ZOOM_MAX, AC_ZOOM_STEPS, acZoomOf, acClampZoom, acZoomStep, acZoomWheel, acZoomOffset, acZoomScroll };
 }

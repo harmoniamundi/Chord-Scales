@@ -703,6 +703,8 @@ class NoteStaffView {
         }
         this.el.style.left = `${x}px`;
         this.el.style.top = `${y}px`;
+        this.el.style.setProperty('--bx', `${x}px`); // origine du zoom de la zone (voir style.css)
+        this.el.style.setProperty('--by', `${y}px`);
         this.el.setAttribute('data-at', NSE_N.formatBlockAt(this.pos));
         this.el.removeAttribute('data-pos');
     }
@@ -722,7 +724,8 @@ class NoteStaffView {
         const z = this._zone();
         if (!z) return;
         const r = z.getBoundingClientRect();
-        this.setAt({ x: Math.max(0, desired.left - r.left - z.clientLeft + z.scrollLeft), y: Math.max(0, desired.top - r.top - z.clientTop + z.scrollTop) });
+        const k = typeof acZoomOf === 'function' ? acZoomOf(z) : 1; // la zone peut être agrandie : les places sont celles du canevas à 100 %
+        this.setAt({ x: Math.max(0, (desired.left - r.left - z.clientLeft + z.scrollLeft) / k), y: Math.max(0, (desired.top - r.top - z.clientTop + z.scrollTop) / k) });
     }
 
     // Bord du bloc visible ou non (la portée, elle, reste affichée) ; renvoie true si cela change.

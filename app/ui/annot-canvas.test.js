@@ -175,3 +175,13 @@ describe('zoom de lecture : acClampZoom, acZoomStep, acZoomWheel, acZoomOffset, 
         assert.equal(C.acZoomScroll(0, 10, 2, 1), 0); // jamais négatif
     });
 });
+
+describe('acZoomOf : zoom d\'une zone', () => {
+    test('1 sans zone ou sans réglage, sinon le zoom posé par la page', () => {
+        assert.equal(C.acZoomOf(null), 1);
+        assert.equal(C.acZoomOf({}), 1);
+        assert.equal(C.acZoomOf({ __zoom: 0 }), 1);
+        assert.equal(C.acZoomOf({ __zoom: 'x' }), 1);
+        assert.equal(C.acZoomOf({ __zoom: 1.5 }), 1.5);
+    });
+});

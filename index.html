@@ -5877,7 +5877,6 @@
                         else if (ed.__canvas) ed.__canvas.clearSelection(true);
                         if (ed.contains(document.activeElement)) { try { document.activeElement.blur(); } catch (e) {} }
                     }
-                    if (was !== on) this._annotApplyZoom(ed);
                     this._annotRefreshZoomUi(w);
                 });
             }
@@ -5896,18 +5895,15 @@
                 }
             }
 
-            // Zoom de lecture : chaque bloc est agrandi autour du coin haut gauche de la zone (transform), à 100 % pendant l'édition.
+            // Zoom d'une zone : chaque bloc est agrandi autour du coin haut gauche de la zone (transformation CSS lue dans style.css : --z, et --bx / --by
+            // posés par le bloc). Les places enregistrées (data-at) restent celles du canevas à 100 %, et le canevas convertit les positions de l'écran :
+            // on édite donc aussi bien zoomé.
             _annotApplyZoom(ed) {
                 if (!ed) return;
-                const w = this._annotZoneKey(ed);
-                const z = this._annotIsEditable(ed) ? 1 : this.annotZoom[w];
+                const z = this.annotZoom[this._annotZoneKey(ed)];
+                ed.__zoom = z;
+                ed.style.setProperty('--z', String(z));
                 ed.classList.toggle('is-zoomed', z !== 1);
-                ed.querySelectorAll(':scope > .annot-staff, :scope > .annot-frame').forEach((b) => {
-                    const m = /^\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)/.exec(b.getAttribute('data-at') || '');
-                    if (z === 1 || !m || ed.classList.contains('legacy-flow')) { b.style.transform = ''; return; }
-                    const o = acZoomOffset({ x: parseFloat(m[1]), y: parseFloat(m[2]) }, z);
-                    b.style.transform = `translate(${o.x}px, ${o.y}px) scale(${z})`;
-                });
             }
 
             _annotRefreshZoomUi(which) {
@@ -5923,7 +5919,7 @@
             // Nouveau zoom (ancre = point de l'écran qui reste en place ; par défaut le centre de la zone).
             _annotSetZoom(which, z1, anchor) {
                 const ed = this._annotZoneEl(which);
-                if (!ed || this._annotIsEditable(ed)) return;
+                if (!ed) return;
                 const z0 = this.annotZoom[which];
                 z1 = acClampZoom(z1);
                 if (z1 === z0) return;
@@ -5942,11 +5938,11 @@
                 this._annotSetZoom(which, act === 'reset' ? 1 : acZoomStep(z, act === 'in' ? 1 : -1), null);
             }
 
-            // Gestes de zoom d'une zone verrouillée : Ctrl / ⌘ + molette (et pincement du pavé tactile), pincement de Safari, pincement à deux doigts.
+            // Gestes de zoom d'une zone (en lecture comme en édition) : Ctrl / ⌘ + molette (et pincement du pavé tactile), pincement de Safari, pincement à deux doigts.
             _annotBindZoom(ed) {
                 if (ed.__zoomBound) return;
                 ed.__zoomBound = true;
-                const which = () => this._annotZoneKey(ed), locked = () => !this._annotIsEditable(ed);
+                const which = () => this._annotZoneKey(ed), locked = () => true;
                 ed.addEventListener('wheel', (ev) => {
                     if (!(ev.ctrlKey || ev.metaKey) || !locked()) return;
                     ev.preventDefault();
@@ -8525,7 +8521,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-08-b';
+        var BUILD = '2026-11-08-c';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }
