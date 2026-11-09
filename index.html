@@ -6743,10 +6743,10 @@
                 if (!this._annotIsEditable(ed)) return;
                 if (ed.querySelectorAll('.annot-frame').length >= NOTE_MAX_FRAMES) return;
                 this._annotLeaveFrame(); // un seul cadre en édition à la fois
-                const w = Math.max(SN_FRAME_W_MIN, Math.min(SN_FRAME_W_DEFAULT, Math.floor(ed.clientWidth - 48)));
+                const w = 24; // un nouveau cadre a la taille d'un caractère (largeur automatique) : il s'allonge avec le texte
                 const before = new Set(ed.querySelectorAll('.annot-frame'));
                 const holder = document.createElement('div');
-                holder.innerHTML = noteFrameStubHtml({ w }, this._annotNewSpot(ed, at && Number.isFinite(at.x) ? at : null, w), undefined, false);
+                holder.innerHTML = noteFrameStubHtml({ w, auto: true }, this._annotNewSpot(ed, at && Number.isFinite(at.x) ? at : null, w), undefined, false);
                 ed.appendChild(holder.firstChild);
                 this._annotHydrate(ed);
                 const added = Array.from(ed.querySelectorAll('.annot-frame')).find(el => !before.has(el));

@@ -21,6 +21,7 @@ const NTF_EDGE = 6;          // épaisseur (pixels) de la zone sensible le long 
 const NTF_CORNER = 12;       // côté de la zone sensible des coins
 const NTF_EDGE_TOUCH = 14;   // au doigt, les zones sont plus larges
 const NTF_CORNER_TOUCH = 24;
+const NTF_AUTO_MAX = 1200; // sans zone connue, limite de la largeur d'un cadre automatique
 const NTF_MIN_WIDTH = 40;    // largeur minimale affichée (pixels)
 
 // ----- Fonctions sans état (testées sans navigateur) -----
@@ -127,10 +128,22 @@ class NoteFrameView {
     // le cadre prend la taille obtenue. La hauteur suit le texte (observée : taper une ligne de plus agrandit le cadre).
     _layout() {
         const k = this.box.s / 100;
-        this.body.style.width = `${this.box.w}px`;
+        this.el.classList.toggle('is-auto', !!this.box.auto);
+        let w = this.box.w;
+        if (this.box.auto) {
+            // Largeur automatique : le texte garde sa largeur naturelle (une ligne ne se coupe que sur Entrée) ; seule la place restante dans la zone la limite.
+            const z = this._zone();
+            const room = z ? z.clientWidth - (this.legacy ? 0 : this.pos.x) - 12 : NTF_AUTO_MAX;
+            this.body.style.width = 'max-content';
+            this.body.style.maxWidth = `${Math.max(NTF_MIN_WIDTH, Math.floor(room / k))}px`;
+            w = this.body.offsetWidth || NTF_MIN_WIDTH;
+        } else {
+            this.body.style.width = `${w}px`;
+            this.body.style.maxWidth = '';
+        }
         this.body.style.transform = k === 1 ? '' : `scale(${k})`;
         const h = this.body.offsetHeight;
-        this.el.style.width = `${Math.round(this.box.w * k)}px`;
+        this.el.style.width = `${Math.round(w * k)}px`;
         this.el.style.height = h ? `${Math.max(12, Math.round(h * k))}px` : '';
     }
 
@@ -274,6 +287,9 @@ class NoteFrameView {
 
     // ----- Redimensionner : bords et coins (hors édition) -----
 
+    // Largeur du texte avant mise à l'échelle (fixe, ou mesurée pour un cadre à largeur automatique).
+    _baseWidth() { return this.box.auto ? (this.body.offsetWidth || NTF_MIN_WIDTH) : this.box.w; }
+
     // Largeur maximale du cadre : celle de la zone (échelle maximale correspondante).
     _maxScale() {
         const z = this._zone();
@@ -281,7 +297,7 @@ class NoteFrameView {
         const px = (v) => parseFloat(v) || 0;
         const zs = getComputedStyle(z);
         const room = z.clientWidth - px(zs.paddingLeft) - px(zs.paddingRight) - 12;
-        return Math.max(NTF_N.SN_FRAME_SCALE_MIN, room / this.box.w * 100);
+        return Math.max(NTF_N.SN_FRAME_SCALE_MIN, room / this._baseWidth() * 100);
     }
 
     _resizeDown(ev, zone) {
@@ -298,7 +314,7 @@ class NoteFrameView {
         el.style.cursor = ntfCursor(zone);
         try { el.setPointerCapture(ev.pointerId); } catch (e) { /* non pris en charge */ }
         const apply = (s, ax, ay) => {
-            this.box = { w: this.box.w, s };
+            this.box = { ...this.box, s };
             this._layout();
             const r1 = el.getBoundingClientRect();
             // le coin ou le bord opposé à la poignée reste en place
@@ -313,7 +329,7 @@ class NoteFrameView {
             this._resizing = false;
             el.style.cursor = '';
             if (!drop) {
-                if (changed) { this.pos = pos0; this.box = { w: this.box.w, s: s0 }; this._layout(); this._showPos(); }
+                if (changed) { this.pos = pos0; this.box = { ...this.box, s: s0 }; this._layout(); this._showPos(); }
                 return;
             }
             if (!changed) { this._pick(); return; }
@@ -322,7 +338,7 @@ class NoteFrameView {
             this._pick();
         };
         const onMove = (e2) => {
-            const res = ntfResizeScale(zone, r0.width, r0.height, s0, e2.clientX - x0, e2.clientY - y0, { maxScale, baseWidth: this.box.w });
+            const res = ntfResizeScale(zone, r0.width, r0.height, s0, e2.clientX - x0, e2.clientY - y0, { maxScale, baseWidth: this._baseWidth() });
             if (!changed && Math.hypot(e2.clientX - x0, e2.clientY - y0) < 3) return;
             if (res.s === this.box.s) { changed = changed || res.s !== s0; return; }
             changed = true;

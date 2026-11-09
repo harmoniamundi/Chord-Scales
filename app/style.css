@@ -1013,6 +1013,8 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 .annot-frame-clip { position: absolute; inset: 0; overflow: hidden; border-radius: 5px; }
 .annot-frame-body { position: absolute; left: 0; top: 0; box-sizing: border-box; min-height: 2.4em; padding: 5px 8px; transform-origin: 0 0; outline: none;
     font: inherit; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; }
+.annot-frame.is-auto .annot-frame-body { min-width: calc(1ch + 16px); }
+.annot-frame.is-auto.is-editing .annot-frame-body:empty::before { content: none; } /* cadre automatique : pas d'invite, il ne fait qu'un caractère de large */
 .annot-frame-body ul { margin: 2px 0 2px 1.3em; padding: 0; list-style: disc; }
 .annot-frame-body li { margin: 0; }
 .annot-frame.is-editing { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; cursor: text; user-select: text; -webkit-user-select: text; }

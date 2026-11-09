@@ -272,25 +272,28 @@ function clampFrameScale(v) {
     return Number.isFinite(n) ? Math.max(SN_FRAME_SCALE_MIN, Math.min(SN_FRAME_SCALE_MAX, n)) : SN_FRAME_SCALE_DEFAULT;
 }
 
-// Lit « L » ou « L,E » ; renvoie { w, s } (valeurs ramenées dans les bornes) ou null si le texte n'est pas valide.
+// Lit « L » ou « L,E » (largeur fixe) ou « a » ou « a,E » (largeur automatique : le cadre épouse son texte, qui ne passe à la ligne que sur Entrée) ;
+// renvoie { w, s } ou { w, s, auto: true } (valeurs ramenées dans les bornes) ou null si le texte n'est pas valide.
 function parseFrameBox(text) {
-    const m = /^(\d{1,4})(?:,(\d{1,3}))?$/.exec(typeof text === 'string' ? text.trim() : '');
-    return m ? { w: clampFrameWidth(m[1]), s: m[2] === undefined ? SN_FRAME_SCALE_DEFAULT : clampFrameScale(m[2]) } : null;
+    const m = /^(a|\d{1,4})(?:,(\d{1,3}))?$/.exec(typeof text === 'string' ? text.trim() : '');
+    if (!m) return null;
+    const s = m[2] === undefined ? SN_FRAME_SCALE_DEFAULT : clampFrameScale(m[2]);
+    return m[1] === 'a' ? { w: SN_FRAME_W_DEFAULT, s, auto: true } : { w: clampFrameWidth(m[1]), s };
 }
 
-// Texte canonique : « L » quand l'échelle est de 100 %, « L,E » sinon.
+// Texte canonique : « L » quand l'échelle est de 100 %, « L,E » sinon ; « a » ou « a,E » pour un cadre à largeur automatique.
 function formatFrameBox(box) {
     const b = box || {};
-    const w = clampFrameWidth(b.w === undefined ? SN_FRAME_W_DEFAULT : b.w);
+    const w = b.auto ? 'a' : String(clampFrameWidth(b.w === undefined ? SN_FRAME_W_DEFAULT : b.w));
     const s = clampFrameScale(b.s === undefined ? SN_FRAME_SCALE_DEFAULT : b.s);
-    return s === SN_FRAME_SCALE_DEFAULT ? String(w) : `${w},${s}`;
+    return s === SN_FRAME_SCALE_DEFAULT ? w : `${w},${s}`;
 }
 
 // ----- Copier-coller d'une portée (texte brut, pour passer d'une zone d'annotation à l'autre ou d'une fenêtre à l'autre) -----
 // Une portée copiée s'écrit « [portée:t,4/4,0;q:c4 8:e4] » ; dans un texte collé, chaque repère de ce genre redevient une portée.
 
 // Après le nom du bloc : sa place facultative « @x,y » (copie de plusieurs blocs : leurs places relatives sont gardées) et « ! » si son cadre est caché.
-const SN_CLIP_RE = /\[portée(?:@(\d{1,4}),(\d{1,4}))?(!)?:([^\]\n]{1,1500})\]|\[cadre(?:@(\d{1,4}),(\d{1,4}))?(!)?:(\d{1,4}(?:,\d{1,3})?);([^\]\n]{0,30000})\]/g;
+const SN_CLIP_RE = /\[portée(?:@(\d{1,4}),(\d{1,4}))?(!)?:([^\]\n]{1,1500})\]|\[cadre(?:@(\d{1,4}),(\d{1,4}))?(!)?:((?:a|\d{1,4})(?:,\d{1,3})?);([^\]\n]{0,30000})\]/g;
 
 // meta (facultatif) : { at: { x, y }, border: false } → place du bloc et cadre caché.
 function clipMeta(meta) {

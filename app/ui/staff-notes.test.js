@@ -287,6 +287,16 @@ describe('cadres de texte : largeur et échelle', () => {
         assert.deepEqual(S.parseFrameBox('10,5'), { w: S.SN_FRAME_W_MIN, s: S.SN_FRAME_SCALE_MIN });
         assert.deepEqual(S.parseFrameBox('1500,999'), { w: S.SN_FRAME_W_MAX, s: S.SN_FRAME_SCALE_MAX });
     });
+    test('largeur automatique « a » : lecture, écriture, aller-retour, copier-coller', () => {
+        assert.deepEqual(S.parseFrameBox('a'), { w: S.SN_FRAME_W_DEFAULT, s: 100, auto: true });
+        assert.deepEqual(S.parseFrameBox(' a,150 '), { w: S.SN_FRAME_W_DEFAULT, s: 150, auto: true });
+        assert.equal(S.formatFrameBox({ auto: true, w: 24, s: 100 }), 'a');
+        assert.equal(S.formatFrameBox({ auto: true, s: 150 }), 'a,150');
+        for (const t of ['a', 'a,25', 'a,400']) assert.equal(S.formatFrameBox(S.parseFrameBox(t)), t);
+        for (const bad of ['b', 'a,', 'aa', 'a,1500', '1a']) assert.equal(S.parseFrameBox(bad), null, bad);
+        assert.ok(S.frameClipText({ auto: true, s: 100 }, 'x').startsWith('[cadre:a;'));
+        assert.deepEqual(S.splitStaffClips('[cadre:a,120;bonjour]'), [{ frame: { box: 'a,120', html: 'bonjour' } }]);
+    });
     test('texte invalide → null', () => {
         for (const bad of ['', 'abc', '260,', ',150', '260,150,3', '-260', '26.5', '12345', '260,1500', null, undefined, 260]) assert.equal(S.parseFrameBox(bad), null, String(bad));
     });

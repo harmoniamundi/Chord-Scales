@@ -620,3 +620,11 @@ describe('durée d\'une annotation de mesure (noteSpan) : import et export', () 
     });
 });
 
+describe('cadres de texte à largeur automatique', () => {
+    test('un cadre « a » survit au nettoyage (import / export) avec son échelle', () => {
+        const S = (h) => F.sanitizeNoteHtml(h, 5000);
+        assert.ok(S('<div class="annot-frame" data-frame="a" data-at="10,20">x</div>').includes('data-frame="a"'));
+        assert.ok(S('<div class="annot-frame" data-frame="a,150">x</div>').includes('data-frame="a,150"'));
+        assert.ok(!S('<div class="annot-frame" data-frame="zz">x</div>').includes('data-frame'));
+    });
+});

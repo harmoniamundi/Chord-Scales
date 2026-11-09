@@ -165,7 +165,7 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
         assert.ok(Math.abs(f.x - 120) <= 3 && Math.abs(f.y - 60) <= 3, `cadre posé là où l'on a double-cliqué (${f.x},${f.y})`);
         assert.equal(f.at, `${f.x},${f.y}`);
         assert.equal(f.text, 'Thème A');
-        assert.match(await note(page), /^<div class="annot-frame" data-frame="\d+" data-at="\d+,\d+" data-border="0">Thème A<\/div>$/, 'un cadre neuf est créé sans bordure');
+        assert.match(await note(page), /^<div class="annot-frame" data-frame="a" data-at="\d+,\d+" data-border="0">Thème A<\/div>$/, 'un cadre neuf est créé sans bordure');
         // un double-clic sur un bloc ne crée pas un autre cadre
         assert.equal((await blocks(page)).length, 1);
         assert.deepEqual(errors, []);
@@ -287,8 +287,8 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
     test('repères d\'alignement pendant le déplacement ; l\'aimant (bouton) ramène le bloc, Alt l\'ignore', async () => {
         const { page, errors, close } = await openAnnotations();
         await wake(page);
-        await newFrame(page, G, 40, 40, 'A');
-        await newFrame(page, G, 340, 160, 'B');
+        await newFrame(page, G, 40, 40, 'Premier cadre de texte');
+        await newFrame(page, G, 340, 160, 'Second cadre un peu plus long');
         const magnet = tool(page, G, 'magnet');
         assert.equal(await magnet.getAttribute('aria-pressed'), 'false');
         const [a0, b0] = await blocks(page);
@@ -451,7 +451,7 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
         await page.keyboard.press('Control+A');
         await page.keyboard.press('Control+C');
         const clip = await page.evaluate(() => navigator.clipboard.readText());
-        assert.match(clip, /^\[cadre@\d+,\d+!?:\d+;A\]\[cadre@\d+,\d+!?:\d+;B\]$/);
+        assert.match(clip, /^\[cadre@\d+,\d+!?:a;A\]\[cadre@\d+,\d+!?:a;B\]$/);
         // coller dans l'autre zone
         await wake(page, M);
         await page.keyboard.press('Control+V');
@@ -737,7 +737,7 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
         assert.ok(m1.bw > m0.bw + 50, 'le texte du cadre est affiché plus grand');
         assert.ok(Math.abs(m1.bw / m1.bh - m0.bw / m0.bh) < 0.03, 'proportions conservées');
         assert.ok(Math.abs(m1.x - m0.x) <= 2 && Math.abs(m1.y - m0.y) <= 2, 'coin opposé en place');
-        assert.match(m1.frame, /^\d+,\d+$/);
+        assert.match(m1.frame, /^(a|\d+),\d+$/);
         assert.equal(m1.at, m0.at, 'la place du coin haut gauche ne change pas');
         assert.equal(m1.picked, true);
         // bord droit vers la gauche : réduit, bord gauche en place ; Échap pendant le tirage annule
@@ -771,6 +771,42 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
         assert.equal(m4.at, m3.at);
         assert.ok(Math.abs(m4.w - m3.w) <= 2 && Math.abs(m4.h - m3.h) <= 3);
         assert.ok((await page.innerText(G)).includes('Thème A'));
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('cadre de texte neuf : un caractère de large, il s\'allonge avec le texte et ne passe à la ligne que sur Entrée', async () => {
+        const { page, errors, close } = await openAnnotations();
+        await wake(page);
+        const b = await zoneBox(page, G);
+        await page.mouse.dblclick(b.x + 60, b.y + 60);
+        await page.waitForSelector(`${G} > .annot-frame.is-editing`);
+        const w = () => page.evaluate((z) => { const f = document.querySelector(`${z} > .annot-frame`); return { w: Math.round(f.getBoundingClientRect().width), h: Math.round(f.getBoundingClientRect().height), fr: f.getAttribute('data-frame') }; }, G);
+        const w0 = await w();
+        assert.ok(w0.w <= 30, `vide : ${w0.w} px de large`);
+        await page.keyboard.type('a');
+        await page.waitForTimeout(80);
+        const w1 = await w();
+        assert.ok(w1.w <= 32, `un caractère : ${w1.w} px`);
+        await page.keyboard.type('bcdefghijklmnopqrstuvwxyz');
+        await page.waitForTimeout(80);
+        const w2 = await w();
+        assert.ok(w2.w > w1.w + 80, `la ligne s'allonge (${w1.w} → ${w2.w})`);
+        assert.equal(w2.h, w1.h, 'toujours une seule ligne');
+        await page.keyboard.press('Enter');
+        await page.keyboard.type('x');
+        await page.waitForTimeout(80);
+        const w3 = await w();
+        assert.equal(w3.w, w2.w, 'Entrée : la largeur reste celle de la ligne la plus longue');
+        assert.ok(w3.h > w2.h + 10, 'une seconde ligne apparaît');
+        await page.keyboard.press('Escape');
+        await settle(page);
+        assert.match(await note(page), /data-frame="a"/, 'enregistré en largeur automatique');
+        await page.evaluate(() => { app.jam.setVisMode('staff'); app.jam.setVisMode('annotations'); });
+        await page.waitForSelector(`${G} > .annot-frame`);
+        await page.waitForTimeout(200);
+        const w4 = await w();
+        assert.ok(Math.abs(w4.w - w3.w) <= 2, `même largeur après réouverture (${w3.w} → ${w4.w})`);
         assert.deepEqual(errors, []);
         await close();
     });
@@ -1239,8 +1275,8 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
 
     test('zoom en mode édition : repères d\'alignement et redimensionnement justes', async () => {
         const { page, errors, close } = await openAnnotations();
-        await newFrame(page, G, 40, 40, 'A');
-        await newFrame(page, G, 40, 200, 'B');
+        await newFrame(page, G, 40, 40, 'Texte assez long pour la poignée');
+        await newFrame(page, G, 40, 200, 'Texte assez long pour la poignée');
         await page.locator('.jam-annot-zone').first().locator('[data-zoom-act="in"]').click();
         await page.locator('.jam-annot-zone').first().locator('[data-zoom-act="in"]').click();   // 150 %
         const z = 1.5;
