@@ -834,7 +834,7 @@
    Gauche : annotation générale de la grille (fixe) ; droite : annotation de la mesure en cours / sélectionnée. */
 #jam-scale-visualizer.jam-annot-grid { align-items: stretch; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; grid-auto-rows: minmax(150px, auto); }
 .jam-annot-zone { display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 150px; }
-.jam-annot-head { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; min-height: 22px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; user-select: none; }
+.jam-annot-head { flex: 0 0 auto; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-height: 22px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; user-select: none; }
 .jam-annot-text {
     position: relative; flex: 1 1 auto; width: 100%; min-height: 120px; box-sizing: border-box; overflow: auto;
     padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a;
@@ -1099,7 +1099,7 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 .jam-annot-zbtn { min-width: 26px; font-variant-numeric: tabular-nums; }
 .jam-annot-zbtn[data-zoom-act="reset"] { min-width: 46px; font-size: 11px; }
 /* Durée de l'annotation de mesure (crayon allumé) : « Affichée sur [−] N [+] mesures 3 à 6 » */
-.jam-annot-span { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-height: 24px; font-size: 11px; color: #94a3b8; text-transform: none; letter-spacing: 0; font-weight: 500; user-select: none; }
+.jam-annot-span { flex: 0 1 auto; display: inline-flex; align-items: center; gap: 6px; flex-wrap: nowrap; white-space: nowrap; margin-left: 8px; min-height: 24px; font-size: 11px; color: #94a3b8; text-transform: none; letter-spacing: 0; font-weight: 500; user-select: none; }
 .jam-annot-span[hidden] { display: none; }
 .jam-annot-span-label { font-weight: 600; }
 .jam-annot-span-n { min-width: 1.6em; text-align: center; font-weight: 700; font-size: 13px; color: #e2e8f0; font-variant-numeric: tabular-nums; }
@@ -1142,4 +1142,6 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
     .ab-staff-host .annot-staff-tools.ns-open :is([data-set="clef"], [data-set="meter"], [data-set="ks"], [data-act="pickup"], .ns-zoom, [data-act="copy"], [data-act="paste"], [data-act="clear"], [data-act="remove"]) { order: 10; }
     /* La barre est collée en haut de la page : les conteneurs de l'onglet ne doivent plus rogner ni défiler (sinon « sticky » n'a rien à suivre). Le faux plein écran garde son défilement. */
     #view-jam #jam-scales-card.jam-annot-mode:not(.jam-annot-fs), #view-jam #jam-scales-card.jam-annot-mode:not(.jam-annot-fs) #jam-scale-visualizer.jam-annot-grid { overflow: visible; }
+    /* « Affichée sur N mesures » : sur téléphone la rangée du titre n'a pas la place de l'accueillir, il passe seul sur une seconde ligne (sur ordinateur il est à côté du crayon). */
+    .jam-annot-span { order: 9; flex: 1 0 100%; margin-left: 0; }
 }

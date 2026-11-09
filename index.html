@@ -5805,16 +5805,7 @@
                                 aria-label="Annotations générales de la grille" data-placeholder="Double-cliquez pour ajouter un cadre de texte…" ${handlers}></div>
                         </div>
                         <div class="jam-annot-zone">
-                            <div class="jam-annot-head"><span class="jam-annot-title" id="jam-annot-measure-head">Mesure</span>${annotModeHtml('measure')}${annotZoomHtml('measure')}${annotToolsHtml()}</div>
-                            <div id="jam-annot-span" class="jam-annot-span" role="group" aria-label="Durée de l'annotation" hidden>
-                                <span class="jam-annot-span-label">Affichée sur</span>
-                                <button type="button" class="ab-btn at-btn jam-annot-zbtn" data-span-act="dec" title="Une mesure de moins" aria-label="Une mesure de moins"
-                                    onmousedown="event.preventDefault()" onclick="app.jam.annotSpanAct('dec')">−</button>
-                                <output id="jam-annot-span-n" class="jam-annot-span-n" aria-live="polite">1</output>
-                                <button type="button" class="ab-btn at-btn jam-annot-zbtn" data-span-act="inc" title="Une mesure de plus" aria-label="Une mesure de plus"
-                                    onmousedown="event.preventDefault()" onclick="app.jam.annotSpanAct('inc')">+</button>
-                                <span id="jam-annot-span-range" class="jam-annot-span-range"></span>
-                            </div>
+                            <div class="jam-annot-head"><span class="jam-annot-title" id="jam-annot-measure-head">Mesure</span>${annotModeHtml('measure')}<div id="jam-annot-span" class="jam-annot-span" role="group" aria-label="Durée de l'annotation" hidden><span class="jam-annot-span-label">Affichée sur</span><button type="button" class="ab-btn at-btn jam-annot-zbtn" data-span-act="dec" title="Une mesure de moins" aria-label="Une mesure de moins" onmousedown="event.preventDefault()" onclick="app.jam.annotSpanAct('dec')">−</button><output id="jam-annot-span-n" class="jam-annot-span-n" aria-live="polite">1</output><button type="button" class="ab-btn at-btn jam-annot-zbtn" data-span-act="inc" title="Une mesure de plus" aria-label="Une mesure de plus" onmousedown="event.preventDefault()" onclick="app.jam.annotSpanAct('inc')">+</button><span id="jam-annot-span-range" class="jam-annot-span-range"></span></div>${annotZoomHtml('measure')}${annotToolsHtml()}</div>
                             <div id="jam-annot-measure" class="jam-annot-text" data-editable="false" data-can-edit="false" role="group" spellcheck="false"
                                 aria-label="Annotations de la mesure" ${handlers}></div>
                         </div>`;
