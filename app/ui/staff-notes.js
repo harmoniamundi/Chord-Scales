@@ -10,9 +10,10 @@
 //   clé : t (sol) ou b (fa) ; métrique : 4/4, 6/8… ; armure : nombre d'altérations, de -7 (bémols) à 7 (dièses)
 //   réglages facultatifs (écrits seulement quand ils diffèrent de la valeur par défaut, dans cet ordre) :
 //     taille (50 à 200, par pas de 10) ; puN = levée : la portée commence par une mesure incomplète de N événements ;
-//     bpmN = tempo de lecture (30 à 300 ; absent = tempo de la jam) ; swN = swing (51 à 75 %, absent = croches droites)
+//     bpmN = tempo de lecture (30 à 300 ; absent = tempo de la jam) ; swN = swing (50 à 75 % ; absent = « Jam » : le swing de la jam chargée, sw50 = croches droites)
 //   événement : durée (w ronde, h blanche, q noire, 8 croche, 16 double-croche), « . » point,
 //               puis « :hauteur » (lettre c-b, altération # ## b bb, octave 1-7) ou « r » pour un silence.
+//               Un « ~ » collé à la hauteur (« q:c4~ ») est une liaison de prolongation : la note se prolonge dans la note suivante, de même hauteur.
 //   tuplet : « (N » ouvre un groupe de N dans le temps de M (triolet « (3 », quintolet « (5 »…) et « ) » le ferme ; les notes du groupe
 //            s'écrivent avec leur valeur écrite (trois croches pour un triolet de croches).
 //   ancien format : un « t » après la durée (« 8t:c4 ») marquait un triolet ; il se lit encore (groupes de trois) et se réécrit avec des parenthèses.
@@ -34,7 +35,7 @@ const SN_MIDI_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb
 const SN_BOTTOM_LINE = { t: 4 * 7 + 2, b: 2 * 7 + 4 };
 
 // Événement : « 8:c4 », « q.:eb3 », « hr » (silence). Le « t » après la durée est l'ancienne écriture du triolet (lue, jamais écrite).
-const SN_EVENT_RE = /^(w|h|q|8|16)(\.)?(t)?(?::([a-g])(##|#|bb|b)?([1-7])|(r))$/;
+const SN_EVENT_RE = /^(w|h|q|8|16)(\.)?(t)?(?::([a-g])(##|#|bb|b)?([1-7])(~)?|(r))$/;
 const SN_ALTER = { '': 0, '#': 1, '##': 2, b: -1, bb: -2 };
 const SN_ALTER_TEXT = { 0: '', 1: '#', 2: '##', '-1': 'b', '-2': 'bb' };
 const SN_EPS = 1e-6; // tolérance des comparaisons de durées (les tuplets donnent des durées non entières : 4,8 pour une double-croche de quintolet)
@@ -47,15 +48,23 @@ function clampStaffSize(v) {
 }
 
 // Tempo de lecture propre à la portée (0 = celui de la jam) et swing (50 % = croches droites, 67 % = triolet, 75 % = très pointé).
+// Le swing vaut 0 par défaut (« Jam ») : la portée suit alors le swing de la jam chargée ; un réglage explicite (50 à 75 %) le remplace.
 const SN_BPM_MIN = 30, SN_BPM_MAX = 300;
-const SN_SWING_MIN = 50, SN_SWING_MAX = 75, SN_SWING_DEFAULT = 50;
+const SN_SWING_MIN = 50, SN_SWING_MAX = 75, SN_SWING_AUTO = 0, SN_SWING_DEFAULT = SN_SWING_AUTO;
 function clampStaffBpm(v) {
     const n = Math.round(Number(v));
     return Number.isFinite(n) && n > 0 ? Math.max(SN_BPM_MIN, Math.min(SN_BPM_MAX, n)) : 0;
 }
+// Swing borné à 50-75 % ; toute valeur absente ou invalide (0, « auto »…) donne 0 = suivre le swing de la jam.
 function clampStaffSwing(v) {
     const n = Math.round(Number(v));
-    return Number.isFinite(n) ? Math.max(SN_SWING_MIN, Math.min(SN_SWING_MAX, n)) : SN_SWING_DEFAULT;
+    return Number.isFinite(n) && n > 0 ? Math.max(SN_SWING_MIN, Math.min(SN_SWING_MAX, n)) : SN_SWING_AUTO;
+}
+// Rapport de swing joué (0,5 = croches droites… 0,75) : celui de la portée, sinon celui de la jam (jamSwing, 0,5 à 0,75 ; absent = droit).
+function staffSwingRatio(st, jamSwing) {
+    const own = clampStaffSwing(st && st.swing);
+    if (own) return own / 100;
+    return typeof jamSwing === 'number' && Number.isFinite(jamSwing) ? Math.max(0.5, Math.min(0.75, jamSwing)) : 0.5;
 }
 // Tempo effectif de la lecture : celui de la portée, sinon celui de la jam, sinon 100.
 function staffTempo(st, jamBpm) { return clampStaffBpm(st && st.bpm) || clampStaffBpm(jamBpm) || 100; }
@@ -92,8 +101,31 @@ function staffPickupCount(st) {
     return k;
 }
 
+// ----- Liaisons de prolongation -----
+// Un événement marqué `tie` est lié au suivant : les deux notes n'en font qu'une seule, de leur durée cumulée. Une liaison n'a de sens que
+// entre deux notes de même hauteur écrite (même lettre, altération et octave) : sinon elle est ignorée (ni dessinée, ni écrite, ni jouée).
+function staffSamePitch(a, b) { return !!a && !!b && a.l === b.l && a.o === b.o && a.a === b.a; }
+function staffTieValid(ev, i) {
+    const e = ev[i], n = ev[i + 1];
+    return !!(e && e.tie && n && e.p && n.p && staffSamePitch(e.p, n.p));
+}
+// Chaîne de notes liées qui contient l'événement i : { start, end (exclu) }. Ses notes changent de hauteur ensemble.
+function staffTieChain(ev, i) {
+    if (!ev[i]) return { start: i, end: i + 1 };
+    let start = i, end = i + 1;
+    while (start > 0 && staffTieValid(ev, start - 1)) start--;
+    while (end < ev.length && staffTieValid(ev, end - 1)) end++;
+    return { start, end };
+}
+// Ensemble des indices `indices` complété par toutes les notes liées à celles-ci.
+function staffExpandTies(ev, indices) {
+    const out = new Set();
+    indices.forEach((i) => { if (!ev[i]) return; const c = staffTieChain(ev, i); for (let k = c.start; k < c.end; k++) out.add(k); });
+    return out;
+}
+
 // Lit un texte de portée ; renvoie la portée ({ clef, meter, ks, size, pu, bpm, swing, ev: [{ d, dot, tu, gs, p: {l, o, a} | null }] })
-// ou null si le texte est invalide. tu = N d'un tuplet (0 hors tuplet), gs = premier événement d'un groupe.
+// ou null si le texte est invalide. tu = N d'un tuplet (0 hors tuplet), gs = premier événement d'un groupe, tie = lié à l'événement suivant.
 function parseStaff(text) {
     if (typeof text !== 'string' || text.length > SN_MAX_LENGTH) return null;
     const semi = text.indexOf(';');
@@ -127,7 +159,7 @@ function parseStaff(text) {
             if (seen.sw) return null;
             seen.sw = true;
             swing = parseInt(m[1], 10);
-            if (swing <= SN_SWING_MIN || swing > SN_SWING_MAX) return null;
+            if (swing < SN_SWING_MIN || swing > SN_SWING_MAX) return null;
         } else return null;
     }
     const body = semi < 0 ? '' : text.slice(semi + 1).trim();
@@ -155,7 +187,7 @@ function parseStaff(text) {
         const legacy = !!m[3];
         if (legacy && open) return null;
         if (closes && !open) return null;
-        const e = { d: m[1], dot: !!m[2], tu: open || (legacy ? 3 : 0), gs: false, p: m[7] ? null : { l: m[4], o: parseInt(m[6], 10), a: SN_ALTER[m[5] || ''] } };
+        const e = { d: m[1], dot: !!m[2], tu: open || (legacy ? 3 : 0), gs: false, tie: !!m[7], p: m[8] ? null : { l: m[4], o: parseInt(m[6], 10), a: SN_ALTER[m[5] || ''] } };
         if (open) { e.gs = inGroup === 0; inGroup++; } else if (legacy) e.legacy = true;
         ev.push(e);
         if (closes) open = 0;
@@ -179,14 +211,14 @@ function formatStaff(st) {
     st.ev.forEach((e, i) => {
         if (open && (!e.tu || staffTupletStarts(st.ev, i))) close();
         if (e.tu && staffTupletStarts(st.ev, i)) { toks.push(`(${e.tu}`); open = true; }
-        toks.push(`${e.d}${e.dot ? '.' : ''}${e.p ? `:${e.p.l}${SN_ALTER_TEXT[e.p.a]}${e.p.o}` : 'r'}`);
+        toks.push(`${e.d}${e.dot ? '.' : ''}${e.p ? `:${e.p.l}${SN_ALTER_TEXT[e.p.a]}${e.p.o}${staffTieValid(st.ev, i) ? '~' : ''}` : 'r'}`);
     });
     close();
     const size = st.size && st.size !== SN_SIZE_DEFAULT ? `,${clampStaffSize(st.size)}` : '';
     const pk = staffPickupCount(st);
     const pu = pk > 0 ? `,pu${pk}` : '';
     const bpm = clampStaffBpm(st.bpm) ? `,bpm${clampStaffBpm(st.bpm)}` : '';
-    const sw = st.swing && clampStaffSwing(st.swing) > SN_SWING_MIN ? `,sw${clampStaffSwing(st.swing)}` : '';
+    const sw = clampStaffSwing(st.swing) ? `,sw${clampStaffSwing(st.swing)}` : '';
     return `${st.clef},${st.meter},${st.ks}${size}${pu}${bpm}${sw};${toks.join(' ')}`;
 }
 
@@ -398,7 +430,9 @@ function decomposeUnits(units) {
 // un tuplet (groupe jamais coupé) qui ne tient pas passe à la mesure suivante. Une levée (st.pu événements) ferme la première mesure
 // avant qu'elle soit pleine.
 // Renvoie { total: durée d'une mesure, pickup: la première mesure est une levée, measures: [{ pieces, used, base, pickup }] } ; chaque pièce est
-// { ev, d, dot, tu, p, units, at (début dans la mesure), tieNext, tieFromPrev } et, dans un tuplet, tupletStart, tupletSize, gat (début du groupe) ;
+// { ev, d, dot, tu, p, units, at (début dans la mesure), tieNext, tieFromPrev, cont } et, dans un tuplet, tupletStart, tupletSize, gat (début du groupe) ;
+// tieNext / tieFromPrev : une liaison part de la pièce / arrive sur elle (note coupée par la barre de mesure, ou liaison de prolongation écrite entre deux
+// événements) ; cont : la pièce est la suite d'un même événement coupé par la barre de mesure (et non une nouvelle note, même liée) ;
 // `base` est le décalage du début de la mesure par rapport à un début de temps (non nul pour une levée, qui finit sur le temps fort).
 // La dernière mesure est vide (sans pièce) si la précédente est pleine, pour qu'il reste toujours une place où écrire la suite.
 function layoutStaff(st) {
@@ -425,7 +459,7 @@ function layoutStaff(st) {
             for (let k = i; k < end; k++) {
                 const ek = st.ev[k];
                 const u = eventUnits(ek);
-                cur.pieces.push({ ev: k, d: ek.d, dot: ek.dot, tu: e.tu, p: ek.p, units: u, at: cur.used, gat, tieNext: false, tieFromPrev: false, tupletStart: k === i, tupletSize: end - i });
+                cur.pieces.push({ ev: k, d: ek.d, dot: ek.dot, tu: e.tu, p: ek.p, units: u, at: cur.used, gat, tieNext: staffTieValid(st.ev, k), tieFromPrev: k > 0 && staffTieValid(st.ev, k - 1), cont: false, tupletStart: k === i, tupletSize: end - i });
                 cur.used += u;
             }
             i = end;
@@ -434,6 +468,7 @@ function layoutStaff(st) {
         }
         let left = eventUnits(e);
         let first = true;
+        const tieOut = staffTieValid(st.ev, i), tieIn = i > 0 && staffTieValid(st.ev, i - 1);
         while (left > SN_EPS) {
             if (cur.used >= total - SN_EPS) newMeasure();
             const room = total - cur.used;
@@ -442,8 +477,9 @@ function layoutStaff(st) {
             if (pieces.length === 0) { left = 0; break; } // reste inférieur à une double-croche
             pieces.forEach((pc, n) => {
                 const lastOfEvent = left - take <= SN_EPS && n === pieces.length - 1;
+                const continuation = !!e.p && !(first && n === 0);
                 cur.pieces.push({ ev: i, d: pc.d, dot: pc.dot, tu: 0, p: e.p, units: pc.units, at: cur.used,
-                    tieNext: !!e.p && !lastOfEvent, tieFromPrev: !!e.p && !(first && n === 0) });
+                    tieNext: !!e.p && (!lastOfEvent || tieOut), tieFromPrev: continuation || (!!e.p && tieIn && first && n === 0), cont: continuation });
                 cur.used += pc.units;
             });
             left -= take;
@@ -557,15 +593,18 @@ function staffMeterAllowsSwing(meter) {
     return !(d === 8 && n % 3 === 0 && n >= 6);
 }
 
-function playbackPlan(st) {
+// jamSwing : swing de la jam chargée (0,5 à 0,75), suivi tant que la portée n'a pas son propre réglage (staffSwingRatio).
+// Deux notes liées (liaison de prolongation) ne sont jouées qu'une fois, pour leur durée cumulée.
+function playbackPlan(st, jamSwing) {
     const out = [];
     let t = 0;
-    st.ev.forEach(e => {
+    st.ev.forEach((e, i) => {
         const len = eventUnits(e) / 24;
-        out.push({ at: t, len, midi: e.p ? pitchMidi(e.p) : null, tu: e.tu || 0 });
+        if (i > 0 && out.length && staffTieValid(st.ev, i - 1)) out[out.length - 1].len += len;
+        else out.push({ at: t, len, midi: e.p ? pitchMidi(e.p) : null, tu: e.tu || 0 });
         t += len;
     });
-    const sw = clampStaffSwing(st.swing) / 100;
+    const sw = staffSwingRatio(st, jamSwing);
     if (sw > 0.5 + 1e-9 && staffMeterAllowsSwing(st.meter)) {
         const L = layoutStaff(st);
         const off = L.pickup ? L.measures[0].used / 24 : 0;
@@ -584,7 +623,7 @@ function playbackPlan(st) {
 
 // ----- Modifications (renvoient une nouvelle portée ; l'ancienne n'est pas touchée) -----
 
-function cloneStaffEvent(e) { return { d: e.d, dot: !!e.dot, tu: e.tu || 0, gs: !!(e.tu && e.gs), p: e.p ? { ...e.p } : null }; }
+function cloneStaffEvent(e) { return { d: e.d, dot: !!e.dot, tu: e.tu || 0, gs: !!(e.tu && e.gs), tie: !!(e.p && e.tie), p: e.p ? { ...e.p } : null }; }
 
 function cloneStaff(st) {
     return { clef: st.clef, meter: st.meter, ks: st.ks, size: st.size || SN_SIZE_DEFAULT, pu: st.pu || 0, bpm: st.bpm || 0, swing: st.swing || SN_SWING_DEFAULT, ev: st.ev.map(cloneStaffEvent) };
@@ -596,6 +635,7 @@ function insertEvent(st, index, ev, opts = {}) {
     const out = cloneStaff(st);
     if (out.ev.length >= SN_MAX_EVENTS) return out;
     const i = Math.max(0, Math.min(index, out.ev.length));
+    if (i > 0) out.ev[i - 1].tie = false; // la note d'avant n'est plus suivie de celle à laquelle elle était liée
     out.ev.splice(i, 0, cloneStaffEvent(ev));
     if (out.pu > 0 && (i < out.pu || (i === out.pu && opts.joinPickup))) out.pu++;
     return out;
@@ -607,7 +647,8 @@ function staffInsertTupletGroup(st, index, ev, n, opts = {}) {
     if (!SN_TUPLET_M[n] || out.ev.length + n > SN_MAX_EVENTS) return out;
     const i = Math.max(0, Math.min(index, out.ev.length));
     const members = [];
-    for (let k = 0; k < n; k++) members.push({ d: ev.d, dot: !!ev.dot, tu: n, gs: k === 0, p: ev.p ? { ...ev.p } : null });
+    for (let k = 0; k < n; k++) members.push({ d: ev.d, dot: !!ev.dot, tu: n, gs: k === 0, tie: false, p: ev.p ? { ...ev.p } : null });
+    if (i > 0) out.ev[i - 1].tie = false;
     out.ev.splice(i, 0, ...members);
     if (out.pu > 0 && (i < out.pu || (i === out.pu && opts.joinPickup))) out.pu += n;
     return out;
@@ -629,12 +670,13 @@ function removeEvent(st, index) {
     const e = out.ev[index];
     let from = index, count = 1;
     if (e.tu) {
-        if (e.p) { e.p = null; return out; }
+        if (e.p) { e.p = null; e.tie = false; if (index > 0) out.ev[index - 1].tie = false; return out; }
         const b = staffTupletBounds(out.ev, index);
         if (!out.ev.slice(b.start, b.end).every(x => !x.p)) return out;
         from = b.start; count = b.end - b.start;
     }
     out.ev.splice(from, count);
+    if (from > 0 && out.ev[from - 1]) out.ev[from - 1].tie = false;
     if (out.pu > 0) {
         if (from < out.pu) out.pu = Math.max(0, out.pu - Math.min(count, out.pu - from));
         if (out.pu > out.ev.length) out.pu = out.ev.length;
@@ -649,7 +691,15 @@ function updateEvent(st, index, patch) {
     if (!e) return out;
     if (patch.d !== undefined && SN_DURATIONS.includes(patch.d)) e.d = patch.d;
     if (patch.dot !== undefined) e.dot = !!patch.dot;
-    if (patch.p !== undefined) e.p = patch.p ? { ...patch.p } : null;
+    if (patch.p !== undefined) {
+        if (patch.p) {
+            const c = staffTieChain(out.ev, index); // les notes liées gardent la même hauteur
+            for (let k = c.start; k < c.end; k++) out.ev[k].p = { ...patch.p };
+        } else {
+            e.p = null; e.tie = false;
+            if (index > 0) out.ev[index - 1].tie = false;
+        }
+    }
     return out;
 }
 
@@ -669,7 +719,7 @@ function staffMakeTuplet(st, index, n) {
     if (!w || st.ev.length - 1 + n > SN_MAX_EVENTS) return null;
     const out = cloneStaff(st);
     const members = [];
-    for (let k = 0; k < n; k++) members.push({ d: w.d, dot: w.dot, tu: n, gs: k === 0, p: e.p ? { ...e.p } : null });
+    for (let k = 0; k < n; k++) members.push({ d: w.d, dot: w.dot, tu: n, gs: k === 0, tie: k === n - 1 && !!e.tie, p: e.p ? { ...e.p } : null });
     out.ev.splice(index, 1, ...members);
     if (out.pu > index) out.pu += n - 1;
     return out;
@@ -687,7 +737,7 @@ function staffDissolveTuplet(st, index) {
     const w = staffWritableValue(total);
     if (w) {
         const first = st.ev.slice(b.start, b.end).find(x => x.p);
-        out.ev.splice(b.start, b.end - b.start, { d: w.d, dot: w.dot, tu: 0, gs: false, p: first ? { ...first.p } : null });
+        out.ev.splice(b.start, b.end - b.start, { d: w.d, dot: w.dot, tu: 0, gs: false, tie: !!(first && st.ev[b.end - 1].tie), p: first ? { ...first.p } : null });
         if (out.pu >= b.end) out.pu -= b.end - b.start - 1;
     } else {
         for (let k = b.start; k < b.end; k++) { out.ev[k].tu = 0; out.ev[k].gs = false; }
@@ -715,7 +765,9 @@ function alterEvent(st, index, delta) {
     const out = cloneStaff(st);
     const e = out.ev[index];
     if (!e || !e.p) return out;
-    e.p.a = delta === null ? 0 : Math.max(-2, Math.min(2, e.p.a + delta));
+    const a = delta === null ? 0 : Math.max(-2, Math.min(2, e.p.a + delta));
+    const c = staffTieChain(out.ev, index);
+    for (let k = c.start; k < c.end; k++) out.ev[k].p.a = a;
     return out;
 }
 
@@ -725,19 +777,154 @@ function shiftEvent(st, index, steps) {
     const e = out.ev[index];
     if (!e || !e.p) return out;
     const np = pitchFromDia(pitchDia(e.p) + steps, st.ks);
-    if (np) e.p = np;
+    if (np) {
+        const c = staffTieChain(out.ev, index);
+        for (let k = c.start; k < c.end; k++) out.ev[k].p = { ...np };
+    }
     return out;
 }
+
+// ----- Plusieurs notes à la fois (sélection multiple) -----
+
+// Indices de `indices` valides, triés et sans doublon.
+function staffSortedIndices(st, indices) {
+    return Array.from(new Set(Array.from(indices).filter(i => Number.isInteger(i) && st.ev[i]))).sort((a, b) => a - b);
+}
+
+// Rend explicite le début de chaque groupe de tuplet (un groupe qui en suit un autre de même N ne doit jamais se fondre avec lui).
+function staffNormalizeTuplets(ev) {
+    ev.forEach((e, i) => { if (e.tu && staffTupletStarts(ev, i)) e.gs = true; });
+}
+
+// Déplace de `steps` degrés diatoniques toutes les notes de `indices` (et les notes qui leur sont liées) : tout bouge ou rien ne bouge
+// (si une note sortait de la plage 1-7 octaves, la portée est rendue telle quelle).
+function shiftEvents(st, indices, steps) {
+    const out = cloneStaff(st);
+    const set = staffExpandTies(out.ev, staffSortedIndices(st, indices));
+    const moves = [];
+    for (const i of set) {
+        const e = out.ev[i];
+        if (!e.p) continue;
+        const np = pitchFromDia(pitchDia(e.p) + steps, st.ks);
+        if (!np) return out;
+        moves.push([i, np]);
+    }
+    moves.forEach(([i, np]) => { out.ev[i].p = np; });
+    return out;
+}
+
+// Altère toutes les notes de `indices` (delta -1, +1, ou null = bécarre), comme alterEvent pour une seule.
+function alterEvents(st, indices, delta) {
+    const out = cloneStaff(st);
+    staffExpandTies(out.ev, staffSortedIndices(st, indices)).forEach((i) => {
+        const e = out.ev[i];
+        if (e.p) e.p.a = delta === null ? 0 : Math.max(-2, Math.min(2, e.p.a + delta));
+    });
+    return out;
+}
+
+// Supprime les événements `indices` : une note de tuplet devient un silence, un groupe de tuplet qui n'est plus que silences (et dont on a choisi
+// tous les membres, ou au moins un silence) disparaît d'un bloc ; les autres événements s'enlèvent.
+function removeEvents(st, indices) {
+    const sel = new Set(staffSortedIndices(st, indices));
+    const out = cloneStaff(st);
+    const wasRest = new Set();
+    sel.forEach((i) => {
+        const e = out.ev[i];
+        if (!e.p) wasRest.add(i);
+        if (e.tu && e.p) { e.p = null; e.tie = false; if (i > 0) out.ev[i - 1].tie = false; }
+    });
+    const ranges = [];
+    const seen = new Set();
+    sel.forEach((i) => {
+        const e = out.ev[i];
+        if (!e.tu) { ranges.push([i, 1]); return; }
+        const b = staffTupletBounds(out.ev, i);
+        if (seen.has(b.start)) return;
+        seen.add(b.start);
+        const members = [];
+        for (let k = b.start; k < b.end; k++) members.push(k);
+        const allRests = members.every(k => !out.ev[k].p);
+        const wanted = members.every(k => sel.has(k)) || members.some(k => wasRest.has(k));
+        if (allRests && wanted) ranges.push([b.start, b.end - b.start]);
+    });
+    ranges.sort((a, b) => b[0] - a[0]).forEach(([from, count]) => {
+        out.ev.splice(from, count);
+        if (from > 0 && out.ev[from - 1]) out.ev[from - 1].tie = false;
+        if (out.pu > 0 && from < out.pu) out.pu = Math.max(0, out.pu - Math.min(count, out.pu - from));
+    });
+    if (out.pu > out.ev.length) out.pu = out.ev.length;
+    staffNormalizeTuplets(out.ev);
+    return out;
+}
+
+// Copie des événements `indices` pour un collage : les tuplets sont pris en entier, les liaisons ne sont gardées qu'entre événements qui se suivent.
+function staffExtractEvents(st, indices) {
+    const want = new Set();
+    staffSortedIndices(st, indices).forEach((i) => {
+        const b = staffTupletBounds(st.ev, i);
+        for (let k = b.start; k < b.end; k++) want.add(k);
+    });
+    const list = Array.from(want).sort((a, b) => a - b);
+    const out = list.map((i, j) => {
+        const c = cloneStaffEvent(st.ev[i]);
+        c.tie = staffTieValid(st.ev, i) && list[j + 1] === i + 1;
+        return c;
+    });
+    staffNormalizeTuplets(out);
+    return out;
+}
+
+// Insère `events` (copiés avec staffExtractEvents) à l'indice `index`, ramené sur une frontière de tuplet. Renvoie la nouvelle portée, ou null si elle serait pleine.
+// Une levée qui précède l'insertion s'allonge ; la dernière note collée n'est jamais liée à ce qui suit.
+function staffInsertEvents(st, index, events) {
+    if (!events || !events.length || st.ev.length + events.length > SN_MAX_EVENTS) return null;
+    const out = cloneStaff(st);
+    const i = staffInsertBoundary(out, index);
+    const members = events.map(cloneStaffEvent);
+    members[members.length - 1].tie = false;
+    if (i > 0) out.ev[i - 1].tie = false;
+    out.ev.splice(i, 0, ...members);
+    if (out.pu > 0 && i < out.pu) out.pu += members.length;
+    staffNormalizeTuplets(out.ev);
+    return out;
+}
+
+// Liaison des notes `indices` à la note qui les suit (même hauteur). Si toutes les liaisons possibles existent déjà, elles s'enlèvent ; sinon elles se posent.
+// Renvoie { staff, candidates, tied } : candidates = nombre de notes pouvant être liées (la suivante a la même hauteur), tied = liaisons présentes après l'opération.
+function staffToggleTies(st, indices) {
+    const out = cloneStaff(st);
+    const cand = staffSortedIndices(st, indices).filter(i => out.ev[i + 1] && out.ev[i].p && staffSamePitch(out.ev[i].p, out.ev[i + 1].p));
+    if (!cand.length) return { staff: out, candidates: 0, tied: 0 };
+    const allTied = cand.every(i => out.ev[i].tie);
+    cand.forEach((i) => { out.ev[i].tie = !allTied; });
+    return { staff: out, candidates: cand.length, tied: allTied ? 0 : cand.length };
+}
+
+// Prolonge la note `index`, dernière de la portée, d'une nouvelle note de même hauteur et de même valeur, liée à elle (null si ce n'est pas possible).
+function staffAddTiedNote(st, index) {
+    const e = st.ev[index];
+    if (!e || !e.p || e.tu || index !== st.ev.length - 1 || st.ev.length >= SN_MAX_EVENTS) return null;
+    const out = cloneStaff(st);
+    out.ev[index].tie = true;
+    out.ev.push({ d: e.d, dot: !!e.dot, tu: 0, gs: false, tie: false, p: { ...e.p } });
+    return out;
+}
+
+// Une note de la sélection (ou un tuplet entier) a-t-elle une liaison vers la suivante ?
+function staffHasTie(st, indices) { return staffSortedIndices(st, indices).some(i => staffTieValid(st.ev, i)); }
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { SN_POS_MAX, clampStaffPos, parseStaffPos, formatStaffPos, SN_AT_MAX, clampBlockAt, parseBlockAt, formatBlockAt, parseBlockBorder,
         SN_FRAME_W_MIN, SN_FRAME_W_MAX, SN_FRAME_W_DEFAULT, SN_FRAME_SCALE_MIN, SN_FRAME_SCALE_MAX, SN_FRAME_SCALE_DEFAULT, clampFrameWidth, clampFrameScale, parseFrameBox, formatFrameBox,
         staffClipText, frameClipText, splitStaffClips, SN_UNITS, SN_DURATIONS, SN_METERS, SN_MAX_EVENTS, SN_MAX_LENGTH, SN_KEY_NAMES, SN_KEY_LABELS, SN_BOTTOM_LINE,
         SN_SIZE_MIN, SN_SIZE_MAX, SN_SIZE_STEP, SN_SIZE_DEFAULT, clampStaffSize,
-        SN_BPM_MIN, SN_BPM_MAX, SN_SWING_MIN, SN_SWING_MAX, SN_SWING_DEFAULT, clampStaffBpm, clampStaffSwing, staffTempo,
+        SN_BPM_MIN, SN_BPM_MAX, SN_SWING_MIN, SN_SWING_MAX, SN_SWING_AUTO, SN_SWING_DEFAULT, clampStaffBpm, clampStaffSwing, staffSwingRatio, staffTempo,
+        staffSamePitch, staffTieValid, staffTieChain, staffExpandTies, staffSortedIndices, staffNormalizeTuplets,
         SN_TUPLET_M, SN_TUPLETS, SN_TUPLET_NAMES, staffTupletStarts, staffTupletBounds, staffPickupCount,
         staffDefault, parseStaff, formatStaff, canonicalStaff, staffWrittenUnits, eventUnits, meterUnits, staffMeterBeatGroups, meterBeamUnits, staffWritableValue, decomposeUnits, layoutStaff,
         staffBeamGroups, staffBeamBreaks,
         pitchDia, keyAlter, pitchFromDia, pitchMidi, midiToName, pitchLabel, diaFromY, yFromDia, staffSwingWarp, staffMeterAllowsSwing, playbackPlan,
-        cloneStaff, insertEvent, staffInsertTupletGroup, staffInsertBoundary, removeEvent, updateEvent, staffTupletChoices, staffMakeTuplet, staffDissolveTuplet, staffSetPickup, staffEventEnd, setStaffTempo, setStaffSwing, alterEvent, shiftEvent };
+        cloneStaff, insertEvent, staffInsertTupletGroup, staffInsertBoundary, removeEvent, updateEvent, staffTupletChoices, staffMakeTuplet, staffDissolveTuplet, staffSetPickup, staffEventEnd, setStaffTempo, setStaffSwing, alterEvent, shiftEvent,
+        shiftEvents, alterEvents, removeEvents, staffExtractEvents, staffInsertEvents, staffToggleTies, staffAddTiedNote, staffHasTie };
 }

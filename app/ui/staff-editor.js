@@ -5,6 +5,10 @@
 // de celle des autres blocs, et son cadre peut être caché (data-border="0").
 // Écrire : choisir une durée, cliquer sur la portée (la note se pose à la hauteur cliquée, avant la note qui suit) ;
 // cliquer une note pour la sélectionner puis la glisser vers le haut ou le bas, ou utiliser les flèches ; Suppr. l'enlève.
+// Sélection multiple, comme dans le système : ⌘ / Ctrl + clic ajoute ou retire une note, Maj + clic étend de la dernière note choisie jusqu'à celle-ci,
+// Maj (ou ⌘) + glisser dans le vide trace un rectangle, ⌘A choisit tout. Les flèches, les altérations, les durées, le point, les silences, la liaison, Suppr.,
+// ⌘C / ⌘X / ⌘V s'appliquent alors à tout le groupe (et le glisser vertical d'une note du groupe déplace tout le groupe).
+// Liaison de prolongation : touche L ou bouton « ⌣ » (les deux notes, de même hauteur, ne sont jouées qu'une fois).
 // Deux états : portée « en édition » (elle occupe toute la largeur de la zone, avec sa barre d'outils) ou portée « au repos »
 // (le cadre épouse la portée telle qu'elle est écrite ; elle se déplace en la glissant, hors édition, avec les autres blocs sélectionnés, et se copie-colle d'une zone à l'autre).
 // Chargé par index.html via <script src="ui/staff-editor.js"> (après ui/staff-notes.js) et testé par ui/staff-editor.test.js.
@@ -14,6 +18,7 @@ const NSE_N = (typeof parseStaff !== 'undefined')
     ? { parseStaff, formatStaff, staffDefault, layoutStaff, staffBeamGroups, staffBeamBreaks, pitchFromDia, pitchDia, pitchLabel, pitchMidi, midiToName, diaFromY, yFromDia,
         playbackPlan, insertEvent, staffInsertTupletGroup, staffInsertBoundary, removeEvent, updateEvent, alterEvent, shiftEvent, cloneStaff,
         staffTupletChoices, staffMakeTuplet, staffDissolveTuplet, staffTupletBounds, staffSetPickup, staffEventEnd, setStaffTempo, setStaffSwing, staffTempo, staffMeterAllowsSwing,
+        shiftEvents, alterEvents, removeEvents, staffExtractEvents, staffInsertEvents, staffToggleTies, staffAddTiedNote, staffHasTie, staffTieValid, staffSwingRatio,
         staffClipText, frameClipText, parseFrameBox, splitStaffClips, parseStaffPos, formatStaffPos, clampStaffPos,
         parseBlockAt, formatBlockAt, clampBlockAt, parseBlockBorder,
         SN_KEY_NAMES, SN_KEY_LABELS, SN_BOTTOM_LINE, SN_METERS, SN_SIZE_MIN, SN_SIZE_MAX, SN_SIZE_STEP, SN_SIZE_DEFAULT, clampStaffSize,
@@ -77,12 +82,12 @@ function nseContentBox(svg, fallback) {
 }
 
 // Dessine la portée `st` dans `host` (vide d'abord).
-// opts : width (largeur disponible), selected (indice de l'événement à colorer),
+// opts : width (largeur disponible), selected (indice de l'événement à colorer, ou liste / ensemble d'indices),
 //        compact (portée au repos : pas de prolongement vide à droite, et le dessin est recadré au plus juste pour que le cadre épouse la portée).
 //        En édition (compact faux), la dernière ligne se prolonge d'une portée vide où l'on clique pour écrire la suite, et la 1re mesure incomplète
 //        garde la place des temps manquants (la barre qui la ferme est alors une vraie barre : cliquer derrière la fait devenir une levée).
 // Renvoie la géométrie pour les clics : { width, height, view, compact, layout, firstOpen, tailX, lines: [{ top, bottom, bottomY }],
-//   measures: [{ mi, line, xs, xe, ev0, ev1 }], notes: [{ ev, x, y, line, m, rest, tieFromPrev }] }.
+//   measures: [{ mi, line, xs, xe, ev0, ev1 }], notes: [{ ev, x, y, line, m, rest, tieFromPrev, cont }] }  (cont : suite d'une note coupée par la barre de mesure).
 // Les positions sont en unités du dessin ; `view` ({ x, y, w, h }) est la partie du dessin réellement affichée (tout le dessin hors mode compact).
 function drawNoteStaff(host, st, opts = {}) {
     const VF = Vex.Flow;
@@ -93,6 +98,7 @@ function drawNoteStaff(host, st, opts = {}) {
     const restKey = st.clef === 'b' ? 'd/3' : 'b/4';
     const keyName = NSE_N.SN_KEY_NAMES[st.ks];
     const layout = NSE_N.layoutStaff(st);
+    const isSelected = (ev) => Array.isArray(opts.selected) ? opts.selected.includes(ev) : (opts.selected instanceof Set ? opts.selected.has(ev) : opts.selected === ev);
 
     // 1. Notes, voix, barres, tuplets de chaque mesure (sans position : elle vient après le découpage en lignes).
     // La mesure vide qui suit une mesure pleine ne sert qu'à poser la suite : elle n'est pas dessinée quand la portée est au repos.
@@ -104,7 +110,7 @@ function drawNoteStaff(host, st, opts = {}) {
             else key = restKey;
             const n = new VF.StaveNote({ clef, keys: [key], duration: pc.d + (pc.dot ? 'd' : '') + (pc.p ? '' : 'r'), auto_stem: true });
             if (pc.dot) VF.Dot.buildAndAttach([n], { all: true });
-            if (opts.selected === pc.ev) n.setStyle({ fillStyle: NSE_BLUE, strokeStyle: NSE_BLUE });
+            if (isSelected(pc.ev)) n.setStyle({ fillStyle: NSE_BLUE, strokeStyle: NSE_BLUE });
             return n;
         });
         // Ligatures : groupes de croches / doubles-croches par temps de la mesure (ui/staff-notes.js : staffBeamGroups). La barre fixe aussi le sens des hampes du groupe.
@@ -216,7 +222,7 @@ function drawNoteStaff(host, st, opts = {}) {
                 mo.m.pieces.forEach((pc, i) => {
                     const n = mo.notes[i];
                     const cx = (n.getNoteHeadBeginX() + n.getNoteHeadEndX()) / 2;
-                    geo.notes.push({ ev: pc.ev, x: cx, y: pc.p ? n.getYs()[0] : y + NSE_TOP + 2 * NSE_SPACING, line: li, m: mo.mi, rest: !pc.p, tieFromPrev: pc.tieFromPrev });
+                    geo.notes.push({ ev: pc.ev, x: cx, y: pc.p ? n.getYs()[0] : y + NSE_TOP + 2 * NSE_SPACING, line: li, m: mo.mi, rest: !pc.p, tieFromPrev: pc.tieFromPrev, cont: !!pc.cont });
                     if (pc.tieFromPrev && tiePending) tieJobs.push({ from: tiePending, to: { note: n, line: li } });
                     tiePending = pc.tieNext ? { note: n, line: li } : null;
                 });
@@ -285,15 +291,21 @@ function nseNoteIcon(d) {
 const NSE_REST_ICON = '<svg width="20" height="22" viewBox="0 0 20 22" aria-hidden="true"><path d="M7 3l5 5-4 4.5 5 5.5c-3-1-5 .4-4.6 2.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const NSE_COPY_ICON = '<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="8.5" height="8.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 10.5V3.5A1.5 1.5 0 0 1 4.5 2H10.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
 const NSE_PASTE_ICON = '<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="3" width="11" height="11.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="5.5" y="1.3" width="5" height="3.2" rx="1" fill="currentColor"/></svg>';
+const NSE_TIE_ICON = '<svg width="22" height="18" viewBox="0 0 22 18" aria-hidden="true"><ellipse cx="4.5" cy="5" rx="3.3" ry="2.4" transform="rotate(-22 4.5 5)" fill="currentColor"/><ellipse cx="17.5" cy="5" rx="3.3" ry="2.4" transform="rotate(-22 17.5 5)" fill="currentColor"/><path d="M4.5 9.5C8 16.5 14 16.5 17.5 9.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+const NSE_MULTI_ICON = '<svg width="20" height="18" viewBox="0 0 20 18" aria-hidden="true"><rect x="1.5" y="2.5" width="17" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 2"/><circle cx="7" cy="9" r="2.2" fill="currentColor"/><circle cx="13.5" cy="9" r="2.2" fill="currentColor"/></svg>';
 const NSE_DURATION_TITLES = { w: 'Ronde (clavier : 5)', h: 'Blanche (clavier : 4)', q: 'Noire (clavier : 3)', '8': 'Croche (clavier : 2)', '16': 'Double-croche (clavier : 1)' };
 const NSE_DURATION_KEYS = { '1': '16', '2': '8', '3': 'q', '4': 'h', '5': 'w' };
 
-// Choix du swing de lecture (50 % = croches droites, 67 % = triolet) ; une valeur venue d'ailleurs (62 %…) reste proposée.
+// Choix du swing de lecture : « Jam » (valeur 0, par défaut) suit le swing de la jam chargée ; sinon 50 % = croches droites, 67 % = triolet.
+// Une valeur venue d'ailleurs (62 %…) reste proposée. jamPct : swing actuel de la jam, rappelé dans le libellé « Jam ».
 const NSE_SWING_CHOICES = [[50, 'Droit · 50 %'], [55, '55 %'], [60, '60 %'], [65, '65 %'], [67, 'Triolet · 67 %'], [70, '70 %'], [75, '75 %']];
-function nseSwingOptions(current) {
+function nseSwingAutoLabel(jamPct) { return jamPct ? `Jam · ${jamPct} %` : 'Jam'; }
+function nseSwingOptions(current, jamPct) {
+    const cur = Number(current) || 0;
     const list = NSE_SWING_CHOICES.slice();
-    if (!list.some(c => c[0] === current)) { list.push([current, `${current} %`]); list.sort((a, b) => a[0] - b[0]); }
-    return list.map(([v, t]) => `<option value="${v}"${v === current ? ' selected' : ''}>${t}</option>`).join('');
+    if (cur && !list.some(c => c[0] === cur)) { list.push([cur, `${cur} %`]); list.sort((a, b) => a[0] - b[0]); }
+    list.unshift([0, nseSwingAutoLabel(jamPct)]);
+    return list.map(([v, t]) => `<option value="${v}"${v === cur ? ' selected' : ''}>${t}</option>`).join('');
 }
 
 function nseTupletOptions(current) {
@@ -310,7 +322,7 @@ function nseKeyOptions(current) {
 }
 
 // HTML de la barre d'outils d'une portée (pur : testé sans navigateur).
-function nseToolsHtml(st, cur) {
+function nseToolsHtml(st, cur, jamPct) {
     const dur = ['w', 'h', 'q', '8', '16'].map(d => `<button type="button" class="ns-btn" data-dur="${d}" title="${NSE_DURATION_TITLES[d]}" aria-label="${NSE_DURATION_TITLES[d]}">${nseNoteIcon(d)}</button>`).join('');
     const meters = NSE_N.SN_METERS.map(m => `<option value="${m}"${m === st.meter ? ' selected' : ''}>${m}</option>`).join('');
     return `
@@ -320,6 +332,7 @@ function nseToolsHtml(st, cur) {
             <button type="button" class="ns-btn" data-mod="dot" title="Note pointée (clavier : .)" aria-label="Note pointée"><b>•</b></button>
             <select class="ns-sel ns-sel-tup" data-set="tuplet" title="Tuplet : transforme la note sélectionnée en triolet, quintolet, sextolet… (vraies notes, dans la même durée) ; sans note sélectionnée, règle les prochaines notes. Clavier : t = triolet" aria-label="Tuplet">${nseTupletOptions(cur && cur.tu)}</select>
             <button type="button" class="ns-btn" data-mod="rest" title="Silence : le prochain clic pose un silence (clavier : r)" aria-label="Silence">${NSE_REST_ICON}</button>
+            <button type="button" class="ns-btn" data-act="tie" title="Liaison de prolongation : relie la note sélectionnée à la suivante, de même hauteur (clavier : l). Sur la dernière note, ajoute une note liée. Plusieurs notes sélectionnées : toutes les liaisons possibles." aria-label="Liaison de prolongation">${NSE_TIE_ICON}</button>
         </div>
         <span class="ns-sep"></span>
         <div class="ns-grp" role="group" aria-label="Altération de la note sélectionnée">
@@ -343,29 +356,39 @@ function nseToolsHtml(st, cur) {
             <span class="ns-zoom-lab" aria-hidden="true">♩ =</span>
             <input type="number" class="ns-num" data-set="bpm" min="${NSE_N.SN_BPM_MIN}" max="${NSE_N.SN_BPM_MAX}" step="1" inputmode="numeric" placeholder="jam" value="${st.bpm || ''}" aria-label="Tempo de lecture, en noires par minute">
         </label>
-        <label class="ns-zoom ns-swing" title="Swing de lecture : 50 % = croches droites, 67 % = triolet, plus haut = plus pointé">
+        <label class="ns-zoom ns-swing" title="Swing de lecture : « Jam » suit le swing de la jam chargée (par défaut) ; 50 % = croches droites, 67 % = triolet, plus haut = plus pointé">
             <span class="ns-zoom-lab" aria-hidden="true">Swing</span>
-            <select class="ns-sel ns-sel-inline" data-set="swing" aria-label="Swing de lecture"${NSE_N.staffMeterAllowsSwing(st.meter) ? '' : ' disabled'}>${nseSwingOptions(st.swing || NSE_N.SN_SWING_MIN)}</select>
+            <select class="ns-sel ns-sel-inline" data-set="swing" aria-label="Swing de lecture"${NSE_N.staffMeterAllowsSwing(st.meter) ? '' : ' disabled'}>${nseSwingOptions(st.swing || 0, jamPct)}</select>
         </label>
         <div class="ns-grp">
             <button type="button" class="ns-btn ns-play" data-act="play" title="Écouter la portée" aria-label="Écouter la portée">▶</button>
             <button type="button" class="ns-btn" data-act="undo" title="Annuler le dernier changement de la portée (⌘Z)" aria-label="Annuler">↶</button>
             <button type="button" class="ns-btn" data-act="del" title="Supprimer la note sélectionnée (Suppr.)" aria-label="Supprimer la note sélectionnée">⌫</button>
-            <button type="button" class="ns-btn" data-act="copy" title="Copier cette portée (⌘C) pour la coller ici ou dans une autre zone" aria-label="Copier la portée">${NSE_COPY_ICON}</button>
-            <button type="button" class="ns-btn" data-act="paste" title="Coller la portée copiée, juste après celle-ci (⌘V)" aria-label="Coller la portée copiée">${NSE_PASTE_ICON}</button>
+            <button type="button" class="ns-btn ns-multi" data-act="multi" title="Sélection multiple : touchez les notes pour les ajouter ou les retirer du groupe, glissez dans le vide pour les encadrer. Sur ordinateur : ⌘ / Ctrl + clic pour ajouter, Maj + clic pour une plage, Maj + glisser pour encadrer, ⌘A pour tout" aria-label="Sélection multiple">${NSE_MULTI_ICON}</button>
+            <button type="button" class="ns-btn" data-act="copy" title="Copier cette portée (⌘C) pour la coller ici ou dans une autre zone. Avec des notes sélectionnées : copie ces notes." aria-label="Copier la portée">${NSE_COPY_ICON}</button>
+            <button type="button" class="ns-btn" data-act="paste" title="Coller la portée copiée, juste après celle-ci (⌘V). Avec des notes copiées et une sélection : colle ces notes après la sélection." aria-label="Coller la portée copiée">${NSE_PASTE_ICON}</button>
             <button type="button" class="ns-btn ns-txt" data-act="clear" title="Effacer toutes les notes">Vider</button>
             <button type="button" class="ns-btn ns-txt ns-danger" data-act="remove" title="Supprimer cette portée">✕ Portée</button>
         </div>
         <button type="button" class="ns-btn ns-txt ns-more-btn" data-act="more" aria-expanded="false" title="Autres réglages : clé, mesure, armure, levée, taille, tempo, swing, copier, coller, vider, supprimer" aria-label="Autres réglages de la portée">⋯</button>`;
 }
 
-// Touche du clavier → action sur la note sélectionnée (pur : testé sans navigateur). Renvoie null si la touche n'est pas pour la portée.
+// Touche du clavier → action sur la ou les notes sélectionnées (pur : testé sans navigateur). Renvoie null si la touche n'est pas pour la portée.
 function nseKeyAction(key, mods = {}) {
-    if (mods.meta || mods.ctrl) return (key === 'z' || key === 'Z') ? { type: 'undo' } : null;
+    if (mods.meta || mods.ctrl) {
+        const k = String(key).toLowerCase();
+        if (k === 'z') return { type: 'undo' };
+        if (k === 'a') return { type: 'selectAll' };
+        if (k === 'c') return { type: 'copy' };
+        if (k === 'x') return { type: 'cut' };
+        if (k === 'v') return { type: 'paste' };
+        return null;
+    }
     if (key === 'ArrowUp') return { type: 'shift', steps: mods.shift ? 7 : 1 };
     if (key === 'ArrowDown') return { type: 'shift', steps: mods.shift ? -7 : -1 };
-    if (key === 'ArrowLeft') return { type: 'move', delta: -1 };
-    if (key === 'ArrowRight') return { type: 'move', delta: 1 };
+    if (key === 'ArrowLeft') return mods.shift ? { type: 'extend', delta: -1 } : { type: 'move', delta: -1 };
+    if (key === 'ArrowRight') return mods.shift ? { type: 'extend', delta: 1 } : { type: 'move', delta: 1 };
+    if (key === 'l' || key === 'L') return { type: 'tie' };
     if (key === 'Delete' || key === 'Backspace') return { type: 'delete' };
     if (key === 'Escape') return { type: 'deselect' };
     if (/^[a-gA-G]$/.test(key)) return { type: 'letter', letter: key.toLowerCase() };
@@ -393,19 +416,24 @@ function nseNearestLetter(p, letter, ks) {
 // ----- Portée éditable -----
 
 let NSE_ACTIVE = null; // la portée dont la barre d'outils est ouverte (une seule à la fois)
+let NSE_NOTE_CLIP = null; // notes copiées (staffExtractEvents) : se collent dans n'importe quelle portée, après la sélection ; une copie de portée entière l'efface
 
 // opts : isEditable() → l'annotation est modifiable ; onChange(view) après chaque modification ; onActivate(view) quand on clique dans la portée ;
 //        canvas() → le canevas de la zone (ui/annot-canvas.js) : sélection et déplacement des blocs ;
 //        onCopy(view), onPaste(view) : boutons Copier / Coller de la barre d'outils ;
 //        onGrab(view) quand le bloc est saisi pour être redimensionné (avant tout changement) ;
 //        onMoved(view) quand le bloc vient d'être redimensionné (à enregistrer tout de suite, pour que ↶ l'annule) ;
-//        audio : { ready() → Promise, now(), play(midi, secondes, durée) → nœud audio ou null, bpm() }
+//        audio : { ready() → Promise, now(), play(midi, secondes, durée) → nœud audio ou null (la transposition de la jam est appliquée par play), bpm(),
+//                  swing() → swing de la jam chargée (0,5 à 0,75), suivi tant que la portée n'a pas son propre réglage }
 class NoteStaffView {
     constructor(el, opts) {
         this.el = el;
         this.opts = opts;
         this.st = NSE_N.parseStaff(el.getAttribute('data-staff') || '') || NSE_N.staffDefault();
-        this.sel = -1;          // événement sélectionné
+        this.sel = -1;          // événement « actif » de la sélection (le dernier choisi) ; -1 = aucune sélection
+        this.selSet = new Set(); // tous les événements sélectionnés (note, silence) ; contient `sel` dès qu'il n'est pas vide
+        this.anchor = -1;       // point de départ d'une sélection étendue avec Maj
+        this.multiMode = false; // mode « sélection multiple » (tactile) : toucher une note l'ajoute ou la retire du groupe
         this.selAuto = false;   // sélection posée par l'insertion d'une note (les boutons de durée ne la modifient pas)
         this.cur = { d: 'q', dot: false, tu: 0, rest: false }; // valeurs de la prochaine note
         this.history = [];
@@ -491,7 +519,7 @@ class NoteStaffView {
         const active = this.isActive;
         this._lastWidth = this._availWidth();
         try {
-            this.geo = drawNoteStaff(this.svgHost, this.st, { width: this._lastWidth, selected: active ? this.sel : -1, compact: !active });
+            this.geo = drawNoteStaff(this.svgHost, this.st, { width: this._lastWidth, selected: active ? this._selList() : [], compact: !active });
         } catch (e) {
             this.geo = null;
             this.svgHost.textContent = 'Portée non affichable';
@@ -508,7 +536,13 @@ class NoteStaffView {
         this._refreshTools();
     }
 
-    _renderTools() { this.tools.innerHTML = nseToolsHtml(this.st, this.cur); }
+    _renderTools() { this.tools.innerHTML = nseToolsHtml(this.st, this.cur, this._jamSwingPct()); }
+
+    // Swing de la jam chargée, en % (0 si la jam ne le donne pas) : rappelé dans l'entrée « Jam » du menu Swing.
+    _jamSwingPct() {
+        const a = this.opts.audio;
+        try { const v = a && a.swing ? a.swing() : null; return typeof v === 'number' && v > 0 ? Math.round(v * 100) : 0; } catch (e) { return 0; }
+    }
 
     // Boutons allumés selon la sélection (ou, sans sélection, selon les valeurs de la prochaine note).
     _refreshTools() {
@@ -528,11 +562,21 @@ class NoteStaffView {
         const bpm = this.tools.querySelector('[data-set="bpm"]'); if (bpm && document.activeElement !== bpm) bpm.value = this.st.bpm ? String(this.st.bpm) : '';
         const sw = this.tools.querySelector('[data-set="swing"]');
         if (sw) {
-            const cur = this.st.swing || NSE_N.SN_SWING_MIN;
-            if (!sw.querySelector(`option[value="${cur}"]`)) sw.innerHTML = nseSwingOptions(cur);
+            const cur = this.st.swing || 0;
+            const jamPct = this._jamSwingPct();
+            if (!sw.querySelector(`option[value="${cur}"]`)) sw.innerHTML = nseSwingOptions(cur, jamPct);
+            const auto = sw.querySelector('option[value="0"]');
+            if (auto) auto.textContent = nseSwingAutoLabel(jamPct);
             sw.value = String(cur);
             sw.disabled = !NSE_N.staffMeterAllowsSwing(this.st.meter);
         }
+        const list = this._selList(), explicit = list.length > 0 && !this.selAuto;
+        const tie = this.tools.querySelector('[data-act="tie"]'); if (tie) tie.classList.toggle('is-on', NSE_N.staffHasTie(this.st, list));
+        const multi = this.tools.querySelector('[data-act="multi"]'); if (multi) { multi.classList.toggle('is-on', this.multiMode); multi.setAttribute('aria-pressed', this.multiMode ? 'true' : 'false'); }
+        const cp = this.tools.querySelector('[data-act="copy"]');
+        if (cp) cp.title = explicit ? `Copier les ${list.length > 1 ? list.length + ' notes sélectionnées' : 'notes sélectionnées'} (⌘C) : elles se collent après une sélection, ici ou dans une autre portée` : 'Copier cette portée (⌘C) pour la coller ici ou dans une autre zone';
+        const ps = this.tools.querySelector('[data-act="paste"]');
+        if (ps) ps.title = list.length && NSE_NOTE_CLIP ? 'Coller les notes copiées juste après la sélection (⌘V)' : 'Coller la portée copiée, juste après celle-ci (⌘V)';
         this.tools.querySelectorAll('[data-alt]').forEach(b => {
             const a = e && e.p ? e.p.a : null;
             b.classList.toggle('is-on', a !== null && ((b.dataset.alt === '0' && a === 0 && NSE_N.pitchFromDia(NSE_N.pitchDia(e.p), this.st.ks).a !== 0) || (b.dataset.alt !== '0' && a === Number(b.dataset.alt))));
@@ -578,8 +622,8 @@ class NoteStaffView {
         if (this._outside) { document.removeEventListener('pointerdown', this._outside, true); this._outside = null; }
         this.stop();
         if (this.tools.parentNode !== this.el) this.el.appendChild(this.tools);
-        this.sel = -1;
-        this.selAuto = false;
+        this._clearSel();
+        this.multiMode = false;
         if (wasActive) this.render(); // le cadre se resserre autour de la portée écrite
         if (NSE_ACTIVE === this) NSE_ACTIVE = null;
         if (this.opts.onDeactivate) this.opts.onDeactivate(this);
@@ -592,7 +636,11 @@ class NoteStaffView {
         if (NSE_N.formatStaff(next) === NSE_N.formatStaff(this.st)) return false;
         if (!opts.noHistory) { this.history.push(this.st); if (this.history.length > 60) this.history.shift(); }
         this.st = next;
-        if (this.sel >= this.st.ev.length) this.sel = this.st.ev.length - 1;
+        const n = this.st.ev.length;
+        if (this.sel >= n) this.sel = n - 1;
+        this.selSet = new Set(Array.from(this.selSet).filter(i => i < n));
+        if (this.sel >= 0) this.selSet.add(this.sel); else this.selSet.clear();
+        if (this.anchor >= n) this.anchor = n - 1;
         this.render();
         this.commit();
         return true;
@@ -609,15 +657,64 @@ class NoteStaffView {
         this._apply(prev, { noHistory: true });
     }
 
+    // ----- Sélection : une note ou plusieurs (⌘ / Ctrl + clic, Maj + clic, rectangle, ⌘A) -----
+
+    _clearSel() { this.sel = -1; this.anchor = -1; this.selSet = new Set(); this.selAuto = false; }
+
     select(i, auto = false) {
         this.sel = i;
+        this.anchor = i;
+        this.selSet = i >= 0 ? new Set([i]) : new Set();
         this.selAuto = auto;
         this.render();
+    }
+
+    // Indices des événements sélectionnés, dans l'ordre de la portée.
+    _selList() { return Array.from(this.selSet).filter(i => this.st.ev[i]).sort((a, b) => a - b); }
+
+    // Sélection voulue par l'utilisateur (la note qu'une insertion vient de sélectionner d'office ne compte pas).
+    _explicitList() { return this.selAuto ? [] : this._selList(); }
+
+    // Remplace la sélection (list : indices) ; focus : l'événement actif.
+    _setSelection(list, focus, anchor) {
+        this.selSet = new Set(list);
+        this.sel = list.length ? (list.includes(focus) ? focus : list[list.length - 1]) : -1;
+        this.anchor = list.length ? (anchor === undefined ? this.sel : anchor) : -1;
+        this.selAuto = false;
+        this.render();
+    }
+
+    // ⌘ / Ctrl + clic : ajoute ou retire l'événement du groupe.
+    _toggleSel(i) {
+        const set = new Set(this.selSet);
+        if (set.has(i)) set.delete(i); else set.add(i);
+        this._setSelection(Array.from(set).sort((a, b) => a - b), set.has(i) ? i : -1, i);
+    }
+
+    // Maj + clic : tous les événements entre le point de départ et `i` (en plus de la sélection actuelle si `additive`).
+    _extendSel(i, additive = false) {
+        const a = this.anchor >= 0 ? this.anchor : (this.sel >= 0 ? this.sel : i);
+        const set = additive ? new Set(this.selSet) : new Set();
+        for (let k = Math.min(a, i); k <= Math.max(a, i); k++) set.add(k);
+        this._setSelection(Array.from(set).sort((a2, b2) => a2 - b2), i, a);
+    }
+
+    _selectAll() {
+        const all = this.st.ev.map((_, i) => i);
+        this._setSelection(all, all.length - 1, 0);
     }
 
     _hearEvent(i) {
         const e = this.st.ev[i];
         if (e && e.p) this._audition(NSE_N.pitchMidi(e.p));
+    }
+
+    // Écoute la note active de la sélection, sinon la première note qui reste dans le groupe.
+    _hearSelection() {
+        const e = this.st.ev[this.sel];
+        if (e && e.p) { this._hearEvent(this.sel); return; }
+        const first = this._selList().find(i => this.st.ev[i].p);
+        if (first !== undefined) this._hearEvent(first);
     }
 
     // ----- Souris et doigt -----
@@ -681,7 +778,7 @@ class NoteStaffView {
     _insertIndexAt(line, x) {
         const recs = this.geo.notes.filter(r => r.line === line);
         if (!recs.length) return this.st.ev.length;
-        for (const r of recs) if (r.x > x) return r.tieFromPrev ? r.ev + 1 : r.ev;
+        for (const r of recs) if (r.x > x) return r.cont ? r.ev + 1 : r.ev;
         return recs[recs.length - 1].ev + 1;
     }
 
@@ -728,12 +825,25 @@ class NoteStaffView {
         this.activate();
         const pt = this._local(ev);
         const hit = this._hitEvent(pt);
-        let dragEv = -1, moved = false, wasSelected = false;
+        // Sélection multiple : ⌘ / Ctrl + clic ajoute ou retire une note, Maj + clic étend jusqu'à elle, Maj / ⌘ + glisser dans le vide trace un rectangle ;
+        // le mode « sélection multiple » (bouton, pour le doigt) fait de chaque toucher un ajout / retrait.
+        const addKey = ev.metaKey || ev.ctrlKey, rangeKey = ev.shiftKey;
+        if (addKey || rangeKey || this.multiMode) {
+            if (hit >= 0) {
+                if (rangeKey) this._extendSel(hit, addKey); else this._toggleSel(hit);
+                if (this.selSet.has(hit)) this._hearEvent(hit);
+            } else this._startMarquee(ev, pt, !(addKey || rangeKey));
+            return;
+        }
+        let dragEv = -1, moved = false, wasSelected = false, group = false;
         if (hit >= 0) {
-            wasSelected = this.sel === hit && !this.selAuto;
-            this.select(hit, false);
+            // Une note du groupe sélectionné : le groupe reste choisi pour pouvoir le glisser en bloc ; un simple clic ne garde ensuite que cette note.
+            group = !this.selAuto && this.selSet.size > 1 && this.selSet.has(hit);
+            wasSelected = !group && this.sel === hit && !this.selAuto;
+            if (group) { this.sel = hit; this.anchor = hit; } else this.select(hit, false);
             this._hearEvent(hit);
             if (this.st.ev[hit].p) dragEv = hit;
+            else if (group) { this.select(hit, false); group = false; }
         } else {
             const line = this._lineAt(pt.y);
             const spot = this._insertSpot(pt, line);
@@ -756,7 +866,7 @@ class NoteStaffView {
             this.select(at, true);
             if (p) { this._audition(NSE_N.pitchMidi(p)); dragEv = at; }
         }
-        // Glisser vers le haut ou le bas change la hauteur de la note touchée.
+        // Glisser vers le haut ou le bas change la hauteur de la note touchée (de tout le groupe, si elle en fait partie).
         if (dragEv < 0) return;
         const host = this.svgHost;
         try { host.setPointerCapture(ev.pointerId); } catch (e) { /* non pris en charge */ }
@@ -766,9 +876,18 @@ class NoteStaffView {
             const p2 = this._local(e2);
             if (!moved && Math.abs(p2.y - pt.y) < 4 * Math.max(1, this._k || 1)) return;
             const dia = this._diaAt(p2, lineIdx);
-            const np = NSE_N.pitchFromDia(dia, this.st.ks);
             const e0 = this.st.ev[dragEv];
-            if (!np || !e0 || !e0.p) return;
+            if (!e0 || !e0.p) return;
+            if (group) {
+                const delta = dia - NSE_N.pitchDia(e0.p);
+                if (!delta) return;
+                if (!this._apply(NSE_N.shiftEvents(this.st, this._selList(), delta))) return; // une note sortirait de la portée : le groupe ne bouge pas
+                moved = true;
+                this._audition(NSE_N.pitchMidi(this.st.ev[dragEv].p));
+                return;
+            }
+            const np = NSE_N.pitchFromDia(dia, this.st.ks);
+            if (!np) return;
             if (NSE_N.pitchDia(np) === NSE_N.pitchDia(e0.p)) return;
             moved = true;
             this._apply(NSE_N.updateEvent(this.st, dragEv, { p: np }));
@@ -779,7 +898,51 @@ class NoteStaffView {
             host.removeEventListener('pointerup', onUp);
             host.removeEventListener('pointercancel', onUp);
             try { host.releasePointerCapture(ev.pointerId); } catch (e) { /* déjà relâché */ }
-            if (!moved && wasSelected && hit === dragEv) this.select(-1);
+            if (moved) return;
+            if (group) this.select(hit, false);
+            else if (wasSelected && hit === dragEv) this.select(-1);
+        };
+        host.addEventListener('pointermove', onMove);
+        host.addEventListener('pointerup', onUp);
+        host.addEventListener('pointercancel', onUp);
+    }
+
+    // Rectangle de sélection : glisser dans le vide (Maj / ⌘ / Ctrl enfoncé, ou en mode « sélection multiple ») ajoute au groupe toutes les notes et tous
+    // les silences touchés. Un simple toucher dans le vide (mode « sélection multiple » seulement) vide la sélection.
+    _startMarquee(ev, pt0, clearOnTap) {
+        const host = this.svgHost;
+        const base = new Set(this.selSet);
+        const x0 = ev.clientX, y0 = ev.clientY;
+        let box = null, moved = false, lastKey = '';
+        try { host.setPointerCapture(ev.pointerId); } catch (e) { /* non pris en charge */ }
+        const onMove = (e2) => {
+            if (!moved && Math.hypot(e2.clientX - x0, e2.clientY - y0) < 4) return;
+            moved = true;
+            const hr = host.getBoundingClientRect();
+            if (!box) { box = document.createElement('div'); box.className = 'annot-marquee'; }
+            if (!box.isConnected) host.appendChild(box); // le dessin de la portée vide son conteneur à chaque changement de sélection
+            const l = Math.min(x0, e2.clientX), t = Math.min(y0, e2.clientY), r = Math.max(x0, e2.clientX), b = Math.max(y0, e2.clientY);
+            // le conteneur peut défiler : le rectangle se place dans le contenu défilant, sous le pointeur
+            box.style.left = `${l - hr.left - host.clientLeft + host.scrollLeft}px`; box.style.top = `${t - hr.top - host.clientTop + host.scrollTop}px`;
+            box.style.width = `${r - l}px`; box.style.height = `${b - t}px`;
+            const p1 = this._local(e2);
+            const xa = Math.min(pt0.x, p1.x), xb = Math.max(pt0.x, p1.x), ya = Math.min(pt0.y, p1.y), yb = Math.max(pt0.y, p1.y);
+            const set = new Set(base);
+            this.geo.notes.forEach((n) => { if (n.x >= xa - 4 && n.x <= xb + 4 && n.y >= ya - 6 && n.y <= yb + 6) set.add(n.ev); });
+            const list = Array.from(set).sort((a, c) => a - c);
+            const key = list.join(',');
+            if (key === lastKey) return;
+            lastKey = key;
+            this._setSelection(list, list.length ? list[list.length - 1] : -1, list.length ? list[0] : undefined);
+            if (!box.isConnected) host.appendChild(box);
+        };
+        const onUp = () => {
+            host.removeEventListener('pointermove', onMove);
+            host.removeEventListener('pointerup', onUp);
+            host.removeEventListener('pointercancel', onUp);
+            try { host.releasePointerCapture(ev.pointerId); } catch (e) { /* déjà relâché */ }
+            if (box) box.remove();
+            if (!moved && clearOnTap && this.selSet.size) this.select(-1);
         };
         host.addEventListener('pointermove', onMove);
         host.addEventListener('pointerup', onUp);
@@ -961,10 +1124,11 @@ class NoteStaffView {
         } else if (b.dataset.mod) {
             this._applyMod(b.dataset.mod);
         } else if (b.dataset.alt !== undefined) {
-            if (selEv && selEv.p) {
+            const list = this._selList();
+            if (list.some(i => this.st.ev[i].p)) {
                 const a = b.dataset.alt === '0' ? null : Number(b.dataset.alt);
-                this._apply(NSE_N.alterEvent(this.st, this.sel, a));
-                this._hearEvent(this.sel);
+                this._apply(list.length > 1 ? NSE_N.alterEvents(this.st, list, a) : NSE_N.alterEvent(this.st, list[0], a));
+                this._hearSelection();
             }
         } else if (b.dataset.act) {
             const act = b.dataset.act;
@@ -972,9 +1136,17 @@ class NoteStaffView {
             else if (act === 'pickup') this._togglePickup();
             else if (act === 'undo') this.undo();
             else if (act === 'del') this._deleteSelected();
-            else if (act === 'clear') { this.sel = -1; this._apply(Object.assign(NSE_N.cloneStaff(this.st), { ev: [] })); }
-            else if (act === 'copy') { if (this.opts.onCopy) this.opts.onCopy(this); }
-            else if (act === 'paste') { if (this.opts.onPaste) this.opts.onPaste(this); }
+            else if (act === 'clear') { this._clearSel(); this._apply(Object.assign(NSE_N.cloneStaff(this.st), { ev: [], pu: 0 })); }
+            else if (act === 'tie') this._toggleTie();
+            else if (act === 'multi') { this.multiMode = !this.multiMode; this._refreshTools(); if (this.multiMode) this._flashHint('Touchez les notes pour les ajouter au groupe ; glissez dans le vide pour les encadrer'); }
+            else if (act === 'copy') {
+                if (this._explicitList().length) this._copyNotes(this._explicitList());
+                else { NSE_NOTE_CLIP = null; if (this.opts.onCopy) this.opts.onCopy(this); }
+            }
+            else if (act === 'paste') {
+                if (this._selList().length && NSE_NOTE_CLIP) this._pasteNotes();
+                else if (this.opts.onPaste) this.opts.onPaste(this);
+            }
             else if (act === 'remove') { if (this.opts.onRemove) this.opts.onRemove(this); }
             else if (act === 'exit') { this.deactivate(); if (this.opts.onFocusBack) this.opts.onFocusBack(this); }
             else if (act === 'more') { // téléphone : les réglages moins fréquents se déplient (style.css, .ns-open) ; le bouton n'existe pas sur ordinateur
@@ -988,12 +1160,25 @@ class NoteStaffView {
     _applyMod(mod) {
         const key = mod === 'rest' ? 'rest' : mod;
         this.cur[key] = !this.cur[key];
+        const list = this._explicitList();
         const e = this.sel >= 0 ? this.st.ev[this.sel] : null;
-        if (e && !this.selAuto) {
+        if (list.length > 1) {
+            // Groupe : le point s'allume pour tous si l'un d'eux n'en a pas ; un silence remplace toutes les notes (ou, si ce ne sont que des silences, les redevient).
+            if (mod === 'rest') {
+                const toRest = list.some(i => this.st.ev[i].p);
+                this.cur.rest = toRest;
+                let next = this.st;
+                list.forEach((i) => { next = NSE_N.updateEvent(next, i, { p: toRest ? null : this._pitchForRest(next, i) }); });
+                this._apply(next);
+            } else {
+                const on = !list.every(i => this.st.ev[i][mod]);
+                this.cur[key] = on;
+                this._updateGroup({ [mod]: on });
+            }
+        } else if (e && !this.selAuto) {
             if (mod === 'rest') {
                 const nowRest = !!e.p;
-                const prev = this.st.ev.slice(0, this.sel).reverse().find(x => x.p);
-                const p = nowRest ? null : (prev ? { ...prev.p } : NSE_N.pitchFromDia(NSE_N.SN_BOTTOM_LINE[this.st.clef] + 4, this.st.ks));
+                const p = nowRest ? null : this._pitchForRest(this.st, this.sel);
                 this.cur.rest = nowRest;
                 this._apply(NSE_N.updateEvent(this.st, this.sel, { p }));
             } else {
@@ -1004,18 +1189,27 @@ class NoteStaffView {
         this._refreshTools();
     }
 
-    // Change la durée (d) ou le point (dot) de la note sélectionnée ; dans un tuplet, toutes ses notes changent ensemble (elles ont la même valeur).
+    // Hauteur d'une note qui remplace le silence i : celle de la note qui précède, sinon la 2e ligne de la portée.
+    _pitchForRest(st, i) {
+        const prev = st.ev.slice(0, i).reverse().find(x => x.p);
+        return prev ? { ...prev.p } : NSE_N.pitchFromDia(NSE_N.SN_BOTTOM_LINE[st.clef] + 4, st.ks);
+    }
+
+    // Change la durée (d) ou le point (dot) des événements sélectionnés ; dans un tuplet, toutes ses notes changent ensemble (elles ont la même valeur).
     _updateGroup(patch) {
-        if (this.sel < 0 || !this.st.ev[this.sel]) return;
-        const b = NSE_N.staffTupletBounds(this.st.ev, this.sel);
+        const list = this._selList();
+        if (!list.length) return;
+        const idx = new Set();
+        list.forEach((i) => { const b = NSE_N.staffTupletBounds(this.st.ev, i); for (let k = b.start; k < b.end; k++) idx.add(k); });
         let next = this.st;
-        for (let k = b.start; k < b.end; k++) next = NSE_N.updateEvent(next, k, patch);
+        idx.forEach((k) => { next = NSE_N.updateEvent(next, k, patch); });
         this._apply(next);
     }
 
     // Tuplet : sur une note sélectionnée, la transforme (ou défait son tuplet, n = 0) ; sinon règle les prochaines notes posées.
     _setTuplet(n) {
         n = Number(n) || 0;
+        if (this._explicitList().length > 1) { this._flashHint('Tuplet : choisissez une seule note'); this._refreshTools(); return; }
         const e = this.sel >= 0 && !this.selAuto ? this.st.ev[this.sel] : null;
         if (!e) { this.cur.tu = this.cur.tu === n && n === 3 ? 0 : n; this._refreshTools(); return; }
         if (e.tu === n) { this._refreshTools(); return; }
@@ -1073,11 +1267,49 @@ class NoteStaffView {
     }
 
     _deleteSelected() {
-        if (this.sel < 0) return;
-        const i = this.sel;
-        this.sel = -1;
-        this._apply(NSE_N.removeEvent(this.st, i));
-        if (this.st.ev.length) this.select(Math.max(0, Math.min(i - 1, this.st.ev.length - 1)), true); // la note d'avant, ou la première
+        const list = this._selList();
+        if (!list.length) return;
+        const first = list[0];
+        this._clearSel();
+        this._apply(list.length === 1 ? NSE_N.removeEvent(this.st, first) : NSE_N.removeEvents(this.st, list));
+        if (this.st.ev.length) this.select(Math.max(0, Math.min(first - 1, this.st.ev.length - 1)), true); // la note d'avant, ou la première
+        else this.render();
+    }
+
+    // Liaison de prolongation : relie chaque note choisie à la suivante quand elle a la même hauteur (un second appui enlève les liaisons).
+    // Sur la dernière note de la portée, ajoute une note liée de même hauteur et même valeur.
+    _toggleTie() {
+        const list = this._selList();
+        if (!list.length) { this._flashHint('Sélectionnez une note : la liaison la relie à la suivante'); return; }
+        const r = NSE_N.staffToggleTies(this.st, list);
+        if (r.candidates) { this._apply(r.staff); this._refreshTools(); return; }
+        const add = list.length === 1 ? NSE_N.staffAddTiedNote(this.st, list[0]) : null;
+        if (add) { this._apply(add); this.select(list[0] + 1, true); return; }
+        this._flashHint('Une liaison relie deux notes de même hauteur : placez d\'abord la note suivante à la même hauteur');
+    }
+
+    // Copie les événements choisis (tuplets en entier) dans le presse-papiers des notes de l'éditeur.
+    _copyNotes(list) {
+        const clip = NSE_N.staffExtractEvents(this.st, list);
+        if (!clip.length) return;
+        NSE_NOTE_CLIP = clip;
+        this._refreshTools();
+        this._flashHint(`${clip.length} ${clip.length > 1 ? 'éléments copiés' : 'élément copié'} · ⌘V les colle après la sélection`);
+    }
+
+    // Colle les notes copiées juste après la sélection (ou le tuplet qui la termine) ; les notes collées deviennent la sélection.
+    _pasteNotes() {
+        const list = this._selList();
+        if (!list.length || !NSE_NOTE_CLIP) return;
+        const at = NSE_N.staffEventEnd(this.st, list[list.length - 1]);
+        const next = NSE_N.staffInsertEvents(this.st, at, NSE_NOTE_CLIP);
+        if (!next) { this._flashHint('Portée pleine'); return; }
+        const first = NSE_N.staffInsertBoundary(this.st, at);
+        this._clearSel();
+        if (!this._apply(next)) return;
+        const pasted = NSE_NOTE_CLIP.map((_, k) => first + k);
+        this._setSelection(pasted, pasted[pasted.length - 1], first);
+        this._hearSelection();
     }
 
     // ----- Clavier (appelé par l'annotation quand la portée est active) : renvoie true si la touche a été utilisée -----
@@ -1086,28 +1318,44 @@ class NoteStaffView {
         if (!this.editable || ev.target.closest('select, input')) return false;
         const act = nseKeyAction(ev.key, { shift: ev.shiftKey, meta: ev.metaKey, ctrl: ev.ctrlKey });
         if (!act) return false;
-        const has = this.sel >= 0 && this.st.ev[this.sel];
+        const list = this._selList();
+        const has = list.length > 0;
+        const explicit = has && !this.selAuto;
         if (act.type === 'undo') { if (!this.history.length) return false; this.undo(); return true; }
-        if (act.type === 'dur') { this.cur.d = act.dur; if (has && !this.selAuto) this._updateGroup({ d: act.dur }); this._refreshTools(); return true; }
+        if (act.type === 'selectAll') { if (!this.st.ev.length) return false; this._selectAll(); return true; }
+        if (act.type === 'copy' || act.type === 'cut') {
+            if (!explicit) { NSE_NOTE_CLIP = null; return false; } // pas de notes choisies : c'est la portée entière qu'on copie (ou coupe), voir l'annotation
+            this._copyNotes(list);
+            if (act.type === 'cut') this._deleteSelected();
+            return true;
+        }
+        if (act.type === 'paste') { if (!has || !NSE_NOTE_CLIP) return false; this._pasteNotes(); return true; }
+        if (act.type === 'dur') { this.cur.d = act.dur; if (explicit) this._updateGroup({ d: act.dur }); this._refreshTools(); return true; }
         if (act.type === 'tuplet') {
-            const sel = has && !this.selAuto ? this.st.ev[this.sel] : null;
+            if (explicit && list.length > 1) { this._setTuplet(act.n); return true; }
+            const sel = explicit ? this.st.ev[this.sel] : null;
             this._setTuplet(sel ? (sel.tu === act.n ? 0 : act.n) : (this.cur.tu === act.n ? 0 : act.n));
             return true;
         }
         if (act.type === 'mod') { this._applyMod(act.mod); return true; }
+        if (act.type === 'tie') { this._toggleTie(); return true; }
         if (!has) return false; // sans note sélectionnée, flèches, lettres et Suppr. restent à la saisie de texte
         if (act.type === 'deselect') { this.select(-1); return true; }
         if (act.type === 'delete') { this._deleteSelected(); return true; }
-        if (act.type === 'move') { const n = Math.max(0, Math.min(this.st.ev.length - 1, this.sel + act.delta)); this.select(n, false); this._hearEvent(n); return true; }
-        const e = this.st.ev[this.sel];
-        if (!e.p) return false;
-        if (act.type === 'shift') { if (this._apply(NSE_N.shiftEvent(this.st, this.sel, act.steps))) this._hearEvent(this.sel); return true; }
+        const last = this.st.ev.length - 1;
+        if (act.type === 'move') { const n = Math.max(0, Math.min(last, this.sel + act.delta)); this.select(n, false); this._hearEvent(n); return true; }
+        if (act.type === 'extend') { const n = Math.max(0, Math.min(last, this.sel + act.delta)); this._extendSel(n, false); this._hearEvent(n); return true; }
+        const notes = list.filter(i => this.st.ev[i].p);
+        if (!notes.length) return false;
+        if (act.type === 'shift') { if (this._apply(NSE_N.shiftEvents(this.st, list, act.steps))) this._hearSelection(); return true; }
         if (act.type === 'letter') {
+            if (list.length > 1) return true; // une lettre n'a de sens que pour une seule note
+            const e = this.st.ev[this.sel];
             const np = nseNearestLetter(e.p, act.letter, this.st.ks);
             if (np) { this._apply(NSE_N.updateEvent(this.st, this.sel, { p: np })); this._hearEvent(this.sel); }
             return true;
         }
-        if (act.type === 'alter') { this._apply(NSE_N.alterEvent(this.st, this.sel, act.delta)); this._hearEvent(this.sel); return true; }
+        if (act.type === 'alter') { this._apply(NSE_N.alterEvents(this.st, list, act.delta)); this._hearSelection(); return true; }
         return false;
     }
 
@@ -1129,7 +1377,7 @@ class NoteStaffView {
         a.ready().then((ok) => {
             if (!ok || this.playing !== token) { if (this.playing === token) { this.playing = null; this._refreshTools(); } return; }
             const beat = 60 / NSE_N.staffTempo(this.st, a.bpm());
-            const plan = NSE_N.playbackPlan(this.st);
+            const plan = NSE_N.playbackPlan(this.st, a.swing ? a.swing() : null); // swing de la portée, sinon celui de la jam chargée
             const nodes = [];
             plan.forEach(n => { if (n.midi !== null) { const node = a.play(n.midi, n.at * beat, Math.max(0.12, n.len * beat * 0.95)); if (node) nodes.push(node); } });
             token.nodes = nodes;

@@ -21,8 +21,8 @@ describe('parseStaff / formatStaff : format texte', () => {
     });
     test('valeurs lues : durée, point, triolet, hauteur, silence', () => {
         const st = P('b,2/4,-3;8.t:eb3 qr');
-        assert.deepEqual(st.ev[0], { d: '8', dot: true, tu: 3, gs: true, p: { l: 'e', o: 3, a: -1 } });
-        assert.deepEqual(st.ev[1], { d: 'q', dot: false, tu: 0, gs: false, p: null });
+        assert.deepEqual(st.ev[0], { d: '8', dot: true, tu: 3, gs: true, tie: false, p: { l: 'e', o: 3, a: -1 } });
+        assert.deepEqual(st.ev[1], { d: 'q', dot: false, tu: 0, gs: false, tie: false, p: null });
         const tp = P('t,4/4,0;(5 16:c4 16r 16:e4 16:f4 16:g4) q:a4');
         assert.deepEqual(tp.ev.map(e => [e.tu, e.gs]), [[5, true], [5, false], [5, false], [5, false], [5, false], [0, false]]);
         assert.equal(tp.ev[1].p, null);
@@ -540,10 +540,10 @@ describe('tempo et swing de lecture', () => {
         assert.equal(S.formatStaff(st), 't,4/4,0,bpm132,sw67;q:c4');
         assert.equal(S.formatStaff(P(S.formatStaff(st))), 't,4/4,0,bpm132,sw67;q:c4');
     });
-    test('valeurs par défaut absentes du texte ; valeurs hors bornes refusées', () => {
+    test('valeurs par défaut absentes du texte (swing : « Jam » = 0) ; valeurs hors bornes refusées', () => {
         const st = P('t,4/4,0;q:c4');
-        assert.equal(st.bpm, 0); assert.equal(st.swing, 50);
-        for (const bad of ['t,4/4,0,bpm0;q:c4', 't,4/4,0,sw50;q:c4', 't,4/4,0,bpm5;q:c4', 't,4/4,0,bpm900;q:c4', 't,4/4,0,sw49;q:c4', 't,4/4,0,sw99;q:c4']) assert.equal(P(bad), null, bad);
+        assert.equal(st.bpm, 0); assert.equal(st.swing, 0);
+        for (const bad of ['t,4/4,0,bpm0;q:c4', 't,4/4,0,bpm5;q:c4', 't,4/4,0,bpm900;q:c4', 't,4/4,0,sw49;q:c4', 't,4/4,0,sw99;q:c4']) assert.equal(P(bad), null, bad);
     });
     test('staffTempo : celui de la portée, sinon celui de la jam, sinon 100', () => {
         assert.equal(S.staffTempo({ bpm: 0 }, 0), 100);
@@ -557,7 +557,15 @@ describe('tempo et swing de lecture', () => {
         assert.equal(S.setStaffTempo(S.setStaffTempo(st, 120), '').bpm, 0, 'vide : tempo de la jam');
         assert.equal(S.setStaffSwing(st, 80).swing, 75);
         assert.equal(S.setStaffSwing(st, 67).swing, 67);
-        assert.equal(st.bpm, 0); assert.equal(st.swing, 50);
+        assert.equal(st.bpm, 0); assert.equal(st.swing, 0);
+        assert.equal(S.setStaffSwing(S.setStaffSwing(st, 67), 'auto').swing, 0, '« Jam » : retour au swing de la jam');
+        assert.equal(S.setStaffSwing(st, 50).swing, 50, 'droit : réglage explicite');
+    });
+    test('swing droit explicite : sw50 s’écrit et se relit ; absent = suit la jam', () => {
+        const st = P('t,4/4,0,sw50;q:c4');
+        assert.equal(st.swing, 50);
+        assert.equal(S.formatStaff(st), 't,4/4,0,sw50;q:c4');
+        assert.equal(S.formatStaff(P('t,4/4,0;q:c4')), 't,4/4,0;q:c4');
     });
     test('swing 67 % : les croches deviennent longue-brève (2/3 + 1/3 de temps) ; 50 % : droites', () => {
         const r = (t) => S.playbackPlan(P(t)).map(x => [Math.round(x.at * 100) / 100, Math.round(x.len * 100) / 100]);
@@ -576,5 +584,167 @@ describe('tempo et swing de lecture', () => {
     test('copier-coller : tempo et swing sont gardés', () => {
         const t = 't,4/4,0,bpm132,sw67;q:c4';
         assert.deepEqual(S.splitStaffClips(S.staffClipText(P(t))), [{ staff: t }]);
+    });
+});
+
+
+describe('swing par défaut : celui de la jam chargée', () => {
+    const r = (t, jam) => S.playbackPlan(P(t), jam).map(x => [Math.round(x.at * 100) / 100, Math.round(x.len * 100) / 100]);
+    const swung = [[0, 0.67], [0.67, 0.33], [1, 0.67], [1.67, 0.33]];
+    const straight = [[0, 0.5], [0.5, 0.5], [1, 0.5], [1.5, 0.5]];
+    test('sans réglage propre, la portée swingue comme la jam', () => {
+        assert.deepEqual(r('t,4/4,0;8:c4 8:d4 8:e4 8:f4', 0.667), swung);
+        assert.deepEqual(r('t,4/4,0;8:c4 8:d4 8:e4 8:f4', 0.5), straight);
+        assert.deepEqual(r('t,4/4,0;8:c4 8:d4 8:e4 8:f4'), straight, 'sans jam : droit');
+    });
+    test('un réglage explicite l’emporte sur la jam (y compris « droit »)', () => {
+        assert.deepEqual(r('t,4/4,0,sw50;8:c4 8:d4 8:e4 8:f4', 0.667), straight);
+        assert.deepEqual(r('t,4/4,0,sw67;8:c4 8:d4 8:e4 8:f4', 0.5), swung);
+    });
+    test('mesure composée : pas de swing, même si la jam swingue', () => {
+        assert.deepEqual(r('t,6/8,0;8:c4 8:d4 8:e4 8:f4', 0.667), straight);
+    });
+    test('staffSwingRatio : valeurs hors bornes ramenées dans 0,5-0,75', () => {
+        assert.equal(S.staffSwingRatio({ swing: 0 }, 0.9), 0.75);
+        assert.equal(S.staffSwingRatio({ swing: 0 }, 0.2), 0.5);
+        assert.equal(S.staffSwingRatio({ swing: 0 }, NaN), 0.5);
+        assert.equal(S.staffSwingRatio({ swing: 62 }, 0.7), 0.62);
+    });
+});
+
+describe('liaisons de prolongation', () => {
+    test('écriture « ~ » : aller-retour ; une liaison entre hauteurs différentes ou sans suite est ignorée', () => {
+        for (const t of ['t,4/4,0;q:c4~ q:c4 h:d4', 't,4/4,0;(3 8:c4~ 8:c4 8:d4~) q:d4', 't,4/4,0;w:eb4~ w:eb4']) assert.equal(S.formatStaff(P(t)), t, t);
+        assert.equal(S.formatStaff(P('t,4/4,0;q:c4~ q:d4')), 't,4/4,0;q:c4 q:d4');
+        assert.equal(S.formatStaff(P('t,4/4,0;q:c4~')), 't,4/4,0;q:c4');
+        assert.equal(S.formatStaff(P('t,4/4,0;q:c#4~ q:db4')), 't,4/4,0;q:c#4 q:db4', 'même son mais pas la même note écrite : pas de liaison');
+        assert.equal(P('t,4/4,0;qr~'), null, 'un silence ne se lie pas');
+    });
+    test('mise en page : une liaison part de la première note et arrive sur la seconde, qui reste une vraie note', () => {
+        const L = S.layoutStaff(P('t,4/4,0;q:c4~ q:c4 h:d4'));
+        const pcs = L.measures[0].pieces;
+        assert.deepEqual(pcs.map(x => [x.ev, x.tieNext, x.tieFromPrev, x.cont]), [[0, true, false, false], [1, false, true, false], [2, false, false, false]]);
+    });
+    test('liaison à travers la barre de mesure', () => {
+        const L = S.layoutStaff(P('t,4/4,0;w:c4~ w:c4'));
+        assert.equal(L.measures[0].pieces[0].tieNext, true);
+        assert.equal(L.measures[1].pieces[0].tieFromPrev, true);
+        assert.equal(L.measures[1].pieces[0].cont, false);
+    });
+    test('une note coupée par la barre est une suite (cont), liée aussi à la note suivante si elle est liée', () => {
+        const L = S.layoutStaff(P('t,4/4,0;q:c4 q:c4 q:c4 h:d4~ h:d4'));
+        const all = L.measures.flatMap(m => m.pieces);
+        assert.deepEqual(all.map(x => [x.ev, x.tieNext, x.tieFromPrev, x.cont]),
+            [[0, false, false, false], [1, false, false, false], [2, false, false, false], [3, true, false, false], [3, true, true, true], [4, false, true, false]]);
+    });
+    test('lecture : deux notes liées ne sont jouées qu’une fois, pour leur durée cumulée', () => {
+        const plan = S.playbackPlan(P('t,4/4,0;q:c4~ q:c4~ h:c4'));
+        assert.deepEqual(plan.map(x => [x.at, x.len, x.midi]), [[0, 4, 60]]);
+        const p2 = S.playbackPlan(P('t,4/4,0;q:c4~ q:c4 q:d4 q:d4'));
+        assert.deepEqual(p2.map(x => [x.at, x.len, x.midi]), [[0, 2, 60], [2, 1, 62], [3, 1, 62]]);
+    });
+    test('lecture : sans liaison, deux notes de même hauteur sont rejouées', () => {
+        assert.equal(S.playbackPlan(P('t,4/4,0;q:c4 q:c4')).length, 2);
+    });
+    test('changer la hauteur d’une note liée change toute la chaîne', () => {
+        const st = P('t,4/4,0;q:c4~ q:c4~ q:c4 q:e4');
+        assert.equal(S.formatStaff(S.shiftEvent(st, 1, 1)), 't,4/4,0;q:d4~ q:d4~ q:d4 q:e4');
+        assert.equal(S.formatStaff(S.alterEvent(st, 2, 1)), 't,4/4,0;q:c#4~ q:c#4~ q:c#4 q:e4');
+        assert.equal(S.formatStaff(S.updateEvent(st, 0, { p: { l: 'g', o: 4, a: 0 } })), 't,4/4,0;q:g4~ q:g4~ q:g4 q:e4');
+    });
+    test('insérer une note entre deux notes liées, supprimer l’une d’elles : la liaison disparaît', () => {
+        const st = P('t,4/4,0;q:c4~ q:c4 q:e4');
+        assert.equal(S.formatStaff(S.insertEvent(st, 1, { d: 'q', dot: false, p: { l: 'c', o: 4, a: 0 } })), 't,4/4,0;q:c4 q:c4 q:c4 q:e4');
+        assert.equal(S.formatStaff(S.removeEvent(st, 1)), 't,4/4,0;q:c4 q:e4');
+        assert.equal(S.formatStaff(S.updateEvent(st, 1, { p: null })), 't,4/4,0;q:c4 qr q:e4');
+    });
+    test('staffToggleTies : pose, puis retire, les liaisons possibles (même hauteur que la note suivante)', () => {
+        const st = P('t,4/4,0;q:c4 q:c4 q:c4 q:d4');
+        const a = S.staffToggleTies(st, [0, 1]);
+        assert.equal(S.formatStaff(a.staff), 't,4/4,0;q:c4~ q:c4~ q:c4 q:d4');
+        assert.equal(a.candidates, 2);
+        const b = S.staffToggleTies(a.staff, [0, 1]);
+        assert.equal(S.formatStaff(b.staff), 't,4/4,0;q:c4 q:c4 q:c4 q:d4');
+        const none = S.staffToggleTies(st, [2]);
+        assert.equal(none.candidates, 0, 'la suivante est une autre hauteur');
+        assert.equal(S.staffToggleTies(st, [3]).candidates, 0, 'dernière note');
+    });
+    test('staffAddTiedNote : prolonge la dernière note d’une note liée de même hauteur', () => {
+        const st = P('t,4/4,0;q:c4 h.:e4');
+        assert.equal(S.formatStaff(S.staffAddTiedNote(st, 1)), 't,4/4,0;q:c4 h.:e4~ h.:e4');
+        assert.equal(S.staffAddTiedNote(st, 0), null, 'pas la dernière note');
+    });
+    test('liaison conservée en transformant une note en tuplet', () => {
+        const st = P('t,4/4,0;q:c4~ q:c4');
+        assert.equal(S.formatStaff(S.staffMakeTuplet(st, 0, 3)), 't,4/4,0;(3 8:c4 8:c4 8:c4~) q:c4');
+    });
+});
+
+describe('sélection multiple : opérations de groupe', () => {
+    test('shiftEvents : déplace toutes les notes choisies, laisse les silences ; rien ne bouge si l’une sort de la plage', () => {
+        const st = P('t,4/4,0;q:c4 qr q:e4 q:g4');
+        assert.equal(S.formatStaff(S.shiftEvents(st, [0, 1, 2], 1)), 't,4/4,0;q:d4 qr q:f4 q:g4');
+        assert.equal(S.formatStaff(S.shiftEvents(st, [0, 2], -7)), 't,4/4,0;q:c3 qr q:e3 q:g4');
+        const edge = P('t,4/4,0;q:c1 q:c4');
+        assert.equal(S.formatStaff(S.shiftEvents(edge, [0, 1], -1)), 't,4/4,0;q:c1 q:c4', 'Do1 ne peut pas descendre : le groupe reste en place');
+    });
+    test('shiftEvents / alterEvents : une note liée entraîne celles qui lui sont liées', () => {
+        const st = P('t,4/4,0;q:c4~ q:c4 q:e4');
+        assert.equal(S.formatStaff(S.shiftEvents(st, [0], 2)), 't,4/4,0;q:e4~ q:e4 q:e4');
+        assert.equal(S.formatStaff(S.alterEvents(st, [1], -1)), 't,4/4,0;q:cb4~ q:cb4 q:e4');
+    });
+    test('alterEvents : dièse, bémol, bécarre sur tout le groupe', () => {
+        const st = P('t,4/4,0;q:c4 q:d4 qr q:f4');
+        assert.equal(S.formatStaff(S.alterEvents(st, [0, 1, 2, 3], 1)), 't,4/4,0;q:c#4 q:d#4 qr q:f#4');
+        assert.equal(S.formatStaff(S.alterEvents(S.alterEvents(st, [0, 1], 1), [0, 1], null)), 't,4/4,0;q:c4 q:d4 qr q:f4');
+    });
+    test('removeEvents : supprime le groupe ; indices fantaisistes ignorés ; la levée suit', () => {
+        const st = P('t,4/4,0;q:c4 q:d4 q:e4 q:f4 q:g4');
+        assert.equal(S.formatStaff(S.removeEvents(st, [1, 3, 9, -1])), 't,4/4,0;q:c4 q:e4 q:g4');
+        const pk = S.staffSetPickup(P('t,4/4,0;q:c4 q:d4 q:e4 q:f4 q:g4'), 2);
+        const out = S.removeEvents(pk, [0, 3]);
+        assert.equal(S.formatStaff(out), 't,4/4,0,pu1;q:d4 q:e4 q:g4');
+    });
+    test('removeEvents : une note de tuplet devient un silence ; le groupe de silences choisi en entier disparaît', () => {
+        const st = P('t,4/4,0;(3 8:c4 8:d4 8:e4) q:f4');
+        assert.equal(S.formatStaff(S.removeEvents(st, [0, 1])), 't,4/4,0;(3 8r 8r 8:e4) q:f4');
+        assert.equal(S.formatStaff(S.removeEvents(st, [0, 1, 2])), 't,4/4,0;q:f4');
+        const half = S.removeEvents(st, [0, 1]);
+        assert.equal(S.formatStaff(S.removeEvents(half, [0])), 't,4/4,0;(3 8r 8r 8:e4) q:f4', 'tant qu’une note reste dans le groupe, il reste');
+    });
+    test('removeEvents : la liaison de la note d’avant disparaît', () => {
+        const st = P('t,4/4,0;q:c4~ q:c4 q:e4');
+        assert.equal(S.formatStaff(S.removeEvents(st, [1])), 't,4/4,0;q:c4 q:e4');
+    });
+    test('copier / coller : durées, silences et liaisons suivent ; la dernière liaison ne dépasse pas', () => {
+        const st = P('t,4/4,0;q:c4~ q:c4 qr q:g4~ q:g4');
+        const clip = S.staffExtractEvents(st, [0, 1, 3]);
+        assert.equal(clip.length, 3);
+        assert.deepEqual(clip.map(e => e.tie), [true, false, false], 'q:g4 est copiée sans sa suite : plus de liaison');
+        const out = S.staffInsertEvents(P('t,4/4,0;h:a4 h:b4'), 1, clip);
+        assert.equal(S.formatStaff(out), 't,4/4,0;h:a4 q:c4~ q:c4 q:g4 h:b4');
+    });
+    test('coller : un tuplet est collé en entier, sans se fondre avec le groupe voisin', () => {
+        const src = P('t,4/4,0;(3 8:c4 8:d4 8:e4) q:f4');
+        const clip = S.staffExtractEvents(src, [1]);
+        assert.equal(clip.length, 3, 'un seul membre choisi : tout le tuplet est copié');
+        const out = S.staffInsertEvents(P('t,4/4,0;(3 8:a4 8:b4 8:c5) q:d5'), 3, clip);
+        assert.equal(S.formatStaff(out), 't,4/4,0;(3 8:a4 8:b4 8:c5) (3 8:c4 8:d4 8:e4) q:d5');
+        const before = S.staffInsertEvents(P('t,4/4,0;(3 8:a4 8:b4 8:c5) q:d5'), 0, clip);
+        assert.equal(S.formatStaff(before), 't,4/4,0;(3 8:c4 8:d4 8:e4) (3 8:a4 8:b4 8:c5) q:d5');
+    });
+    test('coller au milieu d’un tuplet : ramené à la frontière du groupe', () => {
+        const out = S.staffInsertEvents(P('t,4/4,0;(3 8:a4 8:b4 8:c5) q:d5'), 1, [{ d: 'q', dot: false, tu: 0, gs: false, tie: false, p: { l: 'c', o: 4, a: 0 } }]);
+        assert.equal(S.formatStaff(out), 't,4/4,0;(3 8:a4 8:b4 8:c5) q:c4 q:d5');
+    });
+    test('coller dans une portée pleine : refusé', () => {
+        const full = S.parseStaff('t,4/4,0;' + new Array(96).fill('16:c4').join(' '));
+        assert.ok(full);
+        assert.equal(S.staffInsertEvents(full, 0, [{ d: 'q', dot: false, tu: 0, gs: false, tie: false, p: null }]), null);
+    });
+    test('staffHasTie', () => {
+        const st = P('t,4/4,0;q:c4~ q:c4 q:e4');
+        assert.equal(S.staffHasTie(st, [0]), true);
+        assert.equal(S.staffHasTie(st, [1, 2]), false);
     });
 });

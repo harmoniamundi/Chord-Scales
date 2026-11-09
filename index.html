@@ -6847,7 +6847,8 @@
                 this._annotStaffTimer = setTimeout(() => { this._annotStaffTimer = null; this._annotCommit(ed); }, 600);
             }
 
-            // Son des portées : le piano de l'appli, à la hauteur écrite, au tempo de la jam.
+            // Son des portées : le piano de l'appli, au tempo de la jam, avec sa transposition (Ut, Si♭ ou Mi♭ : la hauteur écrite est transposée comme pour
+            // les accords et les gammes de la grille en cours) et, tant que la portée n'a pas son propre réglage, son swing.
             _annotAudio() {
                 if (this._annotAudioApi) return this._annotAudioApi;
                 const app = this.app;
@@ -6859,11 +6860,13 @@
                     },
                     play: (midi, after, duration) => {
                         try {
-                            return app.pianoInstrument.play(midiToName(midi), app.audioCtx.currentTime + after,
+                            return app.pianoInstrument.play(midiToName(midi + this._jamTransOffset()), app.audioCtx.currentTime + after,
                                 { duration, destination: app.reverbInput || app.audioCtx.destination });
                         } catch (e) { return null; }
                     },
-                    bpm: () => this.bpm
+                    bpm: () => this.bpm,
+                    // Swing de la jam chargée (0,5 = droit … 0,75) ; droit quand la jam n'en a pas (mesure composée, arpèges).
+                    swing: () => { try { return this.isBandSwingAvailable() ? this.getBandSwing() : 0.5; } catch (e) { return 0.5; } }
                 };
                 return this._annotAudioApi;
             }
@@ -8612,9 +8615,9 @@
             };
             // Fichiers nouveaux de la version : s'ils sont absents (mal placés ou pas envoyés), ils ne définissent pas leur fonction.
             var needed = {
-                'app/ui/staff-notes.js': typeof splitStaffClips === 'function' && typeof parseBlockAt === 'function' && typeof staffMakeTuplet === 'function' && typeof staffSetPickup === 'function' && typeof setStaffSwing === 'function',
+                'app/ui/staff-notes.js': typeof splitStaffClips === 'function' && typeof parseBlockAt === 'function' && typeof staffMakeTuplet === 'function' && typeof staffSetPickup === 'function' && typeof setStaffSwing === 'function' && typeof staffInsertEvents === 'function' && typeof staffToggleTies === 'function' && typeof shiftEvents === 'function',
                 'app/grid/grid-format.js': typeof NOTE_FONTS !== 'undefined' && !!NOTE_FONTS.menlo && typeof sanitizeNoteHtml === 'function' && sanitizeNoteHtml('<div class="annot-frame" data-frame="200" data-at="5,5" data-border="0">x</div>', 300).indexOf('data-border') >= 0,
-                'app/ui/staff-editor.js': typeof nseToolState === 'function' && typeof nseBlocksToClipText === 'function' && typeof NoteStaffView === 'function' && typeof NoteStaffView.prototype.setBorder === 'function' && typeof NoteStaffView.prototype._setTuplet === 'function' && typeof nseSwingOptions === 'function',
+                'app/ui/staff-editor.js': typeof nseToolState === 'function' && typeof nseBlocksToClipText === 'function' && typeof NoteStaffView === 'function' && typeof NoteStaffView.prototype.setBorder === 'function' && typeof NoteStaffView.prototype._setTuplet === 'function' && typeof nseSwingOptions === 'function' && typeof NoteStaffView.prototype._toggleTie === 'function' && typeof NoteStaffView.prototype._startMarquee === 'function',
                 'app/ui/text-frame.js': typeof NoteFrameView === 'function' && typeof NoteFrameView.prototype.setBorder === 'function',
                 'app/ui/annot-canvas.js': typeof AnnotCanvas === 'function' && typeof acZoomOffset === 'function',
                 'app/ui/annot-bar.js': typeof ANNOT_FONT_DEFAULT_CSS !== 'undefined' && typeof annotToolsHtml === 'function' && typeof annotModeHtml === 'function'

@@ -35,14 +35,41 @@ describe('nseKeyAction : touche → action', () => {
         assert.deepEqual(['1', '2', '3', '4', '5'].map(k => E.nseKeyAction(k).dur), ['16', '8', 'q', 'h', 'w']);
         assert.equal(E.nseKeyAction('6'), null);
     });
-    test('⌘Z / Ctrl+Z annule ; les autres raccourcis ⌘ ou Ctrl ne sont pas pour la portée', () => {
+    test('⌘Z / Ctrl+Z annule ; ⌘A, ⌘C, ⌘X, ⌘V agissent sur les notes ; les autres raccourcis ⌘ ou Ctrl ne sont pas pour la portée', () => {
         assert.deepEqual(E.nseKeyAction('z', { meta: true }), { type: 'undo' });
         assert.deepEqual(E.nseKeyAction('z', { ctrl: true }), { type: 'undo' });
-        assert.equal(E.nseKeyAction('c', { meta: true }), null);
+        assert.deepEqual(E.nseKeyAction('a', { meta: true }), { type: 'selectAll' });
+        assert.deepEqual(E.nseKeyAction('c', { meta: true }), { type: 'copy' });
+        assert.deepEqual(E.nseKeyAction('x', { ctrl: true }), { type: 'cut' });
+        assert.deepEqual(E.nseKeyAction('V', { meta: true }), { type: 'paste' });
         assert.equal(E.nseKeyAction('b', { ctrl: true }), null);
+    });
+    test('L = liaison ; Maj + flèche gauche / droite étend la sélection', () => {
+        assert.deepEqual(E.nseKeyAction('l'), { type: 'tie' });
+        assert.deepEqual(E.nseKeyAction('L'), { type: 'tie' });
+        assert.deepEqual(E.nseKeyAction('ArrowLeft', { shift: true }), { type: 'extend', delta: -1 });
+        assert.deepEqual(E.nseKeyAction('ArrowRight', { shift: true }), { type: 'extend', delta: 1 });
+        assert.deepEqual(E.nseKeyAction('ArrowRight'), { type: 'move', delta: 1 });
     });
     test('toute autre touche est laissée à la saisie du texte', () => {
         for (const k of ['Enter', ' ', 'x', 'Tab', 'Home', 'a1']) assert.equal(E.nseKeyAction(k), null, k);
+    });
+});
+
+describe('barre d’outils : liaison, sélection multiple, swing « Jam »', () => {
+    test('boutons liaison et sélection multiple', () => {
+        const html = E.nseToolsHtml(S.parseStaff('t,4/4,0;q:c4'));
+        assert.ok(html.includes('data-act="tie"') && html.includes('data-act="multi"'));
+    });
+    test('swing : « Jam » est le choix par défaut et rappelle le swing de la jam', () => {
+        const sel = (h) => h.slice(h.indexOf('data-set="swing"'), h.indexOf('</select>', h.indexOf('data-set="swing"')));
+        const def = sel(E.nseToolsHtml(S.parseStaff('t,4/4,0;q:c4'), undefined, 67));
+        assert.ok(def.includes('<option value="0" selected>Jam · 67 %</option>'), def);
+        assert.ok(sel(E.nseToolsHtml(S.parseStaff('t,4/4,0;q:c4'))).includes('<option value="0" selected>Jam</option>'));
+        const own = sel(E.nseToolsHtml(S.parseStaff('t,4/4,0,sw50;q:c4'), undefined, 67));
+        assert.ok(own.includes('<option value="50" selected>'), 'un réglage explicite (droit) est gardé');
+        assert.ok(!own.includes('<option value="0" selected>'));
+        assert.equal((own.match(/<option /g) || []).length, 8, 'Jam + 7 valeurs');
     });
 });
 

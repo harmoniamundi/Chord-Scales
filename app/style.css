@@ -1005,6 +1005,7 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 .annot-drag-ghost svg { max-width: 100%; height: auto; }
 .annot-staff-hint { position: absolute; left: 0; right: 0; top: 4px; text-align: center; font-size: 11px; color: #94a3b8; pointer-events: none; }
 .annot-ghost { position: absolute; pointer-events: none; width: 0; height: 0; }
+.annot-marquee { position: absolute; pointer-events: none; z-index: 3; border: 1px dashed #3b82f6; background: rgba(59, 130, 246, .12); border-radius: 2px; } /* rectangle de sélection de notes */
 .annot-ghost i { position: absolute; left: 0; top: 0; width: 12px; height: 9px; border-radius: 50%; background: rgba(37, 99, 235, .4); transform: rotate(-20deg); }
 .annot-ghost span { position: absolute; left: 16px; top: -3px; padding: 0 4px; border-radius: 4px; background: #1e293b; color: #fff; font: 600 10px/16px system-ui, sans-serif; white-space: nowrap; }
 /* Cadres de texte glissés dans le texte (ui/text-frame.js). Le texte est mis en page à sa largeur d'origine puis agrandi / réduit d'un bloc (transform: scale) :
