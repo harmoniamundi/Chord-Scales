@@ -185,3 +185,30 @@ describe('acZoomOf : zoom d\'une zone', () => {
         assert.equal(C.acZoomOf({ __zoom: 1.5 }), 1.5);
     });
 });
+
+describe('acIsTap : un appui ou un défilement ?', () => {
+    test('un doigt qui reste en place, ou à peine déplacé : un appui', () => {
+        assert.equal(C.acIsTap(0, 0), true);
+        assert.equal(C.acIsTap(3, -4), true);
+        assert.equal(C.acIsTap(C.AC_TAP_SLOP, 0), true);
+    });
+    test('un doigt qui glisse : un défilement, pas un appui', () => {
+        assert.equal(C.acIsTap(0, C.AC_TAP_SLOP + 1), false);
+        assert.equal(C.acIsTap(30, 30), false);
+    });
+});
+
+describe('acIsPhone : le téléphone se reconnaît aux mêmes seuils que les feuilles de style', () => {
+    test('hors navigateur : faux', () => assert.equal(C.acIsPhone(), false));
+    test('avec matchMedia : la requête de style.css est interrogée', () => {
+        const asked = [];
+        global.window = { matchMedia: (q) => { asked.push(q); return { matches: true }; } };
+        try { assert.equal(C.acIsPhone(), true); } finally { delete global.window; }
+        assert.deepEqual(asked, [C.AC_PHONE_QUERY]);
+    });
+    test('la requête est celle du bloc « téléphone » de style.css', () => {
+        const css = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'style.css'), 'utf8');
+        assert.ok(css.includes(`@media ${C.AC_PHONE_QUERY} {`), 'style.css doit contenir le même @media que AC_PHONE_QUERY');
+    });
+});
+

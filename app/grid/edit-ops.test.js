@@ -553,3 +553,103 @@ describe('annotations de mesure (onglet Annotations)', () => {
         assert.deepEqual(roots(g), [2, 2]);
     });
 });
+
+describe('durée d\'une annotation de mesure (noteSpan)', () => {
+    const owner = (g, n) => { const o = E.noteOwnerAt(g, n); return o ? [o.startMeasure, o.endMeasure] : null; };
+    const g4 = () => [st(0, 'maj7', 2), st(5, '7', 2)];
+    test('par défaut une annotation ne couvre que sa mesure', () => {
+        const g = g4();
+        E.setMeasureNote(g, 2, 'Doux');
+        assert.deepEqual([1, 2, 3, 4].map(n => owner(g, n)), [null, [2, 2], null, null]);
+    });
+    test('durée de 3 mesures : elle s\'affiche sur les mesures 2 à 4, même sur un autre accord', () => {
+        const g = g4();
+        E.setMeasureNote(g, 2, 'Doux');
+        E.setMeasureNoteSpan(g, 2, 3);
+        assert.deepEqual([1, 2, 3, 4].map(n => owner(g, n)), [null, [2, 4], [2, 4], [2, 4]]);
+        assert.equal(E.noteOwnerAt(g, 4).note, 'Doux');
+        assert.deepEqual(roots(g), [0, 0, 5, 5]); // les accords ne bougent pas
+    });
+    test('la durée est bornée à la fin de la grille ; 1 la ramène à une seule mesure et refusionne les blocs', () => {
+        const g = g4();
+        E.setMeasureNote(g, 3, 'Fin');
+        E.setMeasureNoteSpan(g, 3, 50);
+        assert.deepEqual(owner(g, 4), [3, 4]);
+        E.setMeasureNoteSpan(g, 3, 1);
+        assert.equal(owner(g, 4), null);
+        assert.equal(g.some(b => b.noteSpan), false);
+    });
+    test('depuis une mesure couverte, on règle la durée de l\'annotation qui la couvre', () => {
+        const g = g4();
+        E.setMeasureNote(g, 1, 'Intro');
+        E.setMeasureNoteSpan(g, 1, 4);
+        E.setMeasureNoteSpan(g, 3, 2); // la mesure 3 est couverte par l'annotation de la mesure 1
+        assert.deepEqual([1, 2, 3, 4].map(n => owner(g, n)), [[1, 2], [1, 2], null, null]);
+    });
+    test('une annotation propre à une mesure l\'emporte sur celle qui la couvre', () => {
+        const g = [st(0, 'maj7', 4)];
+        E.setMeasureNote(g, 1, 'Large');
+        E.setMeasureNoteSpan(g, 1, 4);
+        E.setMeasureNote(g, 3, 'Précis');
+        assert.deepEqual([1, 2, 3, 4].map(n => E.noteOwnerAt(g, n).note), ['Large', 'Large', 'Précis', 'Large']);
+    });
+    test('effacer le texte retire aussi la durée', () => {
+        const g = g4();
+        E.setMeasureNote(g, 2, 'Doux');
+        E.setMeasureNoteSpan(g, 2, 3);
+        E.setMeasureNote(g, 2, '');
+        assert.equal(g.some(b => b.note || b.noteSpan), false);
+        assert.deepEqual(g.map(b => b.measures), [2, 2]);
+    });
+    test('modifier le texte garde la durée', () => {
+        const g = g4();
+        E.setMeasureNote(g, 2, 'Doux');
+        E.setMeasureNoteSpan(g, 2, 3);
+        E.setMeasureNote(g, 2, 'Très doux');
+        assert.deepEqual(owner(g, 4), [2, 4]);
+        assert.equal(E.noteOwnerAt(g, 3).note, 'Très doux');
+    });
+    test('pas d\'annotation : durée impossible (-1)', () => {
+        assert.equal(E.setMeasureNoteSpan(g4(), 2, 3), -1);
+    });
+    test('ancien bloc de 4 mesures qui porte l\'annotation : réduire la durée retire bien les mesures en trop', () => {
+        const g = [{ ...st(0, 'maj7', 4), note: 'Tacet' }];
+        assert.deepEqual(owner(g, 4), [1, 4]);
+        E.setMeasureNoteSpan(g, 1, 3);
+        assert.deepEqual([1, 2, 3, 4].map(n => owner(g, n)), [[1, 3], [1, 3], [1, 3], null]);
+        assert.deepEqual(roots(g), [0, 0, 0, 0]);
+        assert.equal(flatMeasureList(g).length, 4);
+    });
+    test('ancien bloc de 4 mesures : l\'allonger au-delà du bloc fonctionne aussi', () => {
+        const g = [{ ...st(0, 'maj7', 2), note: 'Pédale' }, st(5, '7', 2)];
+        E.setMeasureNoteSpan(g, 1, 4);
+        assert.deepEqual([1, 2, 3, 4].map(n => owner(g, n)), [[1, 4], [1, 4], [1, 4], [1, 4]]);
+    });
+    test('dupliquer une mesure ne duplique pas la durée ; copier borne la durée à ce qui est copié', () => {
+        const g = [st(0, 'maj7', 4)];
+        E.setMeasureNote(g, 1, 'A');
+        E.setMeasureNoteSpan(g, 1, 4);
+        const items = E.measureItems(g, 1, 2);
+        assert.equal(items[0].noteSpan, 2);
+        assert.equal(items[1].note, undefined);
+        const items1 = E.measureItems(g, 1, 1);
+        assert.equal(items1[0].noteSpan, undefined);
+        E.duplicateMeasureAfter(g, 1);
+        assert.equal(g[1].noteSpan, undefined);
+    });
+    test('couper / supprimer une mesure à l\'intérieur : la durée suit les mesures restantes', () => {
+        const g = [st(0, 'maj7', 4)];
+        E.setMeasureNote(g, 1, 'A');
+        E.setMeasureNoteSpan(g, 1, 4);
+        E.deleteRange(g, 2, 2);
+        assert.deepEqual(owner(g, 3), [1, 3]);
+    });
+    test('transposer ne perd pas la durée', () => {
+        const g = [st(0, 'maj7', 4)];
+        E.setMeasureNote(g, 2, 'A');
+        E.setMeasureNoteSpan(g, 2, 3);
+        E.transposeRange(g, 1, 4, 2);
+        assert.deepEqual(owner(g, 4), [2, 4]);
+    });
+});
+

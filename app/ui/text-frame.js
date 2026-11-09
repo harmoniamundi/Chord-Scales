@@ -174,7 +174,9 @@ class NoteFrameView {
                 const t = ev.target;
                 if (!t || this.el.contains(t)) return;
                 if (this.opts.keepOpen && this.opts.keepOpen(t)) return;
-                this.deactivate();
+                // Au doigt, on ne ferme qu'à un simple appui : faire défiler la page ne doit pas interrompre la saisie.
+                if (ev.pointerType === 'touch' && typeof acOnTouchTap === 'function') acOnTouchTap(ev, () => { if (this.isActive) this.deactivate(); });
+                else this.deactivate();
             };
             document.addEventListener('pointerdown', this._outside, true);
         }

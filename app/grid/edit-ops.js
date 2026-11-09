@@ -3,7 +3,7 @@
 // poser des signes de reprise, enregistrer une fonction tonale, repères de partie automatiques.
 // Toutes les fonctions reçoivent le tableau `grid` (liste de blocs) et le MODIFIENT en place, comme le faisait le moteur ;
 // sélection, pile d'annulation et rafraîchissement de l'écran restent dans index.html.
-// Un bloc : { rootIndex, chordId, scaleId, measures, split?, bassRootIndex?, repeatStart?, repeatEnd?, volta?, partStart?, fnLabel?, modKey?, note? }
+// Un bloc : { rootIndex, chordId, scaleId, measures, split?, bassRootIndex?, repeatStart?, repeatEnd?, volta?, partStart?, fnLabel?, modKey?, note?, noteSpan? }
 // Les mesures sont numérotées à partir de 1 (comme flatMeasureList). Chargé par index.html via <script src="grid/edit-ops.js">
 // (après grid/play-order.js et grid/grid-format.js) et testé par grid/edit-ops.test.js.
 
@@ -20,6 +20,7 @@ if (typeof flatMeasureList === 'undefined' && typeof require === 'function') {
 const EDIT_IS_PART_LABEL = (typeof isPartLabel !== 'undefined') ? isPartLabel : require('./grid-format.js').isPartLabel;
 // Longueur maximale d'une annotation de mesure et nettoyage de son texte mis en forme (grid/grid-format.js), repris sous des noms propres à ce fichier.
 const EDIT_NOTE_MAX = (typeof MEASURE_NOTE_MAX !== 'undefined') ? MEASURE_NOTE_MAX : require('./grid-format.js').MEASURE_NOTE_MAX;
+const EDIT_NOTE_SPAN_MAX = (typeof MEASURE_NOTE_SPAN_MAX !== 'undefined') ? MEASURE_NOTE_SPAN_MAX : require('./grid-format.js').MEASURE_NOTE_SPAN_MAX;
 const EDIT_CLEAN_NOTE = (typeof sanitizeNoteHtml !== 'undefined') ? sanitizeNoteHtml : require('./grid-format.js').sanitizeNoteHtml;
 if (typeof isSplit === 'undefined' && typeof require === 'function') {
     var { isSplit } = require('../band/band-helpers.js');
@@ -28,7 +29,7 @@ if (typeof romanDegByRank === 'undefined' && typeof require === 'function') {
     var { romanDegByRank, fnMinorRef } = require('./generation.js');
 }
 
-const EDIT_OPS_BUILD = '2026-11-08-d'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
+const EDIT_OPS_BUILD = '2026-11-09-a'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
 const cloneStep = (o) => JSON.parse(JSON.stringify(o));
 
 // Repère de partie porté par la mesure m (liste à plat), seulement si elle ouvre son bloc ; '' sinon.
@@ -51,7 +52,12 @@ function measureItems(grid, from, to) {
         if (effVolta[m.stepIndex]) it.volta = effVolta[m.stepIndex];
         if (stp.fnLabel) it.fnLabel = stp.fnLabel;
         if (stp.modKey) it.modKey = { ...stp.modKey };
-        if (typeof stp.note === 'string' && stp.note) it.note = stp.note; // annotation libre de la mesure (onglet Annotations)
+        if (typeof stp.note === 'string' && stp.note) {
+            it.note = stp.note; // annotation libre de la mesure (onglet Annotations)
+            // Durée de l'annotation : bornée à ce qui est copié (elle ne doit pas déborder sur les mesures voisines du collage).
+            const span = Math.min(Number(stp.noteSpan) || 1, to - m.measureNumber + 1);
+            if (span > 1 && m.measureInStep === 1 && stp.measures === 1) it.noteSpan = span;
+        }
         if (Number.isInteger(m.bassRootIndex)) it.bassRootIndex = m.bassRootIndex;
         if (m.harmonicFunction) it.harmonicFunction = m.harmonicFunction;
         if (m.split) it.split = { rootIndex: m.split.rootIndex, chordId: m.split.chordId, scaleId: m.split.scaleId };
@@ -78,7 +84,8 @@ function isolateMeasure(grid, measureNumber) {
     parts.push({ ...base, measures: 1 });
     if (after > 0) parts.push({ ...base, measures: after });
     // Début de reprise : seulement sur la première partie ; fin de reprise : seulement sur la dernière.
-    parts.forEach(pt => { delete pt.repeatStart; delete pt.repeatEnd; });
+    parts.forEach(pt => { delete pt.repeatStart; delete pt.repeatEnd; delete pt.noteSpan; });
+    if (s.noteSpan) parts[0].noteSpan = s.noteSpan; // durée de l'annotation : elle part du début du bloc
     if (s.repeatStart) parts[0].repeatStart = true;
     // Repère de partie : seulement sur la première partie du bloc éclaté
     parts.forEach(pt => { delete pt.partStart; });
@@ -104,7 +111,8 @@ function splitBeforeMeasure(grid, n) {
     delete base.split;
     const before = m.measureInStep - 1;
     const parts = [{ ...base, measures: before }, { ...base, measures: st.measures - before }];
-    parts.forEach(pt => { delete pt.repeatStart; delete pt.repeatEnd; });
+    parts.forEach(pt => { delete pt.repeatStart; delete pt.repeatEnd; delete pt.noteSpan; });
+    if (st.noteSpan) parts[0].noteSpan = st.noteSpan;
     if (st.repeatStart) parts[0].repeatStart = true;
     if (st.repeatEnd) parts[1].repeatEnd = st.repeatEnd;
     parts.forEach(pt => { delete pt.partStart; });
@@ -121,7 +129,7 @@ function mergeAround(grid, i0, i1) {
     let end = Math.min(grid.length - 1, i1 + 1);
     while (i < end && i < grid.length - 1) {
         const a = grid[i], b = grid[i + 1];
-        if (!a.split && !b.split && !b.partStart && strip(a) === strip(b)) {
+        if (!a.split && !b.split && !b.partStart && !a.noteSpan && !b.noteSpan && strip(a) === strip(b)) {
             a.measures += b.measures;
             grid.splice(i + 1, 1);
             end--;
@@ -175,7 +183,7 @@ function duplicateMeasureAfter(grid, measureNumber) {
     const idx = isolateMeasure(grid, measureNumber);
     if (idx < 0) return -1;
     const cp = cloneStep(grid[idx]);
-    delete cp.repeatStart; delete cp.repeatEnd; delete cp.volta; delete cp.partStart;
+    delete cp.repeatStart; delete cp.repeatEnd; delete cp.volta; delete cp.partStart; delete cp.noteSpan;
     grid.splice(idx + 1, 0, cp);
     return idx;
 }
@@ -184,7 +192,7 @@ function duplicateMeasureAfter(grid, measureNumber) {
 function appendCopyOfLast(grid) {
     const last = cloneStep(grid[grid.length - 1]);
     if (last.measures !== 1) delete last.split;
-    delete last.repeatStart; delete last.repeatEnd; delete last.volta; delete last.fnLabel; delete last.modKey; delete last.partStart; delete last.note;
+    delete last.repeatStart; delete last.repeatEnd; delete last.volta; delete last.fnLabel; delete last.modKey; delete last.partStart; delete last.note; delete last.noteSpan;
     last.measures = 1;
     grid.push(last);
 }
@@ -246,8 +254,57 @@ function setMeasureNote(grid, measureNumber, text) {
     if (!clean && !grid[flat.stepIndex].note) return flat.stepIndex; // rien à retirer : la structure des blocs reste intacte
     const idx = isolateMeasure(grid, measureNumber);
     if (idx < 0) return -1;
-    if (clean) grid[idx].note = clean; else delete grid[idx].note;
+    if (clean) grid[idx].note = clean; else { delete grid[idx].note; delete grid[idx].noteSpan; }
     mergeAround(grid, idx - 1, idx + 1);
+    return idx;
+}
+
+// ----- Durée d'une annotation de mesure -----
+// L'annotation est portée par un bloc (`note`) ; elle s'affiche sur les mesures de ce bloc et, si `noteSpan` est plus grand,
+// sur `noteSpan` mesures à partir de la première mesure du bloc (une consigne qui vaut sur quelques mesures seulement).
+// Quand plusieurs annotations couvrent une même mesure, c'est la plus proche (celle qui commence le plus tard) qui s'y affiche.
+function noteCoverage(grid) {
+    const flat = flatMeasureList(grid);
+    const owners = new Array(flat.length).fill(null);
+    let start = 1;
+    grid.forEach((st, stepIndex) => {
+        if (typeof st.note === 'string' && st.note) {
+            const len = Math.max(st.measures, Math.min(Math.floor(Number(st.noteSpan)) || 1, EDIT_NOTE_SPAN_MAX));
+            const end = Math.min(flat.length, start + len - 1);
+            for (let n = start; n <= end; n++) owners[n - 1] = { stepIndex, startMeasure: start, endMeasure: end, span: end - start + 1 };
+        }
+        start += st.measures;
+    });
+    return owners;
+}
+
+// Annotation affichée sur la mesure n : { stepIndex, startMeasure, endMeasure, span, note } ou null.
+function noteOwnerAt(grid, measureNumber) {
+    const o = noteCoverage(grid)[measureNumber - 1];
+    return o ? { ...o, note: grid[o.stepIndex].note } : null;
+}
+
+// Fixe à `span` mesures (1 = une seule) la durée de l'annotation affichée sur la mesure n. Renvoie l'index de son bloc, ou -1 si cette mesure n'a pas d'annotation.
+// Un ancien bloc de plusieurs mesures qui porte l'annotation est d'abord ramené à sa première mesure ; les copies identiques de l'annotation
+// qui se trouvaient dans son ancienne étendue sont retirées (c'était la même annotation, répétée bloc par bloc).
+function setMeasureNoteSpan(grid, measureNumber, span) {
+    const owner = noteOwnerAt(grid, measureNumber);
+    if (!owner) return -1;
+    const total = flatMeasureList(grid).length;
+    const want = Math.max(1, Math.min(Math.floor(Number(span)) || 1, EDIT_NOTE_SPAN_MAX, total - owner.startMeasure + 1));
+    const text = owner.note;
+    let idx = isolateMeasure(grid, owner.startMeasure);
+    // Copies de la même annotation dans l'ancienne étendue : retirées (blocs voisins comme queue d'un ancien bloc éclaté).
+    let lastTouched = idx;
+    let at = 1;
+    grid.forEach((st, i) => {
+        if (i !== idx && at > owner.startMeasure && at <= owner.endMeasure && st.note === text) {
+            delete st.note; delete st.noteSpan; lastTouched = Math.max(lastTouched, i);
+        }
+        at += st.measures;
+    });
+    if (want > grid[idx].measures) grid[idx].noteSpan = want; else delete grid[idx].noteSpan;
+    mergeAround(grid, idx - 1, lastTouched + 1);
     return idx;
 }
 
@@ -410,7 +467,7 @@ function diatonicDegrees(env) {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { partLabelOfMeasure, measureItems, isolateMeasure, isolateRange, splitBeforeMeasure, mergeAround, deleteRange,
-        deleteMeasureAt, insertItemsAfter, duplicateMeasureAfter, appendCopyOfLast, setMeasureSplit, transposeRange, setFunctionLabel, setMeasureNote,
+        deleteMeasureAt, insertItemsAfter, duplicateMeasureAfter, appendCopyOfLast, setMeasureSplit, transposeRange, setFunctionLabel, setMeasureNote, noteCoverage, noteOwnerAt, setMeasureNoteSpan,
         chordPositions, laterChordOccurrences, applyFunctionLabelToLater, chordSuggestionsForRoot, rememberChord,
         withIsolatedRange, toggleRepeatStart, cycleRepeatEnd, toggleVolta, clearRepeats, markMeasure, assignAutoParts, diatonicDegrees, qualityTargetChord };
 }

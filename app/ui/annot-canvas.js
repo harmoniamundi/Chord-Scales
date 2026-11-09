@@ -17,6 +17,9 @@ const AC_BLOCKS = '.annot-staff, .annot-frame';
 const AC_ZOOM_MIN = 0.5;      // zoom de lecture : de 50 % à 300 %
 const AC_ZOOM_MAX = 3;
 const AC_ZOOM_STEPS = [0.5, 0.67, 0.8, 1, 1.25, 1.5, 2, 2.5, 3]; // crans des boutons − / +
+const AC_TAP_SLOP = 10;       // un doigt qui bouge de plus de 10 pixels fait défiler la page : ce n'est pas un appui
+// Écran de téléphone : portrait étroit, ou paysage bas sur un écran tactile. Mêmes seuils que les règles « téléphone » de style.css (bloc annotations).
+const AC_PHONE_QUERY = '(max-width: 639px), (pointer: coarse) and (max-height: 500px)';
 
 // ----- Fonctions pures (rectangles { x, y, w, h } en pixels du canevas) -----
 
@@ -133,6 +136,33 @@ function acZoomOf(zone) {
 // Défilement à donner à un axe après un changement de zoom z0 → z1, pour que le point sous le pointeur (à p pixels du bord visible) ne bouge pas.
 function acZoomScroll(scroll, p, z0, z1) {
     return Math.max(0, (scroll + p) * (z1 / z0) - p);
+}
+
+// Le geste est-il un simple appui (et non un défilement) ? dx, dy : déplacement du doigt entre le toucher et le relâcher, en pixels.
+function acIsTap(dx, dy) { return Math.hypot(Number(dx) || 0, Number(dy) || 0) <= AC_TAP_SLOP; }
+
+// Téléphone (voir AC_PHONE_QUERY) ? Faux hors navigateur.
+function acIsPhone() {
+    try { return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(AC_PHONE_QUERY).matches; } catch (e) { return false; }
+}
+
+// Appui « dehors » (hors du bloc ou de la barre en cours d'édition) fait au doigt : un défilement de la page ne doit rien fermer.
+// Au toucher on attend donc le relâcher : action(cible) n'est appelée que pour un simple appui ; si le navigateur prend le geste pour un défilement
+// (pointercancel) ou si le doigt a glissé, il ne se passe rien. À la souris, les modules appellent leur action tout de suite, comme avant.
+function acOnTouchTap(ev, action) {
+    const x0 = ev.clientX, y0 = ev.clientY, target = ev.target;
+    let moved = false;
+    const off = () => {
+        document.removeEventListener('pointermove', move, true);
+        document.removeEventListener('pointerup', up, true);
+        document.removeEventListener('pointercancel', cancel, true);
+    };
+    const move = (e) => { if (!acIsTap(e.clientX - x0, e.clientY - y0)) moved = true; };
+    const up = () => { off(); if (!moved) action(target); };
+    const cancel = () => off();
+    document.addEventListener('pointermove', move, true);
+    document.addEventListener('pointerup', up, true);
+    document.addEventListener('pointercancel', cancel, true);
 }
 
 // ----- Le canevas d'une zone -----
@@ -412,5 +442,5 @@ class AnnotCanvas {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { AC_SNAP, AC_DRAG_MIN, AC_MARGIN, AC_CASCADE, AC_BLOCKS, acBounds, acIntersects, acNormRect, acClampMove, acSnap, acFreeSpot,
-        AC_ZOOM_MIN, AC_ZOOM_MAX, AC_ZOOM_STEPS, acZoomOf, acClampZoom, acZoomStep, acZoomWheel, acZoomOffset, acZoomScroll };
+        AC_ZOOM_MIN, AC_ZOOM_MAX, AC_ZOOM_STEPS, AC_TAP_SLOP, AC_PHONE_QUERY, acIsTap, acIsPhone, acZoomOf, acClampZoom, acZoomStep, acZoomWheel, acZoomOffset, acZoomScroll };
 }

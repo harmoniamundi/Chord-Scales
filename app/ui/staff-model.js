@@ -7,6 +7,9 @@
 const STAFF_T = (typeof getStrictSpelledNotes !== 'undefined') ? { getStrictSpelledNotes, getTargetIntervals } : require('../theory.js');
 
 const STAFF_LETTER = { c: 0, d: 1, e: 2, f: 3, g: 4, a: 5, b: 6 };
+const STAFF_LETTER_SEMI = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
+// Décalage en demi-tons d'une altération (« # » = +1, « bb » = −2…).
+function staffAccidentalOffset(acc) { return acc.includes('##') ? 2 : acc.includes('bb') ? -2 : acc.includes('#') ? 1 : acc.includes('b') ? -1 : 0; }
 const STAFF_AVOID = '#e11d48';          // à éviter (rouge)
 const STAFF_CHARACTERISTIC = '#d97706'; // caractéristique (ambre)
 const STAFF_TARGET = '#2563eb';         // note cible (bleu)
@@ -50,14 +53,11 @@ function staffModel(p) {
         const noteLetter = noteName[0].toLowerCase();
         const accidental = noteName.slice(1);
 
-        // L'octave est déterminée par l'orthographe diatonique de la note, et non par son seul intervalle chromatique
-        // (évite que C/C#/B# soient placés une octave trop bas quand la gamme franchit le Do).
-        const rootDiatonic = STAFF_LETTER[rootName[0].toLowerCase()];
-        const noteDiatonic = STAFF_LETTER[noteLetter];
-        // Octave = octave de départ + octaves déjà franchies (intervalle ÷ 12) ; une note dont la lettre précède
-        // celle de la tonique appartient déjà à l'octave suivante (Do d'une gamme de Sol, etc.).
-        let octave = 4 + Math.floor(interval / 12);
-        if (noteDiatonic < rootDiatonic) octave++;
+        // L'octave se déduit de la hauteur réelle (tonique à l'octave 4 + intervalle), pas de la seule lettre : une note écrite
+        // avec la même lettre que la tonique peut être une octave plus haut (La de la gamme de La#°, Do de celle de Do#°…).
+        const rootBase = STAFF_LETTER_SEMI[rootName[0].toLowerCase()] + staffAccidentalOffset(rootName.slice(1));
+        const noteBase = STAFF_LETTER_SEMI[noteLetter] + staffAccidentalOffset(accidental);
+        const octave = Math.round((rootBase + interval - noteBase) / 12) + 4;
 
         const vexKey = `${noteLetter}${accidental}/${octave}`;
 

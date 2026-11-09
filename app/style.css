@@ -377,7 +377,7 @@
         #jam-chord-sequence-display .jam-cell-top > span:last-child { min-width: 0; }
         #jam-chord-sequence-display .jam-add-cell { align-self: stretch; min-height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 1.5px dashed #2f6f57; background: rgba(16,185,129,.06); color: #34d399; font-size: 24px; line-height: 1; cursor: pointer; user-select: none; transition: background .12s, border-color .12s; }
         #jam-chord-sequence-display .jam-add-cell:hover { background: rgba(16,185,129,.16); border-color: #34d399; }
-        :root { --cs-build: '2026-11-08-d'; } /* numéro de version lu par la page */
+        :root { --cs-build: '2026-11-09-a'; } /* numéro de version lu par la page */
         .jm-pop { position: fixed; z-index: 2000; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); color: #e2e8f0; padding: 10px 12px 12px; font-size: 12px; }
         .jm-pop.jm-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; max-height: 62vh; }
         /* Pop-up « Orchestre » : fenêtre flottante à gauche de l'écran, sans voile, déplaçable par sa barre de titre */
@@ -1059,6 +1059,8 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 .ns-tempo, .ns-swing { gap: 4px; }
 .annot-staff-flash { position: absolute; left: 6px; right: 6px; bottom: 4px; padding: 3px 8px; border-radius: 6px; background: rgba(15, 23, 42, .88); color: #fde68a; font-size: 11px; line-height: 1.3; text-align: center; pointer-events: none; z-index: 4; }
 .ns-zoom-val { min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; color: #e2e8f0; }
+.ns-more-btn { display: none; } /* « ⋯ Plus » : seulement sur téléphone (bloc @media plus bas) */
+
 
 /* ===== Canevas des annotations : chaque bloc (portée, cadre de texte) est posé à sa place (data-at), indépendamment des autres ; ils peuvent se recouvrir ===== */
 .jam-annot-text:not(.legacy-flow) > .annot-staff, .jam-annot-text:not(.legacy-flow) > .annot-frame { position: absolute; display: block; margin: 0; }
@@ -1096,9 +1098,48 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 .jam-annot-zoom { margin-left: auto; display: inline-flex; align-items: center; gap: 2px; text-transform: none; letter-spacing: 0; }
 .jam-annot-zbtn { min-width: 26px; font-variant-numeric: tabular-nums; }
 .jam-annot-zbtn[data-zoom-act="reset"] { min-width: 46px; font-size: 11px; }
+/* Durée de l'annotation de mesure (crayon allumé) : « Affichée sur [−] N [+] mesures 3 à 6 » */
+.jam-annot-span { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-height: 24px; font-size: 11px; color: #94a3b8; text-transform: none; letter-spacing: 0; font-weight: 500; user-select: none; }
+.jam-annot-span[hidden] { display: none; }
+.jam-annot-span-label { font-weight: 600; }
+.jam-annot-span-n { min-width: 1.6em; text-align: center; font-weight: 700; font-size: 13px; color: #e2e8f0; font-variant-numeric: tabular-nums; }
+.jam-annot-span-range { color: #94a3b8; }
 .jam-annot-text[data-editable="true"] { border-color: #60a5fa; }
 /* Zone verrouillée : le doigt la fait défiler, le pincement zoome (géré en JS) ; les blocs agrandis partent du coin haut gauche */
 .jam-annot-text[data-editable="false"] { touch-action: pan-x pan-y; }
 .jam-annot-text.is-zoomed:not(.legacy-flow) > .annot-staff, .jam-annot-text.is-zoomed:not(.legacy-flow) > .annot-frame { transform: scale(var(--z, 1)); transform-origin: calc(var(--bx, 0px) * -1) calc(var(--by, 0px) * -1); }
 .jam-annot-text.is-zoomed > .annot-overlay { transform: scale(var(--z, 1)); transform-origin: 0 0; } /* repères et rectangle de sélection, tracés aux coordonnées du canevas */
 .ns-tempo .ns-num, .ns-swing .ns-sel-inline { border: 0; background: transparent; height: 26px; }
+
+/* ===== Téléphone : édition des portées et des blocs d'annotation =====
+   Seuils identiques à AC_PHONE_QUERY (ui/annot-canvas.js) : portrait étroit, ou paysage bas sur écran tactile. Rien de ce bloc ne s'applique sur ordinateur. */
+@media (max-width: 639px), (pointer: coarse) and (max-height: 500px) {
+    /* Zones plus hautes au repos : une portée ou deux lignes de texte y tiennent. */
+    .jam-annot-grid .jam-annot-text { min-height: 150px; }
+    /* Une portée en édition occupe tout le cadre de sa zone (Grille ou Mesure) : la zone s'agrandit pour elle, la portée est à son coin haut gauche et
+       prend toute sa largeur ; en sortant de l'édition elle retrouve sa place (data-at) et sa taille. */
+    .jam-annot-text:has(> .annot-staff.is-active) { min-height: min(62vh, 460px); overflow-x: hidden; }
+    .jam-annot-text:not(.legacy-flow) > .annot-staff.is-active { left: 0 !important; top: 0 !important; width: 100% !important; min-height: 100%; max-width: 100%; margin: 0; transform: none !important; border-radius: 8px; }
+    .annot-staff.is-active .annot-staff-svg { min-height: 120px; }
+    .annot-staff-hint { padding: 0 40px; font-size: 11px; white-space: nowrap; }
+    /* Crayon ✎ des blocs : à l'intérieur du coin haut droit (à cheval sur le bord il était rogné par la zone), plus large pour le doigt. */
+    .jam-annot-text[data-editable="true"] .annot-staff > .annot-staff-edit,
+    .jam-annot-text[data-editable="true"] .annot-frame > .annot-frame-edit { left: auto; right: 2px; top: 2px; width: 28px; height: 28px; border-radius: 14px; opacity: .92; }
+    /* Outils de la portée : l'essentiel sur deux rangées (durées, silence, altérations, écouter / annuler / effacer, tuplet), le reste derrière « ⋯ Plus » ;
+       tout passe à la ligne au lieu de défiler sous le doigt, les boutons sont plus gros. La barre collée en haut ne dépasse jamais 40 % de l'écran. */
+    .annot-bar.staff-mode { flex-wrap: wrap; overflow-x: hidden; overflow-y: auto; max-height: 40vh; }
+    .annot-bar.staff-mode .ab-staff-host { flex: 1 1 100%; }
+    .ab-staff-host .annot-staff-tools { flex-wrap: wrap; gap: 5px 4px; width: 100%; }
+    .ab-staff-host .ns-grp { display: contents; }
+    .ab-staff-host .ns-sep { display: none; }
+    .ab-staff-host .ns-btn, .ab-staff-host .ns-sel, .ab-staff-host .ns-num, .ab-staff-host .ns-zoom { height: 36px; }
+    .ab-staff-host .ns-btn { min-width: 36px; }
+    .ab-staff-host .ns-sel-tup { width: 84px; }
+    .ab-staff-host .ns-more-btn { display: inline-flex; order: 19; font-size: 18px; line-height: 1; }
+    .ab-staff-host .ns-exit { order: 20; flex: 1 1 0; min-width: 0; font-size: 0; }
+    .ab-staff-host .ns-exit::after { content: "✓ Terminé"; font-size: 13px; }
+    .ab-staff-host .annot-staff-tools:not(.ns-open) :is([data-set="clef"], [data-set="meter"], [data-set="ks"], [data-act="pickup"], .ns-zoom, [data-act="copy"], [data-act="paste"], [data-act="clear"], [data-act="remove"]) { display: none; }
+    .ab-staff-host .annot-staff-tools.ns-open :is([data-set="clef"], [data-set="meter"], [data-set="ks"], [data-act="pickup"], .ns-zoom, [data-act="copy"], [data-act="paste"], [data-act="clear"], [data-act="remove"]) { order: 10; }
+    /* La barre est collée en haut de la page : les conteneurs de l'onglet ne doivent plus rogner ni défiler (sinon « sticky » n'a rien à suivre). Le faux plein écran garde son défilement. */
+    #view-jam #jam-scales-card.jam-annot-mode:not(.jam-annot-fs), #view-jam #jam-scales-card.jam-annot-mode:not(.jam-annot-fs) #jam-scale-visualizer.jam-annot-grid { overflow: visible; }
+}

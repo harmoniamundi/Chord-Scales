@@ -355,7 +355,8 @@ function nseToolsHtml(st, cur) {
             <button type="button" class="ns-btn" data-act="paste" title="Coller la portée copiée, juste après celle-ci (⌘V)" aria-label="Coller la portée copiée">${NSE_PASTE_ICON}</button>
             <button type="button" class="ns-btn ns-txt" data-act="clear" title="Effacer toutes les notes">Vider</button>
             <button type="button" class="ns-btn ns-txt ns-danger" data-act="remove" title="Supprimer cette portée">✕ Portée</button>
-        </div>`;
+        </div>
+        <button type="button" class="ns-btn ns-txt ns-more-btn" data-act="more" aria-expanded="false" title="Autres réglages : clé, mesure, armure, levée, taille, tempo, swing, copier, coller, vider, supprimer" aria-label="Autres réglages de la portée">⋯</button>`;
 }
 
 // Touche du clavier → action sur la note sélectionnée (pur : testé sans navigateur). Renvoie null si la touche n'est pas pour la portée.
@@ -471,8 +472,10 @@ class NoteStaffView {
         if (!z) return this._lastWidth || 600;
         const px = (v) => parseFloat(v) || 0;
         const zs = getComputedStyle(z), es = getComputedStyle(this.el);
-        const left = this.legacy ? 0 : Math.max(0, this.pos.x);
-        const w = Math.floor(z.clientWidth - left - px(zs.paddingRight) - px(es.paddingLeft) - px(es.paddingRight) - px(es.borderLeftWidth) - px(es.borderRightWidth) - (this.legacy ? px(zs.paddingLeft) : 0));
+        // Téléphone : la portée en édition occupe tout le cadre de la zone (style.css), elle part donc du bord gauche et n'a pas de marge à droite.
+        const fills = this.isActive && !this.legacy && typeof acIsPhone === 'function' && acIsPhone();
+        const left = (this.legacy || fills) ? 0 : Math.max(0, this.pos.x);
+        const w = Math.floor(z.clientWidth - left - (fills ? 0 : px(zs.paddingRight)) - px(es.paddingLeft) - px(es.paddingRight) - px(es.borderLeftWidth) - px(es.borderRightWidth) - (this.legacy ? px(zs.paddingLeft) : 0));
         return w > 120 ? w : Math.max(this._lastWidth || 0, 360);
     }
 
@@ -498,7 +501,8 @@ class NoteStaffView {
         if (empty && !hint) {
             hint = document.createElement('div');
             hint.className = 'annot-staff-hint';
-            hint.textContent = 'Choisissez une durée puis cliquez sur la portée pour poser des notes';
+            const touch = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+            hint.textContent = touch ? 'Choisissez une durée, puis touchez la portée' : 'Choisissez une durée puis cliquez sur la portée pour poser des notes';
             this.svgHost.appendChild(hint);
         }
         this._refreshTools();
@@ -558,7 +562,12 @@ class NoteStaffView {
         if (host && this.tools.parentNode !== host) host.appendChild(this.tools);
         if (this.opts.onActivate) this.opts.onActivate(this);
         if (!this._outside) {
-            this._outside = (ev) => { if (!this.el.contains(ev.target) && !this.tools.contains(ev.target)) this.deactivate(); };
+            this._outside = (ev) => {
+                if (this.el.contains(ev.target) || this.tools.contains(ev.target)) return;
+                // Au doigt, un appui hors de la portée ne la ferme qu'au relâcher : faire défiler la page ne doit pas interrompre l'édition.
+                if (ev.pointerType === 'touch' && typeof acOnTouchTap === 'function') acOnTouchTap(ev, () => { if (this.isActive) this.deactivate(); });
+                else this.deactivate();
+            };
             document.addEventListener('pointerdown', this._outside, true);
         }
     }
@@ -968,6 +977,11 @@ class NoteStaffView {
             else if (act === 'paste') { if (this.opts.onPaste) this.opts.onPaste(this); }
             else if (act === 'remove') { if (this.opts.onRemove) this.opts.onRemove(this); }
             else if (act === 'exit') { this.deactivate(); if (this.opts.onFocusBack) this.opts.onFocusBack(this); }
+            else if (act === 'more') { // téléphone : les réglages moins fréquents se déplient (style.css, .ns-open) ; le bouton n'existe pas sur ordinateur
+                const open = this.tools.classList.toggle('ns-open');
+                b.classList.toggle('is-on', open);
+                b.setAttribute('aria-expanded', open ? 'true' : 'false');
+            }
         }
     }
 

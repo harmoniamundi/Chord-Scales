@@ -24,6 +24,27 @@ describe('staffModel : notes et octaves', () => {
         assert.ok(m.notes.some(n => n.vexKey.startsWith('b#') || n.vexKey.startsWith('c')));
         assert.equal(m.notes.length, 8);
     });
+    test('La#° (Ton / Demi-Ton) : le 7e degré La est à l\'octave 5, au-dessus de La#4 (pas en dessous)', () => {
+        const m = model({ rootName: 'A#', intervals: [0, 2, 3, 5, 6, 8, 9, 11] });
+        assert.deepEqual(m.notes.map(n => n.vexKey), ['a#/4', 'c/5', 'c#/5', 'd#/5', 'e/5', 'f#/5', 'g/5', 'a/5', 'a#/5']);
+    });
+    test('toutes les gammes sur toutes les toniques : les hauteurs montent toujours dans l\'ordre de la gamme', () => {
+        const SEMI = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
+        const acc = a => (a.includes('##') ? 2 : a.includes('bb') ? -2 : a.includes('#') ? 1 : a.includes('b') ? -1 : 0);
+        for (const rootName of ['C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B']) {
+            for (const [id, sc] of Object.entries(T.scalesDb)) {
+                for (const twoOctaves of [false, true]) {
+                    const m = model({ rootName, intervals: sc.intervals, twoOctaves });
+                    const rootMidi = 60 + SEMI[rootName[0].toLowerCase()] + acc(rootName.slice(1));
+                    m.notes.forEach(n => {
+                        const [name, oct] = n.vexKey.split('/');
+                        const midi = (Number(oct) + 1) * 12 + SEMI[name[0]] + acc(name.slice(1));
+                        assert.equal(midi, rootMidi + n.interval, `${rootName} ${id} : ${n.vexKey} devrait sonner ${rootMidi + n.interval}`);
+                    });
+                }
+            }
+        }
+    });
     test('deux octaves : 15 notes, jusqu\'à 24', () => {
         const m = model({ twoOctaves: true });
         assert.equal(m.notes.length, 15);

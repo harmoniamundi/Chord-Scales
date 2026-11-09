@@ -27,6 +27,7 @@ const BAND_DENSITY_DEFAULTS = { guitar: 0.6, classic: 0.5, piazzolla: 0.5, balka
 // Le texte est mis en forme (gras, taille, couleur…) : il est gardé sous forme de HTML RESTREINT, nettoyé par sanitizeNoteHtml.
 const MEASURE_NOTE_MAX = 2000;
 const GRID_NOTE_MAX = 8000;
+const MEASURE_NOTE_SPAN_MAX = 64;   // une annotation de mesure peut rester affichée sur 64 mesures au plus (`noteSpan` du bloc)
 const NOTE_MAX_STAVES = 8; // portées éditables par annotation
 const NOTE_MAX_FRAMES = 8; // cadres de texte par annotation (le texte d'un cadre compte dans la limite de l'annotation ; pas de cadre dans un cadre, ni de portée)
 
@@ -271,6 +272,9 @@ function sanitizeImportedGrid(raw) {
         });
         if (typeof item.fnLabel === 'string' && item.fnLabel) step.fnLabel = item.fnLabel.slice(0, 24);
         if (typeof item.note === 'string') { const nt = sanitizeNoteHtml(item.note, MEASURE_NOTE_MAX); if (nt) step.note = nt; }
+        // Durée de l'annotation en mesures (à partir de celle du bloc) : seulement avec un texte, et seulement si elle dépasse le bloc.
+        const nspan = Number(item.noteSpan);
+        if (step.note && Number.isInteger(nspan) && nspan > measures && nspan <= MEASURE_NOTE_SPAN_MAX) step.noteSpan = nspan;
         const mk0 = modKeyOf(item.modKey);
         if (mk0) step.modKey = mk0;
         // Signes de reprise : début, fin (nombre de passages) et 1re / 2e fin
@@ -379,7 +383,7 @@ function filterGridForExport(grid, opts) {
     const strip = (b, isSplit) => {
         const c = JSON.parse(JSON.stringify(b));
         if (!o.analysis) { delete c.fnLabel; delete c.modKey; delete c.harmonicFunction; }
-        if (!o.notes) delete c.note;
+        if (!o.notes) { delete c.note; delete c.noteSpan; }
         if (!o.parts) { delete c.partStart; delete c.section; delete c.phrase; }
         if (!o.scales) delete c.scaleId;
         if (!isSplit && c.split && typeof c.split === 'object') c.split = strip(c.split, true);
@@ -417,6 +421,6 @@ function describeExport(opts) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { MEASURE_NOTE_MAX, GRID_NOTE_MAX, NOTE_FONTS, NOTE_MAX_STAVES, NOTE_MAX_FRAMES, sanitizeNoteHtml, BAND_DENSITY_DEFAULTS, PART_LABELS, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings,
+    module.exports = { MEASURE_NOTE_MAX, MEASURE_NOTE_SPAN_MAX, GRID_NOTE_MAX, NOTE_FONTS, NOTE_MAX_STAVES, NOTE_MAX_FRAMES, sanitizeNoteHtml, BAND_DENSITY_DEFAULTS, PART_LABELS, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings,
         EXPORT_OPTIONS, EXPORT_MODES, exportOptionsFor, exportOptionsNormalized, filterGridForExport, filterSettingsForExport, describeExport };
 }

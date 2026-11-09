@@ -594,3 +594,29 @@ describe('annotations : place et bord des blocs (data-at, data-border)', () => {
         assert.equal(san('<div class="annot-frame" data-frame="200" onclick="x()" data-evil="1">a</div>'), '<div class="annot-frame" data-frame="200">a</div>');
     });
 });
+
+describe('durée d\'une annotation de mesure (noteSpan) : import et export', () => {
+    test('import : la durée n\'est gardée qu\'avec un texte, et bornée', () => {
+        const g = F.sanitizeImportedGrid([
+            step({ note: 'Doux', noteSpan: 3 }),
+            step({ noteSpan: 3 }),                       // pas de texte : ignorée
+            step({ note: 'x', noteSpan: 1 }),            // une seule mesure : valeur par défaut, non enregistrée
+            step({ note: 'x', noteSpan: 'abc' }),
+            step({ note: 'x', noteSpan: F.MEASURE_NOTE_SPAN_MAX + 1 }),
+            step({ note: 'x', noteSpan: 2.5 })
+        ]);
+        assert.equal(g[0].noteSpan, 3);
+        assert.equal(g[1].noteSpan, undefined);
+        assert.equal(g[2].noteSpan, undefined);
+        assert.equal(g[3].noteSpan, undefined);
+        assert.equal(g[4].noteSpan, undefined);
+        assert.equal(g[5].noteSpan, undefined);
+    });
+    test('export : la durée part avec les annotations et seulement avec elles', () => {
+        const grid = [step({ note: 'Doux', noteSpan: 3 })];
+        assert.equal(F.filterGridForExport(grid, F.exportOptionsFor('full'))[0].noteSpan, 3);
+        assert.equal(F.filterGridForExport(grid, F.exportOptionsFor('grid'))[0].noteSpan, undefined);
+        assert.equal(F.filterGridForExport(grid, F.exportOptionsFor('grid'))[0].note, undefined);
+    });
+});
+

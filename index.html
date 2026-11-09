@@ -834,7 +834,7 @@
             _gridContentSignature(grid) {
                 const out = [];
                 (grid || []).forEach(block => {
-                    const { measures, fnLabel, modKey, partStart, split, note, ...rest } = block; // `note` (annotation) : ne change pas la musique de la grille
+                    const { measures, fnLabel, modKey, partStart, split, note, noteSpan, ...rest } = block; // `note` et `noteSpan` (annotation et sa durée) : ne changent pas la musique de la grille
                     let sp = null;
                     if (split) {
                         const { fnLabel: _f, modKey: _m, ...splitRest } = split;
@@ -5806,6 +5806,15 @@
                         </div>
                         <div class="jam-annot-zone">
                             <div class="jam-annot-head"><span class="jam-annot-title" id="jam-annot-measure-head">Mesure</span>${annotModeHtml('measure')}${annotZoomHtml('measure')}${annotToolsHtml()}</div>
+                            <div id="jam-annot-span" class="jam-annot-span" role="group" aria-label="Durée de l'annotation" hidden>
+                                <span class="jam-annot-span-label">Affichée sur</span>
+                                <button type="button" class="ab-btn at-btn jam-annot-zbtn" data-span-act="dec" title="Une mesure de moins" aria-label="Une mesure de moins"
+                                    onmousedown="event.preventDefault()" onclick="app.jam.annotSpanAct('dec')">−</button>
+                                <output id="jam-annot-span-n" class="jam-annot-span-n" aria-live="polite">1</output>
+                                <button type="button" class="ab-btn at-btn jam-annot-zbtn" data-span-act="inc" title="Une mesure de plus" aria-label="Une mesure de plus"
+                                    onmousedown="event.preventDefault()" onclick="app.jam.annotSpanAct('inc')">+</button>
+                                <span id="jam-annot-span-range" class="jam-annot-span-range"></span>
+                            </div>
                             <div id="jam-annot-measure" class="jam-annot-text" data-editable="false" data-can-edit="false" role="group" spellcheck="false"
                                 aria-label="Annotations de la mesure" ${handlers}></div>
                         </div>`;
@@ -5823,26 +5832,30 @@
 
                 const idx = this.currentStepIndex;
                 const step = (idx >= 0 && idx < this.grid.length) ? this.grid[idx] : null;
+                // Annotation affichée sur la mesure en cours / choisie : celle de son bloc, ou une annotation qui commence plus tôt
+                // et dure plusieurs mesures (`noteSpan`). Le texte s'enregistre sur la mesure où elle commence (`data-measure`).
+                const cur = step ? this._activeMeasureNumber() : null;
+                const owner = cur ? noteOwnerAt(this.grid, cur) : null;
+                const rangeLabel = (o) => (o.span > 1 ? `Mesures ${o.startMeasure}–${o.endMeasure}` : `Mesure ${o.startMeasure}`);
                 let label = 'Mesure', measureNum = '', editable = false, placeholder = 'Cliquez sur une mesure de la grille pour l\'annoter';
                 if (step && this.isPlaying) {
-                    // Jam lancée : mesure en cours (plusieurs mesures si le bloc en couvre plusieurs), lecture seule
-                    // (modifier une annotation redécoupe les blocs de la grille, ce qui n'est pas permis en cours de lecture).
-                    const first = this.getStepStartMeasure(idx);
-                    label = (step.measures > 1 ? `Mesures ${first}–${first + step.measures - 1}` : `Mesure ${first}`) + ' · lecture seule';
+                    // Jam lancée : mesure en cours, lecture seule (modifier une annotation redécoupe les blocs de la grille,
+                    // ce qui n'est pas permis en cours de lecture).
+                    label = (owner ? rangeLabel(owner) : `Mesure ${cur}`) + ' · lecture seule';
                     placeholder = '';
                 } else if (step) {
-                    const n = this._activeMeasureNumber();
-                    label = `Mesure ${n}`;
-                    measureNum = String(n);
+                    label = owner ? rangeLabel(owner) : `Mesure ${cur}`;
+                    measureNum = String(owner ? owner.startMeasure : cur);
                     editable = true;
                     placeholder = 'Double-cliquez pour ajouter un cadre de texte…';
                 }
+                if (this._annotSpanDraft && (this._annotSpanDraft.measure !== cur || owner || this.isPlaying)) this._annotSpanDraft = null; // durée choisie avant d'écrire : oubliée si on change de mesure
                 if (head.textContent !== label) head.textContent = label;
                 box.dataset.measure = measureNum;
                 general.setAttribute('data-can-edit', this.isPlaying ? 'false' : 'true'); // jam lancée : lecture seule (et zoom), le mode édition est coupé
                 box.setAttribute('data-can-edit', editable ? 'true' : 'false');
                 this._annotSyncMode();
-                if (!(focused(box) && editable)) setHtml(box, step ? sanitizeNoteHtml(step.note || '', MEASURE_NOTE_MAX) : '');
+                if (!(focused(box) && editable)) setHtml(box, owner ? sanitizeNoteHtml(owner.note || '', MEASURE_NOTE_MAX) : '');
                 this._annotApplyZoom(general); this._annotApplyZoom(box);
             }
 
@@ -5879,6 +5892,55 @@
                     }
                     this._annotRefreshZoomUi(w);
                 });
+                this._annotRefreshSpanUi();
+            }
+
+            // Ligne « Affichée sur N mesures » de la zone Mesure : visible en édition seulement (jam à l'arrêt).
+            // Sans annotation encore, la durée choisie attend le texte (`_annotSpanDraft`) et s'applique dès qu'il est écrit.
+            _annotRefreshSpanUi() {
+                const row = document.getElementById('jam-annot-span');
+                if (!row) return;
+                const ed = this._annotZoneEl('measure');
+                const sel = this.isPlaying ? null : this._activeMeasureNumber();
+                const show = !!ed && !!sel && this._annotIsEditable(ed);
+                row.hidden = !show;
+                if (!show) return;
+                const owner = noteOwnerAt(this.grid, sel);
+                const start = owner ? owner.startMeasure : sel;
+                const draft = this._annotSpanDraft && this._annotSpanDraft.measure === sel ? this._annotSpanDraft.span : 1;
+                const span = owner ? owner.span : draft;
+                const max = Math.max(1, Math.min(MEASURE_NOTE_SPAN_MAX, this._totalMeasures() - start + 1));
+                row.querySelector('#jam-annot-span-n').textContent = String(span);
+                row.querySelector('#jam-annot-span-range').textContent = span > 1 ? `mesures ${start} à ${start + span - 1}` : `mesure ${start}`;
+                row.querySelector('[data-span-act="dec"]').disabled = span <= 1;
+                row.querySelector('[data-span-act="inc"]').disabled = span >= max;
+            }
+
+            // Boutons − / + : change le nombre de mesures sur lesquelles l'annotation reste affichée, à partir de la mesure où elle commence.
+            annotSpanAct(act) {
+                const ed = this._annotZoneEl('measure');
+                if (this.isPlaying || !ed || !this._annotIsEditable(ed)) return;
+                this._annotCommit(ed); // le texte en cours de saisie est validé d'abord (il peut créer l'annotation)
+                const sel = this._activeMeasureNumber();
+                if (!sel) return;
+                const delta = act === 'inc' ? 1 : -1;
+                const owner = noteOwnerAt(this.grid, sel);
+                const total = this._totalMeasures();
+                if (!owner) { // pas encore d'annotation : on retient la durée pour le texte qui viendra
+                    const prev = this._annotSpanDraft && this._annotSpanDraft.measure === sel ? this._annotSpanDraft.span : 1;
+                    this._annotSpanDraft = { measure: sel, span: Math.max(1, Math.min(prev + delta, MEASURE_NOTE_SPAN_MAX, total - sel + 1)) };
+                    this._renderJamAnnotations(document.getElementById('jam-scale-visualizer'));
+                    return;
+                }
+                const next = Math.max(1, Math.min(owner.span + delta, MEASURE_NOTE_SPAN_MAX, total - owner.startMeasure + 1));
+                if (next === owner.span) return;
+                const bpb = this.getBeatsPerBar();
+                const beatInMeasure = this.currentBeat % bpb;
+                this.withUndo(() => { setMeasureNoteSpan(this.grid, owner.startMeasure, next); });
+                const m = this.getFlatMeasureList()[sel - 1]; // les blocs ont pu être redécoupés : la sélection reste sur la même mesure
+                if (m) { this.currentStepIndex = m.stepIndex; this.currentBeat = (m.measureInStep - 1) * bpb + beatInMeasure; }
+                this.refreshSaveButton();
+                this._renderJamAnnotations(document.getElementById('jam-scale-visualizer'));
             }
 
             // Le crayon d'une zone : entre dans l'édition (la zone devient active, la barre de mise en forme vient) ou en sort.
@@ -5987,7 +6049,12 @@
                 const bpb = this.getBeatsPerBar();
                 const active = this._activeMeasureNumber();
                 const beatInMeasure = this.currentBeat % bpb;
-                this.withUndo(() => { setMeasureNote(this.grid, n, v); });
+                this.withUndo(() => {
+                    setMeasureNote(this.grid, n, v);
+                    const d = this._annotSpanDraft;
+                    if (d && d.measure === n && d.span > 1 && v) setMeasureNoteSpan(this.grid, n, d.span); // durée choisie avant d'écrire
+                    if (d && d.measure === n) this._annotSpanDraft = null;
+                });
                 if (active) {
                     const m = this.getFlatMeasureList()[active - 1];
                     if (m) { this.currentStepIndex = m.stepIndex; this.currentBeat = (m.measureInStep - 1) * bpb + beatInMeasure; }
@@ -6309,13 +6376,18 @@
             _annotGlobalOn() {
                 if (this._annotListening) return;
                 this._annotListening = true;
-                this._annotOutside = (ev) => {
-                    const t = ev.target;
+                const outside = (t) => {
                     if (!t || !t.closest) return;
                     const m = this._annotMenu;
                     if (m && !m.el.contains(t) && !m.anchor.contains(t)) this._annotCloseMenu();
-                    if (t.closest('.jam-annot-text, #jam-annot-bar, .ab-menu, .jam-annot-head')) return; // l'en-tête (crayon, zoom, outils) ne fait pas ranger la barre : la page ne saute pas sous le doigt
+                    if (t.closest('.jam-annot-text, #jam-annot-bar, .ab-menu, .jam-annot-head, .jam-annot-span')) return; // l'en-tête (crayon, zoom, outils) ne fait pas ranger la barre : la page ne saute pas sous le doigt
                     this.annotDeactivate();
+                };
+                this._annotOutside = (ev) => {
+                    const t = ev.target;
+                    // Au doigt, un appui hors des annotations ne les range qu'au relâcher (et pas si la page a défilé) : faire défiler la page ne doit pas fermer l'édition.
+                    if (ev.pointerType === 'touch' && t && t.closest && !t.closest('.jam-annot-text, #jam-annot-bar, .ab-menu, .jam-annot-head, .jam-annot-span') && typeof acOnTouchTap === 'function') acOnTouchTap(ev, outside);
+                    else outside(t);
                 };
                 this._annotSelChange = () => { this._annotSaveSel(); this._annotRefreshState(); };
                 document.addEventListener('pointerdown', this._annotOutside, true);
@@ -6695,6 +6767,21 @@
             _annotStaffMode(on) {
                 const bar = document.getElementById('jam-annot-bar');
                 if (bar) bar.classList.toggle('staff-mode', !!on);
+                if (on && typeof acIsPhone === 'function' && acIsPhone()) this._annotRevealStaff();
+            }
+
+            // Téléphone : la portée qui s'ouvre occupe toute sa zone ; on fait défiler la page pour que cette zone apparaisse juste sous la barre d'outils
+            // (collée en haut), de sorte que les outils et la portée se voient ensemble. Sans effet si la zone y est déjà.
+            _annotRevealStaff() {
+                const s = (typeof NSE_ACTIVE !== 'undefined') ? NSE_ACTIVE : null;
+                const bar = document.getElementById('jam-annot-bar');
+                const zone = s && s.el.closest('.jam-annot-text');
+                if (!zone || !bar) return;
+                const host = zone.closest('.jam-annot-zone') || zone;
+                host.style.scrollMarginTop = `${Math.ceil(bar.getBoundingClientRect().height) + 6}px`;
+                const r = host.getBoundingClientRect(), br = bar.getBoundingClientRect();
+                if (r.top >= br.bottom && r.bottom <= window.innerHeight) return;
+                try { host.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (e) { host.scrollIntoView(); }
             }
 
             // Reconstruit les blocs d'une zone (portées, cadres). Une annotation écrite avant les canevas (texte libre et blocs rangés dans le texte) est
@@ -8521,7 +8608,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-08-d';
+        var BUILD = '2026-11-09-a';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }
