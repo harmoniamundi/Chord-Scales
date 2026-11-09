@@ -899,7 +899,7 @@
 .annot-sw:hover { border-color: #fff; transform: scale(1.08); }
 .annot-sw-custom { position: relative; overflow: hidden; display: inline-block; background: conic-gradient(#f43f5e, #f59e0b, #22c55e, #06b6d4, #6366f1, #d946ef, #f43f5e); }
 .annot-sw-custom input { position: absolute; inset: -6px; width: 40px; height: 40px; opacity: 0; cursor: pointer; }
-@media (min-width: 1024px) {
+@media (min-width: 1024px), (min-width: 640px) and (pointer: coarse) and (max-height: 500px) {
     /* Barre en haut, puis deux zones côte à côte ; hors lecture elles remplissent la place disponible, en lecture elles ont une hauteur fixe
        (la grille d'accords ne bouge pas pendant la jam). */
     #view-jam #jam-scales-card #jam-scale-visualizer.jam-annot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto minmax(180px, 1fr); grid-auto-rows: auto; }
@@ -924,6 +924,9 @@
     #view-jam #jam-scales-card.jam-annot-mode { margin: 8px 12px 12px; }
     #view-jam:not(.jam-playing) #jam-scales-card.jam-annot-mode { min-height: 220px; }
     #view-jam:has(#jam-scales-card.jam-annot-mode) #jam-chord-card { margin-top: 12px; margin-left: 12px; margin-right: 12px; }
+}
+/* Deux zones côte à côte : écran large, ou téléphone tenu en paysage (même requête que ci-dessus). */
+@media (min-width: 1024px), (min-width: 640px) and (pointer: coarse) and (max-height: 500px) {
     #view-jam #jam-scales-card.jam-annot-mode #jam-scale-visualizer.jam-annot-grid { grid-template-rows: auto minmax(150px, 1fr); }
     #view-jam #jam-scales-card.jam-annot-mode #jam-scale-visualizer.jam-annot-grid.jam-annot-barless { grid-template-rows: minmax(150px, 1fr); }
     #view-jam.jam-playing #jam-scales-card.jam-annot-mode #jam-scale-visualizer.jam-annot-grid { grid-template-rows: 220px; }
@@ -943,7 +946,7 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 #view-jam #jam-scales-card.jam-annot-fs .jam-annot-zone { min-height: 0; }
 #view-jam #jam-scales-card.jam-annot-fs .jam-annot-text { min-height: 0; }
 #view-jam #jam-scales-card.jam-annot-fs .annot-bar { grid-row: 1; }
-@media (min-width: 1024px) {
+@media (min-width: 1024px), (min-width: 640px) and (pointer: coarse) and (max-height: 500px) {
     #view-jam #jam-scales-card.jam-annot-fs #jam-scale-visualizer.jam-annot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; grid-template-rows: auto minmax(0, 1fr) !important; grid-auto-rows: auto; }
     #view-jam #jam-scales-card.jam-annot-fs #jam-scale-visualizer.jam-annot-grid.jam-annot-barless { grid-template-rows: minmax(0, 1fr) !important; }
 }
@@ -1147,3 +1150,9 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
     /* « Affichée sur N mesures » : sur téléphone la rangée du titre n'a pas la place de l'accueillir, il passe seul sur une seconde ligne (sur ordinateur il est à côté du crayon). */
     .jam-annot-span { order: 9; flex: 1 0 100%; margin-left: 0; }
 }
+/* Téléphone en paysage, deux zones côte à côte : quand la ligne « Affichée sur » apparaît sous l'en-tête de « Mesure », « Grille » réserve la même hauteur,
+   pour que les deux cadres de texte restent alignés. */
+@media (min-width: 640px) and (pointer: coarse) and (max-height: 500px) {
+    .jam-annot-grid:has(.jam-annot-span:not([hidden])) .jam-annot-zone:has(#jam-annot-general) > .jam-annot-head { margin-bottom: 32px; }
+}
+

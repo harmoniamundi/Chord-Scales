@@ -212,3 +212,14 @@ describe('acIsPhone : le téléphone se reconnaît aux mêmes seuils que les feu
     });
 });
 
+describe('annotations : téléphone en paysage', () => {
+    test('Grille et Mesure se mettent côte à côte (style.css) comme sur grand écran', () => {
+        const css = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'style.css'), 'utf8');
+        const wide = '@media (min-width: 1024px), (min-width: 640px) and (pointer: coarse) and (max-height: 500px)';
+        const i = css.indexOf(wide);
+        assert.ok(i > 0, 'requête « large ou téléphone en paysage » présente');
+        assert.match(css.slice(i, i + 800), /jam-annot-grid \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+        assert.ok(css.split(wide).length - 1 >= 3, 'mise en page, rangées de la carte et plein écran');
+    });
+});
+
