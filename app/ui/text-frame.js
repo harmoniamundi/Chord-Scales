@@ -131,11 +131,10 @@ class NoteFrameView {
         this.el.classList.toggle('is-auto', !!this.box.auto);
         let w = this.box.w;
         if (this.box.auto) {
-            // Largeur automatique : le texte garde sa largeur naturelle (une ligne ne se coupe que sur Entrée) ; seule la place restante dans la zone la limite.
-            const z = this._zone();
-            const room = z ? z.clientWidth - (this.legacy ? 0 : this.pos.x) - 12 : NTF_AUTO_MAX;
+            // Largeur automatique : le texte garde sa largeur naturelle (une ligne ne se coupe que sur Entrée). La limite est la même partout (ordinateur,
+            // téléphone) : la mise en page d'un fichier ne doit pas dépendre de la taille de l'écran qui l'ouvre.
             this.body.style.width = 'max-content';
-            this.body.style.maxWidth = `${Math.max(NTF_MIN_WIDTH, Math.floor(room / k))}px`;
+            this.body.style.maxWidth = `${Math.floor(NTF_AUTO_MAX / k)}px`;
             w = this.body.offsetWidth || NTF_MIN_WIDTH;
         } else {
             this.body.style.width = `${w}px`;
