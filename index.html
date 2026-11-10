@@ -2238,7 +2238,7 @@
             // (samba, tango, Piazzolla, afro, brass chorale…) : il ne vaut que pour l'orchestre auquel il appartient, sinon il
             // « fuit » (ex. : rythme afro d'un style Afro-cubain qui ferait sonner Cuba sous l'orchestre Brasil).
             getEffectiveGroove(style) {
-                const ok = { latin: ['samba', 'tango', 'piazzolla'], cuba: ['afro', 'salsa'], brass: ['b-chorale'], balkan: ['bk-sevdah', 'bk-tsifte'], piazzolla: ['lyrique'], guitar: ['f-solea', 'f-bulerias', 'f-tangos'], classic: ['c-baroque'], pop: ROCK_GROOVES }[style || this.bandStyle];
+                const ok = { latin: ['bossa', 'samba', 'tango', 'piazzolla'], cuba: ['afro', 'salsa'], brass: ['b-chorale'], balkan: ['bk-sevdah', 'bk-tsifte'], piazzolla: ['lyrique'], guitar: ['f-solea', 'f-bulerias', 'f-tangos'], classic: ['c-baroque'], pop: ROCK_GROOVES }[style || this.bandStyle];
                 return (this._bandGroove && ok && ok.includes(this._bandGroove)) ? this._bandGroove : null;
             }
 
@@ -2274,9 +2274,24 @@
                     }
                     this._bandGroove = ROCK_BAND_GROOVES[v];
                     this.setBandStyle('pop');
+                } else if (LATIN_BAND_GROOVES[v]) {
+                    // Entrées latines : « Bossa nova » et « Samba » = orchestre Brasil avec le rythme imposé, « Salsa » = orchestre
+                    // Cuba avec la clave et le montuno de la salsa. Comme pour le Flamenco et le Rock : signature et tempo habituels
+                    // du style quand on change de rythme, pas quand on choisit de nouveau le même.
+                    const lg = LATIN_BAND_GROOVES[v];
+                    const tm = this._tempoMeterFor(v);
+                    const mt = tm && this.parseMeter(tm.meter);
+                    const same = this.bandStyle === lg.band && this.getEffectiveGroove(lg.band) === lg.groove;
+                    if (mt && !same) {
+                        if (mt.bpb !== this.beatsPerBar || mt.ternary !== !!this.ternary) this.setTimeSignature(tm.meter);
+                        this.setBpm(tm.bpm);
+                    }
+                    this._bandGroove = lg.groove;
+                    this.setBandStyle(lg.band);
                 } else {
-                    // Un autre choix (y compris « Guitare » seule) ne garde ni le rythme lyrique ni celui d'un palo ni celui d'un style rock
-                    if (this._bandGroove === 'lyrique' || (this._bandGroove || '').startsWith('f-') || (this._bandGroove || '').startsWith('r-') || (this._bandGroove || '').startsWith('c-')) this._bandGroove = null;
+                    // Un autre choix (y compris « Brasil », « Cuba » ou « Guitare » seuls) ne garde ni le rythme lyrique, ni celui
+                    // d'un palo ou d'un style rock, ni la bossa / samba / salsa choisies dans ce menu
+                    if (this._bandGroove === 'lyrique' || ['bossa', 'samba', 'salsa'].includes(this._bandGroove) || (this._bandGroove || '').startsWith('f-') || (this._bandGroove || '').startsWith('r-') || (this._bandGroove || '').startsWith('c-')) this._bandGroove = null;
                     this.setBandStyle(v);
                 }
             }
@@ -2284,6 +2299,11 @@
             // Valeur du menu « Style » de la fenêtre Orchestre pour l'orchestre et le rythme actifs
             _bandSelectValue() {
                 if (this.bandStyle === 'piazzolla' && this.getEffectiveGroove() === 'lyrique') return 'milongalyrique';
+                if (this.bandStyle === 'latin') {
+                    const g = this.getEffectiveGroove('latin');
+                    if (g === 'bossa' || g === 'samba') return g;
+                }
+                if (this.bandStyle === 'cuba' && this.getEffectiveGroove('cuba') === 'salsa') return 'salsa';
                 if (this.bandStyle === 'guitar') {
                     const g = this.getEffectiveGroove('guitar');
                     const k = Object.keys(FLAMENCO_BAND_GROOVES).find(key => FLAMENCO_BAND_GROOVES[key] === g);
@@ -2348,7 +2368,7 @@
             updateBandButtonLabel() {
                 const label = document.getElementById('band-btn-label');
                 if (!label) return;
-                const names = { swing: 'Jazz', pop: this._rockBandName() || 'Pop-Rock', latin: 'Brasil', cuba: (this.getEffectiveGroove('cuba') === 'salsa' ? 'Salsa' : 'Cuba'), classic: 'Classique', guitar: (this.getEffectiveGroove('guitar') ? 'Flamenco' : 'Guitare'), brass: 'Brass', balkan: 'Balkans', cumbia: 'Cumbia', piazzolla: (this.getEffectiveGroove() === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
+                const names = { swing: 'Jazz', pop: this._rockBandName() || 'Pop-Rock', latin: ({ bossa: 'Bossa nova', samba: 'Samba' })[this.getEffectiveGroove('latin')] || 'Brasil', cuba: (this.getEffectiveGroove('cuba') === 'salsa' ? 'Salsa' : 'Cuba'), classic: 'Classique', guitar: (this.getEffectiveGroove('guitar') ? 'Flamenco' : 'Guitare'), brass: 'Brass', balkan: 'Balkans', cumbia: 'Cumbia', piazzolla: (this.getEffectiveGroove() === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
                 label.textContent = 'Orchestre ' + (names[this.bandStyle] || 'Jazz');
             }
 
@@ -8454,7 +8474,10 @@
                         <option value="bluesrock">Rock : blues rock (shuffle)</option>
                         <option value="indierock">Rock : indie / britpop</option>
                         <option value="latin">Brasil</option>
+                        <option value="bossa">Brasil : bossa nova</option>
+                        <option value="samba">Brasil : samba (2/4)</option>
                         <option value="cuba">Cuba</option>
+                        <option value="salsa">Cuba : salsa (4/4)</option>
                         <option value="classic">Classique</option>
                         <option value="guitar">Guitare</option>
                         <option value="flamencosolea">Flamenco : soleá (12 temps)</option>

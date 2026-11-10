@@ -72,7 +72,7 @@ describe('tables par style', () => {
     test('orchestres et grooves : valeurs connues du moteur', () => {
         const bands = new Set(['swing', 'latin', 'pop', 'classic', 'cuba', 'piazzolla', 'brass', 'balkan', 'cumbia', 'guitar']);
         Object.values(M.STYLE_BAND).forEach(b => assert.ok(bands.has(b), b));
-        const grooves = new Set(['samba', 'tango', 'piazzolla', 'lyrique', 'afro', 'salsa', 'b-chorale', 'f-solea', 'f-bulerias', 'f-tangos', 'bk-sevdah', 'bk-tsifte', 'r-roll', 'r-classic', 'r-hard', 'r-punk', 'r-ballad', 'r-blues', 'r-indie', 'c-baroque']);
+        const grooves = new Set(['bossa', 'samba', 'tango', 'piazzolla', 'lyrique', 'afro', 'salsa', 'b-chorale', 'f-solea', 'f-bulerias', 'f-tangos', 'bk-sevdah', 'bk-tsifte', 'r-roll', 'r-classic', 'r-hard', 'r-punk', 'r-ballad', 'r-blues', 'r-indie', 'c-baroque']);
         Object.values(M.STYLE_GROOVE).forEach(g => assert.ok(grooves.has(g), g));
     });
 });

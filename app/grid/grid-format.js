@@ -16,7 +16,7 @@ const PART_LABELS = ['in', 'A', 'B', 'C', 'D', 'E', 'F', 'G', "A'", "B'", "C'", 
 const isPartLabel = (v) => typeof v === 'string' && (PART_LABELS.includes(v) || /^[A-Z]$/.test(v));
 
 // Rythmes imposés par un style (samba, tango…), valables dans un fichier importé.
-const IMPORT_GROOVES = ['samba', 'tango', 'piazzolla', 'lyrique', 'afro', 'b-chorale', 'bk-sevdah', 'bk-tsifte', 'f-solea', 'f-bulerias', 'f-tangos',
+const IMPORT_GROOVES = ['bossa', 'samba', 'salsa', 'tango', 'piazzolla', 'lyrique', 'afro', 'b-chorale', 'bk-sevdah', 'bk-tsifte', 'f-solea', 'f-bulerias', 'f-tangos',
     'r-roll', 'r-classic', 'r-hard', 'r-punk', 'r-ballad', 'r-blues', 'r-indie', 'c-baroque'];
 
 // Densité de notes par orchestre (curseur « Densité » du pop-up Orchestre, 0 à 1) et valeur par défaut :
