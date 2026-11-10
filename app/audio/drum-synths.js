@@ -39,7 +39,8 @@ function drumSpec(e) {
         cajonb: 0.35, cajont: 0.25, palma: 0.22, sorda: 0.15, pito: 0.12,
         shell: 0.1, guiro: 0.16, guirot: 0.06, bongoh: 0.14, bongol: 0.18,
         guacd: 0.16, guacu: 0.1, llam: 0.12, llamo: 0.35, tamb: 0.55, palo: 0.1,
-        rkick: 0.42, rsnare: 0.34, rghost: 0.16, rtom1: 0.45, rtom2: 0.5, rtom3: 0.55, rtom4: 0.6, tmb: 0.24, tmbs: 0.12, clap: 0.34 }; // kit rock : rkick/rsnare/rghost (grosse caisse, caisse claire, note fantôme), rtom1 à rtom4 (toms du plus aigu au plus grave), tmb/tmbs (tambourin : coup, petite secousse), clap (claquement de mains)
+        rkick: 0.42, rsnare: 0.34, rghost: 0.16, rtom1: 0.45, rtom2: 0.5, rtom3: 0.55, rtom4: 0.6, tmb: 0.24, tmbs: 0.12, clap: 0.34,
+        surdo: 0.9, surdom: 0.2, tamborim: 0.1, pandj: 0.1, pandg: 0.27, pandt: 0.14, ganza: 0.1, agogoh: 0.3, agogol: 0.3 }; // samba : surdo ouvert / étouffé, tamborim, pandeiro (platinelas, pouce, tapa), ganzá, agogô aigu / grave // kit rock : rkick/rsnare/rghost (grosse caisse, caisse claire, note fantôme), rtom1 à rtom4 (toms du plus aigu au plus grave), tmb/tmbs (tambourin : coup, petite secousse), clap (claquement de mains)
     // cumbia : guacharaca (guacd descendant, guacu ascendant), llamador (llam étouffé, llamo ouvert), tambora (tamb grave, palo baguette sur le bois) ; // cajonb/cajont : cajón flamenco (grave, claqué) ; palma/sorda : palmas claires/sourdes ; pito : claquement de doigts ; shell : cáscara (flanc du timbal) ; guiro/guirot : güiro, coup long / court ; bongoh/bongol : bongó aigu (hembra) / grave (macho)
     let maxDur = MAXDUR[drum], name = drum, freq, short;
     if (drum === 'timp') {
@@ -48,8 +49,10 @@ function drumSpec(e) {
         name = 'timp' + freq + (short ? 's' : 'l');
     }
     if (!maxDur) return null;
-    const variants = (drum === 'snare' || drum === 'ghost' || drum === 'tom1' || drum === 'tom2' || drum === 'tom3' || drum === 'cajonb' || drum === 'cajont' || drum === 'palma' || drum === 'sorda' || drum === 'guacd' || drum === 'guacu' || drum === 'llam' || drum === 'llamo' || drum === 'tamb' || drum === 'palo' || drum === 'rsnare' || drum === 'rghost' || drum === 'tmb' || drum === 'tmbs' || drum === 'clap') ? 2
-        : ((drum === 'rtom1' || drum === 'rtom2' || drum === 'rtom3' || drum === 'rtom4') ? 3 : 1); // hauteur légèrement aléatoire à chaque coup
+    const variants = (drum === 'snare' || drum === 'ghost' || drum === 'tom1' || drum === 'tom2' || drum === 'tom3' || drum === 'cajonb' || drum === 'cajont' || drum === 'palma' || drum === 'sorda' || drum === 'guacd' || drum === 'guacu' || drum === 'llam' || drum === 'llamo' || drum === 'tamb' || drum === 'palo' || drum === 'rsnare' || drum === 'rghost' || drum === 'tmb' || drum === 'tmbs' || drum === 'clap'
+        || drum === 'surdo' || drum === 'surdom' || drum === 'tamborim' || drum === 'pandg' || drum === 'pandt' || drum === 'ganza') ? 2
+        : (drum === 'pandj' ? 3 // les platinelas jouent toutes les doubles croches : trois variantes évitent l'effet « mitraillette »
+        : ((drum === 'rtom1' || drum === 'rtom2' || drum === 'rtom3' || drum === 'rtom4') ? 3 : 1)); // hauteur légèrement aléatoire à chaque coup
     return { drum, mul, freq, short, name, variants, maxDur, long: maxDur >= 0.8 };
 }
 
@@ -106,6 +109,13 @@ function synthDrumLive(rt, e, time, dest, v) {
         case 'tmb': synthTambourine(rt, time, dest, false, v); break;
         case 'tmbs': synthTambourine(rt, time, dest, true, v); break;
         case 'clap': synthClap(rt, time, dest, v); break;
+        case 'surdo': synthSurdo(rt, time, dest, false, v); break;
+        case 'surdom': synthSurdo(rt, time, dest, true, v); break;
+        case 'tamborim': synthTamborim(rt, time, dest, v); break;
+        case 'pandj': case 'pandg': case 'pandt': synthPandeiro(rt, time, dest, e.drum, v); break;
+        case 'ganza': synthGanza(rt, time, dest, v); break;
+        case 'agogoh': synthAgogo(rt, time, dest, true, v); break;
+        case 'agogol': synthAgogo(rt, time, dest, false, v); break;
         case 'dum': case 'tek': case 'ka': case 'tapan': case 'stick': case 'daire': synthDarbuka(rt, time, dest, e.drum, v); break;
     }
 }
@@ -1212,10 +1222,135 @@ function synthClap(rt, time, destination, vel = 1) {
     rockNoiseHit(rt, time + 0.03, destination, { freq: 1050, q: 1.1, peak: 0.16, dec: 0.2, att: 0.004 }, vel);
 }
 
+// ===== Percussions de la roda de samba =====
+// Surdo : grand tambour grave frappé à la mailloche feutrée. Ouvert (temps 2, « marcação ») il résonne longtemps ; étouffé par la
+// main (temps 1) il ne laisse qu'un « poum » bref. Attaque douce (feutre), hauteur qui retombe un peu, deuxième mode de la peau.
+function synthSurdo(rt, time, destination, muted = false, vel = 1) {
+    const ctx = rt.ctx;
+    if (!ctx || !destination) return;
+    const f = (muted ? 66 : 58) * (0.98 + Math.random() * 0.04);
+    const dec = muted ? 0.17 : 0.72;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(f * 1.32, time);
+    o.frequency.exponentialRampToValueAtTime(f, time + 0.09);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0008, time);
+    g.gain.exponentialRampToValueAtTime((muted ? 0.75 : 0.95) * vel, time + 0.007);
+    if (!muted) g.gain.exponentialRampToValueAtTime(0.26 * vel, time + 0.15); // tenue réduite : la basse appuie aussi le 2
+    g.gain.exponentialRampToValueAtTime(0.0006, time + dec);
+    o.connect(g); g.connect(destination);
+    o.start(time); o.stop(time + dec + 0.03);
+    rt.nodes.push(o);
+    if (!muted && rt.tier < 2) rockMode(rt, time, destination, f * 1.58, 1.08, 0.05, 0.12 * vel, 0.32); // deuxième mode de la peau
+    // feutre de la mailloche sur la peau
+    rockNoiseHit(rt, time, destination, { type: 'lowpass', freq: 700, q: 0.7, peak: (muted ? 0.3 : 0.22), dec: muted ? 0.05 : 0.07, att: 0.003 }, vel);
+}
+
+// Tamborim : petit tambour sur cadre à peau très tendue, frappé à la baguette souple. Sec, aigu, presque sans résonance.
+function synthTamborim(rt, time, destination, vel = 1) {
+    const ctx = rt.ctx;
+    if (!ctx || !destination) return;
+    const f = 760 * (0.97 + Math.random() * 0.06);
+    const o = ctx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(f * 1.12, time);
+    o.frequency.exponentialRampToValueAtTime(f, time + 0.012);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0008, time);
+    g.gain.exponentialRampToValueAtTime(0.32 * vel, time + 0.0015);
+    g.gain.exponentialRampToValueAtTime(0.0006, time + 0.07);
+    o.connect(g); g.connect(destination);
+    o.start(time); o.stop(time + 0.09);
+    rt.nodes.push(o);
+    // claquement de la baguette sur la peau tendue
+    rockNoiseHit(rt, time, destination, { freq: 2600, q: 1.3, peak: 0.42, dec: 0.028 }, vel);
+    if (rt.tier < 2) rockNoiseHit(rt, time, destination, { type: 'highpass', freq: 6000, q: 0.5, peak: 0.12, dec: 0.012 }, vel);
+}
+
+// Pandeiro : tambourin brésilien. kind : 'pandj' platinelas (cymbalettes, coups légers des doigts et du talon de la main),
+// 'pandg' pouce sur la peau (grave, avec les platinelas), 'pandt' tapa (claque de la main au centre, sèche).
+function synthPandeiro(rt, time, destination, kind, vel = 1) {
+    const ctx = rt.ctx;
+    if (!ctx || !destination) return;
+    const jingle = (amt, dur) => {
+        const freqs = rt.tier >= 2 ? [] : (rt.tier === 1 ? [5400, 7900] : [4700, 5900, 7300, 8600, 10100]);
+        if (freqs.length) {
+            const bank = metalOscBank(rt, time, dur, freqs.map(x => x * (0.97 + Math.random() * 0.06)));
+            const hp = ctx.createBiquadFilter();
+            hp.type = 'highpass'; hp.frequency.value = 5600;
+            const g = ctx.createGain();
+            g.gain.setValueAtTime(0.0008, time);
+            g.gain.exponentialRampToValueAtTime(0.055 * amt * vel, time + 0.003);
+            g.gain.exponentialRampToValueAtTime(0.0005, time + dur);
+            bank.connect(hp); hp.connect(g); g.connect(destination);
+        }
+        rockNoiseHit(rt, time, destination, { type: 'highpass', freq: 6800, q: 0.6, peak: 0.24 * amt, dec: dur * 0.8, att: 0.002 }, vel);
+    };
+    if (kind === 'pandg') {
+        const o = ctx.createOscillator();
+        o.type = 'sine';
+        const f = 150 * (0.97 + Math.random() * 0.06);
+        o.frequency.setValueAtTime(f * 1.3, time);
+        o.frequency.exponentialRampToValueAtTime(f, time + 0.05);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0008, time);
+        g.gain.exponentialRampToValueAtTime(0.5 * vel, time + 0.004);
+        g.gain.exponentialRampToValueAtTime(0.0006, time + 0.24);
+        o.connect(g); g.connect(destination);
+        o.start(time); o.stop(time + 0.26);
+        rt.nodes.push(o);
+        jingle(0.7, 0.1);
+    } else if (kind === 'pandt') {
+        rockNoiseHit(rt, time, destination, { freq: 1150, q: 1.1, peak: 0.38, dec: 0.04 }, vel);
+        jingle(1, 0.12);
+    } else {
+        jingle(1, 0.075);
+    }
+}
+
+// Ganzá : chocalho métallique rempli de billes. Attaque plus floue et souffle plus rond que le shaker.
+function synthGanza(rt, time, destination, vel = 1) {
+    const ctx = rt.ctx;
+    if (!ctx || !destination) return;
+    const noise = ctx.createBufferSource();
+    noise.buffer = rt.noise();
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = 5200; bp.Q.value = 0.9;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0008, time);
+    g.gain.exponentialRampToValueAtTime(0.28 * vel, time + 0.014);
+    g.gain.exponentialRampToValueAtTime(0.0006, time + 0.075);
+    noise.connect(bp); bp.connect(g); g.connect(destination);
+    noise.start(time, Math.random() * 0.4); noise.stop(time + 0.09);
+    rt.nodes.push(noise);
+}
+
+// Agogô : double cloche frappée à la baguette (cloche aiguë / grave). Plus fine et plus chantante que la cloche cubaine.
+function synthAgogo(rt, time, destination, high = true, vel = 1) {
+    const ctx = rt.ctx;
+    if (!ctx || !destination) return;
+    const f = (high ? 940 : 700) * (0.995 + Math.random() * 0.01);
+    const parts = rt.tier >= 2 ? [[1, 1]] : [[1, 1], [2.72, 0.35], [4.9, 0.12]];
+    parts.forEach(([r, a]) => {
+        const o = ctx.createOscillator();
+        o.type = 'sine'; o.frequency.value = f * r;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0008, time);
+        g.gain.exponentialRampToValueAtTime(0.2 * a * vel, time + 0.002);
+        g.gain.exponentialRampToValueAtTime(0.0006, time + (r === 1 ? 0.26 : 0.1));
+        o.connect(g); g.connect(destination);
+        o.start(time); o.stop(time + 0.28);
+        rt.nodes.push(o);
+    });
+    rockNoiseHit(rt, time, destination, { freq: 3000, q: 1.2, peak: 0.08, dec: 0.01 }, vel);
+}
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { makeNoiseBuffer, makeSaturationCurve, drumSpec, synthDrumLive, synthKick, synthSnare, metalOscBank, synthHihat,
         synthCymbal, synthCowbell, synthClave, synthConga, synthSlap, synthShaker, synthRim, synthTom, synthBassDrum, synthTimp,
         synthDarbuka, synthGolpe, synthChicharra, synthLatigo, synthCajonBass, synthCajonTap, synthPalma, synthPito, synthShell, synthGuiro,
         synthGuacharaca, synthLlamador, synthTambora, synthPalo,
-        synthRockKick, synthRockSnare, synthRockTom, synthTambourine, synthClap };
+        synthRockKick, synthRockSnare, synthRockTom, synthTambourine, synthClap,
+        synthSurdo, synthTamborim, synthPandeiro, synthGanza, synthAgogo };
 }

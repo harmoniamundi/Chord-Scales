@@ -40,6 +40,7 @@ const withSeed = (n, fn) => { const r = Math.random; Math.random = seeded(n); tr
 const DRUMS = ['kick', 'snare', 'ghost', 'hat', 'pedal', 'ohat', 'ride', 'crash', 'clash', 'rim', 'tom1', 'tom2', 'tom3', 'bell', 'clave', 'conga1', 'conga2', 'slap', 'shaker',
     'bdrum', 'timp', 'golpe', 'chich', 'latigo', 'dum', 'tek', 'ka', 'tapan', 'stick', 'daire', 'cajonb', 'cajont', 'palma', 'sorda', 'pito',
     'shell', 'guiro', 'guirot', 'bongoh', 'bongol',
+    'surdo', 'surdom', 'tamborim', 'pandj', 'pandg', 'pandt', 'ganza', 'agogoh', 'agogol',
     'guacd', 'guacu', 'llam', 'llamo', 'tamb', 'palo',
     'rkick', 'rsnare', 'rghost', 'rtom1', 'rtom2', 'rtom3', 'rtom4', 'tmb', 'tmbs', 'clap'];
 

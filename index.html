@@ -488,6 +488,7 @@
     <script src="app/band/cumbia-plan.js"></script>
     <script src="app/band/cuban-plan.js"></script>
     <script src="app/band/salsa-plan.js"></script>
+    <script src="app/band/samba-plan.js"></script>
     <script src="app/band/meter-plan.js"></script>
     <script src="app/band/ternary-plan.js"></script>
     <script src="app/band/bass-lines.js"></script>
@@ -2344,7 +2345,7 @@
                 const eb = document.getElementById('band-vol-bass-label');
                 if (eb) eb.textContent = brass ? 'Tubas' : (pz ? 'Contreb.' : 'Basse');
                 const ed = document.getElementById('band-vol-drums-label');
-                if (ed) ed.textContent = (brass || balkan || pz || (this.bandStyle === 'guitar' && !!this.getEffectiveGroove('guitar'))) ? 'Percus.' : 'Batterie';
+                if (ed) ed.textContent = (brass || balkan || pz || (this.bandStyle === 'guitar' && !!this.getEffectiveGroove('guitar')) || (this.bandStyle === 'latin' && this.getEffectiveGroove('latin') === 'samba')) ? 'Percus.' : 'Batterie';
                 // curseurs propres au Tango nuevo (bandonéon, violon, guitare électrique)
                 ['bandoneon', 'violin', 'guitar'].forEach(k => {
                     const row = document.getElementById('band-row-pz-' + k);
@@ -2833,7 +2834,7 @@
                 if (e.onGuitar && this.bandGains.piano) dest = this.bandGains.piano;
                 if (!dest) return;
                 // Niveau minimal : on laisse tomber les notes fantômes et percussions d'ornement
-                if (this.perfTier >= 2 && (e.drum === 'ghost' || e.drum === 'rghost' || e.drum === 'tmbs' || e.drum === 'pedal' || e.drum === 'chich' || e.drum === 'latigo' || e.drum === 'pito' || e.drum === 'guirot' || e.drum === 'bongoh' || e.drum === 'bongol' || e.drum === 'guacu' || (e.drum === 'shaker' && this.bandStyle === 'cumbia'))) return;
+                if (this.perfTier >= 2 && (e.orn || e.drum === 'ghost' || e.drum === 'rghost' || e.drum === 'tmbs' || e.drum === 'pedal' || e.drum === 'chich' || e.drum === 'latigo' || e.drum === 'pito' || e.drum === 'guirot' || e.drum === 'bongoh' || e.drum === 'bongol' || e.drum === 'guacu' || (e.drum === 'shaker' && this.bandStyle === 'cumbia'))) return;
                 let v = e.vel * (0.92 + Math.random() * 0.16);
                 // Percussions du flamenco (cajón, palmas, pitos) : pas de batterie derrière, elles doivent tenir leur place face à la guitare
                 if (e.perc) v *= 1.7;
@@ -3123,6 +3124,8 @@
                 // Rythme afro-cubain : orchestre dédié (piano montuno, tumbao, cloche, congas), quelle que soit la signature
                 // Salsa (rythme imposé par le style de grille, 4/4) : clave 3-2 / 2-3, montuno, tumbao, timbales, congas
                 if (cuba && style === 'latin' && ph.groove === 'salsa' && !this.isTernary() && bpbNow === 4) return this.buildSalsaPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
+                // Samba (orchestre Brasil, 2/4 ou 4/4) : roda de samba (violão en batida, surdo, pandeiro, tamborim, ganzá, agogô)
+                if (!cuba && style === 'latin' && ph.groove === 'samba' && !this.isTernary() && (bpbNow === 2 || bpbNow === 4)) return this.buildSambaPlan(bpbNow, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 if (cuba && style === 'latin') return this.buildCubanPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 if (this.isTernary()) return this.buildTernaryPlan(bpbNow, style, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 if (bpbNow !== 4) return this.buildMeterPlan(bpbNow, style, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
@@ -3176,6 +3179,11 @@
             // enchaînés par conduite des voix, avec coups descendants (accords pleins) et montants (cordes aiguës).
 
             // ===================== Orchestration LATIN : le calcul est dans band/latin-plan.js =====================
+
+            // ===== Orchestre samba : le calcul est dans band/samba-plan.js (fonction pure) =====
+            buildSambaPlan(bpb, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
+                return this._bandRun(['latVoice', 'bandLastFill'], env => buildSambaPlan(env, bpb, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat() });
+            }
 
             buildLatinPlan(step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
                 return this._bandRun(['latVoice', 'latTie', 'latRunAt', 'bandLastFill'], env => buildLatinPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m));
