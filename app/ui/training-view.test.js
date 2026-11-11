@@ -3,6 +3,7 @@ const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const T = require('../theory.js');
 const V = require('./training-view.js');
+const H = require('../grid/harmony.js');
 
 const maj7 = T.chordTypes.maj.find(c => c.id === 'maj7');
 const labels = T.ROOT_NAMES_DEFAULT.slice();
@@ -10,20 +11,6 @@ const ctxOf = (over = {}) => ({
     scalesDb: T.scalesDb, rootName: 'C', chordObj: maj7, scaleDirections: {},
     showAvoidNotes: false, showCharacteristic: false, showTargetNotes: false, visMode: 'letters',
     angloToFrench: (a) => a, ...over,
-});
-
-describe('boutons de qualité', () => {
-    test('classe : sélectionné bleu, sinon discret', () => {
-        assert.ok(V.qualityButtonClass(true).includes('bg-blue-600/20'));
-        assert.ok(V.qualityButtonClass(false).includes('bg-[#1a1a1a]'));
-        assert.ok(!V.qualityButtonClass(false).includes('bg-blue-600/20'));
-        assert.ok(V.qualityButtonClass(true).startsWith('p-2.5 rounded-lg'));
-    });
-    test('contenu : symbole puis nom complet', () => {
-        const html = V.qualityButtonHtml({ name: 'maj7', fullName: 'Majeur 7' });
-        assert.ok(html.includes('font-bold text-xs">maj7</span>'));
-        assert.ok(html.includes('truncate">Majeur 7</span>'));
-    });
 });
 
 describe('en-tête de l\'accord', () => {
@@ -79,6 +66,33 @@ describe('cartes de gammes', () => {
         const desc = V.trainingScaleCard(ctxOf({ scaleDirections: { [`${item.id}-0`]: true } }), item, 0);
         assert.ok(desc.html.includes('• Descendant'));
     });
+    test('onglet Harmonisation : accords du degré, pas de portée', () => {
+        const ctx = ctxOf({ visMode: 'harmony', rootIndex: 0, harmonyTriads: false, findChordObj: (id) => T.lookupChord(id), jazz: (id) => H.jazzChordNotation(id), selected: { rootIndex: 0, chordId: 'maj7' } });
+        const m = V.trainingScaleCard(ctx, { id: 'ionian', role: 'x' }, 0);
+        assert.equal(m.staffTask, null);
+        assert.equal((m.html.match(/th-chip/g) || []).length >= 7, true);
+        assert.ok(m.html.includes("app.chooseHarmonyChord('ionian-0', 7, '7')"));
+        assert.ok(m.html.includes("app.chooseHarmonyChord('ionian-0', 7, '7', true)"));
+        assert.ok(!m.html.includes('toggleScalePlayback'));
+    });
+    test('onglet Harmonisation : l\'accord choisi de la carte s\'affiche à côté du nom de la gamme', () => {
+        const base = { visMode: 'harmony', rootIndex: 0, harmonyTriads: false, findChordObj: (id) => T.lookupChord(id), jazz: (id) => H.jazzChordNotation(id), selected: { rootIndex: 0, chordId: 'maj7' } };
+        const head = (html) => html.slice(0, html.indexOf('<p class="text-xs'));
+        // par défaut : l'accord du sélecteur de gauche, s'il fait partie de la gamme
+        let m = V.trainingScaleCard(ctxOf(base), { id: 'ionian', role: 'x' }, 0);
+        assert.ok(head(m.html).includes('data-chord="0:maj7"') && head(m.html).includes('>CΔ</span>'));
+        assert.ok(head(m.html).indexOf('</h3>') < head(m.html).indexOf('th-sel'));
+        // l'accord choisi dans la carte passe avant : le nom joue l'arpège sans changer de choix, chaque note se joue
+        m = V.trainingScaleCard(ctxOf({ ...base, harmonySel: { 'ionian-0': { rootIndex: 7, chordId: '7' } } }), { id: 'ionian', role: 'x' }, 0);
+        assert.ok(head(m.html).includes('data-chord="7:7"'));
+        assert.ok(head(m.html).includes("app.playHarmonyArpeggio(7, '7')"));
+        assert.equal((head(m.html).match(/app\.playHarmonyNote\(7, /g) || []).length, 4);
+        assert.ok(m.html.includes("app.chooseHarmonyChord('ionian-0', 7, '7')"));
+        assert.ok(m.html.includes("app.chooseHarmonyChord('ionian-0', 7, '7', true)"));
+        // hors de l'onglet : rien
+        m = V.trainingScaleCard(ctxOf({ ...base, visMode: 'intervals' }), { id: 'ionian', role: 'x' }, 0);
+        assert.ok(!m.html.includes('th-sel'));
+    });
     test('direction descendante transmise à la portée', () => {
         const item = maj7.scales[0];
         const card = V.trainingScaleCard(ctxOf({ visMode: 'staff', scaleDirections: { [`${item.id}-0`]: true } }), item, 0);
@@ -115,7 +129,7 @@ describe('boutons de navigation et de choix', () => {
         assert.equal(V.navButtonClass(true), 'px-3 py-1 rounded-md bg-[#3a3a3c] text-white transition shadow-sm');
         assert.equal(V.navButtonClass(false), 'px-3 py-1 rounded-md text-slate-400 hover:text-white transition');
     });
-    test('groupes à choix unique (familles, transposition)', () => {
+    test('groupes à choix unique (transposition)', () => {
         assert.equal(V.segmentButtonClass(true), 'flex-1 py-1 rounded-md transition bg-[#3a3a3c] text-white shadow-sm');
         assert.equal(V.segmentButtonClass(false), 'flex-1 py-1 rounded-md transition text-slate-400 hover:text-white');
     });
@@ -129,38 +143,7 @@ describe('boutons de navigation et de choix', () => {
     });
 });
 
-describe('clavier des fondamentales', () => {
-    const kb = (sel, labelsIn = T.ROOT_NAMES_DEFAULT.slice()) => V.rootKeyboardModel({
-        selectedRootIndex: sel, rootLabels: labelsIn, blackPcs: T.BLACK_PCS,
-        sharpNames: T.ROOT_NAMES_SHARP, flatNames: T.ROOT_NAMES_FLAT, count: 12,
-    });
-    test('12 touches : 7 blanches et 5 noires', () => {
-        const keys = kb(0);
-        assert.equal(keys.length, 12);
-        assert.equal(keys.filter(k => k.kind === 'white').length, 7);
-        assert.equal(keys.filter(k => k.kind === 'black').length, 5);
-    });
-    test('touche blanche : libellé courant, bouton sélectionné en bleu', () => {
-        const keys = kb(0);
-        assert.equal(keys[0].label, 'C');
-        assert.ok(keys[0].className.includes('bg-[#2563eb]'));
-        assert.ok(!keys[2].className.includes('bg-[#2563eb]'));
-        assert.ok(keys[0].className.startsWith('py-3 rounded-lg'));
-    });
-    test('touche noire : moitié dièse puis moitié bémol, indice parmi les noires', () => {
-        const keys = kb(1);
-        assert.equal(keys[1].kind, 'black');
-        assert.equal(keys[1].blackIndex, T.BLACK_PCS.indexOf(1));
-        assert.deepEqual(keys[1].halves.map(h => [h.acc, h.name]), [['s', 'C#'], ['f', 'Db']]);
-    });
-    test('seule la moitié correspondant à l\'orthographe courante est sélectionnée', () => {
-        const flat = T.ROOT_NAMES_DEFAULT.slice(); flat[1] = 'Db';
-        const sharp = T.ROOT_NAMES_DEFAULT.slice(); sharp[1] = 'C#';
-        const on = (h) => h.className.includes('bg-[#2563eb]');
-        assert.deepEqual(kb(1, flat)[1].halves.map(on), [false, true]);
-        assert.deepEqual(kb(1, sharp)[1].halves.map(on), [true, false]);
-        assert.deepEqual(kb(0, flat)[1].halves.map(on), [false, false]);
-    });
+describe('orthographe des touches noires', () => {
     test('spellWith remplace une seule lettre', () => {
         assert.equal(V.spellWith('sssss', 2, 'f'), 'ssfss');
         assert.equal(V.spellWith('ffffs', 0, 's'), 'sfffs');

@@ -83,7 +83,7 @@ const srv = http.createServer((req, res) => {
 
     // ---- 4. Hors ligne : portée VexFlow réelle, police Kalam ----
     await page.evaluate(() => app.switchView('training'));
-    await page.locator('#root-buttons-container button').nth(2).click();
+    await page.locator('#chord-picker [data-act="root"][data-v="2"]').click();
     await page.waitForTimeout(500);
     const svgs = await page.evaluate(() => document.querySelectorAll('#scales-container svg').length);
     check(svgs > 0, `HORS LIGNE : la portée est dessinée (${svgs} svg)`);

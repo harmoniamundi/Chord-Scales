@@ -100,31 +100,144 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         noErrors();
     });
 
-    test('Entraînement : fondamentale, qualité et cartes de gammes', async () => {
+    test('Entraînement : sélecteur d\'accord fixe (Construire), mêmes réglages que le Jam, et cartes de gammes', async () => {
         await page.evaluate(() => app.switchView('training'));
-        const rootButtons = page.locator('#root-buttons-container button');
-        assert.ok(await rootButtons.count() >= 12);
-        await rootButtons.nth(2).click();
-        await page.click('#cat-btn-min');
-        await page.locator('#quality-buttons-container button').nth(1).click();
-        const res = await page.evaluate(() => ({
-            name: document.getElementById('display-chord-name').textContent,
+        const P = '#chord-picker';
+        // Le sélecteur est dans la colonne de gauche (pas un pop-up) et ne propose que fondamentale + accord
+        assert.equal(await page.locator(`aside ${P}`).count(), 1);
+        assert.equal(await page.locator('.jm-pop').count(), 0);
+        assert.ok(await page.locator(`${P} [data-act="root"]`).count() >= 12);
+        assert.equal(await page.locator(`${P} [data-act="scale"], ${P} [data-act="bass"], ${P} [data-act="dur"]`).count(), 0);
+        // Ré mineur 7 : touche Ré, tierce mineure (maj7 → mmaj7), septième 7 (→ m7)
+        await page.click(`${P} [data-act="root"][data-v="2"]`);
+        await page.click(`${P} [data-act="third"][data-v="m"]`);
+        await page.click(`${P} [data-act="sev"][data-v="b7"]`);
+        let res = await page.evaluate(() => ({
+            name: document.getElementById('display-chord-name').textContent, id: app.selectedChordId,
             cards: document.querySelectorAll('#scales-container > div').length,
             expected: app.getCurrentChordObj().scales.length,
             notes: document.querySelectorAll('#display-chord-notes span').length,
         }));
-        assert.match(res.name, /^[A-G][b#]?\S+/);
+        assert.equal(res.id, 'm7');
+        assert.match(res.name, /^D/);
         assert.equal(res.cards, res.expected);
-        assert.ok(res.cards > 0 && res.notes >= 3);
+        assert.ok(res.cards > 0 && res.notes === 4);
+        // Tension : ajoute la 11 dièse à une dominante → accord composé, notes et gammes mises à jour
+        await page.click(`${P} [data-act="chord"][data-v="7"]`);
+        await page.click(`${P} [data-act="ext"][data-v="s11"]`);
+        res = await page.evaluate(() => ({ id: app.selectedChordId, notes: document.querySelectorAll('#display-chord-notes span').length, cards: document.querySelectorAll('#scales-container > div').length, expected: app.getCurrentChordObj().scales.length }));
+        assert.equal(res.id, 'x:M:P:b7:s11');
+        assert.equal(res.notes, 5);
+        assert.equal(res.cards, res.expected);
+        assert.ok(await page.locator(`${P} [data-act="ext"][data-v="s11"].is-on`).count() === 1);
+        // Touche noire : le nom choisi (♯ ou ♭) change l'orthographe de l'accord affiché
+        await page.click(`${P} [data-act="root"][data-v="1s"]`);
+        assert.match(await page.textContent('#display-chord-name'), /^C#/);
+        await page.click(`${P} [data-act="root"][data-v="1f"]`);
+        assert.match(await page.textContent('#display-chord-name'), /^Db/);
+        // Catalogue : mode mémorisé, liste d'accords et menu de tous les accords
+        await page.click(`${P} [data-act="mode"][data-v="cat"]`);
+        assert.equal(await page.evaluate(() => localStorage.getItem('trainChordMode')), 'cat');
+        await page.click(`${P} [data-act="chord"][data-v="m7b5"]`);
+        assert.equal(await page.evaluate(() => app.selectedChordId), 'm7b5');
+        await page.selectOption(`${P} [data-act="chordsel"]`, 'augTriad');
+        assert.equal(await page.evaluate(() => app.selectedChordId), 'augTriad');
+        assert.ok(await page.locator('#scales-container > div').count() > 0);
+        // Retour au mode Construire : le même accord reste choisi
+        await page.click(`${P} [data-act="mode"][data-v="build"]`);
+        assert.equal(await page.locator(`${P} [data-act="sev"].is-on`).count(), 1);
+        assert.match(await page.evaluate(() => document.getElementById('display-chord-name').textContent), /^Db/);
         noErrors();
     });
 
     test('Entraînement : les quatre modes d\'affichage', async () => {
-        for (const mode of ['staff', 'intervals', 'notes', 'letters']) {
+        for (const mode of ['staff', 'harmony', 'intervals', 'notes', 'letters']) {
             await page.click(`#vmode-${mode}`);
             const cards = await page.evaluate(() => document.querySelectorAll('#scales-container > div').length);
             assert.ok(cards > 0, `aucune carte en mode ${mode}`);
         }
+        noErrors();
+    });
+
+    test('Entraînement : onglet Harmonisation entre Portée et Intervalles — accords de chaque degré, 7es / Triades, clic = accord joué', async () => {
+        const order = await page.evaluate(() => [...document.querySelectorAll('[id^="vmode-"]')].map(b => b.id));
+        assert.deepEqual(order, ['vmode-staff', 'vmode-harmony', 'vmode-intervals', 'vmode-notes', 'vmode-letters']);
+        assert.ok(await page.locator('#harmony-degree-mode.hidden').count() === 1, 'le réglage 7es / Triades est masqué hors de l\'onglet');
+        // Do majeur 7 : sa gamme ionienne = Δ −7 −7 Δ 7 −7 ø ; chaque carte a ses accords
+        await page.evaluate(() => { app.selectedRootIndex = 0; app.selectedChordId = 'maj7'; app.renderChordPicker(); app.update(); });
+        await page.click('#vmode-harmony');
+        assert.equal(await page.locator('#harmony-degree-mode.hidden').count(), 0);
+        const cards = await page.evaluate(() => [...document.querySelectorAll('#scales-container > div')].map(c => ({
+            title: c.querySelector('h3').textContent, chips: [...c.querySelectorAll('.th-chip')].map(b => b.textContent), on: c.querySelectorAll('.th-chip.is-on').length, svg: c.querySelectorAll('svg').length })));
+        assert.equal(cards.length, await page.evaluate(() => app.getCurrentChordObj().scales.length));
+        cards.forEach(c => { assert.ok(c.chips.length >= 2, `${c.title} : ${c.chips.length} accords`); assert.equal(c.svg, 0); });
+        const ionian = cards.find(c => /Ionien/.test(c.title));
+        assert.deepEqual(ionian.chips, ['CΔI>>', 'D−7ii>>', 'E−7iii>>', 'FΔIV>>', 'G7V>>', 'A−7vi>>', 'Bøviiø>>']);
+        assert.equal(ionian.on, 1, 'l\'accord choisi est allumé dans la gamme');
+        // 7es → Triades, mémorisé
+        await page.click('#hmode-3');
+        assert.equal(await page.evaluate(() => localStorage.getItem('trainHarmonyTriads')), '1');
+        const tri = await page.evaluate(() => [...document.querySelectorAll('#scales-container > div')].find(c => /Ionien/.test(c.querySelector('h3').textContent)).querySelectorAll('.th-chip').length);
+        assert.equal(tri, 7);
+        assert.match(await page.evaluate(() => document.querySelector('#scales-container .th-chip').textContent), /^CI>>$/);
+        await page.click('#hmode-7');
+        // Un clic sur un accord le joue (sans erreur) et ne change ni l'accord choisi ni la gamme jouée
+        const played = await page.evaluate(() => { let n = 0; const orig = app.pianoInstrument.play; app.pianoInstrument.play = function () { n++; return orig.apply(this, arguments); }; document.querySelector('#scales-container .th-chip:nth-child(5)').click(); app.pianoInstrument.play = orig; return { n, id: app.selectedChordId }; });
+        assert.ok(played.n >= 3, `notes jouées : ${played.n}`);
+        assert.equal(played.id, 'maj7');
+        // Chevron « >> » : l'arpège de l'accord (G7 : 4 notes, étalées dans le temps), sans jouer l'accord plaqué ni changer la sélection
+        const arp = await page.evaluate(() => {
+            const calls = []; const orig = app.pianoInstrument.play;
+            app.pianoInstrument.play = function (note, when) { calls.push(when); return orig.apply(this, arguments); };
+            document.querySelector('#scales-container .th-chip:nth-child(5) .th-arp').click();
+            app.pianoInstrument.play = orig;
+            return { calls, id: app.selectedChordId, chips: document.querySelectorAll('#scales-container > div:nth-child(2) .th-arp').length };
+        });
+        assert.equal(arp.calls.length, 4);
+        assert.ok(arp.calls[3] > arp.calls[0], 'les notes de l\'arpège ne partent pas ensemble');
+        assert.equal(arp.id, 'maj7');
+        assert.equal(arp.chips, 7);
+        // Accord choisi : le chevron l'a choisi dans la carte → son nom et ses notes s'affichent à côté du nom de la gamme ;
+        // le nom joue l'arpège, une note se joue seule, et le sélecteur de gauche ne bouge pas
+        const sel = () => page.evaluate(() => [...document.querySelectorAll('#scales-container > div')].map(c => {
+            const s = c.querySelector('.th-sel');
+            return { title: c.querySelector('h3').textContent, name: s && s.querySelector('.th-sel-name').textContent, notes: s ? [...s.querySelectorAll('.th-sel-notes span')].map(x => x.textContent) : [], on: [...c.querySelectorAll('.th-chip.is-on')].map(x => x.dataset.chord) };
+        }));
+        let cardsSel = await sel();
+        // première carte, 5e case (le chevron cliqué plus haut) : le nom commence par la fondamentale G, quatre notes
+        assert.equal(cardsSel[0].notes.length, 4);
+        assert.match(cardsSel[0].name, /^G/);
+        assert.equal(cardsSel[0].notes[0], 'G');
+        assert.equal(cardsSel[0].on.length, 1, 'la case choisie est allumée dans cette carte');
+        assert.match(cardsSel[0].on[0], /^7:/);
+        assert.equal(cardsSel[1].name, 'CΔ', 'les autres cartes gardent l\'accord du sélecteur');
+        assert.deepEqual(cardsSel[1].notes, ['C', 'E', 'G', 'B']);
+        const play = (selector) => page.evaluate((s) => {
+            const calls = []; const orig = app.pianoInstrument.play;
+            app.pianoInstrument.play = function (note, when) { calls.push(when); return orig.apply(this, arguments); };
+            document.querySelector(s).click();
+            app.pianoInstrument.play = orig;
+            return { n: calls.length, spread: calls.length > 1 && calls[calls.length - 1] > calls[0], id: app.selectedChordId };
+        }, selector);
+        const nameClick = await play('#scales-container > div:nth-child(1) .th-sel-name');
+        assert.equal(nameClick.n, 4); assert.ok(nameClick.spread, 'arpège');
+        const noteClick = await play('#scales-container > div:nth-child(1) .th-sel-notes span:nth-child(3)');
+        assert.equal(noteClick.n, 1, 'une note seule');
+        assert.equal(noteClick.id, 'maj7');
+        // un clic sur une case la choisit dans la carte (accord plaqué) ; un changement du sélecteur de gauche revient au choix par défaut
+        const caseClick = await play('#scales-container > div:nth-child(1) .th-chip:nth-child(2)');
+        assert.ok(caseClick.n >= 3);
+        cardsSel = await sel();
+        assert.equal(cardsSel[0].name, await page.evaluate(() => document.querySelector('#scales-container > div:nth-child(1) .th-chip:nth-child(2) .th-name').textContent));
+        assert.deepEqual(cardsSel[0].on.length, 1);
+        await page.evaluate(() => { app.selectedChordId = 'm7'; app.selectedRootIndex = 0; app.update(); });
+        await page.evaluate(() => { app.selectedChordId = 'maj7'; app.update(); });
+        cardsSel = await sel();
+        assert.equal(cardsSel[0].name, 'CΔ');
+        // Retour à la portée : le réglage disparaît et les portées reviennent
+        await page.click('#vmode-staff');
+        assert.equal(await page.locator('#harmony-degree-mode.hidden').count(), 1);
+        assert.ok(await page.locator('#scales-container svg').count() > 0);
         noErrors();
     });
 

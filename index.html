@@ -76,29 +76,8 @@
                     </div>
                 </div>
 
-                <div class="space-y-2 shrink-0">
-                    <div class="flex justify-between items-center px-1">
-                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">1. Fondamentale</span>
-                        <span id="selected-root-badge" class="text-xs px-2.5 py-1 bg-[#2563eb] text-white rounded-md font-mono font-bold shadow">C</span>
-                    </div>
-                    <div class="grid grid-cols-6 gap-1.5" id="root-buttons-container"></div>
-                </div>
-
-                <div class="space-y-2 shrink-0">
-                    <div class="flex justify-between items-center px-1">
-                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">2. Qualité</span>
-                        <span id="selected-quality-badge" class="text-xs px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded font-mono font-bold">maj7</span>
-                    </div>
-                    
-                    <div class="flex bg-[#1a1a1a] p-1 rounded-lg text-xs font-medium border border-[#333333]">
-                        <button onclick="app.setQualityCategory('maj')" id="cat-btn-maj" class="flex-1 py-1 rounded-md transition bg-[#3a3a3c] text-white shadow-sm">Maj</button>
-                        <button onclick="app.setQualityCategory('min')" id="cat-btn-min" class="flex-1 py-1 rounded-md transition text-slate-400 hover:text-white">Min</button>
-                        <button onclick="app.setQualityCategory('dom')" id="cat-btn-dom" class="flex-1 py-1 rounded-md transition text-slate-400 hover:text-white">Dom</button>
-                        <button onclick="app.setQualityCategory('other')" id="cat-btn-other" class="flex-1 py-1 rounded-md transition text-slate-400 hover:text-white">Autre</button>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-1.5 pt-1" id="quality-buttons-container"></div>
-                </div>
+                <!-- Sélecteur d'accord : le même que l'éditeur de mesure du Jam (ui/chord-picker.js), fixe dans la colonne -->
+                <div id="chord-picker" class="shrink-0" role="group" aria-label="Choix de l'accord"></div>
 
             </aside>
 
@@ -115,9 +94,14 @@
                         </div>
                     </div>
 
-                    <div class="flex items-center gap-3 w-full sm:w-auto">
+                    <div class="flex items-center gap-3 w-full sm:w-auto th-vmodes">
+                        <div id="harmony-degree-mode" class="hidden bg-[#1a1a1a] p-1 rounded-lg text-xs font-medium border border-[#333333]" title="Harmonisation : accords de quatre sons ou triades">
+                            <button onclick="app.setHarmonyTriads(false)" id="hmode-7" class="py-1 px-2.5 rounded-md transition bg-[#3a3a3c] text-white shadow-sm">7es</button>
+                            <button onclick="app.setHarmonyTriads(true)" id="hmode-3" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Triades</button>
+                        </div>
                         <div class="flex bg-[#1a1a1a] p-1 rounded-lg text-xs font-medium border border-[#333333]">
                             <button onclick="app.setVisMode('staff')" id="vmode-staff" class="py-1 px-2.5 rounded-md transition bg-[#3a3a3c] text-white shadow-sm">Portée</button>
+                            <button onclick="app.setVisMode('harmony')" id="vmode-harmony" title="Les accords de chaque degré de la gamme" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Harmonisation</button>
                             <button onclick="app.setVisMode('intervals')" id="vmode-intervals" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Intervalles</button>
                             <button onclick="app.setVisMode('notes')" id="vmode-notes" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Notes</button>
                             <button onclick="app.setVisMode('letters')" id="vmode-letters" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Lettres</button>
@@ -513,6 +497,7 @@
     <script src="app/ui/grid-view.js"></script>
     <script src="app/ui/scale-cards.js"></script>
     <script src="app/ui/measure-editor.js"></script>
+    <script src="app/ui/chord-picker.js"></script>
     <script src="app/ui/staff-model.js"></script>
     <script src="app/ui/staff-editor.js"></script>
     <script src="app/ui/text-frame.js"></script>
@@ -520,6 +505,7 @@
     <script src="app/ui/annot-bar.js"></script>
     <script src="app/ui/chord-display.js"></script>
     <script src="app/ui/pastilles.js"></script>
+    <script src="app/ui/scale-harmony.js"></script>
     <script src="app/ui/training-view.js"></script>
     <script src="app/styles/style-meta.js"></script>
     <script src="app/styles/toolkit.js"></script>
@@ -7560,8 +7546,10 @@
             constructor() {
                 this.selectedRootIndex = 0;
                 this.trainSpell = DEFAULT_SPELL; // orthographe des touches noires en mode Entraînement (indépendante de la grille Jam)
-                this.currentCategory = 'maj';
-                this.selectedChordId = 'maj7';
+                this.selectedChordId = 'maj7'; // accord du catalogue ou accord composé (« x:… »), toujours défini
+                this.chordPickerMode = this.loadChordPickerMode(); // sélecteur d'accord : 'build' (Construire) ou 'cat' (Catalogue)
+                this.harmonySel = {}; // onglet Harmonisation : accord choisi dans chaque carte de gamme { scaleKey: { rootIndex, chordId } }
+                this.harmonyTriads = this.loadHarmonyTriads(); // onglet Harmonisation : triades (true) ou accords de quatre sons (false)
                 this.visMode = 'staff';
                 this.instrumentKey = 'Bb';
                 this.currentView = 'jam';
@@ -8032,104 +8020,183 @@
             }
 
             initUI() {
-                const rootContainer = document.getElementById('root-buttons-container');
-                rootContainer.innerHTML = '';
-
-                rootKeyboardModel({
-                    selectedRootIndex: this.selectedRootIndex, rootLabels, blackPcs: BLACK_PCS,
-                    sharpNames: ROOT_NAMES_SHARP, flatNames: ROOT_NAMES_FLAT, count: ROOT_NAMES_DEFAULT.length
-                }).forEach(key => {
-                    const { index } = key;
-                    if (key.kind === 'white') {
-                        const btn = document.createElement('button');
-                        btn.className = key.className;
-                        btn.textContent = key.label;
-                        btn.onclick = () => {
-                            this.selectedRootIndex = index;
-                            this.initUI();
-                            this.update();
-                        };
-                        rootContainer.appendChild(btn);
-                        return;
-                    }
-                    const wrap = document.createElement('div');
-                    wrap.className = 'flex gap-0.5';
-                    key.halves.forEach(({ acc, name, className }) => {
-                        const btn = document.createElement('button');
-                        btn.className = className;
-                        btn.textContent = name;
-                        btn.title = name;
-                        btn.onclick = () => {
-                            this.selectedRootIndex = index;
-                            this.trainSpell = spellWith(this.trainSpell, key.blackIndex, acc);
-                            setRootSpelling(this.trainSpell);
-                            this.initUI();
-                            this.update();
-                        };
-                        wrap.appendChild(btn);
-                    });
-                    rootContainer.appendChild(wrap);
-                });
-
-                this.renderQualities();
+                this.renderChordPicker();
             }
 
-            setQualityCategory(cat) {
-                this.currentCategory = cat;
-                this.selectedChordId = null;
-                ['maj', 'min', 'dom', 'other'].forEach(c => {
-                    const btn = document.getElementById(`cat-btn-${c}`);
-                    btn.className = segmentButtonClass(c === cat);
+            // ===== Sélecteur d'accord (le même que l'éditeur de mesure du Jam : ui/chord-picker.js) =====
+
+            loadChordPickerMode() {
+                let v = null;
+                try { v = localStorage.getItem('trainChordMode'); } catch (e) {}
+                return v === 'cat' ? 'cat' : 'build';
+            }
+
+            renderChordPicker() {
+                const el = document.getElementById('chord-picker');
+                if (!el) return;
+                if (!this._chordPickerBound) {
+                    this._chordPickerBound = true;
+                    el.addEventListener('click', (ev) => {
+                        const t = ev.target.closest('[data-act]');
+                        if (!t || t.tagName === 'SELECT') return;
+                        this.onChordPickerAction(t.dataset.act, t.dataset.v);
+                    });
+                    el.addEventListener('change', (ev) => {
+                        const t = ev.target;
+                        if (t.dataset && t.dataset.act === 'chordsel' && t.value) this.onChordPickerAction('chord', t.value);
+                    });
+                }
+                // La colonne défile d'elle-même : on garde sa position quand le sélecteur change de hauteur
+                const column = el.closest('aside');
+                const scrollTop = column ? column.scrollTop : 0;
+                el.innerHTML = chordPickerHtml({
+                    rootIndex: this.selectedRootIndex, chordId: this.selectedChordId, mode: this.chordPickerMode, rootLabels,
+                    jazz: (id) => jazzChordNotation(id), findChordObj: (id) => lookupChord(id) || chordTypes.maj[0]
                 });
-                this.renderQualities();
-                this.update();
+                if (column) column.scrollTop = scrollTop;
+            }
+
+            onChordPickerAction(act, v) {
+                const before = `${this.selectedRootIndex}|${this.selectedChordId}|${this.trainSpell}`;
+                switch (act) {
+                    case 'mode':
+                        this.chordPickerMode = v === 'cat' ? 'cat' : 'build';
+                        try { localStorage.setItem('trainChordMode', this.chordPickerMode); } catch (e) {}
+                        this.renderChordPicker();
+                        return;
+                    case 'root': {
+                        const root = chordPickerParseRoot(v);
+                        if (!root) return;
+                        const bi = BLACK_PCS.indexOf(root.pc);
+                        if (root.acc && bi >= 0) {   // touche noire : le nom choisi (♯ ou ♭) s'applique à tout l'Entraînement
+                            this.trainSpell = spellWith(this.trainSpell, bi, root.acc);
+                            setRootSpelling(this.trainSpell);
+                        }
+                        this.selectedRootIndex = root.pc;
+                        break;
+                    }
+                    case 'chord':
+                        if (!lookupChord(v)) return;
+                        this.selectedChordId = v;
+                        break;
+                    case 'third': case 'fifth': case 'sev': case 'ext': {
+                        const id = chordPickerBuild(this.selectedChordId, act, v);
+                        if (!id || !lookupChord(id)) return;
+                        this.selectedChordId = id;
+                        break;
+                    }
+                    default: return;
+                }
+                this.renderChordPicker();
+                // Rien n'a changé (clic sur la touche ou l'accord déjà choisi) : les cartes de gammes restent telles quelles
+                if (before !== `${this.selectedRootIndex}|${this.selectedChordId}|${this.trainSpell}`) this.update();
             }
 
             setVisMode(mode) {
                 this.visMode = mode;
-                ['staff', 'intervals', 'notes', 'letters'].forEach(m => {
+                ['staff', 'harmony', 'intervals', 'notes', 'letters'].forEach(m => {
                     const btn = document.getElementById(`vmode-${m}`);
                     btn.className = visModeButtonClass(m === mode);
                 });
+                this.syncHarmonyDegreeMode();
                 this.update();
             }
 
-            renderQualities() {
-                const container = document.getElementById('quality-buttons-container');
-                container.innerHTML = '';
-                const qualities = chordTypes[this.currentCategory] || [];
+            // ===== Onglet Harmonisation : les accords de chaque degré de chaque gamme =====
 
-                qualities.forEach(q => {
-                    const btn = document.createElement('button');
-                    btn.className = qualityButtonClass(q.id === this.selectedChordId);
-                    btn.innerHTML = qualityButtonHtml(q);
-                    btn.onclick = () => {
-                        this.selectedChordId = q.id;
-                        this.renderQualities();
-                        this.update();
-                    };
-                    container.appendChild(btn);
+            loadHarmonyTriads() {
+                let v = null;
+                try { v = localStorage.getItem('trainHarmonyTriads'); } catch (e) {}
+                return v === '1';
+            }
+
+            // Le choix « 7es / Triades » n'apparaît que dans l'onglet Harmonisation
+            syncHarmonyDegreeMode() {
+                const box = document.getElementById('harmony-degree-mode');
+                if (box) { box.classList.toggle('hidden', this.visMode !== 'harmony'); box.classList.toggle('flex', this.visMode === 'harmony'); }
+                [['hmode-7', !this.harmonyTriads], ['hmode-3', this.harmonyTriads]].forEach(([id, on]) => {
+                    const btn = document.getElementById(id);
+                    if (btn) btn.className = visModeButtonClass(on);
                 });
             }
 
-            getCurrentChordObj() {
-                if (this.selectedChordId) {
-                    for (const cat in chordTypes) {
-                        const found = chordTypes[cat].find(q => q.id === this.selectedChordId);
-                        if (found) return found;
-                    }
+            setHarmonyTriads(on) {
+                this.harmonyTriads = !!on;
+                try { localStorage.setItem('trainHarmonyTriads', this.harmonyTriads ? '1' : '0'); } catch (e) {}
+                this.syncHarmonyDegreeMode();
+                this.update();
+            }
+
+            // Prépare la lecture d'un accord de l'onglet Harmonisation : piano prêt, horloge audio réveillée, sons précédents coupés.
+            // Avec la boucle d'accord en cours, on n'interrompt rien : l'accord se superpose. Renvoie l'accord, ou null (piano en
+            // chargement ou accord inconnu).
+            _harmonyAudioReady() {
+                if (!this.pianoInstrument) {
+                    this.loadPiano();
+                    return false;
                 }
-                return chordTypes[this.currentCategory]?.[0] || chordTypes.maj[0];
+                if (this.audioCtx && this.audioCtx.state === 'suspended') this.audioCtx.resume();
+                if (!this.isLoopRunning()) this.stopAllSounds();
+                return true;
+            }
+
+            _harmonyPlaybackChord(chordId) {
+                const chordObj = lookupChord(chordId);
+                return chordObj && this._harmonyAudioReady() ? chordObj : null;
+            }
+
+            _playHarmonyNotes(notes) {
+                notes.forEach(n => {
+                    try {
+                        n.opts.destination = this.reverbInput || this.audioCtx.destination;
+                        const node = this.pianoInstrument.play(n.noteStr, n.when, n.opts);
+                        this.activeAudioNodes.push(node);
+                    } catch (e) {}
+                });
+            }
+
+            // Clic sur une case (ou sur son « >> » si arpeggio) d'une gamme harmonisée : l'accord est joué et devient l'accord choisi de
+            // cette carte ; son nom et ses notes s'affichent alors en haut de la carte. Le sélecteur de gauche n'est pas modifié.
+            chooseHarmonyChord(scaleKey, rootIndex, chordId, arpeggio = false) {
+                this.harmonySel[scaleKey] = { rootIndex, chordId };
+                if (arpeggio) this.playHarmonyArpeggio(rootIndex, chordId);
+                else this.playHarmonyChord(rootIndex, chordId);
+                this.update();
+            }
+
+            // Clic sur une note de l'accord choisi (en haut de la carte) : cette note seule, avec le son de l'accord.
+            playHarmonyNote(rootIndex, interval) {
+                if (!this._harmonyAudioReady()) return;
+                const now = this.audioCtx ? this.audioCtx.currentTime : 0;
+                this._playHarmonyNotes(practiceChordNotes(this.instrumentKey, rootIndex, [interval], now, this.getChordNoteGain()));
+            }
+
+            // Clic sur un accord d'une gamme harmonisée : il est joué plaqué (même jeu que le bouton « accord plaqué »).
+            playHarmonyChord(rootIndex, chordId) {
+                const chordObj = this._harmonyPlaybackChord(chordId);
+                if (!chordObj) return;
+                const now = this.audioCtx ? this.audioCtx.currentTime : 0;
+                this._playHarmonyNotes(practiceChordNotes(this.instrumentKey, rootIndex, stackIntervalsUp(chordObj.notes), now, this.getChordNoteGain()));
+            }
+
+            // Clic sur le chevron « >> » d'un accord : ses notes en arpège montant, à la vitesse de l'arpège de l'Entraînement.
+            playHarmonyArpeggio(rootIndex, chordId) {
+                const chordObj = this._harmonyPlaybackChord(chordId);
+                if (!chordObj) return;
+                const now = this.audioCtx ? this.audioCtx.currentTime : 0;
+                this._playHarmonyNotes(arpeggioCycle(this.instrumentKey, rootIndex, stackIntervalsUp(chordObj.notes), now, false, this.getChordNoteGain(), 0.3).notes);
+            }
+
+            getCurrentChordObj() {
+                return lookupChord(this.selectedChordId) || chordTypes.maj[0];
             }
 
             update() {
                 if (this.currentView !== 'training') return;
 
                 const chordObj = this.getCurrentChordObj();
-                const header = chordHeaderModel({ rootIndex: this.selectedRootIndex, chordObj, hasChord: !!this.selectedChordId, rootLabels });
+                const header = chordHeaderModel({ rootIndex: this.selectedRootIndex, chordObj, hasChord: true, rootLabels });
 
-                document.getElementById('selected-root-badge').textContent = header.rootName;
-                document.getElementById('selected-quality-badge').textContent = header.qualityBadge;
                 document.getElementById('display-chord-name').textContent = header.chordName;
 
                 const chordNotesContainer = document.getElementById('display-chord-notes');
@@ -8152,6 +8219,9 @@
                 const container = document.getElementById('scales-container');
                 container.innerHTML = '';
 
+                // l'accord choisi dans chaque carte (onglet Harmonisation) ne vaut que pour l'accord du sélecteur de gauche
+                const harmonySig = `${this.selectedRootIndex}|${this.selectedChordId}`;
+                if (this._harmonySelSig !== harmonySig) { this._harmonySelSig = harmonySig; this.harmonySel = {}; }
                 const scalesList = chordObj.scales;
                 document.getElementById('scales-count-badge').textContent = `${scalesList.length} gammes`;
 
@@ -8159,7 +8229,11 @@
                     scalesDb, rootName, chordObj, scaleDirections: this.scaleDirections,
                     showAvoidNotes: this.showAvoidNotes, showCharacteristic: this.showCharacteristic,
                     showTargetNotes: this.showTargetNotes, visMode: this.visMode,
-                    angloToFrench: (a) => this.angloToFrench(a)
+                    angloToFrench: (a) => this.angloToFrench(a),
+                    // onglet Harmonisation
+                    rootIndex: this.selectedRootIndex, harmonyTriads: this.harmonyTriads,
+                    findChordObj: (id) => lookupChord(id) || chordTypes.maj[0], jazz: (id) => jazzChordNotation(id),
+                    selected: { rootIndex: this.selectedRootIndex, chordId: this.selectedChordId }, harmonySel: this.harmonySel
                 };
                 const pendingStaves = [];
 
@@ -8646,6 +8720,8 @@
             };
             // Fichiers nouveaux de la version : s'ils sont absents (mal placés ou pas envoyés), ils ne définissent pas leur fonction.
             var needed = {
+                'app/ui/scale-harmony.js': typeof scaleHarmonyHtml === 'function' && typeof scaleHarmony === 'function',
+                'app/ui/chord-picker.js': typeof chordPickerHtml === 'function' && typeof chordPickerBuild === 'function' && typeof chordPickerParseRoot === 'function',
                 'app/ui/staff-notes.js': typeof splitStaffClips === 'function' && typeof parseBlockAt === 'function' && typeof staffMakeTuplet === 'function' && typeof staffSetPickup === 'function' && typeof setStaffSwing === 'function' && typeof staffInsertEvents === 'function' && typeof staffToggleTies === 'function' && typeof shiftEvents === 'function',
                 'app/grid/grid-format.js': typeof NOTE_FONTS !== 'undefined' && !!NOTE_FONTS.menlo && typeof sanitizeNoteHtml === 'function' && sanitizeNoteHtml('<div class="annot-frame" data-frame="200" data-at="5,5" data-border="0">x</div>', 300).indexOf('data-border') >= 0,
                 'app/ui/staff-editor.js': typeof nseToolState === 'function' && typeof nseBlocksToClipText === 'function' && typeof NoteStaffView === 'function' && typeof NoteStaffView.prototype.setBorder === 'function' && typeof NoteStaffView.prototype._setTuplet === 'function' && typeof nseSwingOptions === 'function' && typeof NoteStaffView.prototype._toggleTie === 'function' && typeof NoteStaffView.prototype._startMarquee === 'function',
