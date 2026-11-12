@@ -334,6 +334,22 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         noErrors();
     });
 
+    test('Entraînement : Intervalles en degrés par défaut, bouton Degrés / Tensions', async () => {
+        await page.click('#vmode-intervals');
+        const labels = () => page.evaluate(() => [...document.querySelectorAll('span[onclick^="app.playSingleNote"]')].slice(0, 8).map(s => s.textContent));
+        assert.equal(await page.isVisible('#interval-style-mode'), true);
+        const deg = await labels();
+        assert.equal(deg[0], '1');
+        assert.equal(deg[7], '1', "l'octave s'écrit 1 en degrés");
+        await page.click('#istyle-tensions');
+        const ten = await labels();
+        assert.equal(ten[7], '8', "l'octave s'écrit 8 en tensions");
+        await page.click('#istyle-degrees');
+        await page.click('#vmode-notes');
+        assert.equal(await page.isVisible('#interval-style-mode'), false);
+        noErrors();
+    });
+
     test('Entraînement : accord, arpège et gamme se jouent', async () => {
         await page.click('#vmode-notes');
         await page.evaluate(() => { app.playChord(); });

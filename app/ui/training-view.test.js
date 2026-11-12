@@ -93,6 +93,15 @@ describe('cartes de gammes', () => {
         m = V.trainingScaleCard(ctxOf({ ...base, visMode: 'intervals' }), { id: 'ionian', role: 'x' }, 0);
         assert.ok(!m.html.includes('th-sel'));
     });
+    test('onglet Intervalles : degrés par défaut (octave 1), tensions sur demande (octave 8)', () => {
+        const item = { id: 'ionian', role: 'x' };
+        const spans = (html) => [...html.matchAll(/<span onclick="app\.playSingleNote[^>]*>([^<]*)<\/span>/g)].map(x => x[1]);
+        const deg = spans(V.trainingScaleCard(ctxOf({ visMode: 'intervals' }), item, 0).html);
+        assert.equal(deg[0], '1');
+        assert.equal(deg[deg.length - 1], '1');
+        const ten = spans(V.trainingScaleCard(ctxOf({ visMode: 'intervals', intervalStyle: 'tensions' }), item, 0).html);
+        assert.equal(ten[ten.length - 1], '8');
+    });
     test('direction descendante transmise à la portée', () => {
         const item = maj7.scales[0];
         const card = V.trainingScaleCard(ctxOf({ visMode: 'staff', scaleDirections: { [`${item.id}-0`]: true } }), item, 0);

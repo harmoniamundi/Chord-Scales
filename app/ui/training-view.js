@@ -93,7 +93,7 @@ function trainingScaleCard(ctx, item, index) {
         visualizationHtml = buildPastillesHtml({
             visMode: ctx.visMode, scaleDef, rootName, chordObj, avoidNotes, characteristicInterval,
             showTargetNotes: ctx.showTargetNotes, large: false,
-            angloToFrench: ctx.angloToFrench,
+            angloToFrench: ctx.angloToFrench, intervalStyle: ctx.intervalStyle || 'degrees',
             noteOnclick: (interval) => `app.playSingleNote(${interval}); event.stopPropagation();`,
             wrapperClass: 'cursor-pointer transition hover:border-blue-500',
             wrapperAttrs: `data-scale-key="${scaleKey}"

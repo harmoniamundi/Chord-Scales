@@ -2,7 +2,7 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const T = require('../theory.js');
-const { buildPastillesHtml } = require('./pastilles.js');
+const { buildPastillesHtml, scaleDegreeLabel } = require('./pastilles.js');
 
 const chordObj = T.chordTypes.min.find(c => c.id === 'm7');
 const scaleDef = T.scalesDb.dorian;
@@ -32,6 +32,26 @@ describe('pastilles : contenu', () => {
         assert.equal(l.length, 8);
         assert.equal(l[0], T.getIntervalLabel(0, chordObj.notes));
         assert.equal(l[7], T.getIntervalLabel(12, chordObj.notes));
+    });
+    test('mode intervalles en degrés : 1 2 3 4 5 6 7 avec altérations, octave = 1', () => {
+        const l = labels(buildPastillesHtml({ ...base, visMode: 'intervals', intervalStyle: 'degrees' }));
+        assert.equal(l.length, 8);
+        assert.equal(l[0], '1');
+        assert.equal(l[7], '1', "l'octave s'écrit 1 et non 8");
+        assert.ok(!l.includes('8'));
+    });
+    test('par défaut (Jam) : tensions inchangées, octave = 8', () => {
+        const l = labels(buildPastillesHtml({ ...base, visMode: 'intervals' }));
+        assert.equal(l[7], '8');
+    });
+    test('scaleDegreeLabel : degrés d\'après les lettres, altérations b / # / bb', () => {
+        const lab = (root, iv) => T.getStrictSpelledNotes(root, iv).map((n, i) => scaleDegreeLabel(root, n, iv[i]));
+        assert.deepEqual(lab('C', [0, 2, 4, 5, 7, 9, 11]), ['1', '2', '3', '4', '5', '6', '7']);
+        assert.deepEqual(lab('C', [0, 2, 3, 5, 7, 8, 10]), ['1', '2', 'b3', '4', '5', 'b6', 'b7']);
+        assert.deepEqual(lab('G', [0, 2, 4, 6, 7, 9, 11]), ['1', '2', '3', '#4', '5', '6', '7']);
+        assert.deepEqual(lab('F#', [0, 1, 4, 5, 7, 8, 10]), ['1', 'b2', '3', '4', '5', 'b6', 'b7']);
+        assert.deepEqual(lab('C', [0, 2, 4, 7, 9]), ['1', '2', '3', '5', '6']);
+        assert.equal(scaleDegreeLabel('C', 'C', 12), '1');
     });
     test('chaque pastille appelle noteOnclick avec son intervalle (octave = 12)', () => {
         assert.deepEqual(clicks(buildPastillesHtml(base)), ['play(0)', 'play(2)', 'play(3)', 'play(5)', 'play(7)', 'play(9)', 'play(10)', 'play(12)']);

@@ -100,6 +100,10 @@
                         <div id="map-funnel-box" class="hidden bg-[#1a1a1a] p-1 rounded-lg text-xs font-medium border border-[#333333]">
                             <button onclick="app.toggleMapFunnel()" id="map-funnel-btn" aria-label="Mode entonnoir" title="Mode entonnoir : sélectionner d'autres accords pour ne garder que les gammes qui les contiennent tous" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4h18l-7 8.5V19l-4 2v-8.5L3 4z"/></svg></button>
                         </div>
+                        <div id="interval-style-mode" class="hidden bg-[#1a1a1a] p-1 rounded-lg text-xs font-medium border border-[#333333]" title="Intervalles : degrés de la gamme (1 2 3 4 5 6 7) ou tensions vues depuis l'accord (9 11 13)">
+                            <button onclick="app.setIntervalStyle('degrees')" id="istyle-degrees" class="py-1 px-2.5 rounded-md transition bg-[#3a3a3c] text-white shadow-sm">Degrés</button>
+                            <button onclick="app.setIntervalStyle('tensions')" id="istyle-tensions" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Tensions</button>
+                        </div>
                         <div id="harmony-degree-mode" class="hidden bg-[#1a1a1a] p-1 rounded-lg text-xs font-medium border border-[#333333]" title="Harmonisation : accords de quatre sons ou triades">
                             <button onclick="app.setHarmonyTriads(false)" id="hmode-7" class="py-1 px-2.5 rounded-md transition bg-[#3a3a3c] text-white shadow-sm">7es</button>
                             <button onclick="app.setHarmonyTriads(true)" id="hmode-3" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Triades</button>
@@ -7557,6 +7561,7 @@
                 this.harmonySel = {}; // onglet Harmonisation : accord choisi dans chaque carte de gamme { scaleKey: { rootIndex, chordId } }
                 this.mapFunnel = false; // onglet Carte, mode entonnoir : un clic sur un accord le sélectionne / le désélectionne
                 this.mapExtra = []; // onglet Carte : accords supplémentaires sélectionnés [{ rootIndex, chordId }] ; seules les gammes qui les contiennent tous restent
+                this.intervalStyle = this.loadIntervalStyle(); // onglet Intervalles : 'degrees' (défaut) ou 'tensions'
                 this.harmonyTriads = this.loadHarmonyTriads(); // onglet Harmonisation : triades (true) ou accords de quatre sons (false)
                 this.visMode = 'staff';
                 this.instrumentKey = 'Bb';
@@ -8118,11 +8123,31 @@
                 return v === '1';
             }
 
+            loadIntervalStyle() {
+                let v = null;
+                try { v = localStorage.getItem('trainIntervalStyle'); } catch (e) {}
+                return v === 'tensions' ? 'tensions' : 'degrees';
+            }
+
+            setIntervalStyle(style) {
+                this.intervalStyle = style === 'tensions' ? 'tensions' : 'degrees';
+                try { localStorage.setItem('trainIntervalStyle', this.intervalStyle); } catch (e) {}
+                this.syncHarmonyDegreeMode();
+                this.update();
+            }
+
             // Le choix « 7es / Triades » n'apparaît que dans les onglets Harmonisation et Carte ; l'indication de la Carte, que dans la Carte
             syncHarmonyDegreeMode() {
                 const box = document.getElementById('harmony-degree-mode');
                 const harmonized = this.visMode === 'harmony' || this.visMode === 'map';
                 if (box) { box.classList.toggle('hidden', !harmonized); box.classList.toggle('flex', harmonized); }
+                const ibox = document.getElementById('interval-style-mode');
+                const onIntervals = this.visMode === 'intervals';
+                if (ibox) { ibox.classList.toggle('hidden', !onIntervals); ibox.classList.toggle('flex', onIntervals); }
+                [['istyle-degrees', this.intervalStyle === 'degrees'], ['istyle-tensions', this.intervalStyle === 'tensions']].forEach(([id, on]) => {
+                    const btn = document.getElementById(id);
+                    if (btn) btn.className = visModeButtonClass(on);
+                });
                 const hint = document.getElementById('scales-map-hint');
                 if (hint) hint.classList.toggle('hidden', this.visMode !== 'map');
                 const sel = document.getElementById('scales-map-sel');
@@ -8249,7 +8274,7 @@
                     showTargetNotes: this.showTargetNotes, visMode: this.visMode,
                     angloToFrench: (a) => this.angloToFrench(a),
                     // onglet Harmonisation
-                    rootIndex: this.selectedRootIndex, harmonyTriads: this.harmonyTriads,
+                    rootIndex: this.selectedRootIndex, harmonyTriads: this.harmonyTriads, intervalStyle: this.intervalStyle,
                     findChordObj: (id) => lookupChord(id) || chordTypes.maj[0], jazz: (id) => jazzChordNotation(id),
                     selected: { rootIndex: this.selectedRootIndex, chordId: this.selectedChordId }, harmonySel: this.harmonySel
                 };

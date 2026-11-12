@@ -6,12 +6,30 @@
 // Fonctions de théorie : globales en navigateur (theory.js), à charger sous Node.
 const PAST_T = (typeof getStrictSpelledNotes !== 'undefined') ? { getStrictSpelledNotes, getTargetIntervals, getIntervalLabel } : require('../theory.js');
 
-function buildPastillesHtml({ visMode, scaleDef, rootName, chordObj, avoidNotes, characteristicInterval, showTargetNotes, large, angloToFrench, noteOnclick, wrapperClass = '', wrapperAttrs = '' }) {
+// Numéro de degré d'une note de gamme (1 à 7) d'après sa lettre, avec ses altérations : b2, b3, #4, b6, bb7…
+// L'octave de la tonique s'écrit « 1 » (et non « 8 »). Fonction pure, sans DOM.
+const PAST_LETTERS = 'CDEFGAB';
+const PAST_MAJOR = [0, 2, 4, 5, 7, 9, 11];
+function scaleDegreeLabel(rootName, noteName, interval) {
+    if (interval % 12 === 0) return '1';
+    const r = PAST_LETTERS.indexOf(String(rootName)[0]);
+    const n = PAST_LETTERS.indexOf(String(noteName)[0]);
+    if (r < 0 || n < 0) return String(interval);
+    const degree = (n - r + 7) % 7;
+    let diff = interval - PAST_MAJOR[degree];
+    if (diff > 6) diff -= 12;
+    if (diff < -6) diff += 12;
+    return (diff < 0 ? 'b'.repeat(-diff) : '#'.repeat(diff)) + (degree + 1);
+}
+
+// intervalStyle : 'tensions' (défaut, utilisé par le Jam) = intervalles vus depuis l'accord (b9, 9, 11, 13…) ;
+// 'degrees' = degrés de la gamme (1 b2 b3 4 b5 5 b6 b7), octave « 1 ».
+function buildPastillesHtml({ visMode, scaleDef, rootName, chordObj, avoidNotes, characteristicInterval, showTargetNotes, large, angloToFrench, noteOnclick, wrapperClass = '', wrapperAttrs = '', intervalStyle = 'tensions' }) {
     const spelled = PAST_T.getStrictSpelledNotes(rootName, scaleDef.intervals);
     const full = [...spelled, PAST_T.getStrictSpelledNotes(rootName, [12])[0]];
     const targets = PAST_T.getTargetIntervals(chordObj);
     const labelOf = (anglo, interval) => {
-        if (visMode === 'intervals') return PAST_T.getIntervalLabel(interval, chordObj.notes);
+        if (visMode === 'intervals') return intervalStyle === 'degrees' ? scaleDegreeLabel(rootName, anglo, interval) : PAST_T.getIntervalLabel(interval, chordObj.notes);
         if (visMode === 'notes') return angloToFrench(anglo);
         return anglo;
     };
@@ -53,5 +71,5 @@ function buildPastillesHtml({ visMode, scaleDef, rootName, chordObj, avoidNotes,
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { buildPastillesHtml };
+    module.exports = { buildPastillesHtml, scaleDegreeLabel };
 }
