@@ -82,6 +82,7 @@ const SHELL_FILES = [
     'app/ui/chord-display.js',
     'app/ui/pastilles.js',
     'app/ui/scale-harmony.js',
+    'app/ui/scale-map.js',
     'app/ui/training-view.js',
     'app/styles/style-meta.js',
     'app/styles/toolkit.js',

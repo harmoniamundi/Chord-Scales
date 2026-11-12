@@ -477,6 +477,33 @@
         .th-sel-name:hover { color: #60a5fa; }
         .th-sel-notes { display: inline-flex; flex-wrap: wrap; gap: 4px; font-size: 12px; }
         .th-note { margin-top: 8px; font-size: 10px; color: #64748b; }
+        /* Entraînement, onglet Carte : l'accord cherché est écrit comme une case de la grille Jam — noir sur fond blanc, chiffrage en rouge */
+        .th-chip.th-hit { background: #fff; border-color: #cbd5e1; color: #000; }
+        .th-chip.th-hit:hover { border-color: #2563eb; }
+        .th-chip.th-hit .th-name { max-width: 100%; font-family: "Kalam", cursive; font-size: 1.1rem; font-weight: 700; line-height: 1.15; color: #000; }
+        .th-chip.th-hit small { font-family: "Kalam", cursive; font-size: 1rem; font-weight: 400; line-height: 1; color: #ef4444; }
+        .th-chip.th-hit .th-arp { color: #94a3b8; }
+        .th-chip.th-hit .th-arp:hover { color: #2563eb; background: rgba(37,99,235,.14); }
+        /* en-tête d'une carte de la Carte : chiffrage de l'accord (rouge) et fonction tonale (tonique / sous-dominante / dominante) */
+        .tm-fn { display: inline-flex; align-items: baseline; gap: 6px; padding: 1px 9px 2px; border-radius: 999px; border: 1px solid; font-size: 11px; font-weight: 600; }
+        .tm-fn b { font-family: "Kalam", cursive; font-size: 15px; font-weight: 700; line-height: 1; color: #f87171; }
+        .tm-fn-T { color: #6ee7b7; border-color: rgba(16,185,129,.45); background: rgba(16,185,129,.1); }
+        .tm-fn-SD { color: #fcd34d; border-color: rgba(245,158,11,.45); background: rgba(245,158,11,.1); }
+        .tm-fn-D { color: #fda4af; border-color: rgba(244,63,94,.45); background: rgba(244,63,94,.1); }
+        /* mode entonnoir : accords supplémentaires, même forme que l'accord principal, sur un gris de plus en plus soutenu */
+        .th-chip.th-hit-1 { background: #e1e4e9; }
+        .th-chip.th-hit-2 { background: #c8ccd3; }
+        .th-chip.th-hit-3 { background: #aeb3bc; }
+        .th-chip.th-hit-4 { background: #959aa5; }
+        .th-chip.th-hit-5 { background: #7d838f; }
+        .th-chip.th-hit-4 small, .th-chip.th-hit-5 small { color: #b91c1c; }
+        .tm-sel { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+        .tm-pill { padding: 1px 9px; border-radius: 999px; border: 1px solid #cbd5e1; background: #fff; color: #000; font: 700 14px/1.4 "Kalam", cursive; cursor: default; }
+        button.tm-pill { cursor: pointer; }
+        button.tm-pill:hover { border-color: #2563eb; }
+        .tm-pill-1 { background: #e1e4e9; } .tm-pill-2 { background: #c8ccd3; } .tm-pill-3 { background: #aeb3bc; } .tm-pill-4 { background: #959aa5; } .tm-pill-5 { background: #7d838f; }
+        .tm-hint { margin-top: 4px; font-size: 11px; color: #64748b; }
+        .tm-none { grid-column: 1 / -1; padding: 16px; border: 1px dashed #444; border-radius: 12px; font-size: 12px; color: #94a3b8; }
         /* téléphone : le réglage 7es / Triades passe au-dessus des onglets, et les onglets (5 avec Harmonisation) tiennent dans l'écran */
         @media (max-width: 639px) {
             .th-vmodes { flex-wrap: wrap; min-width: 0; }

@@ -151,7 +151,7 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
     });
 
     test('Entraînement : les quatre modes d\'affichage', async () => {
-        for (const mode of ['staff', 'harmony', 'intervals', 'notes', 'letters']) {
+        for (const mode of ['staff', 'harmony', 'intervals', 'notes', 'map']) {
             await page.click(`#vmode-${mode}`);
             const cards = await page.evaluate(() => document.querySelectorAll('#scales-container > div').length);
             assert.ok(cards > 0, `aucune carte en mode ${mode}`);
@@ -161,7 +161,7 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
 
     test('Entraînement : onglet Harmonisation entre Portée et Intervalles — accords de chaque degré, 7es / Triades, clic = accord joué', async () => {
         const order = await page.evaluate(() => [...document.querySelectorAll('[id^="vmode-"]')].map(b => b.id));
-        assert.deepEqual(order, ['vmode-staff', 'vmode-harmony', 'vmode-intervals', 'vmode-notes', 'vmode-letters']);
+        assert.deepEqual(order, ['vmode-staff', 'vmode-harmony', 'vmode-intervals', 'vmode-notes', 'vmode-map']);
         assert.ok(await page.locator('#harmony-degree-mode.hidden').count() === 1, 'le réglage 7es / Triades est masqué hors de l\'onglet');
         // Do majeur 7 : sa gamme ionienne = Δ −7 −7 Δ 7 −7 ø ; chaque carte a ses accords
         await page.evaluate(() => { app.selectedRootIndex = 0; app.selectedChordId = 'maj7'; app.renderChordPicker(); app.update(); });
@@ -241,6 +241,84 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         noErrors();
     });
 
+    test('Entraînement : onglet Carte à la place de Lettres — gammes harmonisées qui contiennent l\'accord, avec chiffrage et fonction tonale', async () => {
+        assert.equal(await page.locator('#vmode-letters').count(), 0, 'plus d\'onglet Lettres dans l\'Entraînement');
+        await page.evaluate(() => { app.selectedRootIndex = 0; app.selectedChordId = 'maj7'; app.renderChordPicker(); app.update(); });
+        await page.click('#vmode-map');
+        assert.equal(await page.locator('#harmony-degree-mode.hidden').count(), 0, '7es / Triades aussi dans la Carte');
+        assert.equal(await page.locator('#scales-map-hint.hidden').count(), 0);
+        const cards = await page.evaluate(() => [...document.querySelectorAll('#scales-container > div')].map(c => ({
+            title: c.querySelector('h3').textContent, fn: c.querySelector('.tm-fn').textContent, hit: c.querySelectorAll('.th-hit').length,
+            chips: c.querySelectorAll('.th-chip').length, svg: c.querySelectorAll('svg').length })));
+        assert.equal(await page.evaluate(() => document.getElementById('scales-count-badge').textContent), `${cards.length} gammes`);
+        // CΔ : I de Do majeur (tonique), puis IV de Sol majeur (sous-dominante), du plus courant au moins courant
+        assert.match(cards[0].title, /^C Ionien/);
+        assert.equal(cards[0].fn, 'ITonique');
+        assert.match(cards[1].title, /^G Ionien/);
+        assert.equal(cards[1].fn, 'IVSous-dominante');
+        cards.forEach(c => { assert.equal(c.hit, 1, c.title); assert.equal(c.chips, 7, c.title); assert.equal(c.svg, 0); });
+        // l'accord cherché : noir sur fond blanc, chiffrage en rouge, comme sur la grille Jam
+        const style = await page.evaluate(() => {
+            const hit = document.querySelector('#scales-container .th-hit');
+            return { bg: getComputedStyle(hit).backgroundColor, name: getComputedStyle(hit.querySelector('.th-name')).color, label: getComputedStyle(hit.querySelector('small')).color };
+        });
+        assert.deepEqual(style, { bg: 'rgb(255, 255, 255)', name: 'rgb(0, 0, 0)', label: 'rgb(239, 68, 68)' });
+        // un clic sur un accord le joue, sans changer l'accord du sélecteur ni le surlignage
+        const played = await page.evaluate(() => {
+            let n = 0; const orig = app.pianoInstrument.play;
+            app.pianoInstrument.play = function () { n++; return orig.apply(this, arguments); };
+            document.querySelector('#scales-container > div:nth-child(1) .th-chip:nth-child(5)').click();
+            app.pianoInstrument.play = orig;
+            return { n, id: app.selectedChordId, hits: document.querySelectorAll('#scales-container .th-hit').length };
+        });
+        assert.ok(played.n >= 3, `notes jouées : ${played.n}`);
+        assert.equal(played.id, 'maj7');
+        assert.equal(played.hits, cards.length);
+        // accord qui n'est l'harmonisation d'aucune gamme : message, pas de carte
+        await page.evaluate(() => { app.selectedChordId = '7alt'; app.update(); });
+        assert.equal(await page.locator('#scales-container .th-chip').count(), 0);
+        assert.equal(await page.evaluate(() => document.getElementById('scales-count-badge').textContent), '0 gamme');
+        // retour aux autres onglets : l'indication disparaît
+        await page.evaluate(() => { app.selectedChordId = 'maj7'; app.update(); });
+        await page.click('#vmode-staff');
+        assert.equal(await page.locator('#scales-map-hint.hidden').count(), 1);
+        noErrors();
+    });
+
+    test('Entraînement : Carte, mode entonnoir — sélectionner d\'autres accords réduit les gammes à celles qui les contiennent tous', async () => {
+        await page.evaluate(() => { app.selectedRootIndex = 0; app.selectedChordId = 'maj7'; app.mapExtra = []; app.mapFunnel = false; app.renderChordPicker(); app.update(); });
+        await page.click('#vmode-map');
+        assert.ok(await page.locator('#map-funnel-btn').isVisible(), 'le bouton entonnoir est dans la Carte');
+        const count = () => page.evaluate(() => document.querySelectorAll('#scales-container > div').length);
+        const all = await count();
+        // hors mode entonnoir : un clic ne fait que jouer
+        await page.click('#scales-container > div:nth-child(1) .th-chip:nth-child(5)');
+        assert.equal(await count(), all);
+        // mode entonnoir : G7 (V de Do majeur) est sélectionné, les gammes se réduisent
+        await page.click('#map-funnel-btn');
+        await page.click('#scales-container > div:nth-child(1) .th-chip:nth-child(5)');
+        const two = await count();
+        assert.ok(two > 0 && two < all, `${two} gammes sur ${all}`);
+        // un deuxième accord : même forme que l'accord principal, en gris plus soutenu
+        await page.click('#scales-container > div:nth-child(1) .th-chip:nth-child(2)');
+        const three = await count();
+        assert.ok(three > 0 && three <= two);
+        const bgs = await page.evaluate(() => [...document.querySelectorAll('#scales-container > div:nth-child(1) [data-hit]')].map(b => b.dataset.hit + ':' + getComputedStyle(b).backgroundColor));
+        assert.deepEqual(bgs.sort(), ['0:rgb(255, 255, 255)', '1:rgb(225, 228, 233)', '2:rgb(200, 204, 211)']);
+        // un second clic sur un accord sélectionné le désélectionne ; l'accord principal ne se désélectionne pas
+        await page.click('#scales-container > div:nth-child(1) .th-chip:nth-child(5)');
+        assert.equal(await page.evaluate(() => app.mapExtra.length), 1);
+        await page.click('#scales-container > div:nth-child(1) .th-chip:nth-child(1)');
+        assert.equal(await page.evaluate(() => app.mapExtra.length), 1);
+        // changer l'accord du sélecteur remet la sélection à zéro
+        await page.evaluate(() => { app.selectedChordId = '7'; app.update(); });
+        assert.equal(await page.evaluate(() => app.mapExtra.length), 0);
+        await page.evaluate(() => { app.mapFunnel = false; app.selectedChordId = 'maj7'; app.update(); });
+        await page.click('#vmode-staff');
+        assert.equal(await page.locator('#map-funnel-btn').isVisible(), false);
+        noErrors();
+    });
+
     test('Entraînement : la portée dessine une note par degré (plus l\'octave) et le sens se change au clic droit', async () => {
         await page.click('#vmode-staff');
         const res = await page.evaluate(() => {
@@ -257,7 +335,7 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
     });
 
     test('Entraînement : accord, arpège et gamme se jouent', async () => {
-        await page.click('#vmode-letters');
+        await page.click('#vmode-notes');
         await page.evaluate(() => { app.playChord(); });
         await page.evaluate(() => app.stopAllSounds());
         noErrors();

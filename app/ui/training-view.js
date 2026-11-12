@@ -13,6 +13,9 @@ if (typeof buildPastillesHtml === 'undefined' && typeof require === 'function') 
 if (typeof scaleHarmonyHtml === 'undefined' && typeof require === 'function') {
     var { scaleHarmonyHtml, scaleHarmonyChosenHtml } = require('./scale-harmony.js');
 }
+if (typeof scaleMapEntries === 'undefined' && typeof require === 'function') {
+    var { scaleMapEntries, scaleMapKey, scaleMapFunctionHtml, scaleMapHtml } = require('./scale-map.js');
+}
 
 const TV_BADGE_CLASS = 'px-2 py-0.5 bg-[#3b82f6] text-white rounded font-mono font-bold cursor-pointer hover:bg-blue-500 transition shadow-sm';
 const TV_CARD_CLASS = 'bg-[#252525] border border-[#333333] hover:border-[#444444] transition rounded-xl p-4 shadow relative group flex flex-col justify-between overflow-hidden';
@@ -123,6 +126,40 @@ function trainingScaleCard(ctx, item, index) {
     return { scaleKey, className: TV_CARD_CLASS, html, staffTask };
 }
 
+// Cartes de l'onglet Carte : une carte par gamme harmonisée qui contient l'accord choisi (voir ui/scale-map.js), de la plus
+// courante à la moins courante. L'en-tête donne le chiffrage de l'accord dans cette gamme et sa fonction tonale.
+//   ctx = { scalesDb, rootIndex, chordId (accord choisi), findChordObj, jazz, harmonyTriads, rootLabels,
+//           extra (accords supplémentaires du mode entonnoir : [{ rootIndex, chordId }]), funnel (mode entonnoir : un clic sélectionne / désélectionne) }
+// Renvoie [{ scaleKey, className, html }].
+function trainingMapCards(ctx) {
+    const entries = scaleMapEntries({ rootIndex: ctx.rootIndex, chordId: ctx.chordId, findChordObj: ctx.findChordObj,
+        triads: !!ctx.harmonyTriads, rootLabels: ctx.rootLabels, extra: ctx.extra });
+    return entries.map(entry => {
+        const scaleDef = ctx.scalesDb[entry.scaleId];
+        const html = `
+                        <div>
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <h3 class="font-bold text-sm text-white">${entry.tonicName} ${scaleDef.name}</h3>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#1a1a1a] text-slate-300 border border-[#333333]">${scaleDef.category}</span>
+                                    ${scaleMapFunctionHtml(entry)}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pt-2.5 border-t border-[#333333]">
+                            ${scaleMapHtml({
+                                ...entry, jazz: ctx.jazz,
+                                onclick: (rootIndex, chordId, hit) => ctx.funnel
+                                    ? `app.mapToggleChord(${rootIndex}, '${chordId}', ${hit})`
+                                    : `app.playHarmonyChord(${rootIndex}, '${chordId}')`,
+                                onArpeggio: (rootIndex, chordId) => `app.playHarmonyArpeggio(${rootIndex}, '${chordId}')`
+                            })}
+                        </div>
+                    `;
+        return { scaleKey: scaleMapKey(entry), className: TV_CARD_CLASS, html };
+    });
+}
+
 // ---- Barre de navigation, transposition, modes d'affichage, interrupteur « notes cibles » : classes des boutons ----
 const TV_NAV_ON = 'px-3 py-1 rounded-md bg-[#3a3a3c] text-white transition shadow-sm';
 const TV_NAV_OFF = 'px-3 py-1 rounded-md text-slate-400 hover:text-white transition';
@@ -135,7 +172,7 @@ const TV_VMODE_OFF = 'py-1 px-2.5 rounded-md transition text-slate-400 hover:tex
 function navButtonClass(isActive) { return isActive ? TV_NAV_ON : TV_NAV_OFF; }
 // Bouton d'un groupe à choix unique : transposition (Bb, C, Eb).
 function segmentButtonClass(isActive) { return isActive ? TV_CAT_ON : TV_CAT_OFF; }
-// Bouton de mode d'affichage (portée, intervalles, notes, lettres).
+// Bouton de mode d'affichage (portée, harmonisation, intervalles, notes, carte).
 function visModeButtonClass(isActive) { return isActive ? TV_VMODE_ON : TV_VMODE_OFF; }
 // Interrupteur « notes cibles ».
 function targetToggleClass(isOn) {
@@ -149,7 +186,7 @@ function spellWith(spell, blackIndex, acc) {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        chordHeaderModel, trainingScaleKey, trainingScaleCard, TV_BADGE_CLASS,
+        chordHeaderModel, trainingScaleKey, trainingScaleCard, trainingMapCards, TV_BADGE_CLASS,
         navButtonClass, segmentButtonClass, visModeButtonClass, targetToggleClass, spellWith,
     };
 }

@@ -124,6 +124,54 @@ describe('cartes de gammes', () => {
     });
 });
 
+describe('cartes de l\'onglet Carte', () => {
+    const mapCtx = (over = {}) => ({
+        scalesDb: T.scalesDb, rootIndex: 0, chordId: 'maj7', harmonyTriads: false, rootLabels: labels,
+        findChordObj: (id) => T.lookupChord(id) || T.chordTypes.maj[0], jazz: (id) => H.jazzChordNotation(id), ...over,
+    });
+    test('CΔ : une carte par gamme, Do majeur d\'abord puis Sol majeur', () => {
+        const cards = V.trainingMapCards(mapCtx());
+        assert.equal(cards.length, 18);
+        assert.deepEqual(cards.slice(0, 2).map(c => c.scaleKey), ['map-ionian-0', 'map-ionian-7']);
+        assert.match(cards[0].html, /<h3[^>]*>C Ionien \(Gamme majeure\)<\/h3>/);
+        assert.match(cards[0].html, /tm-fn-T/);
+        assert.match(cards[0].html, /Tonique/);
+        assert.match(cards[1].html, /<h3[^>]*>G Ionien \(Gamme majeure\)<\/h3>/);
+        assert.match(cards[1].html, /tm-fn-SD/);
+        assert.match(cards[1].html, /Sous-dominante/);
+        cards.forEach(c => assert.ok(c.className.includes('rounded-xl')));
+    });
+    test('chaque carte harmonise la gamme en entier et marque l\'accord cherché', () => {
+        V.trainingMapCards(mapCtx()).forEach(c => {
+            assert.equal((c.html.match(/class="jm-chip th-chip/g) || []).length, 7, c.scaleKey);
+            assert.equal((c.html.match(/data-hit=/g) || []).length, 1, c.scaleKey);
+        });
+    });
+    test('clic = accord plaqué et « >> » = arpège, par le moteur de l\'Entraînement', () => {
+        const html = V.trainingMapCards(mapCtx())[0].html;
+        assert.ok(html.includes("app.playHarmonyChord(0, 'maj7')"));
+        assert.ok(html.includes("app.playHarmonyArpeggio(7, '7')"));
+    });
+    test('mode entonnoir : un clic sélectionne / désélectionne au lieu de seulement jouer ; les accords supplémentaires filtrent', () => {
+        const funnel = V.trainingMapCards(mapCtx({ funnel: true, extra: [{ rootIndex: 7, chordId: '7' }] }));
+        assert.ok(funnel.length > 0 && funnel.length < 18);
+        const html = funnel[0].html;
+        assert.ok(html.includes("app.mapToggleChord(0, 'maj7', 0)"), 'accord principal : rang 0');
+        assert.ok(html.includes("app.mapToggleChord(7, '7', 1)"), 'accord supplémentaire : rang 1 (pour le retirer)');
+        assert.ok(html.includes("app.mapToggleChord(2, 'm7', -1)"), 'autre accord : -1 (pour l\'ajouter)');
+        assert.ok(!html.includes('app.playHarmonyChord'));
+        assert.equal((html.match(/data-hit=/g) || []).length, 2);
+    });
+    test('en triades, les accords affichés sont des triades', () => {
+        const html = V.trainingMapCards(mapCtx({ harmonyTriads: true }))[0].html;
+        assert.ok(html.includes("app.playHarmonyChord(0, 'majTriad')"));
+        assert.ok(!html.includes('maj7\')'));
+    });
+    test('accord sans gamme harmonisée (7alt) : aucune carte', () => {
+        assert.deepEqual(V.trainingMapCards(mapCtx({ chordId: '7alt' })), []);
+    });
+});
+
 describe('boutons de navigation et de choix', () => {
     test('barre du haut : actif en gris clair, inactif discret', () => {
         assert.equal(V.navButtonClass(true), 'px-3 py-1 rounded-md bg-[#3a3a3c] text-white transition shadow-sm');

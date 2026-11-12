@@ -92,9 +92,14 @@
                             <button onclick="app.toggleShowAvoid()" id="btn-toggle-avoid" class="px-2 py-0.5 rounded text-[11px] font-semibold transition bg-[#1a1a1a] text-slate-500 border border-[#333333]">Notes à éviter</button>
                             <button onclick="app.toggleShowCharacteristic()" id="btn-toggle-characteristic" class="px-2 py-0.5 rounded text-[11px] font-semibold transition bg-[#1a1a1a] text-slate-500 border border-[#333333]">Note caractéristique</button>
                         </div>
+                        <p id="scales-map-hint" class="hidden tm-hint">Gammes harmonisées qui contiennent l'accord, de la plus courante à la moins courante.</p>
+                        <div id="scales-map-sel" class="hidden tm-sel"></div>
                     </div>
 
                     <div class="flex items-center gap-3 w-full sm:w-auto th-vmodes">
+                        <div id="map-funnel-box" class="hidden bg-[#1a1a1a] p-1 rounded-lg text-xs font-medium border border-[#333333]">
+                            <button onclick="app.toggleMapFunnel()" id="map-funnel-btn" aria-label="Mode entonnoir" title="Mode entonnoir : sélectionner d'autres accords pour ne garder que les gammes qui les contiennent tous" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4h18l-7 8.5V19l-4 2v-8.5L3 4z"/></svg></button>
+                        </div>
                         <div id="harmony-degree-mode" class="hidden bg-[#1a1a1a] p-1 rounded-lg text-xs font-medium border border-[#333333]" title="Harmonisation : accords de quatre sons ou triades">
                             <button onclick="app.setHarmonyTriads(false)" id="hmode-7" class="py-1 px-2.5 rounded-md transition bg-[#3a3a3c] text-white shadow-sm">7es</button>
                             <button onclick="app.setHarmonyTriads(true)" id="hmode-3" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Triades</button>
@@ -104,7 +109,7 @@
                             <button onclick="app.setVisMode('harmony')" id="vmode-harmony" title="Les accords de chaque degré de la gamme" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Harmonisation</button>
                             <button onclick="app.setVisMode('intervals')" id="vmode-intervals" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Intervalles</button>
                             <button onclick="app.setVisMode('notes')" id="vmode-notes" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Notes</button>
-                            <button onclick="app.setVisMode('letters')" id="vmode-letters" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Lettres</button>
+                            <button onclick="app.setVisMode('map')" id="vmode-map" title="Toutes les gammes harmonisées qui contiennent l'accord, avec son chiffrage et sa fonction tonale" class="py-1 px-2.5 rounded-md transition text-slate-400 hover:text-white">Carte</button>
                         </div>
                     </div>
                 </div>
@@ -506,6 +511,7 @@
     <script src="app/ui/chord-display.js"></script>
     <script src="app/ui/pastilles.js"></script>
     <script src="app/ui/scale-harmony.js"></script>
+    <script src="app/ui/scale-map.js"></script>
     <script src="app/ui/training-view.js"></script>
     <script src="app/styles/style-meta.js"></script>
     <script src="app/styles/toolkit.js"></script>
@@ -7549,6 +7555,8 @@
                 this.selectedChordId = 'maj7'; // accord du catalogue ou accord composé (« x:… »), toujours défini
                 this.chordPickerMode = this.loadChordPickerMode(); // sélecteur d'accord : 'build' (Construire) ou 'cat' (Catalogue)
                 this.harmonySel = {}; // onglet Harmonisation : accord choisi dans chaque carte de gamme { scaleKey: { rootIndex, chordId } }
+                this.mapFunnel = false; // onglet Carte, mode entonnoir : un clic sur un accord le sélectionne / le désélectionne
+                this.mapExtra = []; // onglet Carte : accords supplémentaires sélectionnés [{ rootIndex, chordId }] ; seules les gammes qui les contiennent tous restent
                 this.harmonyTriads = this.loadHarmonyTriads(); // onglet Harmonisation : triades (true) ou accords de quatre sons (false)
                 this.visMode = 'staff';
                 this.instrumentKey = 'Bb';
@@ -8094,7 +8102,7 @@
 
             setVisMode(mode) {
                 this.visMode = mode;
-                ['staff', 'harmony', 'intervals', 'notes', 'letters'].forEach(m => {
+                ['staff', 'harmony', 'intervals', 'notes', 'map'].forEach(m => {
                     const btn = document.getElementById(`vmode-${m}`);
                     btn.className = visModeButtonClass(m === mode);
                 });
@@ -8110,10 +8118,19 @@
                 return v === '1';
             }
 
-            // Le choix « 7es / Triades » n'apparaît que dans l'onglet Harmonisation
+            // Le choix « 7es / Triades » n'apparaît que dans les onglets Harmonisation et Carte ; l'indication de la Carte, que dans la Carte
             syncHarmonyDegreeMode() {
                 const box = document.getElementById('harmony-degree-mode');
-                if (box) { box.classList.toggle('hidden', this.visMode !== 'harmony'); box.classList.toggle('flex', this.visMode === 'harmony'); }
+                const harmonized = this.visMode === 'harmony' || this.visMode === 'map';
+                if (box) { box.classList.toggle('hidden', !harmonized); box.classList.toggle('flex', harmonized); }
+                const hint = document.getElementById('scales-map-hint');
+                if (hint) hint.classList.toggle('hidden', this.visMode !== 'map');
+                const sel = document.getElementById('scales-map-sel');
+                if (sel && this.visMode !== 'map') sel.classList.add('hidden');
+                const fbox = document.getElementById('map-funnel-box');
+                if (fbox) { fbox.classList.toggle('hidden', this.visMode !== 'map'); fbox.classList.toggle('flex', this.visMode === 'map'); }
+                const fbtn = document.getElementById('map-funnel-btn');
+                if (fbtn) { fbtn.className = visModeButtonClass(this.mapFunnel); fbtn.setAttribute('aria-pressed', this.mapFunnel ? 'true' : 'false'); }
                 [['hmode-7', !this.harmonyTriads], ['hmode-3', this.harmonyTriads]].forEach(([id, on]) => {
                     const btn = document.getElementById(id);
                     if (btn) btn.className = visModeButtonClass(on);
@@ -8218,6 +8235,7 @@
             renderScales(chordObj, rootName) {
                 const container = document.getElementById('scales-container');
                 container.innerHTML = '';
+                if (this.visMode === 'map') { this.renderScaleMap(container); return; }
 
                 // l'accord choisi dans chaque carte (onglet Harmonisation) ne vaut que pour l'accord du sélecteur de gauche
                 const harmonySig = `${this.selectedRootIndex}|${this.selectedChordId}`;
@@ -8250,6 +8268,76 @@
                 pendingStaves.forEach(task => {
                     this.renderVexFlowStaff(task.canvasId, task.intervals, task.rootName, task.isDesc, task.avoidNotes, task.characteristicInterval, task.chordObj, false);
                 });
+            }
+
+            // Onglet Carte : toutes les gammes harmonisées qui contiennent l'accord du sélecteur (ui/scale-map.js), de la plus courante à
+            // la moins courante. Un clic sur un accord le joue ; l'accord cherché reste en noir sur fond blanc dans chaque gamme.
+            renderScaleMap(container) {
+                // les accords supplémentaires ne valent que pour l'accord du sélecteur de gauche
+                const sig = `${this.selectedRootIndex}|${this.selectedChordId}`;
+                if (this._mapSig !== sig) { this._mapSig = sig; this.mapExtra = []; }
+                const cards = trainingMapCards({
+                    scalesDb, rootIndex: this.selectedRootIndex, chordId: this.selectedChordId,
+                    findChordObj: (id) => lookupChord(id) || chordTypes.maj[0], jazz: (id) => jazzChordNotation(id),
+                    harmonyTriads: this.harmonyTriads, rootLabels, extra: this.mapExtra, funnel: this.mapFunnel
+                });
+                document.getElementById('scales-count-badge').textContent = `${cards.length} gamme${cards.length > 1 ? 's' : ''}`;
+                const hint = document.getElementById('scales-map-hint');
+                if (hint) hint.textContent = this.mapFunnel
+                    ? 'Mode entonnoir : cliquez sur un accord pour le sélectionner (un second clic le désélectionne) ; seules les gammes qui contiennent tous les accords sélectionnés restent.'
+                    : 'Gammes harmonisées qui contiennent l\'accord, de la plus courante à la moins courante.';
+                // accords sélectionnés : le principal, puis les supplémentaires (un clic sur « ✕ » en retire un)
+                const sel = document.getElementById('scales-map-sel');
+                if (sel) {
+                    const name = (c) => `${chordRootName(c.rootIndex, c.chordId, rootLabels)}${jazzChordNotation(c.chordId)}`;
+                    sel.innerHTML = this.mapExtra.length
+                        ? [`<span class="tm-pill tm-pill-0">${glyphHtml(name({ rootIndex: this.selectedRootIndex, chordId: this.selectedChordId }))}</span>`]
+                            .concat(this.mapExtra.map((c, i) => `<button type="button" class="tm-pill tm-pill-${Math.min(i + 1, 5)}" title="Retirer cet accord" onclick="app.mapRemoveExtra(${i})">${glyphHtml(name(c))} ✕</button>`)).join('')
+                        : '';
+                    sel.classList.toggle('hidden', !this.mapExtra.length);
+                }
+                if (!cards.length) {
+                    const none = document.createElement('div');
+                    none.className = 'tm-none';
+                    none.textContent = this.mapExtra.length
+                        ? 'Aucune gamme de sept notes ne contient tous ces accords. Retirez un accord sélectionné (✕ ci-dessus).'
+                        : 'Aucune gamme de sept notes ne se construit, par tierces superposées, sur cet accord (c\'est le cas des accords altérés comme 7alt). Choisissez un autre accord dans le sélecteur de gauche.';
+                    container.appendChild(none);
+                    return;
+                }
+                cards.forEach(model => {
+                    const card = document.createElement('div');
+                    card.className = model.className;
+                    card.innerHTML = model.html;
+                    container.appendChild(card);
+                });
+            }
+
+            // Bouton entonnoir de la Carte : active / coupe le mode de sélection d'accords (les accords déjà sélectionnés restent
+            // appliqués jusqu'à ce qu'on les retire ou qu'on change d'accord).
+            toggleMapFunnel() {
+                this.mapFunnel = !this.mapFunnel;
+                this.syncHarmonyDegreeMode();
+                this.update();
+            }
+
+            // Mode entonnoir : clic sur un accord d'une gamme de la Carte. hit = rang de l'accord parmi les accords cherchés (0 = accord
+            // du sélecteur, qui reste toujours sélectionné ; 1… = accords supplémentaires, qu'on désélectionne), -1 = pas sélectionné
+            // (on l'ajoute). L'accord est joué dans tous les cas.
+            mapToggleChord(rootIndex, chordId, hit) {
+                this.playHarmonyChord(rootIndex, chordId);
+                if (hit === 0) return;
+                if (hit > 0) this.mapExtra.splice(hit - 1, 1);
+                else this.mapExtra.push({ rootIndex, chordId });
+                const box = document.getElementById('scales-container');
+                const top = box ? box.scrollTop : 0;
+                this.update();
+                if (box) box.scrollTop = top;
+            }
+
+            mapRemoveExtra(i) {
+                this.mapExtra.splice(i, 1);
+                this.update();
             }
 
             angloToFrench(angloNote) {
@@ -8721,6 +8809,7 @@
             // Fichiers nouveaux de la version : s'ils sont absents (mal placés ou pas envoyés), ils ne définissent pas leur fonction.
             var needed = {
                 'app/ui/scale-harmony.js': typeof scaleHarmonyHtml === 'function' && typeof scaleHarmony === 'function',
+                'app/ui/scale-map.js': typeof scaleMapEntries === 'function' && typeof scaleMapHtml === 'function' && typeof trainingMapCards === 'function',
                 'app/ui/chord-picker.js': typeof chordPickerHtml === 'function' && typeof chordPickerBuild === 'function' && typeof chordPickerParseRoot === 'function',
                 'app/ui/staff-notes.js': typeof splitStaffClips === 'function' && typeof parseBlockAt === 'function' && typeof staffMakeTuplet === 'function' && typeof staffSetPickup === 'function' && typeof setStaffSwing === 'function' && typeof staffInsertEvents === 'function' && typeof staffToggleTies === 'function' && typeof shiftEvents === 'function',
                 'app/grid/grid-format.js': typeof NOTE_FONTS !== 'undefined' && !!NOTE_FONTS.menlo && typeof sanitizeNoteHtml === 'function' && sanitizeNoteHtml('<div class="annot-frame" data-frame="200" data-at="5,5" data-border="0">x</div>', 300).indexOf('data-border') >= 0,
