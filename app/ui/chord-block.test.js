@@ -21,10 +21,11 @@ describe('fenêtre d\'édition des accords', () => {
         assert.match(h, /<option value="0">Jam<\/option>/);
         assert.match(h, /<option value="">Jam<\/option>/);
     });
-    test('mode de lecture et bouton d\'écoute', () => {
-        assert.match(html('b|0~maj7~4'), /data-cb="mode" data-v="b"/);
-        assert.match(html('a|0~maj7~4'), /class="jm-chip is-on" data-cb="mode" data-v="a"/);
+    test('plus de choix plaqué / arpégé dans l\'éditeur ; bouton d\'écoute ; un clic sur le nom d\'un accord le joue', () => {
+        assert.doesNotMatch(html('b|0~maj7~4'), /data-cb="mode"/);
+        assert.doesNotMatch(html('a|0~maj7~4'), /data-cb="mode"/);
         assert.match(html('b|0~maj7~4'), /▶ Écouter/);
         assert.match(html('b|0~maj7~4', { playing: true }), /■ Stop/);
+        assert.match(html('b|0~maj7~4|7~7~2'), /data-cb="pick" data-i="1"[^>]*title="Choisir et écouter cet accord/);
     });
 });

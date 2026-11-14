@@ -833,15 +833,18 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
         await close();
     });
 
-    test('barre : « Texte » crée un cadre à une place vierge, plus de « Coller portée », effacer la mise en forme = un symbole', async () => {
+    test('barre : « Texte » crée un cadre à une place vierge, plus de « Coller portée » ni d\'effacement de la mise en forme, « Supprimer » retire le bloc choisi', async () => {
         const { page, errors, close } = await openAnnotations();
         await wake(page);
         assert.equal(await page.locator('#jam-annot-bar [data-paste-staff]').count(), 0);
+        assert.equal(await page.locator('#jam-annot-bar [data-clear]').count(), 0);
         assert.ok(!(await page.innerText('#jam-annot-bar')).includes('Coller portée'));
-        const clear = page.locator('#jam-annot-bar [data-clear]');
-        assert.equal(await clear.locator('svg').count(), 1);
-        assert.equal((await clear.innerText()).trim(), '');
-        assert.match(await clear.getAttribute('title'), /^Effacer la mise en forme/);
+        // par défaut : seuls Texte, Portée, Dessin, Accords ; les réglages du texte et « Supprimer » sont cachés
+        const shown = await page.evaluate(() => Array.from(document.querySelectorAll('#jam-annot-bar .ab-btn, #jam-annot-bar .ab-sel')).filter(b => b.offsetParent !== null).map(b => (b.textContent || '').trim()));
+        assert.deepEqual(shown, ['Texte', 'Portée', 'Dessin', 'Accords']);
+        const del = page.locator('#jam-annot-bar [data-delete]');
+        assert.equal(await del.locator('svg').count(), 1);
+        assert.equal(await del.isHidden(), true);
         await page.click('#jam-annot-bar [data-insert-frame]');
         await page.waitForSelector(`${G} > .annot-frame.is-editing`);
         await page.keyboard.type('un');
@@ -851,6 +854,13 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
         await page.keyboard.press('Escape');
         const [f1, f2] = await blocks(page);
         assert.ok(f2.x >= f1.x + f1.w || f2.y >= f1.y + f1.h, 'le second cadre s\'ouvre sur une place vierge : il ne recouvre pas le premier');
+        // un cadre sélectionné : les réglages du texte et « Supprimer » apparaissent ; « Supprimer » le retire
+        await page.mouse.click(...await centerOf(page, G, 0));
+        await page.waitForSelector('#jam-annot-bar.has-text [data-cmd="bold"]');
+        assert.equal(await del.isVisible(), true);
+        await del.click();
+        await settle(page);
+        assert.equal((await blocks(page)).length, 1, '« Supprimer » retire le cadre choisi');
         assert.deepEqual(errors, []);
         await close();
     });

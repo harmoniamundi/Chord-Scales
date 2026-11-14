@@ -4,6 +4,9 @@
 //     fond (facultatif) = couleur à 6 chiffres hexadécimaux, ou « t » (transparent) ; absent = fond blanc (sans bord visible : transparent, comme les autres blocs) ;
 //   trait = couleur (6 chiffres hexadécimaux) . épaisseur (1 à 40 pixels, suivie de « h » pour un surligneur, translucide) : points ;
 //     points = x,y du premier point, puis l'écart (dx,dy) de chaque point au précédent — entiers, en pixels du cadre (un point seul = un point posé) ;
+//   remplissage (outil « seau ») = couleur (6 chiffres hexadécimaux) @ contours : un contour par « ; » (le premier est le bord de la forme, les suivants sont des
+//     trous, remplissage pair-impair), chacun écrit comme les points d'un trait (x,y puis écarts) ; les remplissages sont écrits avant les traits et se dessinent
+//     SOUS tous les traits (comme un coloriage : le trait reste net par-dessus) ;
 //   data-at = place sur le canevas, data-border="0" = cadre caché : comme une portée (ui/staff-notes.js).
 // Fonctions pures. Chargé par index.html via <script src="app/ui/draw-notes.js"> (après ui/chord-notes.js) et testé par ui/draw-notes.test.js.
 
@@ -17,6 +20,8 @@ const DR_H_MIN = 60, DR_H_MAX = 1200, DR_H_DEFAULT = 200;
 const DR_STROKE_MIN = 1, DR_STROKE_MAX = 40;
 const DR_MAX_STROKES = 300;                // traits par cadre
 const DR_MAX_POINTS = 600;                 // points par trait (après simplification)
+const DR_MAX_FILLS = 20;                   // remplissages par cadre
+const DR_FILL_MAX_POINTS = 1200;           // points de contour par remplissage (tous contours confondus)
 const DR_MAX_LENGTH = 40000;               // signes du texte enregistré d'un cadre
 const DR_COORD_MIN = -50, DR_COORD_MAX = 1700;
 const DR_HL_OPACITY = 0.38;                // surligneur
@@ -49,8 +54,8 @@ function drawBg(v) { return v === 't' ? 't' : drawColor(v); }
 // Fond tel que l'écran l'affiche (valeur CSS), '' = celui de la feuille de style.
 function drawBgCss(bg) { return bg === 't' ? 'transparent' : (drawColor(bg) || ''); }
 
-// Cadre vide : { w, h, bg, strokes: [{ c, w, h, p: [[x, y], …] }] } (h : surligneur).
-function drawDefault(w, h) { return { w: drawClampWidth(w === undefined ? DR_W_DEFAULT : w), h: drawClampHeight(h === undefined ? DR_H_DEFAULT : h), bg: '', strokes: [] }; }
+// Cadre vide : { w, h, bg, strokes: [{ c, w, h, p: [[x, y], …] }], fills: [{ c, loops: [[[x, y], …], …] }] } (h : surligneur).
+function drawDefault(w, h) { return { w: drawClampWidth(w === undefined ? DR_W_DEFAULT : w), h: drawClampHeight(h === undefined ? DR_H_DEFAULT : h), bg: '', strokes: [], fills: [] }; }
 
 // Un trait propre : couleur et épaisseur ramenées dans les limites, points entiers dans les limites, doublons consécutifs retirés ; null s'il n'a aucun point.
 function drawStroke(c, w, hl, points) {
@@ -76,7 +81,14 @@ function drawParse(text) {
     const st = drawDefault(head[1], head[2]);
     st.bg = drawBg(head[3] || '');
     for (const part of parts.slice(1)) {
-        if (st.strokes.length >= DR_MAX_STROKES) break;
+        const fm = /^([0-9a-fA-F]{6})@(-?\d+(?:,-?\d+)*(?:;-?\d+(?:,-?\d+)*)*)$/.exec(part);   // remplissage
+        if (fm) {
+            if (st.fills.length >= DR_MAX_FILLS) continue;
+            const f = drawFillFromText(fm[1], fm[2]);
+            if (f) st.fills.push(f);
+            continue;
+        }
+        if (st.strokes.length >= DR_MAX_STROKES) continue;
         const m = /^([0-9a-fA-F]{6})\.(\d{1,2})(h?):(-?\d+(?:,-?\d+)*)(?:~([1-9]+))?$/.exec(part);
         if (!m) continue;
         const nums = m[4].split(',').map(Number);
@@ -95,7 +107,11 @@ function drawParse(text) {
 
 // Garde les premiers traits qui tiennent dans la limite du texte enregistré.
 function drawTrim(st) {
-    const out = Object.assign({}, st, { strokes: [] });
+    const out = Object.assign({}, st, { strokes: [], fills: [] });
+    for (const f of st.fills || []) {
+        out.fills.push(f);
+        if (drawFormat(out).length > DR_MAX_LENGTH) { out.fills.pop(); break; }
+    }
     for (const s of st.strokes) {
         out.strokes.push(s);
         if (drawFormat(out).length > DR_MAX_LENGTH) { out.strokes.pop(); break; }
@@ -112,7 +128,8 @@ function drawStrokeText(s) {
 function drawFormat(st) {
     const s = st || drawDefault();
     const bg = drawBg(s.bg);
-    return [`${drawClampWidth(s.w)},${drawClampHeight(s.h)}${bg ? `,${bg === 't' ? 't' : bg.slice(1)}` : ''}`].concat((s.strokes || []).slice(0, DR_MAX_STROKES).map(drawStrokeText)).join('|');
+    return [`${drawClampWidth(s.w)},${drawClampHeight(s.h)}${bg ? `,${bg === 't' ? 't' : bg.slice(1)}` : ''}`]
+        .concat((s.fills || []).slice(0, DR_MAX_FILLS).map(drawFillText), (s.strokes || []).slice(0, DR_MAX_STROKES).map(drawStrokeText)).join('|');
 }
 
 // Texte canonique d'un cadre (null si invalide) : ce qu'on garde dans le fichier.
@@ -122,7 +139,7 @@ function drawCanon(text) {
 }
 
 // Le dessin peut-il encore s'écrire (nombre de traits, longueur du texte) ?
-function drawFits(st) { return st.strokes.length <= DR_MAX_STROKES && drawFormat(st).length <= DR_MAX_LENGTH; }
+function drawFits(st) { return st.strokes.length <= DR_MAX_STROKES && (st.fills || []).length <= DR_MAX_FILLS && drawFormat(st).length <= DR_MAX_LENGTH; }
 
 // ----- Traits : simplification et tracé -----
 
@@ -238,15 +255,24 @@ function drawStrokeAttrs(s) {
     return `fill="none" stroke="${drawColor(s.c) || DR_COLOR_DEFAULT}" stroke-width="${drawClampStroke(s.w)}" stroke-linecap="round" stroke-linejoin="round"${s.h ? ` stroke-opacity="${DR_HL_OPACITY}"` : ''}`;
 }
 
-// Contenu SVG du cadre (un <path> par trait).
+// Un remplissage en SVG : un seul <path> (un sous-chemin par contour, remplissage pair-impair : les trous restent vides) ; le fin trait de même couleur
+// évite le liseré clair entre deux aplats voisins.
+function drawFillSvg(f, i) {
+    const c = drawColor(f.c) || DR_COLOR_DEFAULT;
+    const d = f.loops.map(l => `M${l.map(q => `${q[0]} ${q[1]}`).join('L')}Z`).join('');
+    return `<path data-f="${i}" d="${d}" fill="${c}" fill-rule="evenodd" stroke="${c}" stroke-width="0.6" stroke-linejoin="round"/>`;
+}
+
+// Contenu SVG du cadre : les remplissages d'abord (dessous), puis un <path> par trait.
 function drawSvgInner(st) {
-    return st.strokes.map(drawStrokeSvg).join('');
+    return (st.fills || []).map(drawFillSvg).join('') + st.strokes.map(drawStrokeSvg).join('');
 }
 
 // ----- Modifications (renvoient un nouveau cadre ; l'ancien n'est pas touché) -----
 
 const drawCopyStroke = (s) => { const o = { c: s.c, w: s.w, h: s.h, p: s.p.map(q => q.slice()) }; if (s.q) o.q = s.q.slice(); return o; };
-const drawClone = (st) => ({ w: st.w, h: st.h, bg: drawBg(st.bg), strokes: st.strokes.map(drawCopyStroke) });
+const drawCopyFill = (f) => ({ c: f.c, loops: f.loops.map(l => l.map(q => q.slice())) });
+const drawClone = (st) => ({ w: st.w, h: st.h, bg: drawBg(st.bg), strokes: st.strokes.map(drawCopyStroke), fills: (st.fills || []).map(drawCopyFill) });
 
 // Ajoute un trait (points bruts de l'écran : lissés au niveau `smooth` de 0 à 10, puis simplifiés). Renvoie null si le trait est vide ou si le dessin est plein.
 function drawAddStroke(st, c, w, hl, rawPoints, smooth) {
@@ -288,7 +314,7 @@ function drawEraseAt(st, x, y, r) {
     return drawFits(out) ? out : null;
 }
 
-function drawClear(st) { if (!st.strokes.length) return null; const out = drawClone(st); out.strokes = []; return out; }
+function drawClear(st) { if (!st.strokes.length && !(st.fills || []).length) return null; const out = drawClone(st); out.strokes = []; out.fills = []; return out; }
 
 // Fond du cadre : 't' (transparent), couleur '#rrggbb' ou '' (par défaut) ; null s'il ne change pas.
 function drawSetBg(st, bg) {
@@ -317,7 +343,218 @@ function drawScale(st, k) {
     const out = drawClone(st);
     out.w = W; out.h = H;
     out.strokes = st.strokes.map(s => { const o = { c: s.c, w: drawClampStroke(s.w * k), h: s.h, p: s.p.map(q => [drClamp(drInt(q[0] * W / st.w), DR_COORD_MIN, DR_COORD_MAX), drClamp(drInt(q[1] * H / st.h), DR_COORD_MIN, DR_COORD_MAX)]) }; if (s.q) o.q = s.q.slice(); return o; });
+    out.fills = (st.fills || []).map(f => ({ c: f.c, loops: f.loops.map(l => l.map(q => [drClamp(drInt(q[0] * W / st.w), DR_COORD_MIN, DR_COORD_MAX), drClamp(drInt(q[1] * H / st.h), DR_COORD_MIN, DR_COORD_MAX)])) }));
     return out;
+}
+
+// ----- Remplissage d'une forme fermée (outil « seau ») -----
+// Le clic est traité sur une image de travail : `barrier` (Uint8Array w × h, 1 = pixel d'un trait) est fournie par l'écran (draw-block.js : les traits tracés sur un
+// canevas). Tout ce qui suit est pur et testé : on part du pixel touché, on étale la couleur jusqu'aux traits (un trou de 2 pixels dans le tracé ne fait pas fuir),
+// puis on relève le contour de la zone (bord + trous) en polygones simplifiés, enregistrés comme les traits.
+
+// Un remplissage lu dans le texte (couleur, contours) ; null s'il est inutilisable.
+function drawFillFromText(color, text) {
+    const loops = [];
+    let total = 0;
+    for (const part of String(text).split(';')) {
+        const nums = part.split(',').map(Number);
+        if (nums.length % 2 || nums.length < 6) return null;
+        const pts = [];
+        let x = 0, y = 0;
+        for (let i = 0; i < nums.length; i += 2) {
+            if (i === 0) { x = nums[0]; y = nums[1]; } else { x += nums[i]; y += nums[i + 1]; }
+            pts.push([drClamp(x, DR_COORD_MIN, DR_COORD_MAX), drClamp(y, DR_COORD_MIN, DR_COORD_MAX)]);
+        }
+        total += pts.length;
+        if (total > DR_FILL_MAX_POINTS) return null;
+        loops.push(pts);
+    }
+    return loops.length ? { c: drawColor(color) || DR_COLOR_DEFAULT, loops } : null;
+}
+
+function drawFillText(f) {
+    const loops = f.loops.map((l) => {
+        const nums = [];
+        l.forEach((q, i) => { if (i === 0) nums.push(q[0], q[1]); else nums.push(q[0] - l[i - 1][0], q[1] - l[i - 1][1]); });
+        return nums.join(',');
+    });
+    return `${drawColor(f.c).slice(1) || DR_COLOR_DEFAULT.slice(1)}@${loops.join(';')}`;
+}
+
+// Zone atteinte depuis (sx, sy) sans traverser un pixel `blocked` (4 voisins) : Uint8Array w × h (1 = dans la zone), ou null si le départ est bloqué.
+function drawFloodRegion(blocked, w, h, sx, sy) {
+    if (sx < 0 || sy < 0 || sx >= w || sy >= h || blocked[sy * w + sx]) return null;
+    const region = new Uint8Array(w * h);
+    const stack = [sx, sy];
+    while (stack.length) {
+        const y = stack.pop(), x0 = stack.pop();
+        let x = x0;
+        while (x >= 0 && !blocked[y * w + x] && !region[y * w + x]) x--;
+        x++;
+        let up = false, down = false;
+        while (x < w && !blocked[y * w + x] && !region[y * w + x]) {
+            region[y * w + x] = 1;
+            if (y > 0) { const o = (y - 1) * w + x, free = !blocked[o] && !region[o]; if (free && !up) { stack.push(x, y - 1); up = true; } else if (!free) up = false; }
+            if (y < h - 1) { const o = (y + 1) * w + x, free = !blocked[o] && !region[o]; if (free && !down) { stack.push(x, y + 1); down = true; } else if (!free) down = false; }
+            x++;
+        }
+    }
+    return region;
+}
+
+// Épaissit de `n` pixels (voisinage de 8) les pixels à 1 d'un masque : renvoie un nouveau masque.
+function drawDilate(mask, w, h, n) {
+    let cur = mask;
+    for (let k = 0; k < n; k++) {
+        const out = new Uint8Array(w * h);
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                if (cur[y * w + x]) { out[y * w + x] = 1; continue; }
+                let hit = 0;
+                for (let dy = -1; dy <= 1 && !hit; dy++) {
+                    const yy = y + dy; if (yy < 0 || yy >= h) continue;
+                    for (let dx = -1; dx <= 1; dx++) { const xx = x + dx; if (xx >= 0 && xx < w && cur[yy * w + xx]) { hit = 1; break; } }
+                }
+                out[y * w + x] = hit;
+            }
+        }
+        cur = out;
+    }
+    return cur;
+}
+
+// Étend `region` de `n` pixels (4 voisins) mais seulement sur les pixels `allowed` : la couleur passe ainsi sous les traits et sous les petits trous du tracé.
+function drawGrowInto(region, allowed, w, h, n) {
+    let cur = region;
+    for (let k = 0; k < n; k++) {
+        const out = cur.slice();
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                const i = y * w + x;
+                if (cur[i] || !allowed[i]) continue;
+                if ((x > 0 && cur[i - 1]) || (x < w - 1 && cur[i + 1]) || (y > 0 && cur[i - w]) || (y < h - 1 && cur[i + w])) out[i] = 1;
+            }
+        }
+        cur = out;
+    }
+    return cur;
+}
+
+// Contours d'une zone (masque w × h) : bord extérieur et trous, en polygones aux coins de pixels (sans point intermédiaire sur les lignes droites).
+function drawRegionLoops(region, w, h) {
+    const W1 = w + 1;
+    const out = new Map();                       // sommet (y × (w+1) + x) → arêtes qui en partent (sommets d'arrivée) ; la zone est à droite de l'arête
+    const add = (ax, ay, bx, by) => { const k = ay * W1 + ax; const l = out.get(k); if (l) l.push(by * W1 + bx); else out.set(k, [by * W1 + bx]); };
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            if (!region[y * w + x]) continue;
+            if (y === 0 || !region[(y - 1) * w + x]) add(x, y, x + 1, y);
+            if (x === w - 1 || !region[y * w + x + 1]) add(x + 1, y, x + 1, y + 1);
+            if (y === h - 1 || !region[(y + 1) * w + x]) add(x + 1, y + 1, x, y + 1);
+            if (x === 0 || !region[y * w + x - 1]) add(x, y + 1, x, y);
+        }
+    }
+    const loops = [];
+    for (const [k0, list0] of out) {
+        while (list0.length) {
+            const loop = [];
+            let from = k0, to = list0.pop();
+            let guard = 0;
+            for (;;) {
+                loop.push([from % W1, Math.floor(from / W1)]);
+                if (to === k0 || ++guard > 4000000) break;
+                const l = out.get(to);
+                if (!l || !l.length) break;
+                from = to; to = l.pop();
+            }
+            // retire les sommets alignés avec leurs voisins
+            const n = loop.length, pts = [];
+            for (let i = 0; i < n; i++) {
+                const a = loop[(i + n - 1) % n], b = loop[i], c = loop[(i + 1) % n];
+                if ((b[0] - a[0]) * (c[1] - b[1]) !== (b[1] - a[1]) * (c[0] - b[0])) pts.push(b);
+            }
+            if (pts.length >= 3) loops.push(pts);
+        }
+    }
+    return loops;
+}
+
+// Polygone fermé simplifié (Douglas-Peucker, tolérance eps en pixels) ; points entiers.
+function drawSimplifyLoop(loop, eps) {
+    if (loop.length < 4) return loop.map(q => q.slice());
+    const open = loop.concat([loop[0]]);
+    const s = drawSimplify(open, eps);
+    s.pop();
+    return s.map(q => [drInt(q[0]), drInt(q[1])]);
+}
+
+const drLoopArea = (l) => { let a = 0; for (let i = 0; i < l.length; i++) { const p = l[i], q = l[(i + 1) % l.length]; a += p[0] * q[1] - q[0] * p[1]; } return Math.abs(a) / 2; };
+
+// (x, y) est-il dans le remplissage `f` (contours pair-impair : un trou n'en fait pas partie) ?
+function drawInFill(f, x, y) {
+    let inside = false;
+    f.loops.forEach((l) => {
+        for (let i = 0, j = l.length - 1; i < l.length; j = i++) {
+            const a = l[i], b = l[j];
+            if ((a[1] > y) !== (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) inside = !inside;
+        }
+    });
+    return inside;
+}
+
+// Indice du remplissage le plus haut (le dernier posé) qui contient le point, ou -1.
+function drawFillHit(st, x, y) {
+    const fills = st.fills || [];
+    for (let i = fills.length - 1; i >= 0; i--) if (drawInFill(fills[i], x, y)) return i;
+    return -1;
+}
+
+// Enlève le remplissage d'indice i ; null s'il n'existe pas.
+function drawRemoveFill(st, i) {
+    if (!st.fills || !st.fills[i]) return null;
+    const out = drawClone(st);
+    out.fills.splice(i, 1);
+    return out;
+}
+
+// Remplit de la couleur c la forme touchée en (x, y) (pixels du cadre). barrier : pixels des traits (voir plus haut), w × h = taille du cadre.
+// Un remplissage déjà posé sous ce point est remplacé (changer de couleur = refaire un clic). Un point posé sur un trait est ramené au pixel libre le plus proche (3 pixels).
+// Renvoie le nouveau cadre, ou null (rien à remplir, rien de changé, ou le dessin ne tiendrait plus dans un cadre).
+function drawFillAt(st, barrier, w, h, x, y, c) {
+    const color = drawColor(c);
+    if (!color || !(w > 0 && h > 0) || barrier.length !== w * h) return null;
+    const blocked = drawDilate(barrier, w, h, 1);   // un trou d'un ou deux pixels dans le tracé ne laisse pas passer la couleur
+    let sx = Math.floor(x), sy = Math.floor(y);
+    if (sx < 0 || sy < 0 || sx >= w || sy >= h) return null;
+    if (blocked[sy * w + sx]) {
+        let best = null, bd = 1e9;
+        for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+            const xx = sx + dx, yy = sy + dy;
+            if (xx < 0 || yy < 0 || xx >= w || yy >= h || blocked[yy * w + xx]) continue;
+            const d = dx * dx + dy * dy;
+            if (d < bd) { bd = d; best = [xx, yy]; }
+        }
+        if (!best) return null;
+        [sx, sy] = best;
+    }
+    let region = drawFloodRegion(blocked, w, h, sx, sy);
+    if (!region) return null;
+    region = drawGrowInto(region, blocked, w, h, 2);   // sous les traits et leurs bords (un trait fin n'est pas dépassé de l'autre côté)
+    const raw = drawRegionLoops(region, w, h);
+    if (!raw.length) return null;
+    let loops = null;
+    for (const eps of [0.7, 1.4, 2.5, 4, 7]) {
+        const cand = raw.map(l => drawSimplifyLoop(l, eps)).filter(l => l.length >= 3 && drLoopArea(l) >= 2);
+        if (cand.length && cand.reduce((n, l) => n + l.length, 0) <= DR_FILL_MAX_POINTS) { loops = cand; break; }
+    }
+    if (!loops) return null;
+    const out = drawClone(st);
+    const px = sx + 0.5, py = sy + 0.5;
+    out.fills = out.fills.filter(f => !drawInFill(f, px, py));
+    out.fills.push({ c: color, loops });
+    if (out.fills.length > DR_MAX_FILLS) out.fills.shift();
+    if (drawFormat(out) === drawFormat(st)) return null;
+    return drawFits(out) ? out : null;
 }
 
 // ----- Enregistrement et presse-papiers -----
@@ -359,5 +596,6 @@ function drawSplitClips(text) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { DR_W_MIN, DR_W_MAX, DR_W_DEFAULT, DR_H_MIN, DR_H_MAX, DR_H_DEFAULT, DR_STROKE_MIN, DR_STROKE_MAX, DR_MAX_STROKES, DR_MAX_POINTS, DR_MAX_LENGTH,
         DR_HL_OPACITY, DR_COLORS, DR_COLOR_DEFAULT, DR_BG_COLORS, DR_SMOOTH_MIN, DR_SMOOTH_MAX, DR_SMOOTH_DEFAULT, drawBg, drawBgCss, drawResample, drawSmooth, drawSetBg, drawClampWidth, drawClampHeight, drawClampStroke, drawColor, drawDefault, drawStroke, drawParse, drawFormat, drawCanon, drawFits,
+        DR_MAX_FILLS, DR_FILL_MAX_POINTS, drawFillFromText, drawFillText, drawFillSvg, drawFloodRegion, drawDilate, drawGrowInto, drawRegionLoops, drawSimplifyLoop, drawInFill, drawFillHit, drawRemoveFill, drawFillAt,
         drawSegDist, drawSimplify, DR_LEVEL_MID, drawPressureLevel, drawLevelFactor, drawVarPathD, drawStrokeSvg, drawPathD, drawStrokeAttrs, drawSvgInner, drawAddStroke, drawEraseAt, drawClear, drawResize, drawScale, drawStubHtml, drawClipText, drawSplitClips };
 }

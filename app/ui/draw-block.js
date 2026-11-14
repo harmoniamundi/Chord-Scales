@@ -1,6 +1,6 @@
 // ui/draw-block.js — cadre de dessin libre posé sur le canevas d'une zone d'annotation (<div class="annot-draw" data-draw="…" data-at="x,y">).
 // On y dessine à la souris, au stylet ou au doigt (événements « pointeur » : un même code pour les trois). Au repos, le cadre se déplace comme les autres
-// blocs (ui/annot-canvas.js) ; le crayon ✎ (ou un double-clic) l'ouvre en édition : une petite fenêtre propose l'outil (crayon, surligneur, gomme), la couleur,
+// blocs (ui/annot-canvas.js) ; le crayon ✎ (ou un double-clic) l'ouvre en édition : une petite fenêtre propose l'outil (crayon, surligneur, remplissage, gomme), la couleur,
 // l'épaisseur, annuler / rétablir et « Tout effacer » ; une poignée en bas à droite change la taille du cadre.
 // Le format, la simplification des traits et la gomme sont dans ui/draw-notes.js (sans DOM, testé) ; ici, seulement l'écran.
 // Chargé par index.html via <script src="app/ui/draw-block.js"> (après ui/draw-notes.js et ui/annot-canvas.js).
@@ -10,6 +10,8 @@ let DRB_ACTIVE = null; // le cadre de dessin en édition (un seul à la fois)
 const DRB_PEN_KEY = 'jamDrawPen';
 const DRB_ERASER_MIN = 6, DRB_ERASER_MAX = 60, DRB_ERASER_DEFAULT = 18;   // diamètre de la gomme (pixels du cadre)
 const DRB_HL_FACTOR = 3;      // le surligneur est trois fois plus épais que le crayon
+// Seau de peinture (outil « Remplir »).
+const DRB_FILL_ICON = '<svg class="dr-ico" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.2 7.6 3.6l5 5-4.6 4.6a1.4 1.4 0 0 1-2 0L3 10.2a1.4 1.4 0 0 1 0-2z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M3.5 8.5h9" stroke="currentColor" stroke-width="1.2"/><path d="M13.6 10.2s1.6 1.9 1.6 3a1.6 1.6 0 0 1-3.2 0c0-1.1 1.6-3 1.6-3z" fill="currentColor"/></svg>';
 
 // Fonctions des autres modules : globales dans le navigateur, chargées sous Node (tests).
 const DRB_L = (typeof DR_COLORS !== 'undefined')
@@ -22,7 +24,7 @@ const DRB_PEN = { tool: 'pen', color: '#0f172a', width: 3, smooth: DRB_L.DR_SMOO
     try {
         const o = JSON.parse(localStorage.getItem(DRB_PEN_KEY) || 'null');
         if (!o) return;
-        if (['pen', 'hl', 'eraser'].includes(o.tool)) DRB_PEN.tool = o.tool;
+        if (['pen', 'hl', 'fill', 'eraser'].includes(o.tool)) DRB_PEN.tool = o.tool;
         if (DRB_L.drawColor(o.color)) DRB_PEN.color = DRB_L.drawColor(o.color);
         const w = Math.round(Number(o.width));
         if (w >= DRB_L.DR_STROKE_MIN && w <= DRB_L.DR_STROKE_MAX) DRB_PEN.width = w;
@@ -45,9 +47,9 @@ function drbEvents(e) { const l = e.getCoalescedEvents ? e.getCoalescedEvents() 
 function drbWidthFor(pen) { return pen.tool === 'hl' ? Math.min(DRB_L.DR_STROKE_MAX, pen.width * DRB_HL_FACTOR) : pen.width; }
 
 // HTML de la fenêtre d'édition (sans DOM) : outil, couleur, épaisseur et lissage (ou taille de la gomme), fond, annuler / rétablir / tout effacer.
-//   v : { pen: { tool, color, width, smooth, eraser }, bg (fond du cadre : '', 't' ou '#rrggbb'), canUndo, canRedo, hasStrokes }
+//   v : { pen: { tool, color, width, smooth, eraser }, bg (fond du cadre : '', 't' ou '#rrggbb'), canUndo, canRedo, hasStrokes (traits ou remplissages) }
 function drawEditorHtml(v) {
-    const L = DRB_L, pen = v.pen, eraser = pen.tool === 'eraser';
+    const L = DRB_L, pen = v.pen, eraser = pen.tool === 'eraser', fill = pen.tool === 'fill';
     const tool = (id, label, title) => `<button type="button" class="jm-chip${pen.tool === id ? ' is-on' : ''}" data-dr="tool" data-v="${id}" title="${title}" aria-pressed="${pen.tool === id}">${label}</button>`;
     const sw = L.DR_COLORS.map(c => `<button type="button" class="dr-sw${c === L.drawColor(pen.color) ? ' is-on' : ''}" data-dr="color" data-v="${c}" style="background:${c}" title="${c}" aria-label="Couleur ${c}"></button>`).join('');
     const custom = !L.DR_COLORS.includes(L.drawColor(pen.color));
@@ -56,7 +58,9 @@ function drawEditorHtml(v) {
     const bgSw = [`<button type="button" class="dr-sw dr-sw-none${bg === 't' ? ' is-on' : ''}" data-dr="bg" data-v="t" title="Fond transparent" aria-label="Fond transparent"></button>`]
         .concat(L.DR_BG_COLORS.map(c => `<button type="button" class="dr-sw${shown === c ? ' is-on' : ''}" data-dr="bg" data-v="${c}" style="background:${c}" title="Fond ${c}" aria-label="Fond ${c}"></button>`)).join('');
     const bgCustom = bg !== 't' && !L.DR_BG_COLORS.includes(shown);
-    const sizeRows = eraser
+    const sizeRows = fill
+        ? `<div class="dr-row dr-fillhint">Touchez une forme fermée pour la remplir de la couleur choisie. Si son contour n'est pas fermé, tout le fond se colore (↶ pour annuler). Toucher une zone déjà remplie change sa couleur ; la gomme, posée sur une couleur sans toucher de trait, l'enlève.</div>`
+        : eraser
         ? `<div class="dr-row dr-width">
             <label>Taille de la gomme <input type="range" class="dr-range" data-dr="erasersize" min="${DRB_ERASER_MIN}" max="${DRB_ERASER_MAX}" step="1" value="${pen.eraser}" aria-label="Taille de la gomme"></label>
             <output class="dr-val" data-out="erasersize">${pen.eraser} px</output>
@@ -89,7 +93,7 @@ function drawEditorHtml(v) {
                 ${done}
             </span></div>
         <div class="dr-row jm-mode" role="group" aria-label="Outil">
-            ${tool('pen', '✎ Crayon', 'Trait plein')}${tool('hl', 'Surligneur', 'Trait épais et translucide')}${tool('eraser', 'Gomme', 'Efface les traits que l\'on touche')}
+            ${tool('pen', '✎ Crayon', 'Trait plein')}${tool('hl', 'Surligneur', 'Trait épais et translucide')}${tool('fill', `${DRB_FILL_ICON} Remplir`, 'Remplit de la couleur choisie la forme fermée que l\'on touche')}${tool('eraser', 'Gomme', 'Efface les traits que l\'on touche (et, sur une couleur de remplissage, le remplissage)')}
         </div>
         ${eraser ? '' : `<div class="dr-row dr-colors" role="group" aria-label="Couleur du trait">${sw}
             <label class="dr-sw dr-sw-custom${custom ? ' is-on' : ''}" title="Autre couleur…" style="${custom ? `background:${L.drawColor(pen.color)}` : ''}"><input type="color" data-dr="custom" value="${L.drawColor(pen.color) || '#0f172a'}" aria-label="Autre couleur"></label>
@@ -245,6 +249,12 @@ class DrawBlockView {
         const svg = this.svg;
         try { svg.setPointerCapture(ev.pointerId); } catch (e) { /* non pris en charge */ }
         const pen = DRB_PEN;
+        if (pen.tool === 'fill') {   // un simple appui : la forme touchée est remplie
+            const [fx, fy] = this._pt(ev);
+            const next = drawFillAt(this.st, this._barrier(), this.st.w, this.st.h, fx, fy, pen.color);
+            if (next) this._apply(next); else this._hint(this.st.fills.length >= DR_MAX_FILLS ? 'Trop de remplissages : effacez-en' : 'Rien à remplir ici : touchez une zone vide, pas un trait');
+            return;
+        }
         const pressure = DRB_PEN.tool === 'pen' && DRB_PEN.pressure !== false && ev.pointerType === 'pen';   // épaisseur variable : stylet seulement
         const lvl = (e) => (pressure ? drawPressureLevel(e.pressure) : DR_LEVEL_MID);
         const pts = [this._pt(ev).concat(pressure ? [lvl(ev)] : [])];
@@ -253,6 +263,10 @@ class DrawBlockView {
         if (pen.tool === 'eraser') {
             const erase = (p) => { const nx = drawEraseAt(this.st, p[0], p[1], DRB_PEN.eraser / 2); if (nx) { this.st = nx; erased = true; this._render(); } };
             erase(pts[0]);
+            if (!erased) {   // aucun trait touché : un remplissage sous la gomme est enlevé (une fois par geste)
+                const k = drawFillHit(this.st, pts[0][0], pts[0][1]), nx = k >= 0 ? drawRemoveFill(this.st, k) : null;
+                if (nx) { this.st = nx; erased = true; this._render(); }
+            }
             this._ringAt(ev);
             const onMove = (e2) => { if (e2.pointerId === ev.pointerId) { this._ringAt(e2); drbEvents(e2).forEach(e3 => erase(this._pt(e3))); } };
             const onEnd = (e2) => {
@@ -303,6 +317,24 @@ class DrawBlockView {
         const onUp = (e2) => end(e2, true);
         const onCancel = (e2) => end(e2, false);
         svg.addEventListener('pointermove', onMove); svg.addEventListener('pointerup', onUp); svg.addEventListener('pointercancel', onCancel);
+    }
+
+    // Image des traits du cadre (pour le remplissage) : Uint8Array w × h, 1 = pixel pris par un trait (au moins à moitié recouvert). Les traits sont redessinés sur un canevas
+    // de la taille du cadre, avec les mêmes chemins que le SVG ; le surligneur compte comme un trait plein (c'est une limite de forme, pas une couleur).
+    _barrier() {
+        const { w, h } = this.st;
+        const cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        const ctx = cv.getContext('2d', { willReadFrequently: true });
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.fillStyle = '#000'; ctx.strokeStyle = '#000';
+        this.st.strokes.forEach((s) => {
+            if (s.q && s.q.length === s.p.length && !s.h) { ctx.fill(new Path2D(drawVarPathD(s.p.map((q, k) => [q[0], q[1], s.q[k]]), drawClampStroke(s.w)))); return; }
+            ctx.lineWidth = drawClampStroke(s.w);
+            ctx.stroke(new Path2D(drawPathD(s.p)));
+        });
+        const px = ctx.getImageData(0, 0, w, h).data, out = new Uint8Array(w * h);
+        for (let i = 0; i < out.length; i++) out[i] = px[i * 4 + 3] >= 128 ? 1 : 0;
+        return out;
     }
 
     // Rond de la gomme : centré sur le pointeur, au diamètre de la gomme (en pixels du cadre : il suit le zoom de la page).
@@ -485,9 +517,10 @@ class DrawBlockView {
     _popRender() {
         if (!this.pop) return;
         this.pop.classList.toggle('is-collapsed', DRB_COLLAPSED);
-        this.pop.innerHTML = drawEditorHtml({ pen: DRB_PEN, bg: this.st.bg, collapsed: DRB_COLLAPSED, canUndo: this.undoStack.length > 0, canRedo: this.redoStack.length > 0, hasStrokes: this.st.strokes.length > 0 })
+        this.pop.innerHTML = drawEditorHtml({ pen: DRB_PEN, bg: this.st.bg, collapsed: DRB_COLLAPSED, canUndo: this.undoStack.length > 0, canRedo: this.redoStack.length > 0, hasStrokes: this.st.strokes.length > 0 || (this.st.fills || []).length > 0 })
             + (DRB_COLLAPSED ? '' : '<div class="dr-hint" role="status"></div>');
         this.el.classList.toggle('is-eraser', DRB_PEN.tool === 'eraser');
+        this.el.classList.toggle('is-fill', DRB_PEN.tool === 'fill');
         if (DRB_PEN.tool !== 'eraser') this._ringHide();
         this._popPosition();
     }
@@ -517,7 +550,7 @@ class DrawBlockView {
             this._popRender();
             if (DRB_COLLAPSED) { try { this.el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) { /* ancien navigateur */ } }   // le cadre revient à l'écran, au-dessus du bandeau
         }
-        else if (act === 'tool') { DRB_PEN.tool = ['pen', 'hl', 'eraser'].includes(b.dataset.v) ? b.dataset.v : 'pen'; drbSavePen(); this._popRender(); }
+        else if (act === 'tool') { DRB_PEN.tool = ['pen', 'hl', 'fill', 'eraser'].includes(b.dataset.v) ? b.dataset.v : 'pen'; drbSavePen(); this._popRender(); }
         else if (act === 'color') { DRB_PEN.color = DRB_L.drawColor(b.dataset.v) || DRB_PEN.color; if (DRB_PEN.tool === 'eraser') DRB_PEN.tool = 'pen'; drbSavePen(); this._popRender(); }
         else if (act === 'pressure') { DRB_PEN.pressure = DRB_PEN.pressure === false; drbSavePen(); this._popRender(); }
         else if (act === 'fit') { DRB_PEN.fit = DRB_PEN.fit === false; drbSavePen(); this._popRender(); }

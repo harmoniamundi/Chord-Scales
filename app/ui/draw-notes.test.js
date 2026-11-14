@@ -217,3 +217,98 @@ describe('pression du stylet', () => {
         assert.deepEqual(D.drawScale(st, 2).strokes[0].q, [1, 9]);
     });
 });
+
+describe('remplissage d\'une forme fermée', () => {
+    // Masque de traits w × h : un rectangle de côtés épais de `t` pixels, du coin (x0, y0) au coin (x1, y1) ; gap = [x, y, largeur] ouvre un trou dans le côté haut.
+    const frame = (w, h, rects) => {
+        const m = new Uint8Array(w * h);
+        rects.forEach(([x0, y0, x1, y1]) => { for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) m[y * w + x] = 1; });
+        return m;
+    };
+    const ring = (x0, y0, x1, y1, t) => [[x0, y0, x1, y0 + t], [x0, y1 - t, x1, y1], [x0, y0, x0 + t, y1], [x1 - t, y0, x1, y1]];
+    const W = 120, H = 90;
+
+    test('format : un remplissage s\'écrit avant les traits, relu à l\'identique ; un contour invalide est ignoré', () => {
+        const t = '120,90|dc2626@10,10,40,0,0,30,-40,0;20,20,5,0,0,5|0f172a.3:1,1,2,2';
+        const st = D.drawParse(t);
+        assert.equal(st.fills.length, 1); assert.equal(st.fills[0].c, '#dc2626'); assert.equal(st.fills[0].loops.length, 2);
+        assert.deepEqual(st.fills[0].loops[0], [[10, 10], [50, 10], [50, 40], [10, 40]]);
+        assert.equal(st.strokes.length, 1);
+        assert.equal(D.drawFormat(st), t);
+        const bad = D.drawParse('120,90|dc2626@10,10,5,0|0f172a.3:1,1');   // moins de trois points : refusé
+        assert.equal(bad.fills.length, 0); assert.equal(bad.strokes.length, 1);
+        assert.equal(D.drawParse('120,90|0f172a.3:1,1').fills.length, 0);   // un cadre ancien se lit sans remplissage
+    });
+    test('SVG : les remplissages sont dessinés avant (sous) les traits, pair-impair pour les trous', () => {
+        const st = D.drawParse('120,90|dc2626@10,10,40,0,0,30,-40,0;20,20,5,0,0,5|0f172a.3:1,1,2,2');
+        const svg = D.drawSvgInner(st);
+        assert.ok(svg.indexOf('data-f="0"') >= 0 && svg.indexOf('data-f="0"') < svg.indexOf('data-i="0"'));
+        assert.match(svg, /fill-rule="evenodd"/);
+        assert.equal((svg.match(/M/g) || []).length >= 3, true);
+    });
+    test('une forme fermée est remplie jusqu\'aux traits ; le dehors ne l\'est pas', () => {
+        const barrier = frame(W, H, ring(20, 15, 100, 75, 3));
+        const st = D.drawFillAt(D.drawDefault(W, H), barrier, W, H, 60, 45, '#16a34a');
+        assert.ok(st, 'rempli');
+        const f = st.fills[0];
+        assert.equal(f.c, '#16a34a');
+        assert.ok(D.drawInFill(f, 60, 45) && D.drawInFill(f, 25, 20), 'dedans, jusque près du trait');
+        assert.ok(!D.drawInFill(f, 5, 5) && !D.drawInFill(f, 110, 80), 'dehors : non');
+        assert.ok(D.drawInFill(f, 22.5, 40), 'la couleur passe sous le bord du trait (pas de liseré blanc)');
+        assert.ok(f.loops.length === 1 && f.loops[0].length <= 12, 'contour simplifié : ' + f.loops[0].length + ' points');
+    });
+    test('un îlot dans la forme fait un trou', () => {
+        const barrier = frame(W, H, ring(20, 15, 100, 75, 3).concat(ring(50, 35, 70, 55, 3)));
+        const st = D.drawFillAt(D.drawDefault(W, H), barrier, W, H, 30, 30, '#2563eb');
+        const f = st.fills[0];
+        assert.equal(f.loops.length, 2, 'bord + trou');
+        assert.ok(D.drawInFill(f, 30, 30));
+        assert.ok(!D.drawInFill(f, 60, 45), 'le centre de l\'îlot reste vide');
+    });
+    test('un petit trou du tracé (2 pixels) ne laisse pas fuir la couleur ; un grand trou, si', () => {
+        const small = frame(W, H, ring(20, 15, 100, 75, 3)); for (let x = 58; x < 60; x++) for (let y = 15; y < 18; y++) small[y * W + x] = 0;
+        const a = D.drawFillAt(D.drawDefault(W, H), small, W, H, 60, 45, '#dc2626');
+        assert.ok(a && !D.drawInFill(a.fills[0], 5, 5), 'pas de fuite');
+        const big = frame(W, H, ring(20, 15, 100, 75, 3)); for (let x = 50; x < 62; x++) for (let y = 15; y < 18; y++) big[y * W + x] = 0;
+        const b = D.drawFillAt(D.drawDefault(W, H), big, W, H, 60, 45, '#dc2626');
+        assert.ok(b && D.drawInFill(b.fills[0], 5, 5), 'forme ouverte : le fond se colore aussi');
+    });
+    test('un clic sur un trait prend le pixel libre voisin ; trop loin d\'une zone libre : rien', () => {
+        const barrier = frame(W, H, ring(20, 15, 100, 75, 3));
+        assert.ok(D.drawFillAt(D.drawDefault(W, H), barrier, W, H, 21, 40, '#dc2626'), 'sur le trait, à 2 px de l\'intérieur');
+        const full = new Uint8Array(W * H).fill(1);
+        assert.equal(D.drawFillAt(D.drawDefault(W, H), full, W, H, 10, 10, '#dc2626'), null);
+        assert.equal(D.drawFillAt(D.drawDefault(W, H), barrier, W, H, -5, 10, '#dc2626'), null);
+        assert.equal(D.drawFillAt(D.drawDefault(W, H), barrier, W, H, 60, 45, 'rouge'), null);
+    });
+    test('refaire un clic dans une zone remplie remplace sa couleur (un seul remplissage) ; même couleur : rien de changé', () => {
+        const barrier = frame(W, H, ring(20, 15, 100, 75, 3));
+        const a = D.drawFillAt(D.drawDefault(W, H), barrier, W, H, 60, 45, '#dc2626');
+        const b = D.drawFillAt(a, barrier, W, H, 60, 45, '#2563eb');
+        assert.equal(b.fills.length, 1); assert.equal(b.fills[0].c, '#2563eb');
+        assert.equal(D.drawFillAt(b, barrier, W, H, 60, 45, '#2563eb'), null);
+    });
+    test('enlever un remplissage (gomme), tout effacer, changer l\'échelle', () => {
+        const barrier = frame(W, H, ring(20, 15, 100, 75, 3));
+        const a = D.drawFillAt(D.drawAddStroke(D.drawDefault(W, H), '#0f172a', 3, false, [[20, 15], [100, 15]], 0), barrier, W, H, 60, 45, '#dc2626');
+        assert.equal(D.drawFillHit(a, 60, 45), 0); assert.equal(D.drawFillHit(a, 5, 5), -1);
+        const gone = D.drawRemoveFill(a, 0);
+        assert.equal(gone.fills.length, 0); assert.equal(gone.strokes.length, 1);
+        assert.equal(D.drawRemoveFill(a, 3), null);
+        const clr = D.drawClear(a); assert.equal(clr.fills.length, 0); assert.equal(clr.strokes.length, 0);
+        assert.equal(D.drawClear(clr), null);
+        const big = D.drawScale(a, 2);
+        assert.equal(big.w, 240);
+        assert.ok(D.drawInFill(big.fills[0], 120, 90), 'le remplissage suit le cadre');
+    });
+    test('relevé du contour : un rectangle plein donne 4 sommets ; le texte enregistré se relit', () => {
+        const m = frame(30, 20, [[5, 4, 25, 16]]);
+        const loops = D.drawRegionLoops(m, 30, 20);
+        assert.equal(loops.length, 1); assert.equal(loops[0].length, 4);
+        const barrier = frame(W, H, ring(20, 15, 100, 75, 3));
+        const st = D.drawFillAt(D.drawDefault(W, H), barrier, W, H, 60, 45, '#16a34a');
+        const back = D.drawParse(D.drawFormat(st));
+        assert.deepEqual(back.fills, st.fills);
+        assert.equal(D.drawCanon(D.drawFormat(st)), D.drawFormat(st));
+    });
+});

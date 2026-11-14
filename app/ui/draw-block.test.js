@@ -90,3 +90,20 @@ describe('fenêtre d\'outils du dessin', () => {
         assert.equal((shut.match(/data-dr="undo"/g) || []).length, 1);
     });
 });
+
+describe('outil Remplir', () => {
+    test('le sélecteur propose Remplir entre Surligneur et Gomme ; la couleur reste choisissable, pas l\'épaisseur', () => {
+        const h = html({ tool: 'fill' });
+        const i = (k) => h.indexOf(`data-v="${k}"`);
+        assert.ok(i('hl') < i('fill') && i('fill') < i('eraser'));
+        assert.match(h, /class="jm-chip is-on" data-dr="tool" data-v="fill"/);
+        assert.ok(h.includes('data-dr="color"'), 'couleurs');
+        assert.ok(!h.includes('data-dr="width"') && !h.includes('data-dr="smooth"'), 'ni épaisseur ni lissage');
+        assert.match(h, /dr-fillhint/);
+    });
+    test('« Tout effacer » reste actif quand il n\'y a que des remplissages', () => {
+        assert.ok(/data-dr="clear"[^>]*disabled/.test(html({}, { hasStrokes: false })), 'rien à effacer : désactivé');
+        assert.ok(!/data-dr="clear"[^>]*disabled/.test(html({}, { hasStrokes: true })), 'contenu (traits ou remplissages) : actif');
+    });
+});
+

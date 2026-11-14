@@ -1,6 +1,6 @@
 // ui/annot-bar.js — barre de mise en forme de l'onglet « Annotations » (mode Jam), comme dans un traitement de texte :
 // police, taille (boutons − / + et menu avec curseur), gras / italique / souligné / barré, alignement, puces, couleur du texte,
-// surlignage, symboles et nuances, portée et cadre de texte à insérer, effacement de la mise en forme. Fonctions pures : elles ne font que fabriquer le HTML ;
+// surlignage, symboles et nuances ; boutons Texte, Portée, Dessin, Accords pour ajouter un bloc, et Supprimer pour retirer le bloc choisi. Fonctions pures : elles ne font que fabriquer le HTML ;
 // les clics, la sélection du texte et les menus flottants sont dans index.html (JamEngine, « Onglet Annotations »).
 // Chargé par index.html via <script src="ui/annot-bar.js"> et testé par ui/annot-bar.test.js.
 
@@ -68,52 +68,58 @@ function annotAlignIcon(kind) {
 }
 
 // Icônes de la barre (dessinées en SVG, comme les autres : elles prennent la couleur du texte du bouton).
-// Cadre : un rectangle avec des lignes de texte. Effacer la mise en forme : un T barré d'une croix (le « Tx » des traitements de texte).
+// Cadre : un rectangle avec des lignes de texte. Supprimer : une corbeille.
 const ANNOT_CHORDS_ICON = '<svg width="18" height="16" viewBox="0 0 18 16" aria-hidden="true"><ellipse cx="4.5" cy="12" rx="2.4" ry="1.8" transform="rotate(-20 4.5 12)" fill="currentColor"/><ellipse cx="9" cy="9" rx="2.4" ry="1.8" transform="rotate(-20 9 9)" fill="currentColor"/><ellipse cx="13.5" cy="6" rx="2.4" ry="1.8" transform="rotate(-20 13.5 6)" fill="currentColor"/><path d="M6.8 11.4V1.8M11.3 8.4V1.8M15.8 5.4V1.8" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>';
 const ANNOT_DRAW_ICON = '<svg width="18" height="16" viewBox="0 0 18 16" aria-hidden="true"><rect x="1.5" y="1.5" width="15" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M4 11c1.5-5 2.8-6 4-3.5s2.3 2 3-1.5c.4-1.6 1.6-1.8 3-.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
 const ANNOT_FRAME_ICON = '<svg width="18" height="16" viewBox="0 0 18 16" aria-hidden="true"><rect x="1.5" y="1.5" width="15" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M4.5 5.5h9M4.5 8.5h9M4.5 11.5h5.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" fill="none"/></svg>';
-const ANNOT_CLEAR_ICON = '<svg width="18" height="16" viewBox="0 0 18 16" aria-hidden="true"><path d="M2 2.5h9M6.5 2.5v10M4.5 12.5h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/><path d="M11.5 8l4.5 4.5M16 8l-4.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>';
+const ANNOT_DELETE_ICON = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4h11M6 4V2.5h4V4M4 4l.7 9.2a1 1 0 0 0 1 .8h4.6a1 1 0 0 0 1-.8L12 4M6.6 6.5v5M9.4 6.5v5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-// La barre elle-même (toujours visible dans l'onglet ; les boutons n'agissent que lorsqu'une zone de texte est active).
+// La barre elle-même. Par défaut (mode édition, aucun cadre de texte choisi) elle ne montre que les boutons d'ajout : Texte, Portée, Dessin, Accords.
+// Les réglages du texte (police, taille, style, couleurs, alignement, symboles) n'apparaissent que lorsqu'un cadre de texte est choisi ou en édition
+// (classe « has-text » posée par l'appli) ; « Supprimer » n'apparaît que lorsqu'un bloc est choisi ou en édition (attribut hidden retiré par l'appli).
 function annotBarHtml() {
     const btn = (label, attrs, title, cls = '') => `<button type="button" class="ab-btn ${cls}" ${attrs} title="${title}" aria-label="${title}">${label}</button>`;
     const fonts = ANNOT_FONT_CHOICES.map(f => `<option value="${f.css.replace(/"/g, '&quot;')}" style="font-family:${f.css.replace(/"/g, '&quot;')}">${f.label}</option>`).join('');
-    return `<div id="jam-annot-bar" class="annot-bar is-idle" role="toolbar" aria-label="Mise en forme du texte">
-        <select class="ab-sel ab-font" data-font title="Police" aria-label="Police">${fonts}</select>
-        <div class="ab-grp" role="group" aria-label="Taille du texte">
-            ${btn('−', 'data-size-step="-1"', 'Diminuer la taille du texte', 'ab-step')}
-            ${btn(`<span data-size-label>${ANNOT_SIZE_DEFAULT}</span><small>px</small>`, 'data-menu="size" aria-haspopup="true"', 'Taille du texte : ouvrir le curseur', 'ab-size')}
-            ${btn('+', 'data-size-step="1"', 'Augmenter la taille du texte', 'ab-step')}
+    return `<div id="jam-annot-bar" class="annot-bar is-idle" role="toolbar" aria-label="Édition de la page">
+        <div class="ab-text-only" role="group" aria-label="Mise en forme du texte">
+            <select class="ab-sel ab-font" data-font title="Police" aria-label="Police">${fonts}</select>
+            <div class="ab-grp" role="group" aria-label="Taille du texte">
+                ${btn('−', 'data-size-step="-1"', 'Diminuer la taille du texte', 'ab-step')}
+                ${btn(`<span data-size-label>${ANNOT_SIZE_DEFAULT}</span><small>px</small>`, 'data-menu="size" aria-haspopup="true"', 'Taille du texte : ouvrir le curseur', 'ab-size')}
+                ${btn('+', 'data-size-step="1"', 'Augmenter la taille du texte', 'ab-step')}
+            </div>
+            <span class="ab-sep"></span>
+            <div class="ab-grp" role="group" aria-label="Style">
+                ${btn('<b>G</b>', 'data-cmd="bold" data-state="bold"', 'Gras (⌘B)')}
+                ${btn('<i>I</i>', 'data-cmd="italic" data-state="italic"', 'Italique (⌘I)')}
+                ${btn('<u>S</u>', 'data-cmd="underline" data-state="underline"', 'Souligné (⌘U)')}
+                ${btn('<s>B</s>', 'data-cmd="strikeThrough" data-state="strikeThrough"', 'Barré')}
+            </div>
+            <span class="ab-sep"></span>
+            <div class="ab-grp" role="group" aria-label="Couleurs">
+                ${btn('<span class="ab-a">A</span><i class="ab-bar" data-color-bar></i>', 'data-menu="color" aria-haspopup="true"', 'Couleur du texte', 'ab-color')}
+                ${btn('<span class="ab-hl">ab</span>', 'data-menu="hilite" aria-haspopup="true"', 'Surlignage', 'ab-color')}
+            </div>
+            <span class="ab-sep"></span>
+            <div class="ab-grp" role="group" aria-label="Paragraphe">
+                ${btn(annotAlignIcon('left'), 'data-cmd="justifyLeft"', 'Aligner à gauche')}
+                ${btn(annotAlignIcon('center'), 'data-cmd="justifyCenter"', 'Centrer')}
+                ${btn(annotAlignIcon('right'), 'data-cmd="justifyRight"', 'Aligner à droite')}
+                ${btn('• Liste', 'data-cmd="insertUnorderedList" data-state="insertUnorderedList"', 'Liste à puces', 'ab-txt')}
+            </div>
+            <span class="ab-sep"></span>
+            <div class="ab-grp" role="group" aria-label="Symboles">
+                ${btn('♯ ♩ ▾', 'data-menu="insert" aria-haspopup="true"', 'Insérer un symbole ou une nuance', 'ab-txt')}
+            </div>
+            <span class="ab-sep"></span>
         </div>
-        <span class="ab-sep"></span>
-        <div class="ab-grp" role="group" aria-label="Style">
-            ${btn('<b>G</b>', 'data-cmd="bold" data-state="bold"', 'Gras (⌘B)')}
-            ${btn('<i>I</i>', 'data-cmd="italic" data-state="italic"', 'Italique (⌘I)')}
-            ${btn('<u>S</u>', 'data-cmd="underline" data-state="underline"', 'Souligné (⌘U)')}
-            ${btn('<s>B</s>', 'data-cmd="strikeThrough" data-state="strikeThrough"', 'Barré')}
-        </div>
-        <span class="ab-sep"></span>
-        <div class="ab-grp" role="group" aria-label="Couleurs">
-            ${btn('<span class="ab-a">A</span><i class="ab-bar" data-color-bar></i>', 'data-menu="color" aria-haspopup="true"', 'Couleur du texte', 'ab-color')}
-            ${btn('<span class="ab-hl">ab</span>', 'data-menu="hilite" aria-haspopup="true"', 'Surlignage', 'ab-color')}
-        </div>
-        <span class="ab-sep"></span>
-        <div class="ab-grp" role="group" aria-label="Paragraphe">
-            ${btn(annotAlignIcon('left'), 'data-cmd="justifyLeft"', 'Aligner à gauche')}
-            ${btn(annotAlignIcon('center'), 'data-cmd="justifyCenter"', 'Centrer')}
-            ${btn(annotAlignIcon('right'), 'data-cmd="justifyRight"', 'Aligner à droite')}
-            ${btn('• Liste', 'data-cmd="insertUnorderedList" data-state="insertUnorderedList"', 'Liste à puces', 'ab-txt')}
-        </div>
-        <span class="ab-sep"></span>
-        <div class="ab-grp" role="group" aria-label="Insérer">
-            ${btn('♯ ♩ ▾', 'data-menu="insert" aria-haspopup="true"', 'Insérer un symbole ou une nuance', 'ab-txt')}
-            ${btn('<svg width="18" height="16" viewBox="0 0 18 16" aria-hidden="true"><path d="M1 3h16M1 6.5h16M1 10h16M1 13.5h16" stroke="currentColor" stroke-width="1.2" fill="none"/><ellipse cx="9" cy="10" rx="2.6" ry="1.9" transform="rotate(-20 9 10)" fill="currentColor"/><path d="M11.4 9V1.5" stroke="currentColor" stroke-width="1.3"/></svg> Portée', 'data-insert-staff="1"', 'Ajouter une portée éditable (à la première place libre de la zone)', 'ab-txt ab-staff')}
+        <div class="ab-grp ab-add" role="group" aria-label="Ajouter un bloc">
             ${btn(ANNOT_FRAME_ICON + ' Texte', 'data-insert-frame="1"', 'Ajouter un texte, dans un cadre (ou double-clic sur le fond de la zone) : on écrit dedans ; une fois sorti de l\'édition, on le déplace, et on l\'agrandit ou le réduit en tirant sur ses bords et ses coins (le texte suit)', 'ab-txt ab-frame')}
-            ${btn(ANNOT_DRAW_ICON + ' Dessin', 'data-insert-draw="1"', 'Ajouter un cadre de dessin libre : on dessine à la souris, au stylet ou au doigt, avec le choix de la couleur, de l\'épaisseur et de la gomme', 'ab-txt ab-draw')}
-            ${btn(ANNOT_CHORDS_ICON + ' Accords', 'data-insert-chords="1"', 'Ajouter un bloc d\'accords jouables : on choisit chaque accord (fondamentale, qualité, tensions), sa durée, et on l\'écoute au piano (plaqué ou arpégé)', 'ab-txt ab-chords')}
+            ${btn('<svg width="18" height="16" viewBox="0 0 18 16" aria-hidden="true"><path d="M1 3h16M1 6.5h16M1 10h16M1 13.5h16" stroke="currentColor" stroke-width="1.2" fill="none"/><ellipse cx="9" cy="10" rx="2.6" ry="1.9" transform="rotate(-20 9 10)" fill="currentColor"/><path d="M11.4 9V1.5" stroke="currentColor" stroke-width="1.3"/></svg> Portée', 'data-insert-staff="1"', 'Ajouter une portée éditable (à la première place libre de la zone)', 'ab-txt ab-staff')}
+            ${btn(ANNOT_DRAW_ICON + ' Dessin', 'data-insert-draw="1"', 'Ajouter un cadre de dessin libre : on dessine à la souris, au stylet ou au doigt, avec le choix de la couleur, de l\'épaisseur, du remplissage et de la gomme', 'ab-txt ab-draw')}
+            ${btn(ANNOT_CHORDS_ICON + ' Accords', 'data-insert-chords="1"', 'Ajouter un bloc d\'accords jouables : on choisit chaque accord (fondamentale, qualité, tensions) et sa durée, et on l\'écoute au piano', 'ab-txt ab-chords')}
         </div>
-        <span class="ab-sep"></span>
-        ${btn(ANNOT_CLEAR_ICON, 'data-clear="1"', 'Effacer la mise en forme : retire gras, couleur, taille, police… de la sélection', 'ab-clear')}
+        ${btn(ANNOT_DELETE_ICON + ' Supprimer', 'data-delete="1" hidden', 'Supprimer le bloc choisi (ou en édition) de la zone', 'ab-txt ab-del')}
         <div id="jam-annot-staff-host" class="ab-staff-host"></div>
     </div>`;
 }

@@ -6250,6 +6250,14 @@
                 return true;
             }
 
+            // Bouton « Supprimer » de la barre : retire les blocs choisis et le bloc en édition (cadre, portée, accords ou dessin) ; une seule étape d'annulation.
+            annotDeleteSelection() {
+                const ed = this._annotActive;
+                if (!ed || !this._annotIsEditable(ed)) return;
+                const els = this._annotTargets().map(v => v.el).filter(el => el && el.parentNode === ed);
+                if (els.length) this._annotRemoveBlocks(ed, els);
+            }
+
             // Enlève des blocs de la zone (Suppr., couper) : une seule étape d'annulation.
             _annotRemoveBlocks(ed, els) {
                 if (!ed || !els.length || !this._annotIsEditable(ed)) return;
@@ -6365,7 +6373,7 @@
                 else if (t.closest('[data-insert-frame]')) this.annotInsertFrame();
                 else if (t.closest('[data-insert-chords]')) this.annotInsertChords();
                 else if (t.closest('[data-insert-draw]')) this.annotInsertDraw();
-                else if (t.closest('[data-clear]')) { this.annotCmd('removeFormat'); this.annotCmd('justifyLeft'); }
+                else if (t.closest('[data-delete]')) this.annotDeleteSelection();
             }
 
             // Zone d'écriture à utiliser si l'on clique sur la barre sans avoir choisi de zone : la zone de gauche.
@@ -6575,10 +6583,18 @@
                 const ed = this._annotActive;
                 // La barre n'apparaît que pendant l'édition ; un bloc choisi d'un clic ou d'un glisser ne la fait pas surgir
                 // (les zones ne sautent pas sous le pointeur) : elle vient avec un clic sur le fond de la zone, le crayon d'un bloc ou ⌘A.
-                const idle = !ed || !!this._annotQuiet;
+                // Au doigt, la barre reste visible dès qu'une zone est active : c'est là que se trouve « Supprimer » (pas de touche Suppr. sur une tablette).
+                const touch = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+                const idle = !ed || (!!this._annotQuiet && !touch);
                 bar.classList.toggle('is-idle', idle);
                 if (bar.parentElement) bar.parentElement.classList.toggle('jam-annot-barless', idle); // barre masquée : les zones prennent sa place
                 const f = this._annotFrameEditing();
+                // Réglages du texte : seulement quand un cadre de texte est choisi ou en édition ; « Supprimer » : seulement quand un bloc l'est.
+                const hasText = !!f || this._annotPickedFrames().length > 0;
+                bar.classList.toggle('has-text', hasText);
+                if (!hasText && this._annotMenu) this._annotCloseMenu();
+                const del = bar.querySelector('[data-delete]');
+                if (del) del.hidden = !ed || this._annotTargets().length === 0;
                 bar.querySelectorAll('[data-state]').forEach(b => {
                     let on = false;
                     try { on = !!(f && f.body.contains(window.getSelection().anchorNode) && document.queryCommandState(b.dataset.state)); } catch (e) {}
@@ -6793,7 +6809,7 @@
                     const view = { x: ed.scrollLeft / z, y: ed.scrollTop / z, w: ed.clientWidth / z, h: ed.clientHeight / z };
                     pos = acEmptySpot(cv ? cv.blocks().map(b => cv.rectOf(b)) : [], { w, h: h || 60 }, { width: acCanvasWidth(ed), view });
                 }
-                pos.x = Math.max(0, Math.min(pos.x, Math.max(0, acCanvasWidth(ed) - w - 12)));
+                pos.x = Math.max(0, Math.min(pos.x, Math.max(0, acCanvasWidth(ed) - w - AC_GUTTER)));
                 pos.y = Math.max(0, pos.y);
                 return pos;
             }
@@ -7032,39 +7048,48 @@
                 this._annotStaffChanged(ed);
             }
 
-            // Lecture : hors édition, chaque portée et chaque bloc d'accords garde un petit bouton ▶ (discret, visible au survol) pour l'écouter.
+            // Lecture : hors édition, chaque portée et chaque bloc d'accords garde un petit bouton ▶ (discret, visible au survol) pour l'écouter ; un bloc d'accords a
+            // en plus, au-dessus de ▶, un chevron qui le joue en arpège (▶ le joue plaqué). Ces boutons sont à droite du bloc, jamais dans son espace.
             // Ces boutons ne sont jamais enregistrés (annotationHtmlForSave reconstruit chaque bloc à partir de son seul texte) et disparaissent
             // pendant la lecture de la jam (zones figées, un seul son à la fois).
             _annotSyncReadPlay() {
                 ANNOT_ZONES.forEach((w) => {
                     const ed = this._annotZoneEl(w);
                     if (!ed) return;
-                    ed.querySelectorAll('.cn-staff-play').forEach((b) => b.remove());
+                    ed.querySelectorAll('.cn-staff-play, .cn-staff-arp').forEach((b) => b.remove());
                     if (this._annotIsEditable(ed) || this.isPlaying) return;
                     ed.querySelectorAll('.annot-staff, .annot-chords').forEach((el) => {
                         const v = el.__noteStaff || el.__chordBlock;
                         if (!v || (el.__noteStaff && (!v.st || !v.st.ev.length))) return;
-                        const what = el.__chordBlock ? 'les accords' : 'la portée';
-                        const b = document.createElement('button');
-                        b.type = 'button'; b.className = 'cn-staff-play'; b.setAttribute('contenteditable', 'false');
-                        b.title = `Écouter ${what}`; b.setAttribute('aria-label', `Écouter ${what}`); b.textContent = '▶';
-                        b.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-                        b.addEventListener('click', (ev) => { ev.stopPropagation(); this._annotTogglePlay(el, b); });
-                        el.appendChild(b);
+                        const chords = !!el.__chordBlock;
+                        const what = chords ? 'les accords' : 'la portée';
+                        const mk = (cls, idle, title, mode) => {
+                            const b = document.createElement('button');
+                            b.type = 'button'; b.className = cls; b.setAttribute('contenteditable', 'false');
+                            b.title = title; b.setAttribute('aria-label', title); b.innerHTML = idle; b.dataset.idle = idle;
+                            b.addEventListener('pointerdown', (ev) => ev.stopPropagation());
+                            b.addEventListener('click', (ev) => { ev.stopPropagation(); this._annotTogglePlay(el, b, mode); });
+                            el.appendChild(b);
+                        };
+                        if (chords) mk('cn-staff-arp', CHB_ARP_ICON, 'Écouter les accords en arpège', 'a');
+                        mk('cn-staff-play', '▶', chords ? 'Écouter les accords (plaqués)' : `Écouter ${what}`, 'b');
                     });
                 });
             }
 
-            _annotTogglePlay(el, b) {
+            // ▶ (mode 'b', plaqué) et chevron (mode 'a', arpège) : le même bouton relance ou arrête ; un seul bloc joue à la fois.
+            _annotTogglePlay(el, b, mode) {
                 const v = el.__noteStaff || el.__chordBlock;
                 if (!v || this.isPlaying) return;
-                if (v.playing) { v.stop(); b.textContent = '▶'; b.classList.remove('is-on'); return; }
+                const btns = Array.from(el.querySelectorAll(':scope > .cn-staff-play, :scope > .cn-staff-arp'));
+                const idle = () => btns.forEach((x) => { x.innerHTML = x.dataset.idle; x.classList.remove('is-on'); });
+                if (v.playing) { v.stop(); idle(); return; }
                 this._annotStopBlocks(el);
-                v.play();
+                if (el.__chordBlock) v.play(undefined, mode); else v.play();
                 b.textContent = '■'; b.classList.add('is-on');
                 const poll = setInterval(() => {
                     if (!b.isConnected) { clearInterval(poll); return; }
-                    if (!v.playing) { clearInterval(poll); b.textContent = '▶'; b.classList.remove('is-on'); }
+                    if (!v.playing) { clearInterval(poll); idle(); }
                 }, 200);
             }
 
@@ -9013,12 +9038,12 @@
                 'app/grid/grid-format.js': typeof NOTE_FONTS !== 'undefined' && !!NOTE_FONTS.menlo && typeof sanitizeNoteHtml === 'function' && sanitizeNoteHtml('<div class="annot-frame" data-frame="200" data-at="5,5" data-border="0">x</div>', 300).indexOf('data-border') >= 0,
                 'app/ui/staff-editor.js': typeof nseToolState === 'function' && typeof nseBlocksToClipText === 'function' && typeof NoteStaffView === 'function' && typeof NoteStaffView.prototype.setBorder === 'function' && typeof NoteStaffView.prototype._setTuplet === 'function' && typeof nseSwingOptions === 'function' && typeof NoteStaffView.prototype._toggleTie === 'function' && typeof NoteStaffView.prototype._startMarquee === 'function',
                 'app/ui/text-frame.js': typeof NoteFrameView === 'function' && typeof NoteFrameView.prototype.setBorder === 'function',
-                'app/ui/annot-canvas.js': typeof AnnotCanvas === 'function' && typeof acZoomOffset === 'function' && typeof acEmptySpot === 'function',
+                'app/ui/annot-canvas.js': typeof AnnotCanvas === 'function' && typeof acZoomOffset === 'function' && typeof acEmptySpot === 'function' && typeof AC_GUTTER === 'number',
                 'app/ui/chord-notes.js': typeof chordsParse === 'function' && typeof chordsStubHtml === 'function' && typeof chordsDefault === 'function',
-                'app/ui/draw-notes.js': typeof drawParse === 'function' && typeof drawStubHtml === 'function' && typeof drawEraseAt === 'function' && typeof drawVarPathD === 'function',
-                'app/ui/chord-block.js': typeof ChordBlockView === 'function' && typeof hydrateChordBlocks === 'function' && typeof annotBlocksToClipText === 'function',
+                'app/ui/draw-notes.js': typeof drawParse === 'function' && typeof drawStubHtml === 'function' && typeof drawEraseAt === 'function' && typeof drawVarPathD === 'function' && typeof drawFillAt === 'function',
+                'app/ui/chord-block.js': typeof ChordBlockView === 'function' && typeof hydrateChordBlocks === 'function' && typeof annotBlocksToClipText === 'function' && typeof CHB_ARP_ICON === 'string',
                 'app/ui/draw-block.js': typeof DrawBlockView === 'function' && typeof hydrateDrawBlocks === 'function' && typeof DrawBlockView.prototype._touchLock === 'function',
-                'app/ui/annot-bar.js': typeof ANNOT_FONT_DEFAULT_CSS !== 'undefined' && typeof annotToolsHtml === 'function' && typeof annotModeHtml === 'function'
+                'app/ui/annot-bar.js': typeof ANNOT_FONT_DEFAULT_CSS !== 'undefined' && typeof annotToolsHtml === 'function' && typeof annotModeHtml === 'function' && typeof ANNOT_DELETE_ICON === 'string'
             };
             Object.keys(needed).forEach(function (f) { seen[f] = needed[f] ? BUILD : ''; });
             var old = Object.keys(seen).filter(function (f) { return seen[f] !== BUILD; });

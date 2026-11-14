@@ -922,7 +922,12 @@
 .ab-bar { display: block; width: 16px; height: 3px; border-radius: 1px; background: #dc2626; }
 .ab-hl { padding: 0 3px; border-radius: 3px; background: #fef08a; color: #0f172a; font-size: 12px; font-weight: 700; }
 .ab-sel { height: 30px; max-width: 150px; padding: 0 6px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #e2e8f0; font: 600 12px system-ui, sans-serif; cursor: pointer; }
-.ab-clear { color: #cbd5e1; min-width: 32px; padding: 0 6px; }
+.ab-text-only { display: contents; }
+.annot-bar:not(.has-text) .ab-text-only { display: none; }  /* réglages du texte : seulement avec un cadre de texte choisi */
+.ab-add { gap: 3px; }
+.ab-del { color: #fca5a5; }
+.ab-del[hidden] { display: none; }
+.ab-del:hover { background: #7f1d1d; border-color: #b91c1c; color: #fff; }
 .ab-frame svg { flex: 0 0 auto; }
 @media (max-width: 639px) {
     /* Téléphone : une seule ligne qui défile sous le doigt, pour ne pas prendre la moitié de l'écran */
@@ -1040,7 +1045,7 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 .jam-annot-text[data-editable="true"] .annot-staff:not(.is-active) { cursor: grab; touch-action: none; }
 .jam-annot-text[data-editable="true"] .annot-staff:not(.is-active):active { cursor: grabbing; }
 /* Crayon ✎ : ouvre le bloc en édition (un second clic en sort) ; visible sur tous les blocs en mode édition de la zone, absent hors édition */
-.annot-staff-edit, .annot-frame-edit { display: none; position: absolute; left: -9px; top: -9px; z-index: 3; width: 20px; height: 20px; padding: 0; align-items: center; justify-content: center; border: 0; border-radius: 10px;
+.annot-staff-edit, .annot-frame-edit { display: none; position: absolute; left: calc(100% + 5px); top: 0; z-index: 3; width: 20px; height: 20px; padding: 0; align-items: center; justify-content: center; border: 0; border-radius: 10px;
     background: #2563eb; color: #fff; font: 700 12px/1 system-ui, sans-serif; cursor: pointer; box-shadow: 0 1px 4px rgba(0, 0, 0, .45); }
 .annot-staff-edit:hover, .annot-frame-edit:hover { background: #1d4ed8; }
 .jam-annot-text[data-editable="true"] .annot-staff > .annot-staff-edit,
@@ -1048,7 +1053,7 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 .annot-staff.is-active > .annot-staff-edit, .annot-frame.is-editing > .annot-frame-edit { background: #1e293b; box-shadow: 0 0 0 2px #3b82f6; }
 @media (hover: none) {
     .jam-annot-text[data-editable="true"] .annot-staff > .annot-staff-edit,
-    .jam-annot-text[data-editable="true"] .annot-frame > .annot-frame-edit { opacity: .85; width: 24px; height: 24px; left: -11px; top: -11px; border-radius: 12px; }
+    .jam-annot-text[data-editable="true"] .annot-frame > .annot-frame-edit { opacity: .85; width: 24px; height: 24px; left: calc(100% + 5px); top: 0; border-radius: 12px; }
 }
 /* Pendant un déplacement : aperçu du bloc là où il sera déposé */
 .annot-drag-ghost { position: fixed; z-index: 2200; pointer-events: none; opacity: .85; background: #fff; border: 1px solid #3b82f6; border-radius: 8px; padding: 4px; line-height: 0;
@@ -1176,12 +1181,12 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
     /* Une portée en édition occupe tout le cadre de sa zone (Grille ou Mesure) : la zone s'agrandit pour elle, la portée est à son coin haut gauche et
        prend toute sa largeur ; en sortant de l'édition elle retrouve sa place (data-at) et sa taille. */
     .jam-annot-text:has(> .annot-staff.is-active) { min-height: min(62vh, 460px); overflow-x: hidden; }
-    .jam-annot-text:not(.legacy-flow) > .annot-staff.is-active { left: 0 !important; top: 0 !important; width: 100% !important; min-height: 100%; max-width: 100%; margin: 0; transform: none !important; border-radius: 8px; }
+    .jam-annot-text:not(.legacy-flow) > .annot-staff.is-active { left: 0 !important; top: 0 !important; width: calc(100% - 40px) !important; min-height: 100%; max-width: calc(100% - 40px); margin: 0; transform: none !important; border-radius: 8px; }
     .annot-staff.is-active .annot-staff-svg { min-height: 120px; }
     .annot-staff-hint { padding: 0 40px; font-size: 11px; white-space: nowrap; }
-    /* Crayon ✎ des blocs : à l'intérieur du coin haut droit (à cheval sur le bord il était rogné par la zone), plus large pour le doigt. */
+    /* Crayon ✎ des blocs : à droite du bloc, hors de son espace (la marge de droite de la page lui est réservée), plus large pour le doigt. */
     .jam-annot-text[data-editable="true"] .annot-staff > .annot-staff-edit,
-    .jam-annot-text[data-editable="true"] .annot-frame > .annot-frame-edit { left: auto; right: 2px; top: 2px; width: 28px; height: 28px; border-radius: 14px; opacity: .92; }
+    .jam-annot-text[data-editable="true"] .annot-frame > .annot-frame-edit { left: calc(100% + 4px); right: auto; top: 0; width: 28px; height: 28px; border-radius: 14px; opacity: .92; }
     /* Outils de la portée : l'essentiel sur deux rangées (durées, silence, altérations, écouter / annuler / effacer, tuplet), le reste derrière « ⋯ Plus » ;
        tout passe à la ligne au lieu de défiler sous le doigt, les boutons sont plus gros. La barre collée en haut ne dépasse jamais 40 % de l'écran. */
     .annot-bar.staff-mode { flex-wrap: wrap; overflow-x: hidden; overflow-y: auto; max-height: 40vh; }
@@ -1211,13 +1216,18 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 
 /* ===== Blocs d'accords jouables, cadres de dessin libre, ▶ de lecture, tête de note bleue (repris du Carnet de notes) ===== */
 .annot-staff-svg .vf-notehead.ns-playing path { fill: #2563eb; }
-/* Lecture d'un bloc (portée ou accords) hors édition : petit ▶ noir, discret, dans le coin bas droit DU CADRE (à l'intérieur) ; il n'apparaît qu'au survol. Jamais enregistré. */
-.cn-staff-play { position: absolute; right: 5px; bottom: 3px; z-index: 6; display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 4px;
-    background: transparent; color: #0f172a; font: 700 10px/1 system-ui, sans-serif; cursor: pointer; opacity: 0; transition: opacity .12s; }
-.annot-staff:hover > .cn-staff-play, .annot-chords:hover > .cn-staff-play, .cn-staff-play:focus-visible, .cn-staff-play.is-on { opacity: .6; }
-.annot-staff > .cn-staff-play:hover, .annot-chords > .cn-staff-play:hover { opacity: 1; background: rgba(15, 23, 42, .08); }
-@media (pointer: coarse) { .cn-staff-play { width: 28px; height: 28px; font-size: 12px; opacity: .45; } }
-.annot-chords { position: relative; box-sizing: border-box; padding: 6px 26px 6px 10px; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; color: #0f172a; white-space: nowrap;
+/* Lecture d'un bloc (portée ou accords) hors édition : ▶ (plaqué) et, pour les accords, un chevron au-dessus (arpège). Ils sont À DROITE du bloc, collés à son bord extérieur (après la bordure de 1 px),
+   jamais dans son espace ; ils n'apparaissent qu'au survol du bloc (ou toujours, discrets, au doigt). Jamais enregistrés. */
+.cn-staff-play, .cn-staff-arp { position: absolute; left: calc(100% + 1px); z-index: 6; display: flex; align-items: center; justify-content: center; width: 26px; height: 24px; padding: 0 0 0 4px; border: 0; border-radius: 5px;
+    background: transparent; color: #0f172a; font: 700 11px/1 system-ui, sans-serif; cursor: pointer; opacity: 0; transition: opacity .12s; }
+.cn-staff-play { bottom: 0; }
+.cn-staff-arp { bottom: 26px; }
+.cn-staff-arp svg { width: 14px; height: 14px; }
+.annot-staff:hover > .cn-staff-play, .annot-chords:hover > .cn-staff-play, .annot-chords:hover > .cn-staff-arp,
+.cn-staff-play:focus-visible, .cn-staff-arp:focus-visible, .cn-staff-play.is-on, .cn-staff-arp.is-on { opacity: .6; }
+.annot-staff > .cn-staff-play:hover, .annot-chords > .cn-staff-play:hover, .annot-chords > .cn-staff-arp:hover { opacity: 1; background: rgba(15, 23, 42, .08); }
+@media (pointer: coarse) { .cn-staff-play, .cn-staff-arp { width: 34px; height: 32px; font-size: 13px; opacity: .45; } .cn-staff-arp { bottom: 34px; } .cn-staff-arp svg { width: 17px; height: 17px; } }
+.annot-chords { position: relative; box-sizing: border-box; padding: 6px 10px; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; color: #0f172a; white-space: nowrap;
     user-select: none; -webkit-user-select: none; cursor: default; font: 400 20px/1.2 Kalam, cursive; }
 .jam-annot-text:not(.legacy-flow) > .annot-chords { position: absolute; display: block; margin: 0; }
 .annot-chords-row { display: flex; align-items: stretch; gap: 5px; }
@@ -1227,8 +1237,13 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 .cb-chord:hover { background: #eff6ff; }
 .cb-chord:active { background: #dbeafe; }
 .cb-chord .cb-sym { font-size: 22px; line-height: 1.15; }
-.cb-chord small { font: 600 10px/1 system-ui, sans-serif; color: #94a3b8; margin-top: 1px; text-align: center; }
-.annot-chords.is-arp .cb-chord .cb-sym::before { content: "↗"; font: 400 11px system-ui, sans-serif; color: #94a3b8; margin-right: 3px; vertical-align: top; }
+.cb-chord small { font: 600 10px/1 system-ui, sans-serif; color: #94a3b8; text-align: center; }
+.cb-foot { display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 1px; }
+/* Chevrons « arpège » : dans chaque domino, ils jouent cet accord en arpège */
+.cb-arp { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 14px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: #64748b; cursor: pointer; }
+.cb-arp svg { width: 12px; height: 12px; }
+.cb-arp:hover { background: rgba(37, 99, 235, .14); color: #1d4ed8; }
+@media (pointer: coarse) { .cb-arp { width: 26px; height: 22px; } .cb-arp svg { width: 15px; height: 15px; } }
 .cb-chord.is-playing { background: rgba(37, 99, 235, .18); border-color: #2563eb; }
 .cb-chord.is-sel { background: rgba(59, 130, 246, .14); border-color: #3b82f6; box-shadow: inset 0 -2px 0 #3b82f6; }
 .annot-chords.is-editing { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
@@ -1242,13 +1257,13 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 .annot-chords.no-border.is-editing { border-color: #3b82f6; background: #fff; box-shadow: 0 0 0 1px #3b82f6; }
 .annot-chords.no-border.is-picked { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .45); }
 .jam-annot-text.is-zoomed:not(.legacy-flow) > .annot-chords { transform: scale(var(--z, 1)); transform-origin: calc(var(--bx, 0px) * -1) calc(var(--by, 0px) * -1); }
-.annot-chords-edit { display: none; position: absolute; left: -9px; top: -9px; z-index: 3; width: 20px; height: 20px; padding: 0; align-items: center; justify-content: center; border: 0; border-radius: 10px;
+.annot-chords-edit { display: none; position: absolute; left: calc(100% + 5px); top: 0; z-index: 3; width: 20px; height: 20px; padding: 0; align-items: center; justify-content: center; border: 0; border-radius: 10px;
     background: #2563eb; color: #fff; font: 700 12px/1 system-ui, sans-serif; cursor: pointer; box-shadow: 0 1px 4px rgba(0, 0, 0, .45); }
 .annot-chords-edit:hover { background: #1d4ed8; }
 .jam-annot-text[data-editable="true"] .annot-chords > .annot-chords-edit { display: flex; }
 .annot-chords.is-editing > .annot-chords-edit { background: #1e293b; box-shadow: 0 0 0 2px #3b82f6; }
 .jam-annot-text > .annot-chords.is-editing { z-index: 20; }
-@media (hover: none) { .jam-annot-text[data-editable="true"] .annot-chords > .annot-chords-edit { opacity: .85; width: 24px; height: 24px; left: -11px; top: -11px; border-radius: 12px; } }
+@media (hover: none) { .jam-annot-text[data-editable="true"] .annot-chords > .annot-chords-edit { opacity: .85; width: 24px; height: 24px; left: calc(100% + 5px); top: 0; border-radius: 12px; } }
 .annot-drag-ghost .annot-chords-row { font: 400 20px/1.2 Kalam, cursive; color: #0f172a; white-space: nowrap; line-height: normal; }
 .cn-chord-pop .jm-select { margin-top: 0; width: auto; }
 .cb-seq { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 9px; }
@@ -1272,8 +1287,8 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 .annot-draw-svg { display: block; width: 100%; height: 100%; overflow: hidden; border-radius: 7px; }
 .annot-draw.is-editing { overflow: visible; border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
 .annot-draw.is-editing .annot-draw-svg { cursor: crosshair; touch-action: none; border-radius: 7px; }
-.annot-draw.is-editing.is-eraser .annot-draw-svg { cursor: none; }
-/* la gomme est montrée par son rond (.annot-draw-eraser) */
+.annot-draw.is-editing.is-fill .annot-draw-svg { cursor: cell; }
+.annot-draw.is-editing.is-eraser .annot-draw-svg { cursor: none; }   /* la gomme est montrée par son rond (.annot-draw-eraser) */
 .annot-draw-eraser { display: none; position: absolute; z-index: 2; box-sizing: border-box; pointer-events: none; border-radius: 50%; border: 1.5px solid #0f172a; background: rgba(255, 255, 255, .35); box-shadow: 0 0 0 1px rgba(255, 255, 255, .9), inset 0 0 0 1px rgba(255, 255, 255, .7); }
 .annot-draw.is-picked { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .45); }
 .annot-draw.is-dragging-src { opacity: .35; }
@@ -1285,7 +1300,7 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 .annot-draw.no-border.is-editing { border-color: #3b82f6; background: #fff; box-shadow: 0 0 0 1px #3b82f6; }
 .annot-draw.no-border.is-picked { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .45); }
 .jam-annot-text.is-zoomed:not(.legacy-flow) > .annot-draw { transform: scale(var(--z, 1)); transform-origin: calc(var(--bx, 0px) * -1) calc(var(--by, 0px) * -1); }
-.annot-draw-edit { display: none; position: absolute; left: -9px; top: -9px; z-index: 3; width: 20px; height: 20px; padding: 0; align-items: center; justify-content: center; border: 0; border-radius: 10px;
+.annot-draw-edit { display: none; position: absolute; left: calc(100% + 5px); top: 0; z-index: 3; width: 20px; height: 20px; padding: 0; align-items: center; justify-content: center; border: 0; border-radius: 10px;
     background: #2563eb; color: #fff; font: 700 11px/1 system-ui, sans-serif; cursor: pointer; box-shadow: 0 1px 4px rgba(0, 0, 0, .45); }
 .annot-draw-edit:hover { background: #1d4ed8; }
 .jam-annot-text[data-editable="true"] .annot-draw > .annot-draw-edit { display: flex; }
@@ -1294,7 +1309,7 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
     box-shadow: 0 1px 4px rgba(0, 0, 0, .45); background-image: linear-gradient(135deg, transparent 0 55%, #fff 55% 62%, transparent 62% 72%, #fff 72% 79%, transparent 79%); }
 .annot-draw.is-editing > .annot-draw-grip, .annot-draw.is-picked > .annot-draw-grip { display: block; }
 .jam-annot-text > .annot-draw.is-editing { z-index: 20; }
-@media (hover: none) { .jam-annot-text[data-editable="true"] .annot-draw > .annot-draw-edit { opacity: .85; width: 24px; height: 24px; left: -11px; top: -11px; border-radius: 12px; } .annot-draw-grip { width: 26px; height: 26px; right: -11px; bottom: -11px; border-radius: 6px; } }
+@media (hover: none) { .jam-annot-text[data-editable="true"] .annot-draw > .annot-draw-edit { opacity: .85; width: 24px; height: 24px; left: calc(100% + 5px); top: 0; border-radius: 12px; } .annot-draw-grip { width: 26px; height: 26px; right: -11px; bottom: -11px; border-radius: 6px; } }
 .annot-drag-ghost .annot-draw-svg { background: #fff; }
 /* Fenêtre d'outils du dessin */
 .cn-draw-pop { min-width: 250px; max-width: 320px; }
@@ -1309,6 +1324,8 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 .dr-range { flex: 1 1 90px; min-width: 70px; accent-color: #3b82f6; }
 .dr-val { min-width: 38px; color: #e2e8f0; font-variant-numeric: tabular-nums; text-align: right; }
 .dr-dot { flex: none; display: inline-block; border-radius: 50%; border: 1px solid #3a3a3c; }
+.cn-draw-pop .dr-fillhint { display: block; max-width: 300px; color: #94a3b8; font-size: 11px; line-height: 1.4; }
+.cn-draw-pop .dr-ico { margin-right: 3px; vertical-align: -2px; }
 .dr-hint { min-height: 14px; margin-top: 6px; color: #fbbf24; font-size: 11px; }
 .cn-draw-pop.jm-sheet { max-width: none; }
 @media (pointer: coarse) { .dr-sw { width: 34px; height: 34px; border-radius: 17px; } }

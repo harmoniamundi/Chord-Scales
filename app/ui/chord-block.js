@@ -1,13 +1,16 @@
 // ui/chord-block.js — bloc d'accords jouables posé sur le canevas d'une zone d'annotation (<div class="annot-chords" data-chords="…" data-at="x,y">).
 // Le bloc affiche une suite d'accords (symbole + durée en temps). En édition, une fenêtre propose le sélecteur d'accord de Chord Scales
-// (« Construire » / « Catalogue », ui/chord-picker.js) pour choisir chaque accord, sa durée, sa place dans la suite, et le mode de lecture (plaqué / arpégé).
-// Hors édition, il se déplace comme les autres blocs (ui/annot-canvas.js) ; son bouton ▶ le joue au piano au tempo de la jam.
+// (« Construire » / « Catalogue », ui/chord-picker.js) pour choisir chaque accord, sa durée et sa place dans la suite ; un clic sur le nom d'un accord, en haut, le joue.
+// Plaqué ou arpégé se choisit hors édition : ▶ (plaqué) et, au-dessus, le chevron (arpégé) à droite du bloc, et un chevron dans chaque domino (cet accord en arpège).
+// Hors édition, il se déplace comme les autres blocs (ui/annot-canvas.js) ; ses boutons le jouent au piano au tempo de la jam.
 // Le format, les symboles et les notes jouées sont dans ui/chord-notes.js (sans DOM, testé) ; ici, seulement l'écran.
 // Chargé par index.html via <script src="app/ui/chord-block.js"> (après ui/chord-notes.js, ui/chord-picker.js et ui/annot-canvas.js).
 
 let CHB_ACTIVE = null; // le bloc d'accords dont la fenêtre d'édition est ouverte (un seul à la fois)
 
 const CHB_PICKER_MODE_KEY = 'jamChordPickerMode';
+// Chevrons « arpège » (double chevron vers la droite) : dans chaque domino ; le même est utilisé par le bouton du bloc (engine : _annotSyncReadPlay).
+const CHB_ARP_ICON = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 3l4 4-4 4M7.5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 // Fonctions des autres modules : globales dans le navigateur, chargées sous Node (tests).
 const CHB_L = (typeof chordsJazz !== 'undefined')
@@ -33,7 +36,7 @@ function chordInstrOptions(cur) {
 function chordEditorHtml(v) {
     const L = CHB_L, st = v.st, c = st.chords[v.sel] || st.chords[0];
     const findChordObj = (id) => L.lookupChord(id) || L.chordTypes.maj[0];
-    const chips = st.chords.map((ch, i) => `<button type="button" class="cb-seq-chip${i === v.sel ? ' is-on' : ''}" data-cb="pick" data-i="${i}" title="Choisir cet accord (${L.chordsBeatsText(ch.beats)} temps)">`
+    const chips = st.chords.map((ch, i) => `<button type="button" class="cb-seq-chip${i === v.sel ? ' is-on' : ''}" data-cb="pick" data-i="${i}" title="Choisir et écouter cet accord (${L.chordsBeatsText(ch.beats)} temps)">`
         + `<span class="cb-sym">${L.chordsLabelHtml(ch)}</span><small>${L.chordsBeatsText(ch.beats)}</small></button>`).join('');
     const add = st.chords.length < L.CH_MAX_CHORDS
         ? '<button type="button" class="cb-seq-add" data-cb="add" title="Ajouter un accord après celui-ci (copie de l\'accord choisi)" aria-label="Ajouter un accord">+</button>' : '';
@@ -51,11 +54,7 @@ function chordEditorHtml(v) {
             <button type="button" class="jm-btn jm-danger" data-cb="del" title="Supprimer l'accord choisi"${st.chords.length > 1 ? '' : ' disabled'}>Supprimer</button>
         </div>
         <div class="cb-ctl">
-            <div class="jm-mode cb-mode" role="group" aria-label="Lecture">
-                ${chip(st.mode === 'b', 'data-cb="mode" data-v="b" title="Toutes les notes de l\'accord ensemble"', 'Plaqué')}
-                ${chip(st.mode === 'a', 'data-cb="mode" data-v="a" title="Les notes l\'une après l\'autre, de bas en haut"', 'Arpégé')}
-            </div>
-            <button type="button" class="jm-btn cb-listen" data-cb="play" title="Écouter le bloc">${v.playing ? '■ Stop' : '▶ Écouter'}</button>
+            <button type="button" class="jm-btn cb-listen" data-cb="play" title="Écouter le bloc (accords plaqués ; l'arpège se joue hors édition, avec le chevron au-dessus de ▶)">${v.playing ? '■ Stop' : '▶ Écouter'}</button>
         </div>
         <div class="cb-ctl cb-play-set" role="group" aria-label="Réglages de lecture de ce bloc">
             <label class="cb-beats" title="Tempo de ce bloc, en noires par minute (vide : tempo de la jam)">♩ = <input type="number" class="jm-select cb-num" data-cb="bpm" min="${L.SN_BPM_MIN}" max="${L.SN_BPM_MAX}" step="1" inputmode="numeric" placeholder="jam" value="${st.bpm || ''}" aria-label="Tempo, en noires par minute"></label>
@@ -110,10 +109,11 @@ class ChordBlockView {
 
     _render() {
         // Un domino (cadre complet) par accord : clic = l'accord se joue ; sa largeur suit sa durée.
-        this.row.innerHTML = this.st.chords.map((c, i) => `<span class="cb-chord${this.isActive && i === this.sel ? ' is-sel' : ''}" data-i="${i}" style="--b:${c.beats}" title="Jouer cet accord">`
-            + `<span class="cb-sym">${chordsLabelHtml(c)}</span><small class="cb-dur">${chordsBeatsText(c.beats)}</small></span>`).join('');
+        // Chaque domino a son chevron : il joue cet accord en arpège (un clic ailleurs sur le domino le joue plaqué).
+        this.row.innerHTML = this.st.chords.map((c, i) => `<span class="cb-chord${this.isActive && i === this.sel ? ' is-sel' : ''}" data-i="${i}" style="--b:${c.beats}" title="Jouer cet accord (plaqué)">`
+            + `<span class="cb-sym">${chordsLabelHtml(c)}</span><span class="cb-foot"><small class="cb-dur">${chordsBeatsText(c.beats)}</small>`
+            + `<button type="button" class="cb-arp" contenteditable="false" title="Jouer cet accord en arpège" aria-label="Jouer cet accord en arpège">${CHB_ARP_ICON}</button></span></span>`).join('');
         this.el.setAttribute('data-chords', chordsFormat(this.st));
-        this.el.classList.toggle('is-arp', this.st.mode === 'a');
     }
 
     _hilite(i) {
@@ -195,8 +195,9 @@ class ChordBlockView {
             const d = this._downXY;
             if (d && Math.hypot(ev.clientX - d.x, ev.clientY - d.y) > 5) return;
             const i = Math.max(0, Math.min(this.st.chords.length - 1, parseInt(chip.dataset.i, 10) || 0));
+            const arp = !!ev.target.closest('.cb-arp'); // le chevron du domino : cet accord en arpège
             if (this.isActive) { this.sel = i; this._render(); this._popRender(); }
-            this.playChord(i);
+            this.playChord(i, arp ? 'a' : 'b');
         });
     }
 
@@ -327,12 +328,11 @@ class ChordBlockView {
             const act = b.dataset.cb;
             if (b.disabled) return;
             if (act === 'done') { this.deactivate(); if (this.opts.onFocusBack) this.opts.onFocusBack(this); }
-            else if (act === 'pick') { this.sel = Math.max(0, Math.min(this.st.chords.length - 1, parseInt(b.dataset.i, 10) || 0)); this._render(); this._popRender(); }
+            else if (act === 'pick') { this.sel = Math.max(0, Math.min(this.st.chords.length - 1, parseInt(b.dataset.i, 10) || 0)); this._render(); this._popRender(); this.playChord(this.sel); }
             else if (act === 'add') this._edit('add');
             else if (act === 'del') this._edit('remove');
             else if (act === 'left') this._edit('move', -1);
             else if (act === 'right') this._edit('move', 1);
-            else if (act === 'mode') this._edit('setMode', b.dataset.v);
             else if (act === 'play') { if (this.playing) this.stop(); else this.play(); this._popRender(); }
             return;
         }
@@ -372,13 +372,14 @@ class ChordBlockView {
 
     get canPlay() { return !!(this.opts.audio && this.st.chords.length); }
 
-    // Joue tout le bloc, ou seulement l'accord `only` (clic sur son domino). Tempo, swing et instrument sont ceux du bloc (à défaut, ceux de la jam).
-    play(only) {
+    // Joue tout le bloc, ou seulement l'accord `only` (clic sur son domino). mode : 'b' (plaqué, par défaut) ou 'a' (arpégé, de bas en haut) ; il n'est pas
+    // enregistré dans le bloc. Tempo, swing et instrument sont ceux du bloc (à défaut, ceux de la jam).
+    play(only, mode) {
         const a = this.opts.audio;
         if (!a || !this.st.chords.length) return;
         this.stop();
         const single = Number.isInteger(only) && this.st.chords[only];
-        const st = single ? Object.assign({}, this.st, { chords: [this.st.chords[only]] }) : this.st;
+        const st = Object.assign({}, this.st, { mode: mode === 'a' ? 'a' : 'b' }, single ? { chords: [this.st.chords[only]] } : {});
         const offset = single ? only : 0;
         const token = { timers: [] };
         this.playing = token;
@@ -395,7 +396,7 @@ class ChordBlockView {
         this._refreshPlay();
     }
 
-    playChord(i) { this.play(i); }
+    playChord(i, mode) { this.play(i, mode); }
 
     stop() {
         const t = this.playing;

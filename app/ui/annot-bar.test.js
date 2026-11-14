@@ -77,22 +77,33 @@ describe('HTML de la barre et des menus', () => {
     test('la barre contient ce qu’index.html utilise', () => {
         for (const needle of ['id="jam-annot-bar"', 'data-font', 'data-size-step="-1"', 'data-size-step="1"', 'data-size-label', 'data-menu="size"', 'data-menu="color"',
             'data-menu="hilite"', 'data-menu="insert"', 'data-cmd="bold"', 'data-cmd="italic"', 'data-cmd="underline"', 'data-cmd="strikeThrough"',
-            'data-cmd="justifyLeft"', 'data-cmd="justifyCenter"', 'data-cmd="justifyRight"', 'data-cmd="insertUnorderedList"', 'data-insert-staff', 'data-insert-frame', 'data-insert-draw', 'data-insert-chords', 'data-clear',
+            'data-cmd="justifyLeft"', 'data-cmd="justifyCenter"', 'data-cmd="justifyRight"', 'data-cmd="insertUnorderedList"', 'data-insert-staff', 'data-insert-frame', 'data-insert-draw', 'data-insert-chords', 'data-delete',
             'id="jam-annot-staff-host"', 'data-color-bar']) {
             assert.ok(bar.includes(needle), needle);
         }
     });
-    test('plus de bouton « Coller portée » ; « Texte » ajouté ; « Effacer la mise en forme » est un bouton à symbole (sans texte)', () => {
+    test('plus de bouton « Coller portée » ni « Effacer la mise en forme » ; « Texte » est un bouton à icône et libellé', () => {
         assert.ok(!bar.includes('data-paste-staff'));
         assert.ok(!bar.includes('Coller portée'));
+        assert.ok(!bar.includes('data-clear') && !bar.includes('Effacer la mise en forme'));
         assert.ok(/data-insert-frame="1"[^>]*>[^<]*<svg[\s\S]*?<\/svg> Texte<\/button>/.test(bar), 'bouton Texte : icône puis libellé');
         assert.ok(/data-insert-draw="1"[^>]*>[^<]*<svg[\s\S]*?<\/svg> Dessin<\/button>/.test(bar), 'bouton Dessin : icône puis libellé');
         assert.ok(/data-insert-chords="1"[^>]*>[^<]*<svg[\s\S]*?<\/svg> Accords<\/button>/.test(bar), 'bouton Accords : icône puis libellé');
-        const clear = /<button[^>]*data-clear="1"[^>]*>([\s\S]*?)<\/button>/.exec(bar);
-        assert.ok(clear, 'bouton d\'effacement présent');
-        assert.ok(clear[1].startsWith('<svg') && clear[1].endsWith('</svg>'), 'seulement un symbole');
-        assert.ok(/data-clear="1"[^>]*title="Effacer la mise en forme/.test(bar) && /data-clear="1"[^>]*aria-label="Effacer la mise en forme/.test(bar), 'nom accessible conservé');
-        assert.ok(!bar.includes('>Effacer la mise en forme<'), 'plus de libellé écrit');
+    });
+    test('par défaut seuls Texte, Portée, Dessin, Accords sont visibles, dans cet ordre ; les réglages du texte sont à part', () => {
+        const textOnly = /<div class="ab-text-only"[\s\S]*?<div class="ab-grp ab-add"/.exec(bar);
+        assert.ok(textOnly, 'groupe des réglages du texte');
+        for (const n of ['data-font', 'data-size-step', 'data-menu="color"', 'data-cmd="bold"', 'data-cmd="justifyLeft"', 'data-menu="insert"']) assert.ok(textOnly[0].includes(n), n);
+        const add = /<div class="ab-grp ab-add"[\s\S]*?<\/div>/.exec(bar)[0];
+        const order = ['data-insert-frame', 'data-insert-staff', 'data-insert-draw', 'data-insert-chords'].map(k => add.indexOf(k));
+        assert.ok(order.every(i => i > 0) && order.every((v, i) => i === 0 || v > order[i - 1]), 'Texte, Portée, Dessin, Accords');
+        for (const n of ['data-insert-staff', 'data-insert-frame', 'data-insert-draw', 'data-insert-chords']) assert.ok(!textOnly[0].includes(n), n + ' hors des réglages du texte');
+    });
+    test('« Supprimer » : une corbeille avec libellé, cachée tant qu\'aucun bloc n\'est choisi', () => {
+        const del = /<button[^>]*data-delete="1"[^>]*>([\s\S]*?)<\/button>/.exec(bar);
+        assert.ok(del, 'bouton Supprimer présent');
+        assert.ok(/data-delete="1" hidden/.test(bar), 'caché au départ');
+        assert.ok(del[1].startsWith('<svg') && del[1].endsWith(' Supprimer'), 'icône puis libellé');
     });
     test('toutes les polices sont dans la liste déroulante', () => {
         B.ANNOT_FONT_CHOICES.forEach(f => assert.ok(bar.includes(`>${f.label}</option>`), f.label));

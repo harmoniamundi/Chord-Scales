@@ -12,6 +12,7 @@
 const AC_SNAP = 6;            // distance (pixels) à laquelle un repère apparaît, et à laquelle l'aimant attire un bloc
 const AC_DRAG_MIN = 5;        // déplacement minimal (pixels) avant qu'un appui devienne un glisser
 const AC_MARGIN = 12;         // marge de la première place libre
+const AC_GUTTER = 36;         // marge de droite réservée aux boutons posés À DROITE d'un bloc (crayon ✎, ▶, chevron d'arpège) : un bloc ne les cache pas sous le bord
 const AC_GAP = 10;            // espace laissé entre un nouveau bloc et ses voisins (acEmptySpot)
 const AC_CASCADE = 22;        // décalage entre deux blocs créés l'un après l'autre
 const AC_BLOCKS = '.annot-staff, .annot-frame, .annot-chords, .annot-draw';
@@ -41,12 +42,14 @@ function acNormRect(x0, y0, x1, y1) {
     return { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) };
 }
 
-// Déplacement (dx, dy) ramené pour que le groupe `b` ne sorte pas par le haut ni par la gauche, ni par la droite quand il tient dans la zone (largeur zoneW).
+// Déplacement (dx, dy) ramené pour que le groupe `b` ne sorte pas par le haut ni par la gauche, ni par la droite quand il tient dans la zone (largeur zoneW),
+// en laissant à droite la marge AC_GUTTER où se posent les boutons du bloc (crayon, ▶, chevron).
 function acClampMove(b, dx, dy, zoneW) {
     let x = dx, y = dy;
     if (b.x + x < 0) x = -b.x;
     if (b.y + y < 0) y = -b.y;
-    if (zoneW > 0 && b.w <= zoneW && b.x + b.w + x > zoneW) x = zoneW - b.w - b.x;
+    const lim = zoneW - AC_GUTTER;
+    if (zoneW > 0 && b.w <= lim && b.x + b.w + x > lim) x = lim - b.w - b.x;
     return { dx: Math.round(x), dy: Math.round(y) };
 }
 
@@ -105,7 +108,7 @@ function acFreeSpot(rects, start) {
 // à défaut, la première place libre de la page, ou sous le dernier bloc.
 function acEmptySpot(rects, size, opts) {
     const o = opts || {}, w = Math.max(1, Math.round(size.w)), h = Math.max(1, Math.round(size.h)), gap = AC_GAP;
-    const maxX = Math.max(AC_MARGIN, (Number.isFinite(o.width) ? o.width : Infinity) - w - AC_MARGIN);
+    const maxX = Math.max(AC_MARGIN, (Number.isFinite(o.width) ? o.width : Infinity) - w - AC_GUTTER);
     const hits = (x, y) => rects.some(r => x < r.x + r.w + gap && x + w + gap > r.x && y < r.y + r.h + gap && y + h + gap > r.y);
     const v = o.view && Number.isFinite(o.view.y) ? o.view : null;
     const xs = [AC_MARGIN], ys = [AC_MARGIN];
@@ -537,6 +540,6 @@ function acPopManual(pop) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { acPopClamp, acPopSpot, acPopKey, acPopManual, AC_POP_POS, AC_SNAP, AC_DRAG_MIN, AC_MARGIN, AC_GAP, AC_CASCADE, AC_BLOCKS, acBounds, acIntersects, acNormRect, acClampMove, acSnap, acFreeSpot, acEmptySpot,
+    module.exports = { acPopClamp, acPopSpot, acPopKey, acPopManual, AC_POP_POS, AC_GUTTER, AC_SNAP, AC_DRAG_MIN, AC_MARGIN, AC_GAP, AC_CASCADE, AC_BLOCKS, acBounds, acIntersects, acNormRect, acClampMove, acSnap, acFreeSpot, acEmptySpot,
         AC_ZOOM_MIN, AC_ZOOM_MAX, AC_ZOOM_STEPS, AC_TAP_SLOP, AC_PHONE_QUERY, acIsTap, acIsPhone, acZoomOf, acCanvasWidth, acClampZoom, acZoomStep, acZoomWheel, acZoomOffset, acZoomScroll };
 }

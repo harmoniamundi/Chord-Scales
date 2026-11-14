@@ -38,7 +38,7 @@ describe('acNormRect : rectangle de sélection tiré dans n\'importe quel sens',
 describe('acClampMove : un groupe ne sort pas de la zone par le haut, la gauche ou la droite', () => {
     test('déplacement libre au milieu de la zone', () => assert.deepEqual(C.acClampMove(R(50, 50, 40, 20), 10, -5, 400), { dx: 10, dy: -5 }));
     test('bloqué par le bord gauche et par le bord haut', () => assert.deepEqual(C.acClampMove(R(10, 8, 40, 20), -30, -30, 400), { dx: -10, dy: -8 }));
-    test('bloqué par le bord droit s\'il tient dans la zone', () => assert.deepEqual(C.acClampMove(R(300, 0, 80, 20), 100, 0, 400), { dx: 20, dy: 0 }));
+    test('bloqué par le bord droit s\'il tient dans la zone, en laissant la marge des boutons du bloc', () => assert.deepEqual(C.acClampMove(R(300, 0, 80, 20), 100, 0, 400), { dx: 400 - C.AC_GUTTER - 80 - 300, dy: 0 }));
     test('plus large que la zone : la droite ne le retient pas', () => assert.deepEqual(C.acClampMove(R(0, 0, 500, 20), 30, 0, 400), { dx: 30, dy: 0 }));
     test('vers le bas : toujours libre (la zone défile)', () => assert.deepEqual(C.acClampMove(R(0, 0, 40, 20), 0, 900, 400), { dx: 0, dy: 900 }));
     test('résultat arrondi au pixel', () => assert.deepEqual(C.acClampMove(R(50, 50, 40, 20), 3.4, 2.6, 400), { dx: 3, dy: 3 }));
@@ -265,10 +265,10 @@ describe('canevas dézoomé : toute la partie visible est utilisable', () => {
         assert.equal(C.acCanvasWidth({ clientWidth: 1000, __zoom: 2 }), 1000);
         assert.equal(C.acCanvasWidth({ clientWidth: 1000 }), 1000);
     });
-    test('un bloc peut être déplacé jusqu\'au bord droit visible à 50 %', () => {
+    test('un bloc peut être déplacé jusqu\'au bord droit visible à 50 % (moins la marge des boutons)', () => {
         const w = C.acCanvasWidth({ clientWidth: 1000, __zoom: 0.5 });
         const c = C.acClampMove({ x: 100, y: 0, w: 200, h: 50 }, 2500, 0, w);
-        assert.equal(100 + c.dx + 200, 2000);
+        assert.equal(100 + c.dx + 200, 2000 - C.AC_GUTTER);   // la marge de droite reste libre pour le crayon et ▶
     });
 });
 
