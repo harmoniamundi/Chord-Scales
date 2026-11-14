@@ -10,6 +10,10 @@ const GF_THEORY = (typeof scalesDb !== 'undefined')
 const GF_STAFF = (typeof parseStaff !== 'undefined')
     ? { parseStaff, formatStaff, parseStaffPos, formatStaffPos, parseBlockAt, formatBlockAt, parseBlockBorder, parseFrameBox, formatFrameBox }
     : require('../ui/staff-notes.js');
+// Blocs d'accords jouables (ui/chord-notes.js) : même principe, le texte « data-chords » est relu et réécrit sous sa forme canonique.
+const GF_CHORDS = (typeof chordsCanon !== 'undefined') ? { chordsCanon } : require('../ui/chord-notes.js');
+// Cadres de dessin libre (ui/draw-notes.js) : « data-draw » est relu (traits compris) et réécrit sous sa forme canonique.
+const GF_DRAW = (typeof drawCanon !== 'undefined') ? { drawCanon } : require('../ui/draw-notes.js');
 
 // Repères de partie proposés par le menu « Partie » ; les lettres A–Z restent acceptées (anciennes grilles, parties auto)
 const PART_LABELS = ['in', 'A', 'B', 'C', 'D', 'E', 'F', 'G', "A'", "B'", "C'", "D'", "E'", "F'", "G'", 'out'];
@@ -30,6 +34,8 @@ const GRID_NOTE_MAX = 8000;
 const MEASURE_NOTE_SPAN_MAX = 64;   // une annotation de mesure peut rester affichée sur 64 mesures au plus (`noteSpan` du bloc)
 const NOTE_MAX_STAVES = 8; // portées éditables par annotation
 const NOTE_MAX_FRAMES = 8; // cadres de texte par annotation (le texte d'un cadre compte dans la limite de l'annotation ; pas de cadre dans un cadre, ni de portée)
+const NOTE_MAX_CHORDS = 12; // blocs d'accords jouables par annotation (jusqu'à 16 accords chacun)
+const NOTE_MAX_DRAWS = 6;   // cadres de dessin libre par annotation (leurs traits ne comptent pas dans la limite du texte)
 
 // Polices proposées par la barre de mise en forme (nom de la première famille en minuscules → valeur CSS enregistrée).
 // Ce sont des polices du système, plus la police « Real Book » (Kalam) fournie avec l'appli : aucune autre n'est acceptée.
@@ -127,7 +133,7 @@ function sanitizeNoteHtml(raw, maxText = MEASURE_NOTE_MAX) {
     if (typeof raw !== 'string' || !raw) return '';
     const src = raw.replace(/\r\n?/g, '\n').replace(/<(script|style)\b[\s\S]*?<\/\1\s*>/gi, '').replace(/<!--[\s\S]*?-->/g, '');
     const re = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/g;
-    let out = '', pos = 0, left = maxText, count = 0, hasText = false, m, skip = 0, staves = 0, frames = 0;
+    let out = '', pos = 0, left = maxText, count = 0, hasText = false, m, skip = 0, staves = 0, frames = 0, chordBlocks = 0, drawBlocks = 0;
     const stack = [];
     const addText = (chunk) => {
         if (!chunk || left <= 0) return;
@@ -165,6 +171,28 @@ function sanitizeNoteHtml(raw, maxText = MEASURE_NOTE_MAX) {
             if (text && staves < NOTE_MAX_STAVES && count < 400 && !stack.some(e => e.kind === 'frame')) {
                 out += `<div class="annot-staff" data-staff="${GF_STAFF.formatStaff(text)}"${blockPlace(sa)}></div>`;
                 staves++; count++; hasText = true;
+            }
+            continue;
+        }
+        // Cadre de dessin : reconstruit à partir de son seul texte « data-draw » (taille et traits).
+        if (!closing && name === 'div' && /\bdata-draw\s*=/i.test(m[3])) {
+            skip = 1;
+            const da = readAttrs(m[3]);
+            const text = GF_DRAW.drawCanon(da['data-draw'] || '');
+            if (text && drawBlocks < NOTE_MAX_DRAWS && count < 400 && !stack.some(e => e.kind === 'frame')) {
+                out += `<div class="annot-draw" data-draw="${text}"${blockPlace(da)}></div>`;
+                drawBlocks++; count++; hasText = true;
+            }
+            continue;
+        }
+        // Bloc d'accords : reconstruit à partir de son seul texte « data-chords » (accords, durées, lecture).
+        if (!closing && name === 'div' && /\bdata-chords\s*=/i.test(m[3])) {
+            skip = 1;
+            const ca = readAttrs(m[3]);
+            const text = GF_CHORDS.chordsCanon(ca['data-chords'] || '');
+            if (text && chordBlocks < NOTE_MAX_CHORDS && count < 400 && !stack.some(e => e.kind === 'frame')) {
+                out += `<div class="annot-chords" data-chords="${text}"${blockPlace(ca)}></div>`;
+                chordBlocks++; count++; hasText = true;
             }
             continue;
         }
@@ -421,6 +449,6 @@ function describeExport(opts) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { MEASURE_NOTE_MAX, MEASURE_NOTE_SPAN_MAX, GRID_NOTE_MAX, NOTE_FONTS, NOTE_MAX_STAVES, NOTE_MAX_FRAMES, sanitizeNoteHtml, BAND_DENSITY_DEFAULTS, PART_LABELS, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings,
+    module.exports = { MEASURE_NOTE_MAX, MEASURE_NOTE_SPAN_MAX, GRID_NOTE_MAX, NOTE_FONTS, NOTE_MAX_STAVES, NOTE_MAX_FRAMES, NOTE_MAX_CHORDS, NOTE_MAX_DRAWS, sanitizeNoteHtml, BAND_DENSITY_DEFAULTS, PART_LABELS, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings,
         EXPORT_OPTIONS, EXPORT_MODES, exportOptionsFor, exportOptionsNormalized, filterGridForExport, filterSettingsForExport, describeExport };
 }

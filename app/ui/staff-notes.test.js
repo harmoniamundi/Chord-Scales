@@ -748,3 +748,37 @@ describe('sélection multiple : opérations de groupe', () => {
         assert.equal(S.staffHasTie(st, [1, 2]), false);
     });
 });
+
+describe('instrument propre à la portée', () => {
+    test('en-tête : inC, inBb, inEb ; forme canonique (tempo, swing, instrument)', () => {
+        const st = P('t,4/4,0,inBb,sw67,bpm132;q:c4');
+        assert.equal(st.instr, 'Bb');
+        assert.equal(S.formatStaff(st), 't,4/4,0,bpm132,sw67,inBb;q:c4');
+        assert.equal(S.formatStaff(P('t,4/4,0,inC;q:c4')), 't,4/4,0,inC;q:c4');   // « en Ut » explicite se garde
+    });
+    test('une portée écrite sans instrument suit la jam (instr vide) ; valeur inconnue ou répétée refusée', () => {
+        assert.equal(P('t,4/4,0;q:c4').instr, '');
+        assert.equal(S.formatStaff(P('t,4/4,0;q:c4')), 't,4/4,0;q:c4');
+        assert.equal(P('t,4/4,0,inF;q:c4'), null);
+        assert.equal(P('t,4/4,0,inBb,inEb;q:c4'), null);
+    });
+    test('setStaffInstr et copie', () => {
+        const st = P('t,4/4,0;q:c4');
+        const b = S.setStaffInstr(st, 'Eb');
+        assert.equal(b.instr, 'Eb'); assert.equal(st.instr, '');
+        assert.equal(S.cloneStaff(b).instr, 'Eb');
+        assert.equal(S.setStaffInstr(b, 'zz').instr, '');
+        assert.equal(S.staffDefault().instr, '');
+    });
+    test('toutes les valeurs au maximum : l\'en-tête à 8 champs reste lisible', () => {
+        assert.ok(P('t,4/4,0,150,pu1,bpm96,sw67,inBb;q:c4 q:d4'));
+    });
+});
+
+describe('plan de lecture : indice de la note jouée', () => {
+    test('chaque entrée garde l’indice de son événement ; une note liée garde celui de la première', () => {
+        const plan = S.playbackPlan(P('t,4/4,0;q:c4~ q:c4 qr q:e4'));
+        assert.deepEqual(plan.map(n => n.ev), [0, 2, 3]);
+        assert.deepEqual(plan.map(n => n.midi === null), [false, true, false]);
+    });
+});

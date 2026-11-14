@@ -77,7 +77,7 @@ describe('HTML de la barre et des menus', () => {
     test('la barre contient ce qu’index.html utilise', () => {
         for (const needle of ['id="jam-annot-bar"', 'data-font', 'data-size-step="-1"', 'data-size-step="1"', 'data-size-label', 'data-menu="size"', 'data-menu="color"',
             'data-menu="hilite"', 'data-menu="insert"', 'data-cmd="bold"', 'data-cmd="italic"', 'data-cmd="underline"', 'data-cmd="strikeThrough"',
-            'data-cmd="justifyLeft"', 'data-cmd="justifyCenter"', 'data-cmd="justifyRight"', 'data-cmd="insertUnorderedList"', 'data-insert-staff', 'data-insert-frame', 'data-clear',
+            'data-cmd="justifyLeft"', 'data-cmd="justifyCenter"', 'data-cmd="justifyRight"', 'data-cmd="insertUnorderedList"', 'data-insert-staff', 'data-insert-frame', 'data-insert-draw', 'data-insert-chords', 'data-clear',
             'id="jam-annot-staff-host"', 'data-color-bar']) {
             assert.ok(bar.includes(needle), needle);
         }
@@ -86,6 +86,8 @@ describe('HTML de la barre et des menus', () => {
         assert.ok(!bar.includes('data-paste-staff'));
         assert.ok(!bar.includes('Coller portée'));
         assert.ok(/data-insert-frame="1"[^>]*>[^<]*<svg[\s\S]*?<\/svg> Cadre<\/button>/.test(bar), 'bouton Cadre : icône puis libellé');
+        assert.ok(/data-insert-draw="1"[^>]*>[^<]*<svg[\s\S]*?<\/svg> Dessin<\/button>/.test(bar), 'bouton Dessin : icône puis libellé');
+        assert.ok(/data-insert-chords="1"[^>]*>[^<]*<svg[\s\S]*?<\/svg> Accords<\/button>/.test(bar), 'bouton Accords : icône puis libellé');
         const clear = /<button[^>]*data-clear="1"[^>]*>([\s\S]*?)<\/button>/.exec(bar);
         assert.ok(clear, 'bouton d\'effacement présent');
         assert.ok(clear[1].startsWith('<svg') && clear[1].endsWith('</svg>'), 'seulement un symbole');

@@ -894,7 +894,7 @@
     box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
 }
 /* Zone sans aucun bloc : texte d'aide gris (il disparaît dès qu'un bloc est posé). On n'écrit jamais en dehors d'un cadre. */
-.jam-annot-text:not(:has(.annot-staff, .annot-frame))::before { content: attr(data-placeholder); color: #94a3b8; pointer-events: none; }
+.jam-annot-text:not(:has(.annot-staff, .annot-frame, .annot-chords, .annot-draw))::before { content: attr(data-placeholder); color: #94a3b8; pointer-events: none; }
 .jam-annot-text:focus { outline: 2px solid #3b82f6; outline-offset: 1px; }
 .jam-annot-text[data-editable="false"] { cursor: default; }
 .jam-annot-text[data-editable="false"]:focus { outline: none; }
@@ -1208,3 +1208,116 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
     .jam-annot-grid:has(.jam-annot-span:not([hidden])) .jam-annot-zone:has(#jam-annot-general) > .jam-annot-head { margin-bottom: 32px; }
 }
 
+
+/* ===== Blocs d'accords jouables, cadres de dessin libre, ▶ de lecture, tête de note bleue (repris du Carnet de notes) ===== */
+.annot-staff-svg .vf-notehead.ns-playing path { fill: #2563eb; }
+/* Lecture d'un bloc (portée ou accords) hors édition : petit ▶ noir, discret, dans le coin bas droit DU CADRE (à l'intérieur) ; il n'apparaît qu'au survol. Jamais enregistré. */
+.cn-staff-play { position: absolute; right: 5px; bottom: 3px; z-index: 6; display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 4px;
+    background: transparent; color: #0f172a; font: 700 10px/1 system-ui, sans-serif; cursor: pointer; opacity: 0; transition: opacity .12s; }
+.annot-staff:hover > .cn-staff-play, .annot-chords:hover > .cn-staff-play, .cn-staff-play:focus-visible, .cn-staff-play.is-on { opacity: .6; }
+.annot-staff > .cn-staff-play:hover, .annot-chords > .cn-staff-play:hover { opacity: 1; background: rgba(15, 23, 42, .08); }
+@media (pointer: coarse) { .cn-staff-play { width: 28px; height: 28px; font-size: 12px; opacity: .45; } }
+.annot-chords { position: relative; box-sizing: border-box; padding: 6px 26px 6px 10px; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; color: #0f172a; white-space: nowrap;
+    user-select: none; -webkit-user-select: none; cursor: default; font: 400 20px/1.2 Kalam, cursive; }
+.jam-annot-text:not(.legacy-flow) > .annot-chords { position: absolute; display: block; margin: 0; }
+.annot-chords-row { display: flex; align-items: stretch; gap: 5px; }
+/* Domino : un cadre complet par accord (largeur selon sa durée) ; un clic le joue */
+.cb-chord { box-sizing: border-box; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; min-width: calc(26px + var(--b, 4) * 14px); padding: 3px 9px 2px;
+    border: 1.5px solid #1e293b; border-radius: 6px; background: #fff; cursor: pointer; }
+.cb-chord:hover { background: #eff6ff; }
+.cb-chord:active { background: #dbeafe; }
+.cb-chord .cb-sym { font-size: 22px; line-height: 1.15; }
+.cb-chord small { font: 600 10px/1 system-ui, sans-serif; color: #94a3b8; margin-top: 1px; text-align: center; }
+.annot-chords.is-arp .cb-chord .cb-sym::before { content: "↗"; font: 400 11px system-ui, sans-serif; color: #94a3b8; margin-right: 3px; vertical-align: top; }
+.cb-chord.is-playing { background: rgba(37, 99, 235, .18); border-color: #2563eb; }
+.cb-chord.is-sel { background: rgba(59, 130, 246, .14); border-color: #3b82f6; box-shadow: inset 0 -2px 0 #3b82f6; }
+.annot-chords.is-editing { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
+.annot-chords.is-picked { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .45); }
+.annot-chords.is-dragging-src { opacity: .35; }
+.annot-chords.no-border { border-color: transparent; background: transparent; box-shadow: none; }
+.jam-annot-text[data-editable="true"] .annot-chords:not(.is-editing) { cursor: grab; touch-action: none; }
+.jam-annot-text[data-editable="true"] .annot-chords:not(.is-editing):active { cursor: grabbing; }
+.jam-annot-text[data-editable="true"] .annot-chords.no-border:not(.is-editing):not(.is-picked) { border-style: dashed; border-color: rgba(96, 165, 250, .6); }
+.jam-annot-text[data-editable="true"] .annot-chords.no-border:not(.is-editing):hover { border-color: #60a5fa; }
+.annot-chords.no-border.is-editing { border-color: #3b82f6; background: #fff; box-shadow: 0 0 0 1px #3b82f6; }
+.annot-chords.no-border.is-picked { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .45); }
+.jam-annot-text.is-zoomed:not(.legacy-flow) > .annot-chords { transform: scale(var(--z, 1)); transform-origin: calc(var(--bx, 0px) * -1) calc(var(--by, 0px) * -1); }
+.annot-chords-edit { display: none; position: absolute; left: -9px; top: -9px; z-index: 3; width: 20px; height: 20px; padding: 0; align-items: center; justify-content: center; border: 0; border-radius: 10px;
+    background: #2563eb; color: #fff; font: 700 12px/1 system-ui, sans-serif; cursor: pointer; box-shadow: 0 1px 4px rgba(0, 0, 0, .45); }
+.annot-chords-edit:hover { background: #1d4ed8; }
+.jam-annot-text[data-editable="true"] .annot-chords > .annot-chords-edit { display: flex; }
+.annot-chords.is-editing > .annot-chords-edit { background: #1e293b; box-shadow: 0 0 0 2px #3b82f6; }
+.jam-annot-text > .annot-chords.is-editing { z-index: 20; }
+@media (hover: none) { .jam-annot-text[data-editable="true"] .annot-chords > .annot-chords-edit { opacity: .85; width: 24px; height: 24px; left: -11px; top: -11px; border-radius: 12px; } }
+.annot-drag-ghost .annot-chords-row { font: 400 20px/1.2 Kalam, cursive; color: #0f172a; white-space: nowrap; line-height: normal; }
+.cn-chord-pop .jm-select { margin-top: 0; width: auto; }
+.cb-seq { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 9px; }
+.cb-seq-chip { display: inline-flex; flex-direction: column; align-items: center; min-width: 40px; padding: 4px 8px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #e2e8f0; font: 700 14px/1.15 system-ui, sans-serif; cursor: pointer; }
+.cb-seq-chip small { font: 500 9px/1 system-ui, sans-serif; color: #94a3b8; margin-top: 2px; }
+.cb-seq-chip:hover { border-color: #60a5fa; }
+.cb-seq-chip.is-on { background: #2563eb; border-color: #93c5fd; color: #fff; }
+.cb-seq-chip.is-on small { color: #dbeafe; }
+.cb-seq-add { min-width: 36px; border-radius: 7px; border: 1px dashed #60a5fa; background: transparent; color: #93c5fd; font: 700 18px/1 system-ui, sans-serif; cursor: pointer; }
+.cb-seq-add:hover { background: rgba(37, 99, 235, .25); }
+.cb-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 9px; }
+.cb-play-set .cb-num { width: 64px; }
+.cb-ctl .cb-beats { display: inline-flex; align-items: center; gap: 5px; margin-right: auto; color: #94a3b8; }
+.cb-ctl .cb-mode { flex: 1 1 auto; margin-top: 0; }
+.cb-picker { margin-top: 4px; padding-top: 4px; border-top: 1px solid #333; }
+@media (pointer: coarse) { .cb-seq-chip, .jm-btn { min-height: 38px; } .jm-chip { min-height: 34px; } }
+/* ===== Cadres de dessin libre (ui/draw-block.js, ui/draw-notes.js) ===== */
+.annot-draw { position: relative; box-sizing: content-box; padding: 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; overflow: visible; user-select: none; -webkit-user-select: none; cursor: default; }
+/* visible : le crayon ✎ et la poignée dépassent du cadre sans être coupés */
+.jam-annot-text:not(.legacy-flow) > .annot-draw { position: absolute; display: block; margin: 0; }
+.annot-draw-svg { display: block; width: 100%; height: 100%; overflow: hidden; border-radius: 7px; }
+.annot-draw.is-editing { overflow: visible; border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
+.annot-draw.is-editing .annot-draw-svg { cursor: crosshair; touch-action: none; border-radius: 7px; }
+.annot-draw.is-editing.is-eraser .annot-draw-svg { cursor: none; }
+/* la gomme est montrée par son rond (.annot-draw-eraser) */
+.annot-draw-eraser { display: none; position: absolute; z-index: 2; box-sizing: border-box; pointer-events: none; border-radius: 50%; border: 1.5px solid #0f172a; background: rgba(255, 255, 255, .35); box-shadow: 0 0 0 1px rgba(255, 255, 255, .9), inset 0 0 0 1px rgba(255, 255, 255, .7); }
+.annot-draw.is-picked { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .45); }
+.annot-draw.is-dragging-src { opacity: .35; }
+.annot-draw.no-border { border-color: transparent; background: transparent; box-shadow: none; }
+.jam-annot-text[data-editable="true"] .annot-draw:not(.is-editing) { cursor: grab; touch-action: none; }
+.jam-annot-text[data-editable="true"] .annot-draw:not(.is-editing):active { cursor: grabbing; }
+.jam-annot-text[data-editable="true"] .annot-draw.no-border:not(.is-editing):not(.is-picked) { border-style: dashed; border-color: rgba(96, 165, 250, .6); }
+.jam-annot-text[data-editable="true"] .annot-draw.no-border:not(.is-editing):hover { border-color: #60a5fa; }
+.annot-draw.no-border.is-editing { border-color: #3b82f6; background: #fff; box-shadow: 0 0 0 1px #3b82f6; }
+.annot-draw.no-border.is-picked { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .45); }
+.jam-annot-text.is-zoomed:not(.legacy-flow) > .annot-draw { transform: scale(var(--z, 1)); transform-origin: calc(var(--bx, 0px) * -1) calc(var(--by, 0px) * -1); }
+.annot-draw-edit { display: none; position: absolute; left: -9px; top: -9px; z-index: 3; width: 20px; height: 20px; padding: 0; align-items: center; justify-content: center; border: 0; border-radius: 10px;
+    background: #2563eb; color: #fff; font: 700 11px/1 system-ui, sans-serif; cursor: pointer; box-shadow: 0 1px 4px rgba(0, 0, 0, .45); }
+.annot-draw-edit:hover { background: #1d4ed8; }
+.jam-annot-text[data-editable="true"] .annot-draw > .annot-draw-edit { display: flex; }
+.annot-draw.is-editing > .annot-draw-edit { background: #1e293b; box-shadow: 0 0 0 2px #3b82f6; }
+.annot-draw-grip { display: none; position: absolute; right: -7px; bottom: -7px; z-index: 3; width: 16px; height: 16px; border-radius: 4px; background: #2563eb; cursor: nwse-resize; touch-action: none;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .45); background-image: linear-gradient(135deg, transparent 0 55%, #fff 55% 62%, transparent 62% 72%, #fff 72% 79%, transparent 79%); }
+.annot-draw.is-editing > .annot-draw-grip, .annot-draw.is-picked > .annot-draw-grip { display: block; }
+.jam-annot-text > .annot-draw.is-editing { z-index: 20; }
+@media (hover: none) { .jam-annot-text[data-editable="true"] .annot-draw > .annot-draw-edit { opacity: .85; width: 24px; height: 24px; left: -11px; top: -11px; border-radius: 12px; } .annot-draw-grip { width: 26px; height: 26px; right: -11px; bottom: -11px; border-radius: 6px; } }
+.annot-drag-ghost .annot-draw-svg { background: #fff; }
+/* Fenêtre d'outils du dessin */
+.cn-draw-pop { min-width: 250px; max-width: 320px; }
+.cn-draw-pop .dr-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 9px; }
+.cn-draw-pop .dr-row.jm-mode { margin-top: 9px; }
+.cn-draw-pop .jm-chip { flex: 1 1 auto; }
+.dr-sw { box-sizing: border-box; position: relative; width: 26px; height: 26px; padding: 0; border: 2px solid #3a3a3c; border-radius: 13px; cursor: pointer; }
+.dr-sw.is-on { border-color: #fff; box-shadow: 0 0 0 2px #3b82f6; }
+.dr-sw-custom { overflow: hidden; background: conic-gradient(#ef4444, #eab308, #22c55e, #06b6d4, #6366f1, #ec4899, #ef4444); }
+.dr-sw-custom input { position: absolute; inset: -6px; width: 40px; height: 40px; opacity: 0; cursor: pointer; }
+.dr-width label { display: inline-flex; align-items: center; gap: 8px; color: #94a3b8; flex: 1 1 auto; }
+.dr-range { flex: 1 1 90px; min-width: 70px; accent-color: #3b82f6; }
+.dr-val { min-width: 38px; color: #e2e8f0; font-variant-numeric: tabular-nums; text-align: right; }
+.dr-dot { flex: none; display: inline-block; border-radius: 50%; border: 1px solid #3a3a3c; }
+.dr-hint { min-height: 14px; margin-top: 6px; color: #fbbf24; font-size: 11px; }
+.cn-draw-pop.jm-sheet { max-width: none; }
+@media (pointer: coarse) { .dr-sw { width: 34px; height: 34px; border-radius: 17px; } }
+/* Dessin : fond du cadre (damier = transparent), titres de section, taille de la gomme */
+.dr-sw-none { background: #fff linear-gradient(45deg, #cbd5e1 25%, transparent 25%, transparent 75%, #cbd5e1 75%), linear-gradient(45deg, #cbd5e1 25%, transparent 25%, transparent 75%, #cbd5e1 75%); background-size: 10px 10px; background-position: 0 0, 5px 5px; }
+.cn-draw-pop .dr-sec { margin-top: 12px; font-size: 12px; opacity: .7; }
+@media (pointer: coarse) and (max-width: 520px) { .cn-draw-pop .dr-row { gap: 5px; margin-top: 7px; } .cn-draw-pop .dr-sw { width: 28px; height: 28px; border-radius: 14px; } .cn-draw-pop .dr-sec { margin-top: 9px; } }
+.cn-draw-pop .dr-row:not(.jm-mode) > .jm-chip { flex: 0 0 auto; width: auto; padding-left: 12px; padding-right: 12px; }
+
+/* Boutons grisés des fenêtres d'édition ; fenêtre déplacée à la main (blocs d'accords et de dessin) */
+.jm-btn:disabled { opacity: .35; cursor: not-allowed; }
+.jm-pop.is-moving { opacity: .92; box-shadow: 0 16px 48px rgba(0,0,0,.7); }

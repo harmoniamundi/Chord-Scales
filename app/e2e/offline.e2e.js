@@ -51,7 +51,7 @@ const srv = http.createServer((req, res) => {
     check(caches1['chord-scales-sounds-v1'] === 21, 'cache sons : 21 fichiers');
     const swSrc = fs.readFileSync(ROOT + '/sw.js', 'utf8');
     const nShell = [...(/const SHELL_FILES = \[([\s\S]*?)\];/.exec(swSrc)[1]).matchAll(/'([^']+)'/g)].length;
-    check(caches1['chord-scales-shell-v1'] >= nShell, `cache appli : ${caches1['chord-scales-shell-v1']} fichiers (liste : ${nShell})`);
+    check(caches1['chord-scales-shell-v2'] >= nShell, `cache appli : ${caches1['chord-scales-shell-v1']} fichiers (liste : ${nShell})`);
     check(await page.evaluate(() => navigator.serviceWorker.controller && navigator.serviceWorker.controller.scriptURL.endsWith('/Chord-Scales/sw.js')), 'service worker actif avec la bonne portée');
     check(foreign.length === 0, 'aucune requête vers un autre serveur pendant la visite en ligne' + (foreign.length ? ' : ' + foreign.join(', ') : ''));
 

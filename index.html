@@ -493,6 +493,8 @@
     <script src="app/band/band-state.js"></script>
     <script src="app/grid/play-order.js"></script>
     <script src="app/ui/staff-notes.js"></script>
+    <script src="app/ui/chord-notes.js"></script>
+    <script src="app/ui/draw-notes.js"></script>
     <script src="app/grid/grid-format.js"></script>
     <script src="app/grid/generation.js"></script>
     <script src="app/grid/harmony.js"></script>
@@ -511,6 +513,8 @@
     <script src="app/ui/staff-editor.js"></script>
     <script src="app/ui/text-frame.js"></script>
     <script src="app/ui/annot-canvas.js"></script>
+    <script src="app/ui/chord-block.js"></script>
+    <script src="app/ui/draw-block.js"></script>
     <script src="app/ui/annot-bar.js"></script>
     <script src="app/ui/chord-display.js"></script>
     <script src="app/ui/pastilles.js"></script>
@@ -5872,6 +5876,7 @@
                 this._annotSyncMode();
                 if (!(focused(box) && editable)) setHtml(box, owner ? sanitizeNoteHtml(owner.note || '', MEASURE_NOTE_MAX) : '');
                 this._annotApplyZoom(general); this._annotApplyZoom(box);
+                this._annotSyncReadPlay();
             }
 
             // ----- Mode édition (crayon à côté du titre de chaque zone) et zoom de lecture -----
@@ -5908,6 +5913,7 @@
                     this._annotRefreshZoomUi(w);
                 });
                 this._annotRefreshSpanUi();
+                this._annotSyncReadPlay();
             }
 
             // Ligne « Affichée sur N mesures » de la zone Mesure : visible en édition seulement (jam à l'arrêt).
@@ -6186,7 +6192,7 @@
                 const ed = ev.currentTarget;
                 const t = (ev.clipboardData || window.clipboardData).getData('text/plain');
                 if (!t) return;
-                const parts = splitStaffClips(t);
+                const parts = drawSplitClips(t);
                 const inFrame = !!(ev.target && ev.target.closest && ev.target.closest('.annot-frame-body'));
                 if (inFrame) document.execCommand('insertText', false, parts.map(p => p.text || '').join('')); // un cadre ne contient que du texte : ni portée ni autre cadre dedans
                 else if (this._annotIsEditable(ed)) this._annotPasteParts(ed, parts);
@@ -6200,7 +6206,7 @@
                 const cv = ed.__canvas, els = cv ? cv.picked() : [];
                 const sv = (typeof NSE_ACTIVE !== 'undefined') ? NSE_ACTIVE : null;
                 let text = null, removeActive = null;
-                if (els.length) text = nseBlocksToClipText(els);
+                if (els.length) text = annotBlocksToClipText(els);
                 else if (sv && ed.contains(sv.el)) { text = staffClipText(sv.st); removeActive = sv; }
                 if (text === null) return;
                 ev.preventDefault();
@@ -6237,7 +6243,7 @@
             annotCopyBlocks(ed, cut = false) {
                 const cv = ed && ed.__canvas, els = cv ? cv.picked() : [];
                 if (!els.length) return false;
-                const text = nseBlocksToClipText(els);
+                const text = annotBlocksToClipText(els);
                 this._annotWriteClipboard(text);
                 this._annotRememberClip(text);
                 if (cut && this._annotIsEditable(ed)) this._annotRemoveBlocks(ed, els);
@@ -6248,20 +6254,22 @@
             _annotRemoveBlocks(ed, els) {
                 if (!ed || !els.length || !this._annotIsEditable(ed)) return;
                 if (ed.__canvas) ed.__canvas.clearSelection(true);
-                els.forEach((el) => { const v = el.__noteStaff || el.__noteFrame; if (v) v.destroy(); el.remove(); });
+                els.forEach((el) => { const v = el.__noteStaff || el.__noteFrame || el.__chordBlock || el.__drawBlock; if (v) v.destroy(); el.remove(); });
                 this._annotMoveUndo = true; this._annotMoveRedo = false;
                 this._annotCommit(ed);
                 try { ed.focus({ preventScroll: true }); } catch (e) {}
                 this._annotRefreshState();
             }
 
-            // Crée des blocs dans la zone à partir de morceaux [{ text }] / [{ staff }] / [{ frame }] (collage). Un bloc copié avec sa place revient à cette place
+            // Crée des blocs dans la zone à partir de morceaux [{ text }] / [{ staff }] / [{ chords }] / [{ draw }] / [{ frame }] (collage). Un bloc copié avec sa place revient à cette place
             // décalée de quelques pixels (pour voir qu'il s'agit d'un double) ; sans place, il prend la première place libre. Un texte ordinaire devient un cadre.
             _annotPasteParts(ed, parts) {
                 if (!this._annotIsEditable(ed) || !ed.__canvas) return;
                 const cv = ed.__canvas;
                 let room = NOTE_MAX_STAVES - ed.querySelectorAll('.annot-staff').length;
                 let roomFrames = NOTE_MAX_FRAMES - ed.querySelectorAll('.annot-frame').length;
+                let roomChords = NOTE_MAX_CHORDS - ed.querySelectorAll('.annot-chords').length;
+                let roomDraw = NOTE_MAX_DRAWS - ed.querySelectorAll('.annot-draw').length;
                 const max = ed.id === 'jam-annot-general' ? GRID_NOTE_MAX : MEASURE_NOTE_MAX;
                 const rects = cv.blocks().map(b => cv.rectOf(b));
                 const made = [];
@@ -6282,6 +6290,15 @@
                         const at = p.at ? shift(p.at) : acFreeSpot(rects);
                         const html = sanitizeNoteHtml(noteFrameStubHtml(parseFrameBox(p.frame.box), at, p.frame.html, !p.noBorder), max);
                         if (add(html, at, (parseFrameBox(p.frame.box) || {}).w)) roomFrames--;
+                    } else if (p.draw) {
+                        if (roomDraw <= 0) continue;
+                        const at = p.at ? shift(p.at) : acFreeSpot(rects);
+                        const st = drawParse(p.draw);
+                        if (st && add(drawStubHtml(st, at, !p.noBorder), at, st.w)) roomDraw--;
+                    } else if (p.chords) {
+                        if (roomChords <= 0) continue;
+                        const at = p.at ? shift(p.at) : acFreeSpot(rects);
+                        if (add(chordsStubHtml(chordsParse(p.chords), at, !p.noBorder), at, 160)) roomChords--;
                     } else if (p.staff) {
                         if (room <= 0) continue;
                         const at = p.at ? shift(p.at) : acFreeSpot(rects);
@@ -6346,6 +6363,8 @@
                 else if ((b = t.closest('[data-cmd]'))) this.annotCmd(b.dataset.cmd);
                 else if (t.closest('[data-insert-staff]')) this.annotInsertStaff();
                 else if (t.closest('[data-insert-frame]')) this.annotInsertFrame();
+                else if (t.closest('[data-insert-chords]')) this.annotInsertChords();
+                else if (t.closest('[data-insert-draw]')) this.annotInsertDraw();
                 else if (t.closest('[data-clear]')) { this.annotCmd('removeFormat'); this.annotCmd('justifyLeft'); }
             }
 
@@ -6379,6 +6398,8 @@
                 this._annotQuiet = false;
                 if (typeof NSE_ACTIVE !== 'undefined' && NSE_ACTIVE) NSE_ACTIVE.deactivate();
                 if (typeof NTF_ACTIVE !== 'undefined' && NTF_ACTIVE) NTF_ACTIVE.deactivate();
+                if (typeof CHB_ACTIVE !== 'undefined' && CHB_ACTIVE) CHB_ACTIVE.deactivate();
+                if (typeof DRB_ACTIVE !== 'undefined' && DRB_ACTIVE) DRB_ACTIVE.deactivate();
                 this._annotCloseMenu();
                 this._annotGlobalOff();
                 this._annotActive = null;
@@ -6395,13 +6416,13 @@
                     if (!t || !t.closest) return;
                     const m = this._annotMenu;
                     if (m && !m.el.contains(t) && !m.anchor.contains(t)) this._annotCloseMenu();
-                    if (t.closest('.jam-annot-text, #jam-annot-bar, .ab-menu, .jam-annot-head, .jam-annot-span')) return; // l'en-tête (crayon, zoom, outils) ne fait pas ranger la barre : la page ne saute pas sous le doigt
+                    if (t.closest('.jam-annot-text, #jam-annot-bar, .ab-menu, .cn-chord-pop, .cn-draw-pop, .jam-annot-head, .jam-annot-span')) return; // l'en-tête (crayon, zoom, outils) ne fait pas ranger la barre : la page ne saute pas sous le doigt
                     this.annotDeactivate();
                 };
                 this._annotOutside = (ev) => {
                     const t = ev.target;
                     // Au doigt, un appui hors des annotations ne les range qu'au relâcher (et pas si la page a défilé) : faire défiler la page ne doit pas fermer l'édition.
-                    if (ev.pointerType === 'touch' && t && t.closest && !t.closest('.jam-annot-text, #jam-annot-bar, .ab-menu, .jam-annot-head, .jam-annot-span') && typeof acOnTouchTap === 'function') acOnTouchTap(ev, outside);
+                    if (ev.pointerType === 'touch' && t && t.closest && !t.closest('.jam-annot-text, #jam-annot-bar, .ab-menu, .cn-chord-pop, .cn-draw-pop, .jam-annot-head, .jam-annot-span') && typeof acOnTouchTap === 'function') acOnTouchTap(ev, outside);
                     else outside(t);
                 };
                 this._annotSelChange = () => { this._annotSaveSel(); this._annotRefreshState(); };
@@ -6445,11 +6466,17 @@
                 if (f && !out.includes(f)) out.push(f);
                 const s = (typeof NSE_ACTIVE !== 'undefined') ? NSE_ACTIVE : null;
                 if (s && ed && ed.contains(s.el) && !out.includes(s)) out.push(s);
+                const c = (typeof CHB_ACTIVE !== 'undefined') ? CHB_ACTIVE : null;
+                if (c && ed && ed.contains(c.el) && !out.includes(c)) out.push(c);
+                const d = (typeof DRB_ACTIVE !== 'undefined') ? DRB_ACTIVE : null;
+                if (d && ed && ed.contains(d.el) && !out.includes(d)) out.push(d);
                 return out;
             }
 
             // Sort de l'édition du cadre (s'il y en a un) et rend le focus à la zone.
             _annotLeaveFrame() {
+                if (typeof CHB_ACTIVE !== 'undefined' && CHB_ACTIVE) CHB_ACTIVE.deactivate(); // l'éditeur d'accords se ferme aussi
+                if (typeof DRB_ACTIVE !== 'undefined' && DRB_ACTIVE) DRB_ACTIVE.deactivate(); // et celui du dessin
                 const f = this._annotFrameEditing();
                 if (!f) return;
                 const ed = this._annotActive;
@@ -6711,17 +6738,21 @@
             }
 
             // Des blocs lâchés dans l'autre zone d'annotation : ils y sont recréés à la place indiquée, puis retirés de la zone d'origine.
-            // Un bloc sans place dans l'autre zone (trop de portées ou de cadres) reste où il était.
+            // Un bloc sans place dans l'autre zone (trop de blocs de son genre) reste où il était.
             _annotTransferBlocks(from, items, zone, points) {
                 if (!from || !zone || zone === from || !this._annotIsEditable(zone)) return;
-                let roomS = NOTE_MAX_STAVES - zone.querySelectorAll('.annot-staff').length;
-                let roomF = NOTE_MAX_FRAMES - zone.querySelectorAll('.annot-frame').length;
+                const room = {
+                    'annot-staff': NOTE_MAX_STAVES - zone.querySelectorAll('.annot-staff').length,
+                    'annot-frame': NOTE_MAX_FRAMES - zone.querySelectorAll('.annot-frame').length,
+                    'annot-chords': NOTE_MAX_CHORDS - zone.querySelectorAll('.annot-chords').length,
+                    'annot-draw': NOTE_MAX_DRAWS - zone.querySelectorAll('.annot-draw').length
+                };
                 if (from.__canvas) from.__canvas.clearSelection(true);
                 const made = [];
                 items.forEach((it, k) => {
-                    const isFrame = it.el.classList.contains('annot-frame');
-                    if (isFrame ? roomF <= 0 : roomS <= 0) return;
-                    if (isFrame) roomF--; else roomS--;
+                    const kind = ['annot-frame', 'annot-chords', 'annot-draw'].find(c => it.el.classList.contains(c)) || 'annot-staff';
+                    if (room[kind] <= 0) return;
+                    room[kind]--;
                     const stub = nseBlockStub(it.el, points[k]);
                     it.view.destroy();
                     it.el.remove();
@@ -6756,7 +6787,7 @@
             _annotNewSpot(ed, at, w) {
                 const cv = ed.__canvas;
                 const pos = at ? { x: at.x, y: at.y } : acFreeSpot(cv ? cv.blocks().map(b => cv.rectOf(b)) : []);
-                pos.x = Math.max(0, Math.min(pos.x, Math.max(0, ed.clientWidth - w - 12)));
+                pos.x = Math.max(0, Math.min(pos.x, Math.max(0, acCanvasWidth(ed) - w - 12)));
                 pos.y = Math.max(0, pos.y);
                 return pos;
             }
@@ -6809,6 +6840,8 @@
                 if (legacy) { ed.classList.add('legacy-flow'); this._annotWrapLoose(ed); }
                 if (typeof hydrateNoteStaves === 'function') hydrateNoteStaves(ed, this._annotStaffOpts(ed));
                 if (typeof hydrateNoteFrames === 'function') hydrateNoteFrames(ed, this._annotFrameOpts(ed));
+                if (typeof hydrateChordBlocks === 'function') hydrateChordBlocks(ed, this._annotChordOpts(ed));
+                if (typeof hydrateDrawBlocks === 'function') hydrateDrawBlocks(ed, this._annotDrawOpts(ed));
                 if (legacy) this._annotMigrate(ed);
                 this._annotApplyZoom(ed);
             }
@@ -6819,8 +6852,8 @@
                 for (const n of Array.from(ed.childNodes)) {
                     if (n.nodeType === 3) { if (!blank(n.nodeValue)) return true; continue; }
                     if (n.nodeType !== 1 || n.classList.contains('annot-overlay') || n.tagName === 'BR') continue;
-                    if (n.classList.contains('annot-staff') || n.classList.contains('annot-frame')) { if (!n.hasAttribute('data-at')) return true; continue; }
-                    if (!blank(n.textContent) || n.querySelector('.annot-staff, .annot-frame')) return true;
+                    if (n.classList.contains('annot-staff') || n.classList.contains('annot-frame') || n.classList.contains('annot-chords') || n.classList.contains('annot-draw')) { if (!n.hasAttribute('data-at')) return true; continue; }
+                    if (!blank(n.textContent) || n.querySelector('.annot-staff, .annot-frame, .annot-chords, .annot-draw')) return true;
                 }
                 return false;
             }
@@ -6828,11 +6861,11 @@
             // Ancienne annotation, 1re étape : le texte libre est rangé dans des cadres sans bord (un par passage de texte entre deux blocs),
             // les blocs rangés dans des enveloppes sont sortis de leur enveloppe.
             _annotWrapLoose(ed) {
-                const isBlock = (n) => n.nodeType === 1 && (n.classList.contains('annot-staff') || n.classList.contains('annot-frame'));
+                const isBlock = (n) => n.nodeType === 1 && (n.classList.contains('annot-staff') || n.classList.contains('annot-frame') || n.classList.contains('annot-chords') || n.classList.contains('annot-draw'));
                 for (let again = true, guard = 0; again && guard++ < 20;) {
                     again = false;
                     Array.from(ed.children).forEach((n) => {
-                        if (!isBlock(n) && !n.classList.contains('annot-overlay') && n.querySelector('.annot-staff, .annot-frame')) {
+                        if (!isBlock(n) && !n.classList.contains('annot-overlay') && n.querySelector('.annot-staff, .annot-frame, .annot-chords, .annot-draw')) {
                             while (n.firstChild) ed.insertBefore(n.firstChild, n);
                             n.remove();
                             again = true;
@@ -6859,8 +6892,8 @@
             // Ancienne annotation, 2e étape : les blocs ont été mis en page comme avant (dans le texte, avec leur décalage) ; on relève la place de chacun
             // et on la lui donne en propre. La mise en page est ainsi reconstruite une seule fois, puis chaque bloc est indépendant.
             _annotMigrate(ed) {
-                const spots = Array.from(ed.querySelectorAll(':scope > .annot-staff, :scope > .annot-frame'))
-                    .map(b => ({ v: b.__noteStaff || b.__noteFrame, x: b.offsetLeft, y: b.offsetTop }));
+                const spots = Array.from(ed.querySelectorAll(':scope > .annot-staff, :scope > .annot-frame, :scope > .annot-chords, :scope > .annot-draw'))
+                    .map(b => ({ v: b.__noteStaff || b.__noteFrame || b.__chordBlock || b.__drawBlock, x: b.offsetLeft, y: b.offsetTop }));
                 ed.classList.remove('legacy-flow');
                 spots.forEach(s => { if (s.v) s.v.setAt({ x: s.x, y: s.y }); });
             }
@@ -6882,9 +6915,11 @@
                         if (app.audioCtx && app.audioCtx.state === 'suspended') app.audioCtx.resume();
                         return Promise.resolve(app._pianoPromise || app.pianoInstrument).then(() => !!app.pianoInstrument);
                     },
-                    play: (midi, after, duration) => {
+                    // instr : instrument propre au bloc ('C', 'Bb', 'Eb') ; vide ou absent = celui de la jam
+                    play: (midi, after, duration, instr) => {
                         try {
-                            return app.pianoInstrument.play(midiToName(midi + this._jamTransOffset()), app.audioCtx.currentTime + after,
+                            const tr = Object.prototype.hasOwnProperty.call({ C: 0, Bb: -2, Eb: -9 }, instr) ? ({ C: 0, Bb: -2, Eb: -9 })[instr] : this._jamTransOffset();
+                            return app.pianoInstrument.play(midiToName(midi + tr), app.audioCtx.currentTime + after,
                                 { duration, destination: app.reverbInput || app.audioCtx.destination });
                         } catch (e) { return null; }
                     },
@@ -6904,12 +6939,141 @@
                 this._annotLeaveFrame();
                 const before = new Set(ed.querySelectorAll('.annot-staff'));
                 const holder = document.createElement('div');
-                holder.innerHTML = noteStaffStubHtml(undefined, this._annotNewSpot(ed, null, 260), false);
+                holder.innerHTML = noteStaffStubHtml(Object.assign(staffDefault(), this._annotNewBlockSettings(ed)), this._annotNewSpot(ed, null, 260), false);
                 ed.appendChild(holder.firstChild);
                 this._annotHydrate(ed);
                 const added = Array.from(ed.querySelectorAll('.annot-staff')).find(el => !before.has(el));
+                if (added) this._annotLastBlock = added;
                 if (added && added.__noteStaff) { added.__noteStaff.activate(); added.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
                 this._annotStaffChanged(ed);
+            }
+
+            // Réglages communs à tous les blocs d'accords d'une zone (ui/chord-block.js) : leur éditeur est une fenêtre à part, la barre de texte reste rangée.
+            _annotChordOpts(ed) {
+                return {
+                    isEditable: () => this._annotIsEditable(ed),
+                    canvas: () => ed.__canvas,
+                    keepOpen: (t) => !!(t && t.closest && t.closest('.cn-chord-pop, .jam-annot-tools')), // les boutons de disposition s'appliquent au bloc en édition
+                    onChange: () => { this._annotMoveUndo = false; this._annotMoveRedo = false; this._annotStaffChanged(ed); },
+                    onMoved: () => { this._annotMoveUndo = true; this._annotMoveRedo = false; this._annotCommit(ed); },
+                    onActivate: () => { this._annotQuiet = true; this.annotActivate(ed); this._annotStaffMode(false); this._annotRefreshState(); },
+                    onDeactivate: () => this._annotRefreshState(),
+                    onFocusBack: () => { try { ed.focus({ preventScroll: true }); } catch (e) {} },
+                    onGrab: () => { if (this._annotStaffTimer) this._annotCommit(ed); },
+                    audio: this._annotAudio()
+                };
+            }
+
+            // Réglages communs à tous les cadres de dessin d'une zone (ui/draw-block.js) : leurs outils sont une fenêtre à part, la barre de texte reste rangée.
+            _annotDrawOpts(ed) {
+                return {
+                    isEditable: () => this._annotIsEditable(ed),
+                    canvas: () => ed.__canvas,
+                    keepOpen: (t) => !!(t && t.closest && t.closest('.cn-draw-pop, .jam-annot-tools')),
+                    onChange: () => { this._annotMoveUndo = false; this._annotMoveRedo = false; this._annotStaffChanged(ed); },
+                    onMoved: () => { this._annotMoveUndo = true; this._annotMoveRedo = false; this._annotCommit(ed); },
+                    onActivate: () => { this._annotQuiet = true; this.annotActivate(ed); this._annotStaffMode(false); this._annotRefreshState(); },
+                    onDeactivate: () => this._annotRefreshState(),
+                    onFocusBack: () => { try { ed.focus({ preventScroll: true }); } catch (e) {} },
+                    onGrab: () => { if (this._annotStaffTimer) this._annotCommit(ed); }
+                };
+            }
+
+            // Réglages de lecture d'un nouveau bloc (portée ou accords) : ceux du dernier bloc créé dans la zone (tempo, swing, instrument tels qu'il les joue) ;
+            // sans bloc, ceux de la jam (0 / vide = « suit la jam »). Chaque bloc garde ensuite les siens.
+            _annotNewBlockSettings(ed) {
+                let last = this._annotLastBlock && this._annotLastBlock.isConnected && ed.contains(this._annotLastBlock) ? this._annotLastBlock : null;
+                if (!last) { const all = ed.querySelectorAll('.annot-staff, .annot-chords'); last = all.length ? all[all.length - 1] : null; }
+                const v = last && (last.__noteStaff || last.__chordBlock);
+                const st = v && v.st;
+                return { bpm: (st && st.bpm) || 0, swing: (st && st.swing) || 0, instr: (st && st.instr) || '' };
+            }
+
+            // Bouton « Dessin » de la barre : un cadre de dessin vide à la première place libre de la zone, ses outils ouverts.
+            annotInsertDraw() {
+                if (!this._annotEnsureActive()) return;
+                const ed = this._annotActive;
+                if (!this._annotIsEditable(ed)) return;
+                if (ed.querySelectorAll('.annot-draw').length >= NOTE_MAX_DRAWS) return;
+                this._annotLeaveFrame();
+                const before = new Set(ed.querySelectorAll('.annot-draw'));
+                const holder = document.createElement('div');
+                const st = drawDefault();
+                holder.innerHTML = drawStubHtml(st, this._annotNewSpot(ed, null, st.w), true);
+                ed.appendChild(holder.firstChild);
+                this._annotHydrate(ed);
+                const added = Array.from(ed.querySelectorAll('.annot-draw')).find(el => !before.has(el));
+                if (added && added.__drawBlock) { added.__drawBlock.activate(); added.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+                this._annotStaffChanged(ed);
+            }
+
+            // Bouton « Accords » de la barre : un bloc d'accords (do majeur, 4 temps) à la première place libre de la zone, son éditeur ouvert.
+            annotInsertChords() {
+                if (!this._annotEnsureActive()) return;
+                const ed = this._annotActive;
+                if (!this._annotIsEditable(ed)) return;
+                if (ed.querySelectorAll('.annot-chords').length >= NOTE_MAX_CHORDS) return;
+                this._annotLeaveFrame();
+                const before = new Set(ed.querySelectorAll('.annot-chords'));
+                const holder = document.createElement('div');
+                holder.innerHTML = chordsStubHtml(chordsDefault(this._annotNewBlockSettings(ed)), this._annotNewSpot(ed, null, 120), false);
+                ed.appendChild(holder.firstChild);
+                this._annotHydrate(ed);
+                const added = Array.from(ed.querySelectorAll('.annot-chords')).find(el => !before.has(el));
+                if (added) this._annotLastBlock = added;
+                if (added && added.__chordBlock) { added.__chordBlock.activate(); added.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+                this._annotStaffChanged(ed);
+            }
+
+            // Lecture : hors édition, chaque portée et chaque bloc d'accords garde un petit bouton ▶ (discret, visible au survol) pour l'écouter.
+            // Ces boutons ne sont jamais enregistrés (annotationHtmlForSave reconstruit chaque bloc à partir de son seul texte) et disparaissent
+            // pendant la lecture de la jam (zones figées, un seul son à la fois).
+            _annotSyncReadPlay() {
+                ANNOT_ZONES.forEach((w) => {
+                    const ed = this._annotZoneEl(w);
+                    if (!ed) return;
+                    ed.querySelectorAll('.cn-staff-play').forEach((b) => b.remove());
+                    if (this._annotIsEditable(ed) || this.isPlaying) return;
+                    ed.querySelectorAll('.annot-staff, .annot-chords').forEach((el) => {
+                        const v = el.__noteStaff || el.__chordBlock;
+                        if (!v || (el.__noteStaff && (!v.st || !v.st.ev.length))) return;
+                        const what = el.__chordBlock ? 'les accords' : 'la portée';
+                        const b = document.createElement('button');
+                        b.type = 'button'; b.className = 'cn-staff-play'; b.setAttribute('contenteditable', 'false');
+                        b.title = `Écouter ${what}`; b.setAttribute('aria-label', `Écouter ${what}`); b.textContent = '▶';
+                        b.addEventListener('pointerdown', (ev) => ev.stopPropagation());
+                        b.addEventListener('click', (ev) => { ev.stopPropagation(); this._annotTogglePlay(el, b); });
+                        el.appendChild(b);
+                    });
+                });
+            }
+
+            _annotTogglePlay(el, b) {
+                const v = el.__noteStaff || el.__chordBlock;
+                if (!v || this.isPlaying) return;
+                if (v.playing) { v.stop(); b.textContent = '▶'; b.classList.remove('is-on'); return; }
+                this._annotStopBlocks(el);
+                v.play();
+                b.textContent = '■'; b.classList.add('is-on');
+                const poll = setInterval(() => {
+                    if (!b.isConnected) { clearInterval(poll); return; }
+                    if (!v.playing) { clearInterval(poll); b.textContent = '▶'; b.classList.remove('is-on'); }
+                }, 200);
+            }
+
+            // Arrête les portées et les accords en cours d'écoute dans les deux zones (sauf `except`) : un seul son à la fois, et rien au lancement de la jam.
+            _annotStopBlocks(except) {
+                ANNOT_ZONES.forEach((w) => {
+                    const ed = this._annotZoneEl(w);
+                    if (!ed) return;
+                    ed.querySelectorAll('.annot-staff, .annot-chords').forEach((o) => { const ov = o.__noteStaff || o.__chordBlock; if (o !== except && ov && ov.playing) ov.stop(); });
+                });
+            }
+
+            // La jam démarre ou s'arrête : les blocs cessent de jouer, les ▶ de lecture se retirent (pendant la lecture) ou reviennent.
+            _annotJamTransport() {
+                if (this.isPlaying) this._annotStopBlocks(null);
+                this._annotSyncReadPlay();
             }
 
             // Carte de gammes d'une mesure à deux accords : une section par accord (temps 1-2, temps 3-4).
@@ -7088,6 +7252,7 @@
                 this._runId = (this._runId || 0) + 1; // invalide toute chaîne de temps précédente
                 this._beatAudio = null;
                 this.isPlaying = true;
+                this._annotJamTransport();
                 // Une sélection de mesures limite la lecture à cette plage (en boucle si la boucle est activée)
                 // Export du son : toute la grille, une seule fois (ni sélection, ni boucle)
                 this._playRange = this._exporting ? null : this._computePlayRange();
@@ -7129,6 +7294,7 @@
 
             stop() {
                 this.isPlaying = false;
+                this._annotJamTransport();
                 this._countInBeats = 0;
                 document.getElementById('view-jam')?.classList.remove('jam-playing');
                 const scalesBox = document.getElementById('jam-scale-visualizer');
@@ -8841,6 +9007,10 @@
                 'app/ui/staff-editor.js': typeof nseToolState === 'function' && typeof nseBlocksToClipText === 'function' && typeof NoteStaffView === 'function' && typeof NoteStaffView.prototype.setBorder === 'function' && typeof NoteStaffView.prototype._setTuplet === 'function' && typeof nseSwingOptions === 'function' && typeof NoteStaffView.prototype._toggleTie === 'function' && typeof NoteStaffView.prototype._startMarquee === 'function',
                 'app/ui/text-frame.js': typeof NoteFrameView === 'function' && typeof NoteFrameView.prototype.setBorder === 'function',
                 'app/ui/annot-canvas.js': typeof AnnotCanvas === 'function' && typeof acZoomOffset === 'function',
+                'app/ui/chord-notes.js': typeof chordsParse === 'function' && typeof chordsStubHtml === 'function' && typeof chordsDefault === 'function',
+                'app/ui/draw-notes.js': typeof drawParse === 'function' && typeof drawStubHtml === 'function' && typeof drawEraseAt === 'function' && typeof drawVarPathD === 'function',
+                'app/ui/chord-block.js': typeof ChordBlockView === 'function' && typeof hydrateChordBlocks === 'function' && typeof annotBlocksToClipText === 'function',
+                'app/ui/draw-block.js': typeof DrawBlockView === 'function' && typeof hydrateDrawBlocks === 'function',
                 'app/ui/annot-bar.js': typeof ANNOT_FONT_DEFAULT_CSS !== 'undefined' && typeof annotToolsHtml === 'function' && typeof annotModeHtml === 'function'
             };
             Object.keys(needed).forEach(function (f) { seen[f] = needed[f] ? BUILD : ''; });

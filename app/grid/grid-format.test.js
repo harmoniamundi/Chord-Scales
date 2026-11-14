@@ -628,3 +628,42 @@ describe('cadres de texte à largeur automatique', () => {
         assert.ok(!S('<div class="annot-frame" data-frame="zz">x</div>').includes('data-frame'));
     });
 });
+
+describe('annotations : blocs d\'accords jouables et cadres de dessin', () => {
+    const frame = (t) => `<div class="annot-frame" data-frame="200" data-at="10,20">${t}</div>`;
+    const chords = (t, extra = '') => `<div class="annot-chords" data-chords="${t}" data-at="10,20"${extra}></div>`;
+    const draw = (t, extra = '') => `<div class="annot-draw" data-draw="${t}" data-at="10,20"${extra}></div>`;
+    test('accords : gardé sous sa forme canonique (réglages propres au bloc compris), invalide écarté', () => {
+        assert.equal(F.sanitizeNoteHtml(chords(' a|0~maj7~4|7~7~2 ')), chords('a|0~maj7~4|7~7~2'));
+        assert.equal(F.sanitizeNoteHtml(chords('a,inBb,sw67,bpm90|0~maj7~4')), chords('a,bpm90,sw67,inBb|0~maj7~4'));
+        assert.equal(F.sanitizeNoteHtml(chords('b|0~zzz~4')), '');
+        const out = F.sanitizeNoteHtml(`<div class="annot-chords" data-chords="b|0~maj7~4" onclick="x()"><script>alert(1)</script><b>pirate</b></div>`);
+        assert.ok(!/onclick|script|pirate/.test(out), out);
+    });
+    test('accords : bord caché conservé, pas dans un cadre de texte, 12 blocs au plus', () => {
+        assert.match(F.sanitizeNoteHtml(chords('b|0~maj7~4', ' data-border="0"')), /data-border="0"/);
+        assert.ok(!/annot-chords/.test(F.sanitizeNoteHtml(frame(chords('b|0~maj7~4')))));
+        assert.equal((F.sanitizeNoteHtml(chords('b|0~maj7~4').repeat(30), 100000).match(/annot-chords/g) || []).length, F.NOTE_MAX_CHORDS);
+    });
+    test('dessin : cadre gardé sous sa forme canonique (traits, fond, pression), invalide ou étranger écarté', () => {
+        assert.equal(F.sanitizeNoteHtml(draw(' 320,200|1E293B.3:12,30,2,1 ')), draw('320,200|1e293b.3:12,30,2,1'));
+        assert.equal(F.sanitizeNoteHtml(draw('320,200,t|0f172a.4:10,10,20,0,20,0~159')), draw('320,200,t|0f172a.4:10,10,20,0,20,0~159'));
+        assert.equal(F.sanitizeNoteHtml(draw('abc')), '');
+        assert.equal(F.sanitizeNoteHtml(draw('320,200|zz.3:1,1|0f172a.3:5,5')), draw('320,200|0f172a.3:5,5'));
+        const out = F.sanitizeNoteHtml(`<div class="annot-draw" data-draw="320,200" onclick="x()"><script>alert(1)</script><svg onload="y()"></svg></div>`);
+        assert.ok(!/onclick|script|onload|svg/.test(out), out);
+    });
+    test('dessin : bord caché conservé, pas dans un cadre de texte, 6 cadres au plus, traits hors limite de texte', () => {
+        assert.match(F.sanitizeNoteHtml(draw('320,200', ' data-border="0"')), /data-border="0"/);
+        assert.ok(!/annot-draw/.test(F.sanitizeNoteHtml(frame(draw('320,200')))));
+        assert.equal((F.sanitizeNoteHtml(draw('320,200').repeat(20), 100000).match(/annot-draw/g) || []).length, F.NOTE_MAX_DRAWS);
+        const big = '320,200|' + Array.from({ length: 40 }, () => '0f172a.3:10,10,' + Array.from({ length: 100 }, () => '1,1').join(',')).join('|');
+        assert.match(F.sanitizeNoteHtml(draw(big)), /annot-draw/);
+    });
+    test('mélangé aux cadres et aux portées ; nettoyer deux fois donne le même résultat', () => {
+        const raw = frame('Texte') + chords('b|0~maj7~4') + draw('320,200|0f172a.3:5,5') + '<div class="annot-staff" data-staff="t,4/4,0;q:c4"></div>';
+        const once = F.sanitizeNoteHtml(raw);
+        assert.match(once, /annot-frame/); assert.match(once, /annot-chords/); assert.match(once, /annot-draw/); assert.match(once, /annot-staff/);
+        assert.equal(F.sanitizeNoteHtml(once), once);
+    });
+});

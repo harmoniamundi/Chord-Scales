@@ -17,7 +17,7 @@
 const NSE_N = (typeof parseStaff !== 'undefined')
     ? { parseStaff, formatStaff, staffDefault, layoutStaff, staffBeamGroups, staffBeamBreaks, pitchFromDia, pitchDia, pitchLabel, pitchMidi, midiToName, diaFromY, yFromDia,
         playbackPlan, insertEvent, staffInsertTupletGroup, staffInsertBoundary, removeEvent, updateEvent, alterEvent, shiftEvent, cloneStaff,
-        staffTupletChoices, staffMakeTuplet, staffDissolveTuplet, staffTupletBounds, staffSetPickup, staffEventEnd, setStaffTempo, setStaffSwing, staffTempo, staffMeterAllowsSwing,
+        staffTupletChoices, staffMakeTuplet, staffDissolveTuplet, staffTupletBounds, staffSetPickup, staffEventEnd, setStaffTempo, setStaffSwing, setStaffInstr, clampStaffInstr, SN_INSTRUMENTS, staffTempo, staffMeterAllowsSwing,
         shiftEvents, alterEvents, removeEvents, staffExtractEvents, staffInsertEvents, staffToggleTies, staffAddTiedNote, staffHasTie, staffTieValid, staffSwingRatio,
         staffClipText, frameClipText, parseFrameBox, splitStaffClips, parseStaffPos, formatStaffPos, clampStaffPos,
         parseBlockAt, formatBlockAt, clampBlockAt, parseBlockBorder,
@@ -222,7 +222,7 @@ function drawNoteStaff(host, st, opts = {}) {
                 mo.m.pieces.forEach((pc, i) => {
                     const n = mo.notes[i];
                     const cx = (n.getNoteHeadBeginX() + n.getNoteHeadEndX()) / 2;
-                    geo.notes.push({ ev: pc.ev, x: cx, y: pc.p ? n.getYs()[0] : y + NSE_TOP + 2 * NSE_SPACING, line: li, m: mo.mi, rest: !pc.p, tieFromPrev: pc.tieFromPrev, cont: !!pc.cont });
+                    geo.notes.push({ g: (n.getSVGElement && n.getSVGElement()) || null, ev: pc.ev, x: cx, y: pc.p ? n.getYs()[0] : y + NSE_TOP + 2 * NSE_SPACING, line: li, m: mo.mi, rest: !pc.p, tieFromPrev: pc.tieFromPrev, cont: !!pc.cont });
                     if (pc.tieFromPrev && tiePending) tieJobs.push({ from: tiePending, to: { note: n, line: li } });
                     tiePending = pc.tieNext ? { note: n, line: li } : null;
                 });
@@ -296,7 +296,7 @@ const NSE_MULTI_ICON = '<svg width="20" height="18" viewBox="0 0 20 18" aria-hid
 const NSE_DURATION_TITLES = { w: 'Ronde (clavier : 5)', h: 'Blanche (clavier : 4)', q: 'Noire (clavier : 3)', '8': 'Croche (clavier : 2)', '16': 'Double-croche (clavier : 1)' };
 const NSE_DURATION_KEYS = { '1': '16', '2': '8', '3': 'q', '4': 'h', '5': 'w' };
 
-// Choix du swing de lecture : « Jam » (valeur 0, par défaut) suit le swing de la jam chargée ; sinon 50 % = croches droites, 67 % = triolet.
+// Choix du swing de lecture : « Jam » (valeur 0, par défaut) suit le swing de la jam (onglet Annotations du mode Jam) ; sinon 50 % = croches droites, 67 % = triolet.
 // Une valeur venue d'ailleurs (62 %…) reste proposée. jamPct : swing actuel de la jam, rappelé dans le libellé « Jam ».
 const NSE_SWING_CHOICES = [[50, 'Droit · 50 %'], [55, '55 %'], [60, '60 %'], [65, '65 %'], [67, 'Triolet · 67 %'], [70, '70 %'], [75, '75 %']];
 function nseSwingAutoLabel(jamPct) { return jamPct ? `Jam · ${jamPct} %` : 'Jam'; }
@@ -305,6 +305,15 @@ function nseSwingOptions(current, jamPct) {
     const list = NSE_SWING_CHOICES.slice();
     if (cur && !list.some(c => c[0] === cur)) { list.push([cur, `${cur} %`]); list.sort((a, b) => a[0] - b[0]); }
     list.unshift([0, nseSwingAutoLabel(jamPct)]);
+    return list.map(([v, t]) => `<option value="${v}"${v === cur ? ' selected' : ''}>${t}</option>`).join('');
+}
+
+// Choix de l'instrument transpositeur de la portée (valeur vide = « Jam » : celui de la jam, toujours proposé pour y revenir).
+const NSE_INSTR_CHOICES = [['C', 'En Ut'], ['Bb', 'En Si♭'], ['Eb', 'En Mi♭']];
+function nseInstrOptions(current) {
+    const cur = NSE_N.clampStaffInstr(current);
+    const list = NSE_INSTR_CHOICES.slice();
+    list.unshift(['', 'Jam']);
     return list.map(([v, t]) => `<option value="${v}"${v === cur ? ' selected' : ''}>${t}</option>`).join('');
 }
 
@@ -356,9 +365,13 @@ function nseToolsHtml(st, cur, jamPct) {
             <span class="ns-zoom-lab" aria-hidden="true">♩ =</span>
             <input type="number" class="ns-num" data-set="bpm" min="${NSE_N.SN_BPM_MIN}" max="${NSE_N.SN_BPM_MAX}" step="1" inputmode="numeric" placeholder="jam" value="${st.bpm || ''}" aria-label="Tempo de lecture, en noires par minute">
         </label>
-        <label class="ns-zoom ns-swing" title="Swing de lecture : « Jam » suit le swing de la jam chargée (par défaut) ; 50 % = croches droites, 67 % = triolet, plus haut = plus pointé">
+        <label class="ns-zoom ns-swing" title="Swing de lecture : « Jam » suit le swing de la jam (par défaut) ; 50 % = croches droites, 67 % = triolet, plus haut = plus pointé">
             <span class="ns-zoom-lab" aria-hidden="true">Swing</span>
             <select class="ns-sel ns-sel-inline" data-set="swing" aria-label="Swing de lecture"${NSE_N.staffMeterAllowsSwing(st.meter) ? '' : ' disabled'}>${nseSwingOptions(st.swing || 0, jamPct)}</select>
+        </label>
+        <label class="ns-zoom ns-instr" title="Instrument transpositeur de la portée : la hauteur écrite est transposée à la lecture">
+            <span class="ns-zoom-lab" aria-hidden="true">Instr.</span>
+            <select class="ns-sel ns-sel-inline" data-set="instr" aria-label="Instrument transpositeur">${nseInstrOptions(st.instr)}</select>
         </label>
         <div class="ns-grp">
             <button type="button" class="ns-btn ns-play" data-act="play" title="Écouter la portée" aria-label="Écouter la portée">▶</button>
@@ -424,7 +437,7 @@ let NSE_NOTE_CLIP = null; // notes copiées (staffExtractEvents) : se collent da
 //        onGrab(view) quand le bloc est saisi pour être redimensionné (avant tout changement) ;
 //        onMoved(view) quand le bloc vient d'être redimensionné (à enregistrer tout de suite, pour que ↶ l'annule) ;
 //        audio : { ready() → Promise, now(), play(midi, secondes, durée) → nœud audio ou null (la transposition de la jam est appliquée par play), bpm(),
-//                  swing() → swing de la jam chargée (0,5 à 0,75), suivi tant que la portée n'a pas son propre réglage }
+//                  swing() → swing de la jam (0,5 à 0,75), suivi tant que la portée n'a pas son propre réglage }
 class NoteStaffView {
     constructor(el, opts) {
         this.el = el;
@@ -533,12 +546,13 @@ class NoteStaffView {
             hint.textContent = touch ? 'Choisissez une durée, puis touchez la portée' : 'Choisissez une durée puis cliquez sur la portée pour poser des notes';
             this.svgHost.appendChild(hint);
         }
+        if (this.playing && this._hiEv >= 0) this._markPlaying(this._hiEv);
         this._refreshTools();
     }
 
     _renderTools() { this.tools.innerHTML = nseToolsHtml(this.st, this.cur, this._jamSwingPct()); }
 
-    // Swing de la jam chargée, en % (0 si la jam ne le donne pas) : rappelé dans l'entrée « Jam » du menu Swing.
+    // Swing de la jam, en % (0 s'il n'en donne pas) : rappelé dans l'entrée « Jam » du menu Swing.
     _jamSwingPct() {
         const a = this.opts.audio;
         try { const v = a && a.swing ? a.swing() : null; return typeof v === 'number' && v > 0 ? Math.round(v * 100) : 0; } catch (e) { return 0; }
@@ -570,6 +584,8 @@ class NoteStaffView {
             sw.value = String(cur);
             sw.disabled = !NSE_N.staffMeterAllowsSwing(this.st.meter);
         }
+        const ins = this.tools.querySelector('[data-set="instr"]');
+        if (ins) { const cur = NSE_N.clampStaffInstr(this.st.instr); if (!ins.querySelector(`option[value="${cur}"]`)) ins.innerHTML = nseInstrOptions(cur); ins.value = cur; }
         const list = this._selList(), explicit = list.length > 0 && !this.selAuto;
         const tie = this.tools.querySelector('[data-act="tie"]'); if (tie) tie.classList.toggle('is-on', NSE_N.staffHasTie(this.st, list));
         const multi = this.tools.querySelector('[data-act="multi"]'); if (multi) { multi.classList.toggle('is-on', this.multiMode); multi.setAttribute('aria-pressed', this.multiMode ? 'true' : 'false'); }
@@ -727,6 +743,15 @@ class NoteStaffView {
         host.addEventListener('pointerdown', (ev) => this._pointerDown(ev));
         host.addEventListener('pointermove', (ev) => this._pointerMove(ev));
         host.addEventListener('pointerleave', () => this._hideGhost());
+        // Hors édition de la portée (lecture, ou bloc simplement posé), un simple clic sur une note la joue ; pas après un glisser (déplacement du bloc).
+        host.addEventListener('pointerdown', (ev) => { this._downXY = { x: ev.clientX, y: ev.clientY }; }, true);
+        host.addEventListener('click', (ev) => {
+            if (this.isActive || !this.geo) return;
+            const d = this._downXY;
+            if (d && Math.hypot(ev.clientX - d.x, ev.clientY - d.y) > 5) return;
+            const hit = this._hitEvent(this._local(ev));
+            if (hit >= 0) this._playNote(hit);
+        });
         // On n'entre pas en édition en cliquant dans la portée : le crayon ✎ (au survol) l'ouvre, et un second clic la ferme.
         this.editBtn.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); });
         this.editBtn.addEventListener('click', (ev) => {
@@ -1257,6 +1282,7 @@ class NoteStaffView {
         const s = ev.target.closest('select');
         if (!s || !this.editable) return;
         if (s.dataset.set === 'tuplet') { this.activate(); this._setTuplet(s.value); return; }
+        if (s.dataset.set === 'instr') { this.activate(); this._apply(NSE_N.setStaffInstr(this.st, s.value)); if (this.opts.onFocusBack) this.opts.onFocusBack(this); return; }
         if (s.dataset.set === 'swing') { this.activate(); this._apply(NSE_N.setStaffSwing(this.st, s.value)); if (this.opts.onFocusBack) this.opts.onFocusBack(this); return; }
         const next = NSE_N.cloneStaff(this.st);
         if (s.dataset.set === 'clef') next.clef = s.value === 'b' ? 'b' : 't';
@@ -1364,7 +1390,7 @@ class NoteStaffView {
     _audition(midi) {
         const a = this.opts.audio;
         if (!a) return;
-        a.ready().then((ok) => { if (ok) a.play(midi, 0, 0.7); });
+        a.ready().then((ok) => { if (ok) a.play(midi, 0, 0.7, this.st.instr); });
     }
 
     play() {
@@ -1377,13 +1403,37 @@ class NoteStaffView {
         a.ready().then((ok) => {
             if (!ok || this.playing !== token) { if (this.playing === token) { this.playing = null; this._refreshTools(); } return; }
             const beat = 60 / NSE_N.staffTempo(this.st, a.bpm());
-            const plan = NSE_N.playbackPlan(this.st, a.swing ? a.swing() : null); // swing de la portée, sinon celui de la jam chargée
+            const plan = NSE_N.playbackPlan(this.st, a.swing ? a.swing() : null); // swing de la portée, sinon celui de la jam
             const nodes = [];
-            plan.forEach(n => { if (n.midi !== null) { const node = a.play(n.midi, n.at * beat, Math.max(0.12, n.len * beat * 0.95)); if (node) nodes.push(node); } });
+            token.timers = [];
+            plan.forEach(n => {
+                if (n.midi !== null) { const node = a.play(n.midi, n.at * beat, Math.max(0.12, n.len * beat * 0.95), this.st.instr); if (node) nodes.push(node); }
+                token.timers.push(setTimeout(() => { if (this.playing === token) this._markPlaying(n.midi !== null ? n.ev : -1); }, n.at * beat * 1000)); // la note qui sonne est soulignée en bleu
+            });
             token.nodes = nodes;
             const last = plan[plan.length - 1];
-            token.timer = setTimeout(() => { if (this.playing === token) { this.playing = null; this._refreshTools(); } }, (last.at + last.len) * beat * 1000 + 150);
+            token.timer = setTimeout(() => { if (this.playing === token) { this.playing = null; this._markPlaying(-1); this._refreshTools(); } }, (last.at + last.len) * beat * 1000 + 150);
         });
+    }
+
+    // Colore en bleu la tête de la note `i` (indice de l'événement) pendant qu'elle sonne ; -1 efface la couleur. Elle est reposée quand la portée se redessine.
+    _markPlaying(i) {
+        this._hiEv = i;
+        this.svgHost.querySelectorAll('.vf-notehead.ns-playing').forEach(n => n.classList.remove('ns-playing'));
+        if (i < 0 || !this.geo) return;
+        this.geo.notes.filter(r => r.ev === i && !r.rest && r.g && r.g.isConnected).forEach((r) => {
+            r.g.querySelectorAll('.vf-notehead').forEach(h => h.classList.add('ns-playing'));
+        });
+    }
+
+    // Clic sur une note hors édition de la portée : elle se joue seule, sa tête bleuit un instant.
+    _playNote(i) {
+        const e = this.st.ev[i];
+        if (!e || !e.p || this.playing) return;
+        this._audition(NSE_N.pitchMidi(e.p));
+        this._markPlaying(i);
+        clearTimeout(this._noteTimer);
+        this._noteTimer = setTimeout(() => { if (!this.playing) this._markPlaying(-1); }, 450);
     }
 
     stop() {
@@ -1391,6 +1441,8 @@ class NoteStaffView {
         if (!t) return;
         this.playing = null;
         if (t.timer) clearTimeout(t.timer);
+        (t.timers || []).forEach(clearTimeout);
+        this._markPlaying(-1);
         (t.nodes || []).forEach(n => { try { n.stop(); } catch (e) { /* déjà arrêtée */ } });
         this._refreshTools();
     }
@@ -1413,10 +1465,14 @@ function hydrateNoteStaves(root, opts) {
 // Petit bloc enregistrable d'une portée ou d'un cadre de texte affiché (sans son dessin, ses boutons ni ses outils) : son texte, sa place sur le canevas,
 // son bord et, pour un cadre, son texte mis en forme. `at` remplace la place affichée (bloc recréé ailleurs). Un bloc hérité (pas encore migré) garde data-pos.
 function nseBlockStub(el, at) {
-    const isFrame = el.classList.contains('annot-frame');
+    const isFrame = el.classList.contains('annot-frame'), isChords = el.classList.contains('annot-chords'), isDraw = el.classList.contains('annot-draw');
     const stub = document.createElement('div');
-    stub.className = isFrame ? 'annot-frame' : 'annot-staff';
-    if (isFrame) {
+    stub.className = isFrame ? 'annot-frame' : (isChords ? 'annot-chords' : (isDraw ? 'annot-draw' : 'annot-staff'));
+    if (isDraw) {
+        stub.setAttribute('data-draw', el.getAttribute('data-draw') || '');   // cadre de dessin (ui/draw-block.js) : son texte est déjà sa forme enregistrée
+    } else if (isChords) {
+        stub.setAttribute('data-chords', el.getAttribute('data-chords') || '');   // bloc d'accords (ui/chord-block.js) : son texte est déjà sa forme enregistrée
+    } else if (isFrame) {
         stub.setAttribute('data-frame', el.getAttribute('data-frame') || '');
         const body = el.querySelector('.annot-frame-body');
         stub.innerHTML = body ? body.innerHTML : '';
@@ -1436,7 +1492,7 @@ function nseBlockStub(el, at) {
 function annotationHtmlForSave(ed) {
     const c = ed.cloneNode(true);
     c.querySelectorAll('.annot-overlay').forEach(o => o.remove());
-    c.querySelectorAll('.annot-staff, .annot-frame').forEach((el) => el.replaceWith(nseBlockStub(el)));
+    c.querySelectorAll('.annot-staff, .annot-frame, .annot-chords, .annot-draw').forEach((el) => el.replaceWith(nseBlockStub(el)));
     return c.innerHTML;
 }
 

@@ -69,6 +69,10 @@ function staffSwingRatio(st, jamSwing) {
 // Tempo effectif de la lecture : celui de la portée, sinon celui de la jam, sinon 100.
 function staffTempo(st, jamBpm) { return clampStaffBpm(st && st.bpm) || clampStaffBpm(jamBpm) || 100; }
 
+// Instrument transpositeur propre à la portée : 'C' (en Ut), 'Bb', 'Eb' ; '' = celui de la jam (portées écrites avant ce réglage).
+const SN_INSTRUMENTS = ['C', 'Bb', 'Eb'];
+function clampStaffInstr(v) { return SN_INSTRUMENTS.includes(v) ? v : ''; }
+
 // ----- Tuplets -----
 // Un tuplet « N dans le temps de M » : N notes écrites avec une valeur donnée tiennent dans la durée de M notes de cette valeur
 // (triolet : 3 croches dans le temps de 2 ; quintolet : 5 doubles-croches dans le temps de 4…). Chaque note du groupe est un vrai événement,
@@ -77,7 +81,7 @@ const SN_TUPLET_M = { 2: 3, 3: 2, 4: 3, 5: 4, 6: 4, 7: 4, 9: 8 };
 const SN_TUPLETS = [2, 3, 4, 5, 6, 7, 9];
 const SN_TUPLET_NAMES = { 2: 'Duolet', 3: 'Triolet', 4: 'Quartolet', 5: 'Quintolet', 6: 'Sextolet', 7: 'Septolet', 9: 'Nonolet' };
 
-function staffDefault() { return { clef: 't', meter: '4/4', ks: 0, size: SN_SIZE_DEFAULT, pu: 0, bpm: 0, swing: SN_SWING_DEFAULT, ev: [] }; }
+function staffDefault() { return { clef: 't', meter: '4/4', ks: 0, size: SN_SIZE_DEFAULT, pu: 0, bpm: 0, swing: SN_SWING_DEFAULT, instr: '', ev: [] }; }
 
 // Un événement du groupe ouvre-t-il un tuplet (premier du groupe) ? Le groupe continue tant que le suivant a le même N sans marque de début.
 function staffTupletStarts(ev, i) { return !!ev[i].tu && (!!ev[i].gs || i === 0 || ev[i - 1].tu !== ev[i].tu); }
@@ -130,13 +134,13 @@ function parseStaff(text) {
     if (typeof text !== 'string' || text.length > SN_MAX_LENGTH) return null;
     const semi = text.indexOf(';');
     const head = (semi < 0 ? text : text.slice(0, semi)).split(',');
-    if (head.length < 3 || head.length > 7) return null;
+    if (head.length < 3 || head.length > 8) return null;
     const clef = head[0];
     if (clef !== 't' && clef !== 'b') return null;
     if (!SN_METERS.includes(head[1])) return null;
     if (!/^-?[0-7]$/.test(head[2])) return null;
     const ks = parseInt(head[2], 10);
-    let size = SN_SIZE_DEFAULT, pu = 0, bpm = 0, swing = SN_SWING_DEFAULT;
+    let size = SN_SIZE_DEFAULT, pu = 0, bpm = 0, swing = SN_SWING_DEFAULT, instr = '';
     const seen = {};
     for (const part of head.slice(3)) {
         let m;
@@ -160,6 +164,10 @@ function parseStaff(text) {
             seen.sw = true;
             swing = parseInt(m[1], 10);
             if (swing < SN_SWING_MIN || swing > SN_SWING_MAX) return null;
+        } else if ((m = /^in(C|Bb|Eb)$/.exec(part))) {
+            if (seen.instr) return null;
+            seen.instr = true;
+            instr = m[1];
         } else return null;
     }
     const body = semi < 0 ? '' : text.slice(semi + 1).trim();
@@ -200,7 +208,7 @@ function parseStaff(text) {
     });
     if (pu > ev.length) return null;
     if (pu > 0 && pu < ev.length && ev[pu].tu && !staffTupletStarts(ev, pu)) return null;
-    return { clef, meter: head[1], ks, size, pu, bpm, swing, ev };
+    return { clef, meter: head[1], ks, size, pu, bpm, swing, instr, ev };
 }
 
 // Texte canonique d'une portée (l'inverse de parseStaff pour tout texte valide).
@@ -219,7 +227,8 @@ function formatStaff(st) {
     const pu = pk > 0 ? `,pu${pk}` : '';
     const bpm = clampStaffBpm(st.bpm) ? `,bpm${clampStaffBpm(st.bpm)}` : '';
     const sw = clampStaffSwing(st.swing) ? `,sw${clampStaffSwing(st.swing)}` : '';
-    return `${st.clef},${st.meter},${st.ks}${size}${pu}${bpm}${sw};${toks.join(' ')}`;
+    const instr = clampStaffInstr(st.instr) ? `,in${clampStaffInstr(st.instr)}` : '';
+    return `${st.clef},${st.meter},${st.ks}${size}${pu}${bpm}${sw}${instr};${toks.join(' ')}`;
 }
 
 // Texte à enregistrer, ou null s'il n'est pas valide : renvoie la forme canonique.
@@ -601,7 +610,7 @@ function playbackPlan(st, jamSwing) {
     st.ev.forEach((e, i) => {
         const len = eventUnits(e) / 24;
         if (i > 0 && out.length && staffTieValid(st.ev, i - 1)) out[out.length - 1].len += len;
-        else out.push({ at: t, len, midi: e.p ? pitchMidi(e.p) : null, tu: e.tu || 0 });
+        else out.push({ at: t, len, midi: e.p ? pitchMidi(e.p) : null, tu: e.tu || 0, ev: i });
         t += len;
     });
     const sw = staffSwingRatio(st, jamSwing);
@@ -626,7 +635,7 @@ function playbackPlan(st, jamSwing) {
 function cloneStaffEvent(e) { return { d: e.d, dot: !!e.dot, tu: e.tu || 0, gs: !!(e.tu && e.gs), tie: !!(e.p && e.tie), p: e.p ? { ...e.p } : null }; }
 
 function cloneStaff(st) {
-    return { clef: st.clef, meter: st.meter, ks: st.ks, size: st.size || SN_SIZE_DEFAULT, pu: st.pu || 0, bpm: st.bpm || 0, swing: st.swing || SN_SWING_DEFAULT, ev: st.ev.map(cloneStaffEvent) };
+    return { clef: st.clef, meter: st.meter, ks: st.ks, size: st.size || SN_SIZE_DEFAULT, pu: st.pu || 0, bpm: st.bpm || 0, swing: st.swing || SN_SWING_DEFAULT, instr: clampStaffInstr(st.instr), ev: st.ev.map(cloneStaffEvent) };
 }
 
 // Insère un événement (ou, avec ev.tu, le membre d'un tuplet : ev.gs = premier du groupe).
@@ -759,6 +768,7 @@ function staffEventEnd(st, index) { return st.ev[index] ? staffTupletBounds(st.e
 
 function setStaffTempo(st, bpm) { const out = cloneStaff(st); out.bpm = clampStaffBpm(bpm); return out; }
 function setStaffSwing(st, pct) { const out = cloneStaff(st); out.swing = clampStaffSwing(pct); return out; }
+function setStaffInstr(st, v) { const out = cloneStaff(st); out.instr = clampStaffInstr(v); return out; }
 
 // Altère la note : delta -1 (bémol), +1 (dièse) ou null (bécarre = hauteur naturelle, sans altération).
 function alterEvent(st, index, delta) {
@@ -919,7 +929,7 @@ if (typeof module !== 'undefined' && module.exports) {
         SN_FRAME_W_MIN, SN_FRAME_W_MAX, SN_FRAME_W_DEFAULT, SN_FRAME_SCALE_MIN, SN_FRAME_SCALE_MAX, SN_FRAME_SCALE_DEFAULT, clampFrameWidth, clampFrameScale, parseFrameBox, formatFrameBox,
         staffClipText, frameClipText, splitStaffClips, SN_UNITS, SN_DURATIONS, SN_METERS, SN_MAX_EVENTS, SN_MAX_LENGTH, SN_KEY_NAMES, SN_KEY_LABELS, SN_BOTTOM_LINE,
         SN_SIZE_MIN, SN_SIZE_MAX, SN_SIZE_STEP, SN_SIZE_DEFAULT, clampStaffSize,
-        SN_BPM_MIN, SN_BPM_MAX, SN_SWING_MIN, SN_SWING_MAX, SN_SWING_AUTO, SN_SWING_DEFAULT, clampStaffBpm, clampStaffSwing, staffSwingRatio, staffTempo,
+        SN_BPM_MIN, SN_BPM_MAX, SN_SWING_MIN, SN_SWING_MAX, SN_SWING_AUTO, SN_SWING_DEFAULT, clampStaffBpm, clampStaffSwing, SN_INSTRUMENTS, clampStaffInstr, setStaffInstr, staffSwingRatio, staffTempo,
         staffSamePitch, staffTieValid, staffTieChain, staffExpandTies, staffSortedIndices, staffNormalizeTuplets,
         SN_TUPLET_M, SN_TUPLETS, SN_TUPLET_NAMES, staffTupletStarts, staffTupletBounds, staffPickupCount,
         staffDefault, parseStaff, formatStaff, canonicalStaff, staffWrittenUnits, eventUnits, meterUnits, staffMeterBeatGroups, meterBeamUnits, staffWritableValue, decomposeUnits, layoutStaff,

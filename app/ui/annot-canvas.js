@@ -13,7 +13,7 @@ const AC_SNAP = 6;            // distance (pixels) à laquelle un repère appara
 const AC_DRAG_MIN = 5;        // déplacement minimal (pixels) avant qu'un appui devienne un glisser
 const AC_MARGIN = 12;         // marge de la première place libre
 const AC_CASCADE = 22;        // décalage entre deux blocs créés l'un après l'autre
-const AC_BLOCKS = '.annot-staff, .annot-frame';
+const AC_BLOCKS = '.annot-staff, .annot-frame, .annot-chords, .annot-draw';
 const AC_ZOOM_MIN = 0.5;      // zoom de lecture : de 50 % à 300 %
 const AC_ZOOM_MAX = 3;
 const AC_ZOOM_STEPS = [0.5, 0.67, 0.8, 1, 1.25, 1.5, 2, 2.5, 3]; // crans des boutons − / +
@@ -133,6 +133,12 @@ function acZoomOf(zone) {
     return z > 0 ? z : 1;
 }
 
+// Largeur du canevas, en pixels à 100 % : celle de la zone, et davantage quand on dézoome (la zone montre alors clientWidth / zoom pixels du canevas :
+// on doit pouvoir poser et déplacer des blocs sur toute la partie visible, jusqu'au bord droit).
+function acCanvasWidth(zone) {
+    return zone.clientWidth / Math.min(1, acZoomOf(zone));
+}
+
 // Défilement à donner à un axe après un changement de zoom z0 → z1, pour que le point sous le pointeur (à p pixels du bord visible) ne bouge pas.
 function acZoomScroll(scroll, p, z0, z1) {
     return Math.max(0, (scroll + p) * (z1 / z0) - p);
@@ -183,9 +189,9 @@ class AnnotCanvas {
 
     get editable() { return !this.opts.isEditable || !!this.opts.isEditable(); }
 
-    blocks() { return Array.from(this.zone.querySelectorAll(':scope > .annot-staff, :scope > .annot-frame')); }
+    blocks() { return Array.from(this.zone.querySelectorAll(':scope > .annot-staff, :scope > .annot-frame, :scope > .annot-chords, :scope > .annot-draw')); }
 
-    viewOf(el) { return el.__noteStaff || el.__noteFrame || null; }
+    viewOf(el) { return el.__noteStaff || el.__noteFrame || el.__chordBlock || el.__drawBlock || null; }
 
     // Rectangle d'un bloc dans les coordonnées du canevas (origine : coin haut gauche de la zone, défilement compris).
     rectOf(el) { return { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight }; }
@@ -199,7 +205,7 @@ class AnnotCanvas {
         return { x: Math.round((clientX - r.left - zone.clientLeft + zone.scrollLeft) / z), y: Math.round((clientY - r.top - zone.clientTop + zone.scrollTop) / z) };
     }
 
-    zoneSize() { return { w: this.zone.clientWidth, h: Math.max(this.zone.clientHeight, this.zone.scrollHeight / this.zoom) }; }
+    zoneSize() { return { w: acCanvasWidth(this.zone), h: Math.max(this.zone.clientHeight, this.zone.scrollHeight / this.zoom) }; }
 
     // ----- Sélection -----
 
@@ -341,8 +347,8 @@ class AnnotCanvas {
                 const g = document.createElement('div');
                 g.className = 'annot-drag-ghost' + (i.el.classList.contains('annot-frame') ? ' annot-drag-ghost-frame' : '');
                 g.style.boxSizing = 'border-box'; g.style.width = `${Math.round(i.s0.width)}px`; g.style.height = `${Math.round(i.s0.height)}px`; g.style.maxWidth = 'none';
-                const clip = i.el.querySelector('.annot-frame-clip'), svg = i.el.querySelector('.annot-staff-svg svg');
-                if (clip) g.appendChild(clip.cloneNode(true)); else if (svg) g.appendChild(svg.cloneNode(true));
+                const clip = i.el.querySelector('.annot-frame-clip'), svg = i.el.querySelector('.annot-staff-svg svg'), row = i.el.querySelector('.annot-chords-row') || i.el.querySelector('.annot-draw-svg');
+                if (clip) g.appendChild(clip.cloneNode(true)); else if (svg) g.appendChild(svg.cloneNode(true)); else if (row) g.appendChild(row.cloneNode(true));
                 where.appendChild(g);
                 return g;
             });
@@ -355,13 +361,13 @@ class AnnotCanvas {
                 clearGhosts();
                 items.forEach(i => i.el.classList.remove('is-dragging-src'));
                 const zm = this.zoom, rawDx = ((lastX - x0) + (this.zone.scrollLeft - sl0)) / zm, rawDy = ((lastY - y0) + (this.zone.scrollTop - st0)) / zm;
-                const c = acClampMove(bbox, rawDx, rawDy, this.zone.clientWidth);
+                const c = acClampMove(bbox, rawDx, rawDy, acCanvasWidth(this.zone));
                 let dx = c.dx, dy = c.dy;
                 const moved = { x: bbox.x + dx, y: bbox.y + dy, w: bbox.w, h: bbox.h };
                 const s = acSnap(moved, others, this.zoneSize(), AC_SNAP, !!(this.opts.magnet && this.opts.magnet()) && !alt);
                 if (!alt) {
                     dx += s.dx; dy += s.dy;
-                    const c2 = acClampMove(bbox, dx, dy, this.zone.clientWidth); dx = c2.dx; dy = c2.dy;
+                    const c2 = acClampMove(bbox, dx, dy, acCanvasWidth(this.zone)); dx = c2.dx; dy = c2.dy;
                     this.showGuides(s.guides);
                 } else this.hideGuides();
                 items.forEach(i => i.view.setAt({ x: i.r0.x + dx, y: i.r0.y + dy }));
@@ -440,7 +446,71 @@ class AnnotCanvas {
     }
 }
 
+// ----- Fenêtres d'édition (blocs d'accords, de dessin) : où les poser, et les déplacer -----
+
+// Garde la fenêtre (w × h) à l'intérieur de l'écran (vw × vh), à m pixels des bords.
+function acPopClamp(x, y, w, h, vw, vh, m = 8) {
+    return { x: Math.max(m, Math.min(x, vw - w - m)), y: Math.max(m, Math.min(y, vh - h - m)) };
+}
+
+// Place d'une fenêtre (w × h) autour du cadre r ({left, top, right, bottom}) : la première position de `order` où elle tient sans couvrir le cadre
+// ('right' : à droite, 'left' : à gauche, 'below' : dessous, 'above' : dessus) ; sinon en bas à droite de l'écran. Sur les côtés, elle se cale en hauteur dans l'écran.
+function acPopSpot(r, w, h, vw, vh, order = ['right', 'left', 'below', 'above'], m = 8) {
+    const cy = Math.max(m, Math.min(r.top, vh - h - m)), cx = Math.max(m, Math.min(r.left, vw - w - m));
+    const spots = {
+        right: r.right + m + w <= vw - m ? { x: r.right + m, y: cy } : null,
+        left: r.left - m - w >= m ? { x: r.left - m - w, y: cy } : null,
+        below: r.bottom + m + h <= vh - m ? { x: cx, y: r.bottom + m } : null,
+        above: r.top - m - h >= m ? { x: cx, y: r.top - m - h } : null,
+    };
+    for (const k of order) if (spots[k]) return spots[k];
+    return { x: Math.max(m, vw - w - m), y: Math.max(m, vh - h - m) };
+}
+
+// Dernière place choisie à la main pour chaque sorte de fenêtre (accords, dessin…), gardée tant que la page reste ouverte : la fenêtre suivante s'y rouvre.
+const AC_POP_POS = {};
+// Sorte d'une fenêtre d'après ses classes : la première classe « cn-… » (cn-chord-pop, cn-draw-pop), sinon « pop ».
+function acPopKey(className) {
+    const k = String(className || '').split(/\s+/).find(c => /^cn-/.test(c));
+    return k || 'pop';
+}
+
+// Fenêtre déplaçable par son bandeau (.jm-head) : une fois déplacée à la main, elle garde sa place (acPopManual), y compris à sa prochaine ouverture.
+function acPopDrag(pop) {
+    pop.addEventListener('pointerdown', (ev) => {
+        const head = ev.target.closest && ev.target.closest('.jm-head');
+        if (!head || ev.button > 0 || pop.classList.contains('jm-sheet') || ev.target.closest('button, input, select, label, a')) return;
+        ev.preventDefault();
+        const r = pop.getBoundingClientRect(), x0 = ev.clientX, y0 = ev.clientY;
+        try { pop.setPointerCapture(ev.pointerId); } catch (e) { /* non pris en charge */ }
+        pop.classList.add('is-moving');
+        const move = (e) => {
+            if (e.pointerId !== ev.pointerId) return;
+            const c = acPopClamp(r.left + e.clientX - x0, r.top + e.clientY - y0, pop.offsetWidth, pop.offsetHeight, window.innerWidth, window.innerHeight);
+            pop._manual = c;
+            pop.style.left = `${c.x}px`; pop.style.top = `${c.y}px`;
+        };
+        const end = (e) => {
+            if (e.pointerId !== ev.pointerId) return;
+            pop.removeEventListener('pointermove', move); pop.removeEventListener('pointerup', end); pop.removeEventListener('pointercancel', end);
+            try { pop.releasePointerCapture(ev.pointerId); } catch (err) { /* déjà relâché */ }
+            pop.classList.remove('is-moving');
+            if (pop._manual) AC_POP_POS[acPopKey(pop.className)] = pop._manual;
+        };
+        pop.addEventListener('pointermove', move); pop.addEventListener('pointerup', end); pop.addEventListener('pointercancel', end);
+    });
+}
+
+// Si la fenêtre a été déplacée à la main : la remet à cet endroit (ramenée dans l'écran) et renvoie true.
+function acPopManual(pop) {
+    const m = pop._manual || AC_POP_POS[acPopKey(pop.className)];
+    if (!m) return false;
+    const c = acPopClamp(m.x, m.y, pop.offsetWidth, pop.offsetHeight, window.innerWidth, window.innerHeight);
+    pop.style.left = `${c.x}px`; pop.style.top = `${c.y}px`;
+    return true;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { AC_SNAP, AC_DRAG_MIN, AC_MARGIN, AC_CASCADE, AC_BLOCKS, acBounds, acIntersects, acNormRect, acClampMove, acSnap, acFreeSpot,
-        AC_ZOOM_MIN, AC_ZOOM_MAX, AC_ZOOM_STEPS, AC_TAP_SLOP, AC_PHONE_QUERY, acIsTap, acIsPhone, acZoomOf, acClampZoom, acZoomStep, acZoomWheel, acZoomOffset, acZoomScroll };
+    module.exports = { acPopClamp, acPopSpot, acPopKey, acPopManual, AC_POP_POS, AC_SNAP, AC_DRAG_MIN, AC_MARGIN, AC_CASCADE, AC_BLOCKS, acBounds, acIntersects, acNormRect, acClampMove, acSnap, acFreeSpot,
+        AC_ZOOM_MIN, AC_ZOOM_MAX, AC_ZOOM_STEPS, AC_TAP_SLOP, AC_PHONE_QUERY, acIsTap, acIsPhone, acZoomOf, acCanvasWidth, acClampZoom, acZoomStep, acZoomWheel, acZoomOffset, acZoomScroll };
 }

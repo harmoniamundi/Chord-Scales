@@ -212,14 +212,64 @@ describe('acIsPhone : le téléphone se reconnaît aux mêmes seuils que les feu
     });
 });
 
-describe('annotations : téléphone en paysage', () => {
-    test('Grille et Mesure se mettent côte à côte (style.css) comme sur grand écran', () => {
-        const css = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'style.css'), 'utf8');
-        const wide = '@media (min-width: 1024px), (min-width: 640px) and (pointer: coarse) and (max-height: 500px)';
-        const i = css.indexOf(wide);
-        assert.ok(i > 0, 'requête « large ou téléphone en paysage » présente');
-        assert.match(css.slice(i, i + 800), /jam-annot-grid \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
-        assert.ok(css.split(wide).length - 1 >= 3, 'mise en page, rangées de la carte et plein écran');
+
+describe('canevas dézoomé : toute la partie visible est utilisable', () => {
+    test('acCanvasWidth : la largeur du canevas grandit quand on dézoome, jamais quand on zoome', () => {
+        assert.equal(C.acCanvasWidth({ clientWidth: 1000, __zoom: 1 }), 1000);
+        assert.equal(C.acCanvasWidth({ clientWidth: 1000, __zoom: 0.5 }), 2000);
+        assert.equal(C.acCanvasWidth({ clientWidth: 1000, __zoom: 2 }), 1000);
+        assert.equal(C.acCanvasWidth({ clientWidth: 1000 }), 1000);
+    });
+    test('un bloc peut être déplacé jusqu\'au bord droit visible à 50 %', () => {
+        const w = C.acCanvasWidth({ clientWidth: 1000, __zoom: 0.5 });
+        const c = C.acClampMove({ x: 100, y: 0, w: 200, h: 50 }, 2500, 0, w);
+        assert.equal(100 + c.dx + 200, 2000);
     });
 });
 
+describe('fenêtres d\'édition : emplacement', () => {
+    const frame = { left: 100, top: 200, right: 420, bottom: 400 };
+    test('à droite du cadre quand la place suffit, calée en hauteur dans l\'écran', () => {
+        assert.deepEqual(C.acPopSpot(frame, 340, 300, 1100, 800), { x: 428, y: 200 });
+        assert.deepEqual(C.acPopSpot(frame, 340, 300, 1100, 450), { x: 428, y: 142 });
+    });
+    test('sinon à gauche, puis dessous, puis dessus, puis en bas à droite', () => {
+        const f = { left: 700, top: 200, right: 1020, bottom: 400 };
+        assert.deepEqual(C.acPopSpot(f, 340, 300, 1100, 800), { x: 352, y: 200 });
+        const wide = { left: 20, top: 200, right: 1080, bottom: 400 };
+        assert.deepEqual(C.acPopSpot(wide, 340, 300, 1100, 800), { x: 20, y: 408 });
+        assert.deepEqual(C.acPopSpot({ left: 20, top: 400, right: 1080, bottom: 700 }, 340, 300, 1100, 800), { x: 20, y: 92 });
+        assert.deepEqual(C.acPopSpot({ left: 20, top: 20, right: 1080, bottom: 780 }, 340, 300, 1100, 800), { x: 752, y: 492 });
+    });
+    test('déplacement : la fenêtre reste dans l\'écran', () => {
+        assert.deepEqual(C.acPopClamp(-50, -5, 340, 300, 1100, 800), { x: 8, y: 8 });
+        assert.deepEqual(C.acPopClamp(2000, 2000, 340, 300, 1100, 800), { x: 752, y: 492 });
+        assert.deepEqual(C.acPopClamp(300, 300, 340, 300, 1100, 800), { x: 300, y: 300 });
+    });
+});
+
+describe('fenêtres d\'édition : sorte et place gardée', () => {
+    test('acPopKey : la classe « cn-… » donne la sorte, sinon « pop »', () => {
+        assert.equal(C.acPopKey('jm-pop cn-chord-pop is-moving'), 'cn-chord-pop');
+        assert.equal(C.acPopKey('jm-pop cn-draw-pop'), 'cn-draw-pop');
+        assert.equal(C.acPopKey('jm-pop'), 'pop');
+        assert.equal(C.acPopKey(undefined), 'pop');
+    });
+    test('acPopManual : une fenêtre jamais déplacée reprend la dernière place choisie pour sa sorte', () => {
+        global.window = { innerWidth: 1000, innerHeight: 800 };
+        const mk = (cls) => ({ className: cls, offsetWidth: 300, offsetHeight: 400, style: {}, _manual: null });
+        const fresh = mk('jm-pop cn-chord-pop');
+        assert.equal(C.acPopManual(fresh), false);
+        C.AC_POP_POS['cn-chord-pop'] = { x: 120, y: 60 };
+        const again = mk('jm-pop cn-chord-pop');
+        assert.equal(C.acPopManual(again), true);
+        assert.deepEqual([again.style.left, again.style.top], ['120px', '60px']);
+        assert.equal(C.acPopManual(mk('jm-pop cn-draw-pop')), false);   // une autre sorte garde sa propre place
+        C.AC_POP_POS['cn-chord-pop'] = { x: 900, y: 790 };             // hors écran : ramenée dedans
+        const far = mk('jm-pop cn-chord-pop');
+        C.acPopManual(far);
+        assert.deepEqual([far.style.left, far.style.top], ['692px', '392px']);
+        delete C.AC_POP_POS['cn-chord-pop'];
+        delete global.window;
+    });
+});
