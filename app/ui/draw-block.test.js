@@ -76,4 +76,17 @@ describe('fenêtre d\'outils du dessin', () => {
     test('bouton Terminé', () => {
         assert.match(html({}), /data-dr="done"/);
     });
+    test('bouton « Réduire » : la fenêtre se replie en un bandeau (annuler, rétablir, outils, terminé) pour laisser dessiner', () => {
+        const open = html({});
+        assert.match(open, /data-dr="fold" aria-expanded="true"/);
+        assert.match(open, /data-dr="tool"/);
+        const shut = html({}, { collapsed: true, canUndo: true });
+        assert.match(shut, /data-dr="fold" aria-expanded="false"/);
+        assert.match(shut, /data-dr="done"/);
+        assert.match(shut, /data-dr="undo"/);
+        assert.match(shut, /data-dr="redo"[^>]*disabled/);
+        assert.doesNotMatch(shut, /data-dr="undo"[^>]*disabled/);
+        for (const gone of ['tool', 'color', 'width', 'bg', 'fit', 'clear']) assert.doesNotMatch(shut, new RegExp(`data-dr="${gone}"`));
+        assert.equal((shut.match(/data-dr="undo"/g) || []).length, 1);
+    });
 });

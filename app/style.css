@@ -1313,7 +1313,7 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 .cn-draw-pop.jm-sheet { max-width: none; }
 @media (pointer: coarse) { .dr-sw { width: 34px; height: 34px; border-radius: 17px; } }
 /* Dessin : fond du cadre (damier = transparent), titres de section, taille de la gomme */
-.dr-sw-none { background: #fff linear-gradient(45deg, #cbd5e1 25%, transparent 25%, transparent 75%, #cbd5e1 75%), linear-gradient(45deg, #cbd5e1 25%, transparent 25%, transparent 75%, #cbd5e1 75%); background-size: 10px 10px; background-position: 0 0, 5px 5px; }
+.dr-sw-none { background: #fff linear-gradient(to top right, transparent calc(50% - 1.5px), #dc2626 calc(50% - 1.5px), #dc2626 calc(50% + 1.5px), transparent calc(50% + 1.5px)); }   /* fond transparent : rond blanc barré */
 .cn-draw-pop .dr-sec { margin-top: 12px; font-size: 12px; opacity: .7; }
 @media (pointer: coarse) and (max-width: 520px) { .cn-draw-pop .dr-row { gap: 5px; margin-top: 7px; } .cn-draw-pop .dr-sw { width: 28px; height: 28px; border-radius: 14px; } .cn-draw-pop .dr-sec { margin-top: 9px; } }
 .cn-draw-pop .dr-row:not(.jm-mode) > .jm-chip { flex: 0 0 auto; width: auto; padding-left: 12px; padding-right: 12px; }
@@ -1321,3 +1321,14 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 /* Boutons grisés des fenêtres d'édition ; fenêtre déplacée à la main (blocs d'accords et de dessin) */
 .jm-btn:disabled { opacity: .35; cursor: not-allowed; }
 .jm-pop.is-moving { opacity: .92; box-shadow: 0 16px 48px rgba(0,0,0,.7); }
+
+/* ===== Dessin sur tablette et téléphone ===== */
+/* Pendant l'édition, rien dans le cadre ne fait défiler la page ni ne sélectionne (stylet Apple Pencil, doigt). */
+.annot-draw.is-editing, .annot-draw.is-editing .annot-draw-svg, .annot-draw.is-editing .annot-draw-svg * { touch-action: none; }
+.annot-draw.is-editing .annot-draw-svg { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+/* Fenêtre d'outils de dessin : boutons du bandeau, et état replié (le bandeau seul, collé en bas sur téléphone). */
+.dr-head-btns { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.cn-draw-pop.is-collapsed { width: auto; min-width: 0; max-height: none; overflow: visible; padding-top: 6px; padding-bottom: 6px; }
+.cn-draw-pop.is-collapsed > .jm-head { position: static; margin: 0; padding: 0; box-shadow: none; background: transparent; }
+.cn-draw-pop.jm-sheet.is-collapsed { padding-bottom: max(8px, env(safe-area-inset-bottom)); border-radius: 12px 12px 0 0; }
+@media (pointer: coarse) { .dr-head-btns .jm-btn { min-height: 36px; } }

@@ -5830,7 +5830,7 @@
                         <div class="jam-annot-zone">
                             <div class="jam-annot-head"><span class="jam-annot-title">Grille</span>${annotModeHtml('general')}${annotZoomHtml('general')}${annotToolsHtml()}</div>
                             <div id="jam-annot-general" class="jam-annot-text" data-editable="false" data-can-edit="false" role="group" spellcheck="false"
-                                aria-label="Annotations générales de la grille" data-placeholder="Double-cliquez pour ajouter un cadre de texte…" ${handlers}></div>
+                                aria-label="Annotations générales de la grille" data-placeholder="Double-cliquez pour ajouter un texte…" ${handlers}></div>
                         </div>
                         <div class="jam-annot-zone">
                             <div class="jam-annot-head"><span class="jam-annot-title" id="jam-annot-measure-head">Mesure</span>${annotModeHtml('measure')}<div id="jam-annot-span" class="jam-annot-span" role="group" aria-label="Durée de l'annotation" hidden><span class="jam-annot-span-label">Affichée sur</span><button type="button" class="ab-btn at-btn jam-annot-zbtn" data-span-act="dec" title="Une mesure de moins" aria-label="Une mesure de moins" onmousedown="event.preventDefault()" onclick="app.jam.annotSpanAct('dec')">−</button><output id="jam-annot-span-n" class="jam-annot-span-n" aria-live="polite">1</output><button type="button" class="ab-btn at-btn jam-annot-zbtn" data-span-act="inc" title="Une mesure de plus" aria-label="Une mesure de plus" onmousedown="event.preventDefault()" onclick="app.jam.annotSpanAct('inc')">+</button><span id="jam-annot-span-range" class="jam-annot-span-range"></span></div>${annotZoomHtml('measure')}${annotToolsHtml()}</div>
@@ -5866,7 +5866,7 @@
                     label = owner ? rangeLabel(owner) : `Mesure ${cur}`;
                     measureNum = String(owner ? owner.startMeasure : cur);
                     editable = true;
-                    placeholder = 'Double-cliquez pour ajouter un cadre de texte…';
+                    placeholder = 'Double-cliquez pour ajouter un texte…';
                 }
                 if (this._annotSpanDraft && (this._annotSpanDraft.measure !== cur || owner || this.isPlaying)) this._annotSpanDraft = null; // durée choisie avant d'écrire : oubliée si on change de mesure
                 if (head.textContent !== label) head.textContent = label;
@@ -5898,7 +5898,7 @@
                     ed.setAttribute('aria-readonly', on ? 'false' : 'true');
                     const hasStep = w === 'general' || (this.currentStepIndex >= 0 && this.currentStepIndex < this.grid.length);
                     ed.dataset.placeholder = this.isPlaying ? '' : !hasStep ? 'Cliquez sur une mesure de la grille pour l\'annoter'
-                        : on ? 'Double-cliquez pour ajouter un cadre de texte…' : 'Aucune annotation — cliquez sur le crayon pour en ajouter';
+                        : on ? 'Double-cliquez pour ajouter un texte…' : 'Aucune annotation — cliquez sur le crayon pour en ajouter';
                     const zone = ed.closest('.jam-annot-zone');
                     if (zone) {
                         zone.classList.toggle('is-editing', on);
@@ -6783,25 +6783,31 @@
                 };
             }
 
-            // Place d'un nouveau bloc : celle qu'on a indiquée (double-clic), ramenée dans la zone, ou la première place libre en cascade.
-            _annotNewSpot(ed, at, w) {
+            // Place d'un nouveau bloc : celle demandée (double-clic), sinon une place VIERGE de la zone, de préférence dans la partie visible (acEmptySpot) ; w × h : encombrement prévu du bloc.
+            _annotNewSpot(ed, at, w, h) {
                 const cv = ed.__canvas;
-                const pos = at ? { x: at.x, y: at.y } : acFreeSpot(cv ? cv.blocks().map(b => cv.rectOf(b)) : []);
+                let pos;
+                if (at) pos = { x: at.x, y: at.y };
+                else {
+                    const z = this.annotZoom[this._annotZoneKey(ed)] || 1;
+                    const view = { x: ed.scrollLeft / z, y: ed.scrollTop / z, w: ed.clientWidth / z, h: ed.clientHeight / z };
+                    pos = acEmptySpot(cv ? cv.blocks().map(b => cv.rectOf(b)) : [], { w, h: h || 60 }, { width: acCanvasWidth(ed), view });
+                }
                 pos.x = Math.max(0, Math.min(pos.x, Math.max(0, acCanvasWidth(ed) - w - 12)));
                 pos.y = Math.max(0, pos.y);
                 return pos;
             }
 
-            // Bouton « Cadre » de la barre (ou double-clic sur le fond de la zone) : un cadre de texte vide à la place indiquée, ouvert en édition.
+            // Bouton « Texte » de la barre (ou double-clic sur le fond de la zone) : un cadre de texte vide à la place indiquée, ouvert en édition.
             annotInsertFrame(at, ed) {
                 if (!ed) { if (!this._annotEnsureActive()) return; ed = this._annotActive; }
                 if (!this._annotIsEditable(ed)) return;
                 if (ed.querySelectorAll('.annot-frame').length >= NOTE_MAX_FRAMES) return;
                 this._annotLeaveFrame(); // un seul cadre en édition à la fois
-                const w = 24; // un nouveau cadre a la taille d'un caractère (largeur automatique) : il s'allonge avec le texte
+                const w = 24; // un nouveau cadre a la taille d'un caractère (largeur automatique) : il s'allonge avec le texte (on lui réserve 220 × 60 pour qu'il ait de la place)
                 const before = new Set(ed.querySelectorAll('.annot-frame'));
                 const holder = document.createElement('div');
-                holder.innerHTML = noteFrameStubHtml({ w, auto: true }, this._annotNewSpot(ed, at && Number.isFinite(at.x) ? at : null, w), undefined, false);
+                holder.innerHTML = noteFrameStubHtml({ w, auto: true }, this._annotNewSpot(ed, at && Number.isFinite(at.x) ? at : null, 220, 60), undefined, false);
                 ed.appendChild(holder.firstChild);
                 this._annotHydrate(ed);
                 const added = Array.from(ed.querySelectorAll('.annot-frame')).find(el => !before.has(el));
@@ -6939,7 +6945,7 @@
                 this._annotLeaveFrame();
                 const before = new Set(ed.querySelectorAll('.annot-staff'));
                 const holder = document.createElement('div');
-                holder.innerHTML = noteStaffStubHtml(Object.assign(staffDefault(), this._annotNewBlockSettings(ed)), this._annotNewSpot(ed, null, 260), false);
+                holder.innerHTML = noteStaffStubHtml(Object.assign(staffDefault(), this._annotNewBlockSettings(ed)), this._annotNewSpot(ed, null, 390, 130), false);
                 ed.appendChild(holder.firstChild);
                 this._annotHydrate(ed);
                 const added = Array.from(ed.querySelectorAll('.annot-staff')).find(el => !before.has(el));
@@ -6999,7 +7005,8 @@
                 const before = new Set(ed.querySelectorAll('.annot-draw'));
                 const holder = document.createElement('div');
                 const st = drawDefault();
-                holder.innerHTML = drawStubHtml(st, this._annotNewSpot(ed, null, st.w), true);
+                st.bg = 't';   // fond transparent par défaut
+                holder.innerHTML = drawStubHtml(st, this._annotNewSpot(ed, null, st.w + 2, st.h + 2), true);
                 ed.appendChild(holder.firstChild);
                 this._annotHydrate(ed);
                 const added = Array.from(ed.querySelectorAll('.annot-draw')).find(el => !before.has(el));
@@ -7016,7 +7023,7 @@
                 this._annotLeaveFrame();
                 const before = new Set(ed.querySelectorAll('.annot-chords'));
                 const holder = document.createElement('div');
-                holder.innerHTML = chordsStubHtml(chordsDefault(this._annotNewBlockSettings(ed)), this._annotNewSpot(ed, null, 120), false);
+                holder.innerHTML = chordsStubHtml(chordsDefault(this._annotNewBlockSettings(ed)), this._annotNewSpot(ed, null, 300, 80), false);
                 ed.appendChild(holder.firstChild);
                 this._annotHydrate(ed);
                 const added = Array.from(ed.querySelectorAll('.annot-chords')).find(el => !before.has(el));
@@ -9006,11 +9013,11 @@
                 'app/grid/grid-format.js': typeof NOTE_FONTS !== 'undefined' && !!NOTE_FONTS.menlo && typeof sanitizeNoteHtml === 'function' && sanitizeNoteHtml('<div class="annot-frame" data-frame="200" data-at="5,5" data-border="0">x</div>', 300).indexOf('data-border') >= 0,
                 'app/ui/staff-editor.js': typeof nseToolState === 'function' && typeof nseBlocksToClipText === 'function' && typeof NoteStaffView === 'function' && typeof NoteStaffView.prototype.setBorder === 'function' && typeof NoteStaffView.prototype._setTuplet === 'function' && typeof nseSwingOptions === 'function' && typeof NoteStaffView.prototype._toggleTie === 'function' && typeof NoteStaffView.prototype._startMarquee === 'function',
                 'app/ui/text-frame.js': typeof NoteFrameView === 'function' && typeof NoteFrameView.prototype.setBorder === 'function',
-                'app/ui/annot-canvas.js': typeof AnnotCanvas === 'function' && typeof acZoomOffset === 'function',
+                'app/ui/annot-canvas.js': typeof AnnotCanvas === 'function' && typeof acZoomOffset === 'function' && typeof acEmptySpot === 'function',
                 'app/ui/chord-notes.js': typeof chordsParse === 'function' && typeof chordsStubHtml === 'function' && typeof chordsDefault === 'function',
                 'app/ui/draw-notes.js': typeof drawParse === 'function' && typeof drawStubHtml === 'function' && typeof drawEraseAt === 'function' && typeof drawVarPathD === 'function',
                 'app/ui/chord-block.js': typeof ChordBlockView === 'function' && typeof hydrateChordBlocks === 'function' && typeof annotBlocksToClipText === 'function',
-                'app/ui/draw-block.js': typeof DrawBlockView === 'function' && typeof hydrateDrawBlocks === 'function',
+                'app/ui/draw-block.js': typeof DrawBlockView === 'function' && typeof hydrateDrawBlocks === 'function' && typeof DrawBlockView.prototype._touchLock === 'function',
                 'app/ui/annot-bar.js': typeof ANNOT_FONT_DEFAULT_CSS !== 'undefined' && typeof annotToolsHtml === 'function' && typeof annotModeHtml === 'function'
             };
             Object.keys(needed).forEach(function (f) { seen[f] = needed[f] ? BUILD : ''; });

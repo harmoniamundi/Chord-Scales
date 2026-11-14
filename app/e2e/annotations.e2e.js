@@ -833,7 +833,7 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
         await close();
     });
 
-    test('barre : « Cadre » crée un cadre à la première place libre, plus de « Coller portée », effacer la mise en forme = un symbole', async () => {
+    test('barre : « Texte » crée un cadre à une place vierge, plus de « Coller portée », effacer la mise en forme = un symbole', async () => {
         const { page, errors, close } = await openAnnotations();
         await wake(page);
         assert.equal(await page.locator('#jam-annot-bar [data-paste-staff]').count(), 0);
@@ -850,7 +850,7 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
         await page.waitForSelector(`${G} > .annot-frame.is-editing`);
         await page.keyboard.press('Escape');
         const [f1, f2] = await blocks(page);
-        assert.ok(f1.x < f2.x && f1.y < f2.y, 'le second cadre est décalé en cascade : pas pile sur le premier');
+        assert.ok(f2.x >= f1.x + f1.w || f2.y >= f1.y + f1.h, 'le second cadre s\'ouvre sur une place vierge : il ne recouvre pas le premier');
         assert.deepEqual(errors, []);
         await close();
     });

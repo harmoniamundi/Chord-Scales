@@ -82,10 +82,10 @@ describe('HTML de la barre et des menus', () => {
             assert.ok(bar.includes(needle), needle);
         }
     });
-    test('plus de bouton « Coller portée » ; « Cadre » ajouté ; « Effacer la mise en forme » est un bouton à symbole (sans texte)', () => {
+    test('plus de bouton « Coller portée » ; « Texte » ajouté ; « Effacer la mise en forme » est un bouton à symbole (sans texte)', () => {
         assert.ok(!bar.includes('data-paste-staff'));
         assert.ok(!bar.includes('Coller portée'));
-        assert.ok(/data-insert-frame="1"[^>]*>[^<]*<svg[\s\S]*?<\/svg> Cadre<\/button>/.test(bar), 'bouton Cadre : icône puis libellé');
+        assert.ok(/data-insert-frame="1"[^>]*>[^<]*<svg[\s\S]*?<\/svg> Texte<\/button>/.test(bar), 'bouton Texte : icône puis libellé');
         assert.ok(/data-insert-draw="1"[^>]*>[^<]*<svg[\s\S]*?<\/svg> Dessin<\/button>/.test(bar), 'bouton Dessin : icône puis libellé');
         assert.ok(/data-insert-chords="1"[^>]*>[^<]*<svg[\s\S]*?<\/svg> Accords<\/button>/.test(bar), 'bouton Accords : icône puis libellé');
         const clear = /<button[^>]*data-clear="1"[^>]*>([\s\S]*?)<\/button>/.exec(bar);
@@ -131,7 +131,7 @@ describe('boutons de disposition des blocs : annotToolsHtml', () => {
         assert.equal((html.match(/onmousedown="event\.preventDefault\(\)"/g) || []).length, 4);
         assert.ok(html.includes("app.jam.annotToolAct('magnet')"));
     });
-    test('le bouton « Cadre » de la barre ne parle plus du curseur', () => {
+    test('le bouton « Texte » de la barre ne parle plus du curseur', () => {
         assert.ok(!B.annotBarHtml().includes('à l\'endroit du curseur'));
     });
 });

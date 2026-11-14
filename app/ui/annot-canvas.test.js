@@ -122,6 +122,51 @@ describe('acFreeSpot : première place libre pour un nouveau bloc', () => {
     });
 });
 
+describe('acEmptySpot : place vierge pour un nouveau bloc', () => {
+    const size = { w: 100, h: 50 };
+    const overlaps = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    test('page vide : le coin, avec la marge', () => assert.deepEqual(C.acEmptySpot([], size, { width: 800 }), { x: C.AC_MARGIN, y: C.AC_MARGIN }));
+    test('un bloc en haut à gauche : le nouveau se met à côté s\'il y a la place, sinon dessous', () => {
+        const rects = [R(C.AC_MARGIN, C.AC_MARGIN, 300, 100)];
+        assert.deepEqual(C.acEmptySpot(rects, size, { width: 800 }), { x: C.AC_MARGIN + 300 + C.AC_GAP, y: C.AC_MARGIN });
+        assert.deepEqual(C.acEmptySpot(rects, size, { width: 350 }), { x: C.AC_MARGIN, y: C.AC_MARGIN + 100 + C.AC_GAP });
+    });
+    test('ne tombe jamais sur un bloc, ni ne touche un voisin (écart AC_GAP), même page encombrée', () => {
+        const rects = [];
+        let seed = 7; const rnd = (n) => { seed = (seed * 16807) % 2147483647; return seed % n; };
+        for (let k = 0; k < 25; k++) rects.push(R(rnd(700), rnd(900), 40 + rnd(200), 30 + rnd(120)));
+        for (const sz of [{ w: 26, h: 38 }, { w: 220, h: 60 }, { w: 322, h: 202 }, { w: 390, h: 130 }]) {
+            const p = C.acEmptySpot(rects, sz, { width: 900 });
+            const box = { x: p.x - C.AC_GAP + 1, y: p.y - C.AC_GAP + 1, w: sz.w + 2 * C.AC_GAP - 2, h: sz.h + 2 * C.AC_GAP - 2 };
+            assert.ok(!rects.some(r => overlaps(box, r)), JSON.stringify([sz, p]));
+            assert.ok(p.x + sz.w <= 900 - C.AC_MARGIN || p.x === C.AC_MARGIN, JSON.stringify([sz, p]));
+        }
+    });
+    test('trou laissé entre deux blocs : on le prend s\'il est assez grand', () => {
+        const rects = [R(12, 12, 300, 100), R(12, 300, 300, 100)];   // trou de 12+100+10 = 122 à 290 (168 de haut)
+        assert.deepEqual(C.acEmptySpot(rects, { w: 100, h: 50 }, { width: 330 }), { x: 12, y: 122 });
+        assert.equal(C.acEmptySpot(rects, { w: 100, h: 200 }, { width: 330 }).y, 300 + 100 + C.AC_GAP);
+    });
+    test('page très encombrée : placé sous le dernier bloc', () => {
+        const rects = [R(12, 12, 700, 500)];
+        assert.deepEqual(C.acEmptySpot(rects, { w: 400, h: 100 }, { width: 760 }), { x: 12, y: 522 });
+    });
+    test('partie visible : on préfère une place entièrement visible à une place libre plus haut mais hors de l\'écran', () => {
+        const rects = [R(12, 12, 700, 400)];
+        const view = { x: 0, y: 900, w: 760, h: 600 };                 // page défilée : on voit de 900 à 1500
+        const p = C.acEmptySpot(rects, { w: 200, h: 60 }, { width: 760, view });
+        assert.ok(p.y >= 900 && p.y + 60 <= 1500, JSON.stringify(p));
+        assert.deepEqual(C.acEmptySpot([], { w: 200, h: 60 }, { width: 760, view }), { x: 12, y: 912 });
+        // si le haut de la partie visible est occupé, on prend le premier trou visible
+        const busy = [R(12, 880, 700, 200)];
+        const q = C.acEmptySpot(busy, { w: 200, h: 60 }, { width: 760, view });
+        assert.equal(q.y, 880 + 200 + C.AC_GAP);
+        // rien de visible de libre : repli sur la première place libre de la page
+        const full = [R(12, 12, 700, 2000)];
+        assert.equal(C.acEmptySpot(full, { w: 200, h: 60 }, { width: 760, view }).y, 12 + 2000 + C.AC_GAP);
+    });
+});
+
 describe('zoom de lecture : acClampZoom, acZoomStep, acZoomWheel, acZoomOffset, acZoomScroll', () => {
     test('acClampZoom : bornes 50 % – 300 %, valeur invalide = 100 %', () => {
         assert.equal(C.acClampZoom(1), 1);

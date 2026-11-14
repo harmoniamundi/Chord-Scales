@@ -12,6 +12,7 @@
 const AC_SNAP = 6;            // distance (pixels) à laquelle un repère apparaît, et à laquelle l'aimant attire un bloc
 const AC_DRAG_MIN = 5;        // déplacement minimal (pixels) avant qu'un appui devienne un glisser
 const AC_MARGIN = 12;         // marge de la première place libre
+const AC_GAP = 10;            // espace laissé entre un nouveau bloc et ses voisins (acEmptySpot)
 const AC_CASCADE = 22;        // décalage entre deux blocs créés l'un après l'autre
 const AC_BLOCKS = '.annot-staff, .annot-frame, .annot-chords, .annot-draw';
 const AC_ZOOM_MIN = 0.5;      // zoom de lecture : de 50 % à 300 %
@@ -96,6 +97,31 @@ function acFreeSpot(rects, start) {
         if (!rects.some(r => Math.abs(r.x - p.x) < 8 && Math.abs(r.y - p.y) < 8)) return p;
     }
     return { x: Math.round(x0), y: Math.round(y0) };
+}
+
+// Place vierge pour un nouveau bloc de taille size = { w, h } : le point le plus haut (puis le plus à gauche) où il tient sans toucher aucun bloc existant
+// (à AC_GAP près) et sans sortir de la page à droite. rects : blocs existants { x, y, w, h } ; opts.width : largeur de la page ;
+// opts.view : partie visible de la page { x, y, w, h } — on cherche d'abord une place entièrement visible, pour que le bloc apparaisse sous les yeux ;
+// à défaut, la première place libre de la page, ou sous le dernier bloc.
+function acEmptySpot(rects, size, opts) {
+    const o = opts || {}, w = Math.max(1, Math.round(size.w)), h = Math.max(1, Math.round(size.h)), gap = AC_GAP;
+    const maxX = Math.max(AC_MARGIN, (Number.isFinite(o.width) ? o.width : Infinity) - w - AC_MARGIN);
+    const hits = (x, y) => rects.some(r => x < r.x + r.w + gap && x + w + gap > r.x && y < r.y + r.h + gap && y + h + gap > r.y);
+    const v = o.view && Number.isFinite(o.view.y) ? o.view : null;
+    const xs = [AC_MARGIN], ys = [AC_MARGIN];
+    if (v) { ys.push(Math.max(AC_MARGIN, Math.round(v.y) + AC_MARGIN)); xs.push(Math.max(AC_MARGIN, Math.round(v.x || 0) + AC_MARGIN)); }
+    for (const r of rects) { xs.push(r.x, r.x + r.w + gap); ys.push(r.y, r.y + r.h + gap); }
+    const cands = [];
+    for (const y of ys) for (const x of xs) {
+        const p = { x: Math.max(0, Math.round(x)), y: Math.max(0, Math.round(y)) };
+        if (p.x <= maxX && !hits(p.x, p.y)) cands.push(p);
+    }
+    cands.sort((a, b) => a.y - b.y || a.x - b.x);
+    if (v) {
+        const inView = cands.find(p => p.y >= v.y && p.y + h <= v.y + v.h && p.x >= (v.x || 0) - 1 && p.x + w <= (v.x || 0) + v.w + 1);
+        if (inView) return inView;
+    }
+    return cands.length ? cands[0] : { x: AC_MARGIN, y: Math.round(rects.reduce((m, r) => Math.max(m, r.y + r.h), 0)) + gap };
 }
 
 // ----- Zoom de lecture (zone verrouillée) : chaque bloc est agrandi autour du coin haut gauche de la zone -----
@@ -511,6 +537,6 @@ function acPopManual(pop) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { acPopClamp, acPopSpot, acPopKey, acPopManual, AC_POP_POS, AC_SNAP, AC_DRAG_MIN, AC_MARGIN, AC_CASCADE, AC_BLOCKS, acBounds, acIntersects, acNormRect, acClampMove, acSnap, acFreeSpot,
+    module.exports = { acPopClamp, acPopSpot, acPopKey, acPopManual, AC_POP_POS, AC_SNAP, AC_DRAG_MIN, AC_MARGIN, AC_GAP, AC_CASCADE, AC_BLOCKS, acBounds, acIntersects, acNormRect, acClampMove, acSnap, acFreeSpot, acEmptySpot,
         AC_ZOOM_MIN, AC_ZOOM_MAX, AC_ZOOM_STEPS, AC_TAP_SLOP, AC_PHONE_QUERY, acIsTap, acIsPhone, acZoomOf, acCanvasWidth, acClampZoom, acZoomStep, acZoomWheel, acZoomOffset, acZoomScroll };
 }

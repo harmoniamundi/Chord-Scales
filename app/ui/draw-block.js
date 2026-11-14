@@ -34,6 +34,8 @@ const DRB_PEN = { tool: 'pen', color: '#0f172a', width: 3, smooth: DRB_L.DR_SMOO
         if (er >= DRB_ERASER_MIN && er <= DRB_ERASER_MAX) DRB_PEN.eraser = er;
     } catch (e) { /* stockage indisponible ou réglage illisible : valeurs par défaut */ }
 })();
+// Fenêtre d'outils repliée (seul le bandeau reste, pour dessiner sans qu'elle recouvre l'écran) : en mémoire, commun à tous les cadres.
+let DRB_COLLAPSED = false;
 function drbSavePen() { try { localStorage.setItem(DRB_PEN_KEY, JSON.stringify(DRB_PEN)); } catch (e) { /* stockage indisponible */ } }
 
 // Les points d'un mouvement : tous les événements regroupés par le navigateur (tracé fin), ou l'événement lui-même.
@@ -71,8 +73,21 @@ function drawEditorHtml(v) {
         <div class="dr-row">
             <button type="button" class="jm-chip${pen.pressure !== false ? ' is-on' : ''}" data-dr="pressure" aria-pressed="${pen.pressure !== false}" title="Allumé : avec un stylet, le trait s'épaissit quand on appuie et s'affine quand on allège (l'épaisseur réglée est celle d'une pression moyenne). Sans effet à la souris ou au doigt.">Pression du stylet</button>
         </div>` : ''}`;
+    const done = '<button type="button" class="jm-btn jm-primary" data-dr="done" title="Fermer l\'éditeur (Échap)">Terminé</button>';
+    if (v.collapsed) {   // repliée : le bandeau seul (annuler / rétablir, rouvrir les outils, terminer)
+        return `<div class="jm-head cb-head" title="Glisser le bandeau pour déplacer la fenêtre"><span class="jm-title">Dessin</span>
+            <span class="dr-head-btns">
+                <button type="button" class="jm-btn" data-dr="undo" title="Annuler le dernier trait" aria-label="Annuler"${v.canUndo ? '' : ' disabled'}>↶</button>
+                <button type="button" class="jm-btn" data-dr="redo" title="Rétablir" aria-label="Rétablir"${v.canRedo ? '' : ' disabled'}>↷</button>
+                <button type="button" class="jm-btn" data-dr="fold" aria-expanded="false" title="Rouvrir les outils (crayon, couleur, fond…)">▴ Outils</button>
+                ${done}
+            </span></div>`;
+    }
     return `<div class="jm-head cb-head" title="Glisser le bandeau pour déplacer la fenêtre"><span class="jm-title">Dessin</span>
-            <button type="button" class="jm-btn jm-primary" data-dr="done" title="Fermer l'éditeur (Échap)">Terminé</button></div>
+            <span class="dr-head-btns">
+                <button type="button" class="jm-btn" data-dr="fold" aria-expanded="true" title="Réduire la fenêtre pour pouvoir dessiner (les outils se rouvrent d'un appui)">▾ Réduire</button>
+                ${done}
+            </span></div>
         <div class="dr-row jm-mode" role="group" aria-label="Outil">
             ${tool('pen', '✎ Crayon', 'Trait plein')}${tool('hl', 'Surligneur', 'Trait épais et translucide')}${tool('eraser', 'Gomme', 'Efface les traits que l\'on touche')}
         </div>
@@ -109,7 +124,7 @@ class DrawBlockView {
         el.setAttribute('contenteditable', 'false');
         el.setAttribute('role', 'group');
         el.setAttribute('aria-label', 'Cadre de dessin');
-        el.classList.toggle('no-border', !this.border);
+        el.classList.toggle('no-border', !this.border || drawBg(this.st.bg) === 't'); // fond transparent : pas de cadre visible
         el.innerHTML = '';
         this.editBtn = document.createElement('button');
         this.editBtn.type = 'button'; this.editBtn.className = 'annot-draw-edit'; this.editBtn.setAttribute('contenteditable', 'false');
@@ -148,6 +163,7 @@ class DrawBlockView {
         this.el.style.width = `${w}px`;
         this.el.style.height = `${h}px`;
         this.el.style.background = drawBgCss(this.st.bg);   // '' : fond de la feuille de style (blanc, transparent sans bord)
+        this.el.classList.toggle('no-border', !this.border || drawBg(this.st.bg) === 't'); // fond transparent : pas de cadre visible
         this.el.setAttribute('data-draw', drawFormat(this.st));
     }
 
@@ -181,7 +197,7 @@ class DrawBlockView {
         on = !!on;
         if (on === this.border) return false;
         this.border = on;
-        this.el.classList.toggle('no-border', !on);
+        this.el.classList.toggle('no-border', !on || drawBg(this.st.bg) === 't');
         if (on) this.el.removeAttribute('data-border'); else this.el.setAttribute('data-border', '0');
         return true;
     }
@@ -378,6 +394,7 @@ class DrawBlockView {
         this.el.classList.add('is-editing');
         this.el.classList.remove('is-picked');
         this._popOpen();
+        this._touchLock(true);
         if (this.opts.onActivate) this.opts.onActivate(this);
         if (!this._outside) {
             this._outside = (ev) => {
@@ -407,12 +424,29 @@ class DrawBlockView {
         if (this._outside) { document.removeEventListener('pointerdown', this._outside, true); this._outside = null; }
         if (this._escKey) { document.removeEventListener('keydown', this._escKey, true); this._escKey = null; }
         if (DRB_ACTIVE === this) DRB_ACTIVE = null;
+        this._touchLock(false);
         this._popClose();
         this.commit();
         if (this.opts.onDeactivate) this.opts.onDeactivate(this);
     }
 
+    // Pendant l'édition, un doigt ou le stylet qui glisse dans le cadre dessine : la page (iPad, iPhone) ne doit pas défiler.
+    // « touch-action: none » (feuille de style) ne suffit pas toujours sur iOS : on annule aussi touchstart / touchmove (écouteurs non passifs, posés avant le geste).
+    _touchLock(on) {
+        if (on) {
+            if (this._touchBlock) return;
+            this._touchBlock = (ev) => { if (ev.cancelable && this.isActive && this.svg.contains(ev.target)) ev.preventDefault(); };
+            document.addEventListener('touchmove', this._touchBlock, { passive: false });
+            this.svg.addEventListener('touchstart', this._touchBlock, { passive: false });
+        } else if (this._touchBlock) {
+            document.removeEventListener('touchmove', this._touchBlock);
+            this.svg.removeEventListener('touchstart', this._touchBlock);
+            this._touchBlock = null;
+        }
+    }
+
     destroy() {
+        this._touchLock(false);
         if (this._outside) { document.removeEventListener('pointerdown', this._outside, true); this._outside = null; }
         if (this._escKey) { document.removeEventListener('keydown', this._escKey, true); this._escKey = null; }
         if (DRB_ACTIVE === this) DRB_ACTIVE = null;
@@ -450,8 +484,9 @@ class DrawBlockView {
 
     _popRender() {
         if (!this.pop) return;
-        this.pop.innerHTML = drawEditorHtml({ pen: DRB_PEN, bg: this.st.bg, canUndo: this.undoStack.length > 0, canRedo: this.redoStack.length > 0, hasStrokes: this.st.strokes.length > 0 })
-            + '<div class="dr-hint" role="status"></div>';
+        this.pop.classList.toggle('is-collapsed', DRB_COLLAPSED);
+        this.pop.innerHTML = drawEditorHtml({ pen: DRB_PEN, bg: this.st.bg, collapsed: DRB_COLLAPSED, canUndo: this.undoStack.length > 0, canRedo: this.redoStack.length > 0, hasStrokes: this.st.strokes.length > 0 })
+            + (DRB_COLLAPSED ? '' : '<div class="dr-hint" role="status"></div>');
         this.el.classList.toggle('is-eraser', DRB_PEN.tool === 'eraser');
         if (DRB_PEN.tool !== 'eraser') this._ringHide();
         this._popPosition();
@@ -477,6 +512,11 @@ class DrawBlockView {
         if (!b || b.disabled) return;
         const act = b.dataset.dr;
         if (act === 'done') { this.deactivate(); if (this.opts.onFocusBack) this.opts.onFocusBack(this); }
+        else if (act === 'fold') {
+            DRB_COLLAPSED = !DRB_COLLAPSED;
+            this._popRender();
+            if (DRB_COLLAPSED) { try { this.el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) { /* ancien navigateur */ } }   // le cadre revient à l'écran, au-dessus du bandeau
+        }
         else if (act === 'tool') { DRB_PEN.tool = ['pen', 'hl', 'eraser'].includes(b.dataset.v) ? b.dataset.v : 'pen'; drbSavePen(); this._popRender(); }
         else if (act === 'color') { DRB_PEN.color = DRB_L.drawColor(b.dataset.v) || DRB_PEN.color; if (DRB_PEN.tool === 'eraser') DRB_PEN.tool = 'pen'; drbSavePen(); this._popRender(); }
         else if (act === 'pressure') { DRB_PEN.pressure = DRB_PEN.pressure === false; drbSavePen(); this._popRender(); }
