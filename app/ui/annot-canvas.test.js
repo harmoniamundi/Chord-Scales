@@ -318,3 +318,33 @@ describe('fenêtres d\'édition : sorte et place gardée', () => {
         delete global.window;
     });
 });
+
+describe('acPasteOffset : où retombent des blocs collés', () => {
+    const view = R(0, 0, 800, 600);
+    test('premier collage visible : décalé d\'un cran, là où ils ont été copiés', () => {
+        assert.deepEqual(C.acPasteOffset([{ x: 100, y: 80 }], view, 1), { dx: C.AC_CASCADE, dy: C.AC_CASCADE });
+    });
+    test('collages successifs du même presse-papiers : un cran de plus à chaque fois (jamais pile au même endroit)', () => {
+        const a = C.acPasteOffset([{ x: 100, y: 80 }], view, 1), b = C.acPasteOffset([{ x: 100, y: 80 }], view, 2), c = C.acPasteOffset([{ x: 100, y: 80 }], view, 3);
+        assert.equal(b.dx - a.dx, C.AC_CASCADE);
+        assert.equal(c.dy - b.dy, C.AC_CASCADE);
+    });
+    test('l\'ensemble garde ses places relatives (même décalage pour tous)', () => {
+        const off = C.acPasteOffset([{ x: 100, y: 80 }, { x: 300, y: 200 }], view, 1);
+        assert.equal(off.dx, C.AC_CASCADE);
+    });
+    test('copié hors de la partie visible : ramené dans la partie visible, coin haut gauche + marge', () => {
+        const off = C.acPasteOffset([{ x: 1000, y: 2500 }], R(0, 0, 800, 600), 1);
+        assert.deepEqual({ x: 1000 + off.dx, y: 2500 + off.dy }, { x: C.AC_MARGIN, y: C.AC_MARGIN });
+    });
+    test('page défilée : le collage tombe dans la partie visible, en cascade au collage suivant', () => {
+        const v = R(0, 1200, 800, 600);
+        const o1 = C.acPasteOffset([{ x: 50, y: 40 }], v, 1), o2 = C.acPasteOffset([{ x: 50, y: 40 }], v, 2);
+        assert.deepEqual({ x: 50 + o1.dx, y: 40 + o1.dy }, { x: C.AC_MARGIN, y: 1200 + C.AC_MARGIN });
+        assert.equal(o2.dx - o1.dx, C.AC_CASCADE);
+    });
+    test('sans place connue ou numéro invalide : pas de décalage ou un seul cran', () => {
+        assert.deepEqual(C.acPasteOffset([], view, 1), { dx: 0, dy: 0 });
+        assert.deepEqual(C.acPasteOffset([{ x: 10, y: 10 }], view, 0), { dx: C.AC_CASCADE, dy: C.AC_CASCADE });
+    });
+});

@@ -102,6 +102,19 @@ function acFreeSpot(rects, start) {
     return { x: Math.round(x0), y: Math.round(y0) };
 }
 
+// Décalage d'un collage de blocs copiés avec leur place (ats = leurs places { x, y }) : l'ensemble revient là où il a été copié, décalé d'un cran de plus à chaque
+// collage successif du même presse-papiers (run = 1, 2, 3…), pour que les copies ne s'empilent pas pile l'une sur l'autre. Si ce coin tombe hors de la partie visible
+// de la page (view = { x, y, w, h }), l'ensemble est ramené dans la partie visible, en cascade lui aussi. Renvoie { dx, dy } à ajouter à chaque place.
+function acPasteOffset(ats, view, run) {
+    const k = Math.max(1, Math.floor(run) || 1);
+    if (!ats || !ats.length) return { dx: 0, dy: 0 };
+    const minX = Math.min(...ats.map(a => a.x)), minY = Math.min(...ats.map(a => a.y));
+    const x = minX + k * AC_CASCADE, y = minY + k * AC_CASCADE;
+    const seen = !view || (x >= view.x && y >= view.y && x <= view.x + view.w - 60 && y <= view.y + view.h - 40);
+    if (seen) return { dx: k * AC_CASCADE, dy: k * AC_CASCADE };
+    return { dx: Math.round(view.x + AC_MARGIN + (k - 1) * AC_CASCADE - minX), dy: Math.round(view.y + AC_MARGIN + (k - 1) * AC_CASCADE - minY) };
+}
+
 // Place vierge pour un nouveau bloc de taille size = { w, h } : le point le plus haut (puis le plus à gauche) où il tient sans toucher aucun bloc existant
 // (à AC_GAP près) et sans sortir de la page à droite. rects : blocs existants { x, y, w, h } ; opts.width : largeur de la page ;
 // opts.view : partie visible de la page { x, y, w, h } — on cherche d'abord une place entièrement visible, pour que le bloc apparaisse sous les yeux ;
@@ -540,6 +553,6 @@ function acPopManual(pop) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { acPopClamp, acPopSpot, acPopKey, acPopManual, AC_POP_POS, AC_GUTTER, AC_SNAP, AC_DRAG_MIN, AC_MARGIN, AC_GAP, AC_CASCADE, AC_BLOCKS, acBounds, acIntersects, acNormRect, acClampMove, acSnap, acFreeSpot, acEmptySpot,
+    module.exports = { acPopClamp, acPopSpot, acPopKey, acPopManual, AC_POP_POS, AC_GUTTER, AC_SNAP, AC_DRAG_MIN, AC_MARGIN, AC_GAP, AC_CASCADE, AC_BLOCKS, acBounds, acIntersects, acNormRect, acClampMove, acSnap, acFreeSpot, acPasteOffset, acEmptySpot,
         AC_ZOOM_MIN, AC_ZOOM_MAX, AC_ZOOM_STEPS, AC_TAP_SLOP, AC_PHONE_QUERY, acIsTap, acIsPhone, acZoomOf, acCanvasWidth, acClampZoom, acZoomStep, acZoomWheel, acZoomOffset, acZoomScroll };
 }
