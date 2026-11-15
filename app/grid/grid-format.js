@@ -27,15 +27,16 @@ const IMPORT_GROOVES = ['bossa', 'samba', 'salsa', 'tango', 'piazzolla', 'lyriqu
 // Guitare 60 % (un peu plus fourni que l'écriture d'origine, vers 35 %) ; autres orchestres 50 % = l'écriture d'origine.
 const BAND_DENSITY_DEFAULTS = { guitar: 0.6, classic: 0.5, piazzolla: 0.5, balkan: 0.5, cumbia: 0.5, brass: 0.5 };
 
-// Annotations libres (onglet « Annotations » du mode Jam) : une par mesure (jusqu'à 2000 signes de texte) et une pour toute la grille (8000).
+// Annotations libres (onglet « Annotations » du mode Jam) : une par mesure (jusqu'à 2000 signes de texte) et une pour toute la grille (40000).
 // Le texte est mis en forme (gras, taille, couleur…) : il est gardé sous forme de HTML RESTREINT, nettoyé par sanitizeNoteHtml.
 const MEASURE_NOTE_MAX = 2000;
-const GRID_NOTE_MAX = 8000;
+const GRID_NOTE_MAX = 40000;
 const MEASURE_NOTE_SPAN_MAX = 64;   // une annotation de mesure peut rester affichée sur 64 mesures au plus (`noteSpan` du bloc)
-const NOTE_MAX_STAVES = 8; // portées éditables par annotation
-const NOTE_MAX_FRAMES = 8; // cadres de texte par annotation (le texte d'un cadre compte dans la limite de l'annotation ; pas de cadre dans un cadre, ni de portée)
-const NOTE_MAX_CHORDS = 12; // blocs d'accords jouables par annotation (jusqu'à 16 accords chacun)
-const NOTE_MAX_DRAWS = 6;   // cadres de dessin libre par annotation (leurs traits ne comptent pas dans la limite du texte)
+const NOTE_MAX_STAVES = 50; // portées éditables par annotation
+const NOTE_MAX_FRAMES = 50; // cadres de texte par annotation (le texte d'un cadre compte dans la limite de l'annotation ; pas de cadre dans un cadre, ni de portée)
+const NOTE_MAX_CHORDS = 50; // blocs d'accords jouables par annotation (jusqu'à 16 accords chacun)
+const NOTE_MAX_DRAWS = 50;  // cadres de dessin libre par annotation (leurs traits ne comptent pas dans la limite du texte)
+const NOTE_MAX_ELEMENTS = 2000; // éléments HTML par annotation (un bloc en compte un ; chaque mise en forme ou ligne d'un cadre de texte aussi)
 
 // Polices proposées par la barre de mise en forme (nom de la première famille en minuscules → valeur CSS enregistrée).
 // Ce sont des polices du système, plus la police « Real Book » (Kalam) fournie avec l'appli : aucune autre n'est acceptée.
@@ -168,7 +169,7 @@ function sanitizeNoteHtml(raw, maxText = MEASURE_NOTE_MAX) {
             skip = 1;
             const sa = readAttrs(m[3]);
             const text = GF_STAFF.parseStaff(sa['data-staff'] || '');
-            if (text && staves < NOTE_MAX_STAVES && count < 400 && !stack.some(e => e.kind === 'frame')) {
+            if (text && staves < NOTE_MAX_STAVES && count < NOTE_MAX_ELEMENTS && !stack.some(e => e.kind === 'frame')) {
                 out += `<div class="annot-staff" data-staff="${GF_STAFF.formatStaff(text)}"${blockPlace(sa)}></div>`;
                 staves++; count++; hasText = true;
             }
@@ -179,7 +180,7 @@ function sanitizeNoteHtml(raw, maxText = MEASURE_NOTE_MAX) {
             skip = 1;
             const da = readAttrs(m[3]);
             const text = GF_DRAW.drawCanon(da['data-draw'] || '');
-            if (text && drawBlocks < NOTE_MAX_DRAWS && count < 400 && !stack.some(e => e.kind === 'frame')) {
+            if (text && drawBlocks < NOTE_MAX_DRAWS && count < NOTE_MAX_ELEMENTS && !stack.some(e => e.kind === 'frame')) {
                 out += `<div class="annot-draw" data-draw="${text}"${blockPlace(da)}></div>`;
                 drawBlocks++; count++; hasText = true;
             }
@@ -190,7 +191,7 @@ function sanitizeNoteHtml(raw, maxText = MEASURE_NOTE_MAX) {
             skip = 1;
             const ca = readAttrs(m[3]);
             const text = GF_CHORDS.chordsCanon(ca['data-chords'] || '');
-            if (text && chordBlocks < NOTE_MAX_CHORDS && count < 400 && !stack.some(e => e.kind === 'frame')) {
+            if (text && chordBlocks < NOTE_MAX_CHORDS && count < NOTE_MAX_ELEMENTS && !stack.some(e => e.kind === 'frame')) {
                 out += `<div class="annot-chords" data-chords="${text}"${blockPlace(ca)}></div>`;
                 chordBlocks++; count++; hasText = true;
             }
@@ -198,7 +199,7 @@ function sanitizeNoteHtml(raw, maxText = MEASURE_NOTE_MAX) {
         }
         // Cadre de texte : un <div data-frame="…"> dont le contenu (texte mis en forme) est nettoyé comme le reste. Un cadre invalide, ou placé
         // dans un autre cadre, devient un simple bloc de texte.
-        if (!closing && name === 'div' && /\bdata-frame\s*=/i.test(m[3]) && frames < NOTE_MAX_FRAMES && count < 400 && stack.length < 16 && !stack.some(e => e.kind === 'frame')) {
+        if (!closing && name === 'div' && /\bdata-frame\s*=/i.test(m[3]) && frames < NOTE_MAX_FRAMES && count < NOTE_MAX_ELEMENTS && stack.length < 16 && !stack.some(e => e.kind === 'frame')) {
             const fa = readAttrs(m[3]);
             const box = GF_STAFF.parseFrameBox(fa['data-frame'] || '');
             if (box) {
@@ -210,7 +211,7 @@ function sanitizeNoteHtml(raw, maxText = MEASURE_NOTE_MAX) {
         }
         const kind = NOTE_TAGS[name];
         if (!kind) continue;
-        if (kind === 'br') { if (!closing && count < 400) { out += '<br>'; count++; } continue; }
+        if (kind === 'br') { if (!closing && count < NOTE_MAX_ELEMENTS) { out += '<br>'; count++; } continue; }
         if (closing) {
             let k = stack.length - 1;
             while (k >= 0 && stack[k].kind !== kind && !(kind === 'div' && stack[k].kind === 'frame')) k--; // un </div> ferme aussi un cadre
@@ -230,7 +231,7 @@ function sanitizeNoteHtml(raw, maxText = MEASURE_NOTE_MAX) {
             }
             style = noteStyle(css);
         }
-        const emit = count < 400 && stack.length < 16 && (kind !== 'span' || !!style);
+        const emit = count < NOTE_MAX_ELEMENTS && stack.length < 16 && (kind !== 'span' || !!style);
         if (emit) { out += `<${kind}${style ? ` style="${style}"` : ''}>`; count++; }
         stack.push({ kind, emitted: emit });
     }

@@ -355,10 +355,11 @@ describe('sanitizeNoteHtml : portées éditables', () => {
     test('portées imbriquées dans un div ordinaire : conservées', () => {
         assert.equal(S(`<div>ligne${staff('t,4/4,0;q:c4')}</div>`), `<div>ligne${staff('t,4/4,0;q:c4')}</div>`);
     });
-    test('huit portées au plus', () => {
-        const nine = Array(9).fill(staff('t,4/4,0;q:c4')).join('');
-        assert.equal((S(nine).match(/annot-staff/g) || []).length, F.NOTE_MAX_STAVES);
-        assert.equal(F.NOTE_MAX_STAVES, 8);
+    test('cinquante portées au plus', () => {
+        const many = Array(F.NOTE_MAX_STAVES + 1).fill(staff('t,4/4,0;q:c4')).join('');
+        assert.equal((S(many).match(/annot-staff/g) || []).length, F.NOTE_MAX_STAVES);
+        assert.equal(F.NOTE_MAX_STAVES, 50);
+        assert.equal(F.NOTE_MAX_FRAMES + F.NOTE_MAX_CHORDS + F.NOTE_MAX_DRAWS, 150);
     });
     test('nettoyer deux fois donne le même résultat', () => {
         for (const raw of [`<span style="font-size:20px">a</span>${staff('b,6/8,-2;8t:bb3 8t:b3 8t:bbb3')}<div>z</div>`, staff('t,4/4,0;'), `x${staff('t,3/4,1;q.:f#4')}y`]) {
@@ -423,8 +424,8 @@ describe('sanitizeNoteHtml : cadres de texte', () => {
     test('des blocs div dans le cadre (retours à la ligne du navigateur) sont gardés, et le cadre se referme au bon endroit', () => {
         assert.equal(S(`${frame('260', 'ligne 1<div>ligne 2</div><div>ligne 3</div>')}suite`), `${frame('260', 'ligne 1<div>ligne 2</div><div>ligne 3</div>')}suite`);
     });
-    test('8 cadres au plus par annotation', () => {
-        const ten = Array.from({ length: 10 }, (_, i) => frame('260', `t${i}`)).join('');
+    test('50 cadres au plus par annotation', () => {
+        const ten = Array.from({ length: F.NOTE_MAX_FRAMES + 2 }, (_, i) => frame('260', `t${i}`)).join('');
         assert.equal((S(ten).match(/annot-frame/g) || []).length, F.NOTE_MAX_FRAMES);
     });
     test('le texte du cadre compte dans la limite de l\'annotation', () => {
@@ -643,7 +644,7 @@ describe('annotations : blocs d\'accords jouables et cadres de dessin', () => {
     test('accords : bord caché conservé, pas dans un cadre de texte, 12 blocs au plus', () => {
         assert.match(F.sanitizeNoteHtml(chords('b|0~maj7~4', ' data-border="0"')), /data-border="0"/);
         assert.ok(!/annot-chords/.test(F.sanitizeNoteHtml(frame(chords('b|0~maj7~4')))));
-        assert.equal((F.sanitizeNoteHtml(chords('b|0~maj7~4').repeat(30), 100000).match(/annot-chords/g) || []).length, F.NOTE_MAX_CHORDS);
+        assert.equal((F.sanitizeNoteHtml(chords('b|0~maj7~4').repeat(F.NOTE_MAX_CHORDS + 30), 100000).match(/annot-chords/g) || []).length, F.NOTE_MAX_CHORDS);
     });
     test('dessin : cadre gardé sous sa forme canonique (traits, fond, pression), invalide ou étranger écarté', () => {
         assert.equal(F.sanitizeNoteHtml(draw(' 320,200|1E293B.3:12,30,2,1 ')), draw('320,200|1e293b.3:12,30,2,1'));
@@ -656,7 +657,7 @@ describe('annotations : blocs d\'accords jouables et cadres de dessin', () => {
     test('dessin : bord caché conservé, pas dans un cadre de texte, 6 cadres au plus, traits hors limite de texte', () => {
         assert.match(F.sanitizeNoteHtml(draw('320,200', ' data-border="0"')), /data-border="0"/);
         assert.ok(!/annot-draw/.test(F.sanitizeNoteHtml(frame(draw('320,200')))));
-        assert.equal((F.sanitizeNoteHtml(draw('320,200').repeat(20), 100000).match(/annot-draw/g) || []).length, F.NOTE_MAX_DRAWS);
+        assert.equal((F.sanitizeNoteHtml(draw('320,200').repeat(F.NOTE_MAX_DRAWS + 20), 100000).match(/annot-draw/g) || []).length, F.NOTE_MAX_DRAWS);
         const big = '320,200|' + Array.from({ length: 40 }, () => '0f172a.3:10,10,' + Array.from({ length: 100 }, () => '1,1').join(',')).join('|');
         assert.match(F.sanitizeNoteHtml(draw(big)), /annot-draw/);
     });
