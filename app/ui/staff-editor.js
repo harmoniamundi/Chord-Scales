@@ -250,6 +250,7 @@ function drawNoteStaff(host, st, opts = {}) {
     });
     nseHandDrawn(svg);
     nseSmallTimeSig(svg);
+    nseDrawTempoMark(svg, opts.mark);
     // Portée au repos : le cadre épouse la portée (largeur de ses mesures, hauteur de ses lignes, notes aiguës et graves comprises).
     if (opts.compact && svg) {
         const b = nseContentBox(svg, { x: 0, y: NSE_TOP - 20, w: Math.min(W, (geo.right || W) + NSE_PAD), h: height - NSE_TOP + 20 - 24 });
@@ -271,6 +272,54 @@ function drawNoteStaff(host, st, opts = {}) {
 function nseToolState(st, sel, selAuto, cur) {
     const e = (sel >= 0 && !selAuto) ? st.ev[sel] : null;
     return e ? { d: e.d, dot: !!e.dot, tu: e.tu || 0, rest: !e.p } : { d: cur.d, dot: !!cur.dot, tu: cur.tu || 0, rest: !!cur.rest };
+}
+
+// Notes à dessiner en bleu : seulement celles que l'utilisateur a choisies. La note qu'une insertion vient de sélectionner d'office (selAuto) reste
+// bien active pour les flèches, les altérations et Suppr., mais elle n'est PAS bleue : bleu = « les boutons de durée, de point, de silence et de tuplet
+// agissent sur cette note » ; rien de bleu = « ils règlent la prochaine note posée ». Sans cela, une même note bleue réagissait ou non à un changement
+// de durée selon qu'on venait de la poser ou de cliquer dessus.
+function nseShownSelection(list, selAuto) {
+    return selAuto ? [] : list;
+}
+
+// Indication de lecture écrite au-dessus de la portée, à gauche, comme sur une partition Real Book : « Swing » (dès que la lecture swingue, quel que soit
+// le réglage, et si la mesure le permet) puis « ♩ = tempo ». Le tempo est celui de la portée, sinon celui du carnet. Pur : testé sans navigateur.
+function nseTempoMarkInfo(st, jamBpm, jamSwing) {
+    return {
+        tempo: NSE_N.staffTempo(st, jamBpm),
+        swing: NSE_N.staffSwingRatio(st, jamSwing) > 0.5 + 1e-9 && NSE_N.staffMeterAllowsSwing(st.meter)
+    };
+}
+
+// Écrit l'indication dans le SVG (police « Real Book » de l'appli, comme les accords). Placée dans la marge au-dessus de la 1re ligne, à gauche.
+function nseDrawTempoMark(svg, mark) {
+    if (!svg || !mark || typeof document === 'undefined') return;
+    const NS = 'http://www.w3.org/2000/svg';
+    const INK = '#1e293b', Y = 13.5;
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('class', 'ns-mark');
+    g.setAttribute('pointer-events', 'none');
+    svg.appendChild(g);
+    const text = (x, str, weight) => {
+        const t = document.createElementNS(NS, 'text');
+        t.setAttribute('x', String(x)); t.setAttribute('y', String(Y));
+        t.setAttribute('fill', INK); t.setAttribute('font-size', '15'); t.setAttribute('font-weight', String(weight));
+        t.setAttribute('font-family', 'Kalam, cursive');
+        t.textContent = str;
+        g.appendChild(t);
+        let w = 0;
+        try { w = t.getComputedTextLength(); } catch (e) { /* élément non affiché */ }
+        return w > 0 ? w : str.length * 8;
+    };
+    let x = 4;
+    if (mark.swing) x += text(x, 'Swing', 700) + 16;
+    const head = document.createElementNS(NS, 'ellipse');
+    head.setAttribute('cx', String(x + 4)); head.setAttribute('cy', String(Y - 3)); head.setAttribute('rx', '3.8'); head.setAttribute('ry', '2.8');
+    head.setAttribute('transform', `rotate(-22 ${x + 4} ${Y - 3})`); head.setAttribute('fill', INK);
+    const stem = document.createElementNS(NS, 'path');
+    stem.setAttribute('d', `M${x + 7.4} ${Y - 4}V${Y - 13}`); stem.setAttribute('stroke', INK); stem.setAttribute('stroke-width', '1.4'); stem.setAttribute('fill', 'none');
+    g.appendChild(head); g.appendChild(stem);
+    text(x + 14, `= ${mark.tempo}`, 400);
 }
 
 // ----- Barre d'outils de la portée (petites icônes dessinées, sans dépendre d'une police musicale) -----
@@ -337,7 +386,8 @@ function nseToolsHtml(st, cur, jamPct) {
     return `
         <button type="button" class="ns-btn ns-txt ns-exit" data-act="exit" title="Revenir à la mise en forme du texte" aria-label="Revenir à la mise en forme du texte">◂ Texte</button>
         <span class="ns-sep"></span>
-        <div class="ns-grp" role="group" aria-label="Durée de la prochaine note">${dur}
+        <button type="button" class="ns-btn ns-txt ns-input is-on" data-act="input" aria-pressed="true" title="Saisie de notes (clavier : N), comme dans MuseScore. Allumée : un clic sur la portée pose une note, et les boutons de durée règlent la prochaine note. Éteinte (mode sélection) : un clic choisit une note (en bleu) ou encadre un groupe, et les boutons de durée changent la note choisie. Échap quitte la saisie." aria-label="Saisie de notes">Saisie</button>
+        <div class="ns-grp" role="group" aria-label="Durée : de la note bleue si une note est sélectionnée, sinon de la prochaine note posée">${dur}
             <button type="button" class="ns-btn" data-mod="dot" title="Note pointée (clavier : .)" aria-label="Note pointée"><b>•</b></button>
             <select class="ns-sel ns-sel-tup" data-set="tuplet" title="Tuplet : transforme la note sélectionnée en triolet, quintolet, sextolet… (vraies notes, dans la même durée) ; sans note sélectionnée, règle les prochaines notes. Clavier : t = triolet" aria-label="Tuplet">${nseTupletOptions(cur && cur.tu)}</select>
             <button type="button" class="ns-btn" data-mod="rest" title="Silence : le prochain clic pose un silence (clavier : r)" aria-label="Silence">${NSE_REST_ICON}</button>
@@ -347,7 +397,7 @@ function nseToolsHtml(st, cur, jamPct) {
         <div class="ns-grp" role="group" aria-label="Altération de la note sélectionnée">
             <button type="button" class="ns-btn" data-alt="1" title="Dièse (clavier : #)" aria-label="Dièse">♯</button>
             <button type="button" class="ns-btn" data-alt="-1" title="Bémol (clavier : -)" aria-label="Bémol">♭</button>
-            <button type="button" class="ns-btn" data-alt="0" title="Bécarre (clavier : n)" aria-label="Bécarre">♮</button>
+            <button type="button" class="ns-btn" data-alt="0" title="Bécarre (clavier : 0)" aria-label="Bécarre">♮</button>
         </div>
         <span class="ns-sep"></span>
         <select class="ns-sel" data-set="clef" aria-label="Clé"><option value="t"${st.clef === 't' ? ' selected' : ''}>Clé de sol</option><option value="b"${st.clef === 'b' ? ' selected' : ''}>Clé de fa</option></select>
@@ -407,7 +457,8 @@ function nseKeyAction(key, mods = {}) {
     if (/^[a-gA-G]$/.test(key)) return { type: 'letter', letter: key.toLowerCase() };
     if (key === '#') return { type: 'alter', delta: 1 };
     if (key === '-') return { type: 'alter', delta: -1 };
-    if (key === 'n' || key === 'N') return { type: 'alter', delta: null };
+    if (key === 'n' || key === 'N') return { type: 'input' };          // N : entrer dans / sortir de la saisie de notes (comme MuseScore)
+    if (key === '0') return { type: 'alter', delta: null };            // 0 : bécarre
     if (key === '.') return { type: 'mod', mod: 'dot' };
     if (key === 't' || key === 'T') return { type: 'tuplet', n: 3 };
     if (key === 'r' || key === 'R') return { type: 'mod', mod: 'rest' };
@@ -447,7 +498,8 @@ class NoteStaffView {
         this.selSet = new Set(); // tous les événements sélectionnés (note, silence) ; contient `sel` dès qu'il n'est pas vide
         this.anchor = -1;       // point de départ d'une sélection étendue avec Maj
         this.multiMode = false; // mode « sélection multiple » (tactile) : toucher une note l'ajoute ou la retire du groupe
-        this.selAuto = false;   // sélection posée par l'insertion d'une note (les boutons de durée ne la modifient pas)
+        this.inputMode = true;  // mode « saisie de notes » (comme MuseScore) : un clic pose une note, les durées règlent la prochaine note ; faux = mode sélection : un clic choisit une note, les durées changent la note bleue
+        this.selAuto = false;   // sélection posée par l'insertion d'une note : non dessinée en bleu, et les boutons de durée ne la modifient pas (ils règlent la prochaine note)
         this.cur = { d: 'q', dot: false, tu: 0, rest: false }; // valeurs de la prochaine note
         this.history = [];
         this.geo = null;
@@ -532,7 +584,10 @@ class NoteStaffView {
         const active = this.isActive;
         this._lastWidth = this._availWidth();
         try {
-            this.geo = drawNoteStaff(this.svgHost, this.st, { width: this._lastWidth, selected: active ? this._selList() : [], compact: !active });
+            const a = this.opts.audio;
+            let jamBpm = 0, jamSwing = null;
+            try { jamBpm = a && a.bpm ? a.bpm() : 0; jamSwing = a && a.swing ? a.swing() : null; } catch (e) { /* réglages du carnet indisponibles */ }
+            this.geo = drawNoteStaff(this.svgHost, this.st, { width: this._lastWidth, selected: active ? nseShownSelection(this._selList(), this.selAuto) : [], compact: !active, mark: nseTempoMarkInfo(this.st, jamBpm, jamSwing) });
         } catch (e) {
             this.geo = null;
             this.svgHost.textContent = 'Portée non affichable';
@@ -543,7 +598,8 @@ class NoteStaffView {
             hint = document.createElement('div');
             hint.className = 'annot-staff-hint';
             const touch = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
-            hint.textContent = touch ? 'Choisissez une durée, puis touchez la portée' : 'Choisissez une durée puis cliquez sur la portée pour poser des notes';
+            hint.textContent = !this.inputMode ? 'Mode sélection : touchez « Saisie » (N) pour poser des notes'
+                : (touch ? 'Choisissez une durée, puis touchez la portée' : 'Choisissez une durée puis cliquez sur la portée pour poser des notes');
             this.svgHost.appendChild(hint);
         }
         if (this.playing && this._hiEv >= 0) this._markPlaying(this._hiEv);
@@ -597,6 +653,9 @@ class NoteStaffView {
             const a = e && e.p ? e.p.a : null;
             b.classList.toggle('is-on', a !== null && ((b.dataset.alt === '0' && a === 0 && NSE_N.pitchFromDia(NSE_N.pitchDia(e.p), this.st.ks).a !== 0) || (b.dataset.alt !== '0' && a === Number(b.dataset.alt))));
         });
+        const inp = this.tools.querySelector('[data-act="input"]');
+        if (inp) { inp.classList.toggle('is-on', this.inputMode); inp.setAttribute('aria-pressed', this.inputMode ? 'true' : 'false'); }
+        this.el.classList.toggle('is-input', this.inputMode);
         const del = this.tools.querySelector('[data-act="del"]'); if (del) del.disabled = this.sel < 0;
         const un = this.tools.querySelector('[data-act="undo"]'); if (un) un.disabled = this.history.length === 0;
         const play = this.tools.querySelector('[data-act="play"]'); if (play) play.textContent = this.playing ? '■' : '▶';
@@ -612,6 +671,7 @@ class NoteStaffView {
     activate() {
         if (NSE_ACTIVE && NSE_ACTIVE !== this) NSE_ACTIVE.deactivate();
         const wasActive = this.isActive;
+        if (!wasActive) this.inputMode = true; // on ouvre la portée pour écrire ; cliquer une note passe en mode sélection
         const cv = this._canvas();
         if (cv) cv.clearSelection(true); // une portée en édition n'est pas « sélectionnée » : ses outils remplacent ceux du texte
         NSE_ACTIVE = this;
@@ -677,11 +737,30 @@ class NoteStaffView {
 
     _clearSel() { this.sel = -1; this.anchor = -1; this.selSet = new Set(); this.selAuto = false; }
 
+    // Règle : une note choisie (bleue) ne peut exister qu'en mode sélection ; en mode saisie, la dernière note posée est seulement « active » (selAuto, pas de bleu).
     select(i, auto = false) {
         this.sel = i;
         this.anchor = i;
         this.selSet = i >= 0 ? new Set([i]) : new Set();
-        this.selAuto = auto;
+        this.selAuto = !!auto && i >= 0 && this.inputMode;
+        if (i >= 0 && !this.selAuto) this.inputMode = false;
+        this.render();
+    }
+
+    // Saisie de notes (N) ↔ sélection. En entrant, la saisie reprend la durée de la note choisie (comme MuseScore) ; en sortant, la dernière note posée devient la note choisie.
+    _setInputMode(on) {
+        on = !!on;
+        if (on === this.inputMode) { this._refreshTools(); return; }
+        if (on) {
+            const e = this.sel >= 0 && !this.selAuto ? this.st.ev[this.sel] : null;
+            if (e) { this.cur.d = e.d; this.cur.dot = !!e.dot; this.cur.rest = !e.p; this.cur.tu = 0; }
+            this.inputMode = true;
+            this.multiMode = false;
+            this._clearSel();
+        } else {
+            this.inputMode = false;
+            this.selAuto = false;
+        }
         this.render();
     }
 
@@ -697,6 +776,7 @@ class NoteStaffView {
         this.sel = list.length ? (list.includes(focus) ? focus : list[list.length - 1]) : -1;
         this.anchor = list.length ? (anchor === undefined ? this.sel : anchor) : -1;
         this.selAuto = false;
+        if (list.length) this.inputMode = false;
         this.render();
     }
 
@@ -869,6 +949,10 @@ class NoteStaffView {
             this._hearEvent(hit);
             if (this.st.ev[hit].p) dragEv = hit;
             else if (group) { this.select(hit, false); group = false; }
+        } else if (!this.inputMode) {
+            // Mode sélection (comme MuseScore) : le vide ne pose rien ; un clic désélectionne, un glissé encadre des notes.
+            this._startMarquee(ev, pt, true);
+            return;
         } else {
             const line = this._lineAt(pt.y);
             const spot = this._insertSpot(pt, line);
@@ -968,6 +1052,7 @@ class NoteStaffView {
             try { host.releasePointerCapture(ev.pointerId); } catch (e) { /* déjà relâché */ }
             if (box) box.remove();
             if (!moved && clearOnTap && this.selSet.size) this.select(-1);
+            else if (!moved && clearOnTap && !this.inputMode && !this.multiMode) this._flashHint('Mode sélection : touchez « Saisie » (N) pour poser des notes');
         };
         host.addEventListener('pointermove', onMove);
         host.addEventListener('pointerup', onUp);
@@ -976,7 +1061,7 @@ class NoteStaffView {
 
     // Survol à la souris : une note fantôme montre la hauteur qui sera posée.
     _pointerMove(ev) {
-        if (!this.editable || !this.geo || !this.isActive || ev.buttons || ev.pointerType === 'touch' || this.cur.rest) { this._hideGhost(); return; }
+        if (!this.editable || !this.geo || !this.isActive || ev.buttons || ev.pointerType === 'touch' || this.cur.rest || !this.inputMode) { this._hideGhost(); return; }
         const pt = this._local(ev);
         if (this._hitEvent(pt) >= 0) { this._hideGhost(); return; }
         const line = this._lineAt(pt.y);
@@ -1163,7 +1248,8 @@ class NoteStaffView {
             else if (act === 'del') this._deleteSelected();
             else if (act === 'clear') { this._clearSel(); this._apply(Object.assign(NSE_N.cloneStaff(this.st), { ev: [], pu: 0 })); }
             else if (act === 'tie') this._toggleTie();
-            else if (act === 'multi') { this.multiMode = !this.multiMode; this._refreshTools(); if (this.multiMode) this._flashHint('Touchez les notes pour les ajouter au groupe ; glissez dans le vide pour les encadrer'); }
+            else if (act === 'input') this._setInputMode(!this.inputMode);
+            else if (act === 'multi') { this.multiMode = !this.multiMode; if (this.multiMode) this._setInputMode(false); this._refreshTools(); if (this.multiMode) this._flashHint('Touchez les notes pour les ajouter au groupe ; glissez dans le vide pour les encadrer'); }
             else if (act === 'copy') {
                 if (this._explicitList().length) this._copyNotes(this._explicitList());
                 else { NSE_NOTE_CLIP = null; if (this.opts.onCopy) this.opts.onCopy(this); }
@@ -1347,6 +1433,8 @@ class NoteStaffView {
         const list = this._selList();
         const has = list.length > 0;
         const explicit = has && !this.selAuto;
+        if (act.type === 'input') { this._setInputMode(!this.inputMode); return true; }
+        if (act.type === 'deselect' && this.inputMode) { this._setInputMode(false); return true; } // Échap quitte la saisie (la dernière note posée reste choisie)
         if (act.type === 'undo') { if (!this.history.length) return false; this.undo(); return true; }
         if (act.type === 'selectAll') { if (!this.st.ev.length) return false; this._selectAll(); return true; }
         if (act.type === 'copy' || act.type === 'cut') {
@@ -1512,5 +1600,5 @@ function nseBlocksToClipText(els) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { nseHandDrawn, nseSmallTimeSig, NSE_TIMESIG_SCALE, NSE_SPACING, NSE_BAND, NSE_TOP, nseToolsHtml, nseKeyAction, nseNearestLetter, nseNoteIcon, nseKeyOptions, nseToolState, nseBlocksToClipText, noteStaffStubHtml };
+    module.exports = { nseHandDrawn, nseSmallTimeSig, NSE_TIMESIG_SCALE, NSE_SPACING, NSE_BAND, NSE_TOP, nseToolsHtml, nseKeyAction, nseNearestLetter, nseNoteIcon, nseKeyOptions, nseToolState, nseShownSelection, nseTempoMarkInfo, nseBlocksToClipText, noteStaffStubHtml };
 }

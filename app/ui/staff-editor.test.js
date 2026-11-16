@@ -28,7 +28,7 @@ describe('nseKeyAction : touche → action', () => {
     test('altérations, point, triolet (tuplet), silence, durées 1 à 5', () => {
         assert.deepEqual(E.nseKeyAction('#'), { type: 'alter', delta: 1 });
         assert.deepEqual(E.nseKeyAction('-'), { type: 'alter', delta: -1 });
-        assert.deepEqual(E.nseKeyAction('n'), { type: 'alter', delta: null });
+        assert.deepEqual(E.nseKeyAction('0'), { type: 'alter', delta: null });
         assert.deepEqual(E.nseKeyAction('.'), { type: 'mod', mod: 'dot' });
         assert.deepEqual(E.nseKeyAction('t'), { type: 'tuplet', n: 3 });
         assert.deepEqual(E.nseKeyAction('r'), { type: 'mod', mod: 'rest' });
@@ -156,6 +156,58 @@ describe('nseToolState : ce que montrent les boutons durée / point / triolet / 
     });
     test('indice hors limites : valeur de la prochaine note', () => {
         assert.deepEqual(E.nseToolState(st, 9, false, cur), cur);
+    });
+});
+
+describe('mode Saisie / Sélection (comme MuseScore)', () => {
+    test('N entre dans la saisie de notes ou en sort (majuscule aussi), 0 = bécarre', () => {
+        assert.deepEqual(E.nseKeyAction('n'), { type: 'input' });
+        assert.deepEqual(E.nseKeyAction('N'), { type: 'input' });
+        assert.deepEqual(E.nseKeyAction('0'), { type: 'alter', delta: null });
+    });
+    test('la barre d\'outils a le bouton Saisie, allumé au départ', () => {
+        const html = E.nseToolsHtml(S.parseStaff('t,4/4,0;q:c4'));
+        assert.match(html, /data-act="input"[^>]*aria-pressed="true"/);
+        assert.ok(html.indexOf('data-act="input"') < html.indexOf('data-dur="w"'), 'avant les durées');
+    });
+});
+
+describe('nseTempoMarkInfo : tempo et « Swing » écrits au-dessus de la portée', () => {
+    test('tempo de la portée, sinon celui du carnet, sinon 100', () => {
+        assert.equal(E.nseTempoMarkInfo(S.parseStaff('t,4/4,0,bpm90;q:c4'), 120, null).tempo, 90);
+        assert.equal(E.nseTempoMarkInfo(S.parseStaff('t,4/4,0;q:c4'), 120, null).tempo, 120);
+        assert.equal(E.nseTempoMarkInfo(S.parseStaff('t,4/4,0;q:c4'), 0, null).tempo, 100);
+    });
+    test('« Swing » dès qu\'il y a du swing, quel que soit le réglage (propre à la portée ou hérité du carnet)', () => {
+        assert.equal(E.nseTempoMarkInfo(S.parseStaff('t,4/4,0,sw55;q:c4'), 100, null).swing, true);
+        assert.equal(E.nseTempoMarkInfo(S.parseStaff('t,4/4,0,sw67;q:c4'), 100, null).swing, true);
+        assert.equal(E.nseTempoMarkInfo(S.parseStaff('t,4/4,0,sw75;q:c4'), 100, null).swing, true);
+        assert.equal(E.nseTempoMarkInfo(S.parseStaff('t,4/4,0;q:c4'), 100, 0.67).swing, true, 'swing du carnet suivi');
+    });
+    test('pas de « Swing » : croches droites, carnet sans swing, mesure composée', () => {
+        assert.equal(E.nseTempoMarkInfo(S.parseStaff('t,4/4,0,sw50;q:c4'), 100, 0.67).swing, false, '50 % explicite = droit, même si le carnet swingue');
+        assert.equal(E.nseTempoMarkInfo(S.parseStaff('t,4/4,0;q:c4'), 100, 0.5).swing, false);
+        assert.equal(E.nseTempoMarkInfo(S.parseStaff('t,4/4,0;q:c4'), 100, null).swing, false);
+        assert.equal(E.nseTempoMarkInfo(S.parseStaff('t,6/8,0,sw67;q.:c4'), 100, null).swing, false, 'le swing n\'a pas de sens en 6/8');
+    });
+});
+
+describe('nseShownSelection : une note n\'est bleue que si les boutons de durée agissent sur elle', () => {
+    test('sélection voulue par l\'utilisateur : toutes les notes choisies sont en bleu', () => {
+        assert.deepEqual(E.nseShownSelection([1, 2], false), [1, 2]);
+        assert.deepEqual(E.nseShownSelection([], false), []);
+    });
+    test('note qui vient d\'être posée (sélection automatique) : pas de bleu, les boutons règlent la prochaine note', () => {
+        assert.deepEqual(E.nseShownSelection([3], true), []);
+    });
+    test('cohérence avec nseToolState : bleu si et seulement si les boutons montrent la note', () => {
+        const st = S.parseStaff('t,4/4,0;q:c4 8:e4');
+        const cur = { d: 'h', dot: false, tu: 0, rest: false };
+        for (const auto of [false, true]) {
+            const blue = E.nseShownSelection([1], auto).includes(1);
+            const buttonsShowNote = E.nseToolState(st, 1, auto, cur).d === '8';
+            assert.equal(blue, buttonsShowNote, `selAuto=${auto}`);
+        }
     });
 });
 
