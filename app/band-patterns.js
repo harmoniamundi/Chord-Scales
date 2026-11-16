@@ -151,32 +151,37 @@ const POP_BASS = {
 // TC / tC pouce + accord, X accord étouffé (« chk »), aN note d'arpège (N = rang de la voix, 0 = grave).
 // d = densité (0 à 1) : sert à choisir la cellule selon l'énergie de la phrase.
 const LAT_VOICE_RANGE = { lo: 0, hi: 15, centre: 6, soft: 12 };
-// Bossa nova (violão à la João Gilberto) : le pouce pose la basse sur les temps 1 et 3 (fondamentale puis quinte, sans
-// jamais s'arrêter) pendant que trois doigts pincent ensemble les cordes aiguës sur un motif syncopé de deux mesures.
-// Ici seuls les doigts sont écrits : [position, durée max (temps), vélocité]. A = mesure « 3 » de la clave de bossa
-// (1, 2&, 4), B = mesure « 2 » (2, 3&). Le pouce, l'anticipation de l'accord suivant sur le « et » du 4e temps et la
-// liaison qui s'ensuit sont ajoutés par le moteur (band/latin-plan.js, buildBossaPlan).
+// Bossa nova : le pouce garde un balancement fondamentale / quinte, les doigts suivent la clave (3-2) :
+// A = barre « 3 » (temps 1, 2&, 4), B = barre « 2 » (temps 2 et 3).
 const LAT_BOSSA = [
-    // le plus dépouillé : la même cellule « 1, 2&, 4 » à chaque mesure, accords tenus
-    { d: 0.2,
-      A: [[0, 1.3, 0.56], [1.5, 1.3, 0.5], [3, 0.9, 0.5]],
-      B: [[0, 1.3, 0.54], [1.5, 1.3, 0.5], [3, 0.9, 0.52]] },
-    // les doigts jouent la clave de bossa (3-2)
-    { d: 0.35,
-      A: [[0, 1.2, 0.58], [1.5, 1.2, 0.52], [3, 0.8, 0.52]],
-      B: [[1, 1.2, 0.54], [2.5, 1.3, 0.54]] },
-    // le balancement le plus courant : 1, 2, 3& | 1&, 2&, 4
-    { d: 0.5,
-      A: [[0, 0.8, 0.58], [1, 1.2, 0.5], [2.5, 1.3, 0.54]],
-      B: [[0.5, 0.8, 0.52], [1.5, 1.2, 0.54], [3, 0.8, 0.52]] },
-    // le même, avec la reprise sur le « et » du 4e temps
+    { d: 0.18, pick: true,
+      A: [[0, 1.2, 'T', 0.62], [0.5, 2, 'a1', 0.4], [1, 2, 'a2', 0.44], [1.5, 2, 'a3', 0.5], [2, 1.2, 't', 0.54], [2.5, 2, 'a2', 0.4], [3, 2, 'a1', 0.44], [3.5, 2, 'a3', 0.5]],
+      B: [[0, 1.2, 'T', 0.62], [0.5, 2, 'a2', 0.4], [1, 2, 'a3', 0.46], [1.5, 2, 'a1', 0.42], [2, 1.2, 't', 0.54], [2.5, 2, 'a1', 0.4], [3, 2, 'a3', 0.46], [3.5, 2, 'a2', 0.44]] },
+    { d: 0.28,
+      A: [[0, 1.6, 'TC', 0.74], [1.5, 0.5, 'U', 0.48], [3, 0.5, 'U', 0.5]],
+      B: [[0, 0.9, 'T', 0.5], [1, 0.5, 'U', 0.5], [2, 1.4, 'TC', 0.66], [3.5, 0.5, 't', 0.42]] },
+    { d: 0.45,
+      A: [[0, 1.4, 'TC', 0.78], [1.5, 0.5, 'tC', 0.56], [2, 0.5, 'T', 0.46], [3, 0.5, 'U', 0.54]],
+      B: [[0, 0.5, 'T', 0.5], [1, 0.5, 'U', 0.54], [1.5, 0.5, 't', 0.44], [2, 1.4, 'TC', 0.7], [3.5, 0.5, 't', 0.46]] },
     { d: 0.62,
-      A: [[0, 0.8, 0.58], [1, 1.2, 0.5], [2.5, 0.8, 0.54], [3.5, 0.9, 0.5]],
-      B: [[0.5, 1.2, 0.52], [2, 0.8, 0.54], [3, 0.8, 0.52]] },
-    // plus serré (fin de phrase, tempo vif)
+      A: [[0, 1.4, 'TC', 0.8], [1.5, 0.5, 'tC', 0.58], [2, 0.5, 'T', 0.46], [3, 0.45, 'U', 0.55], [3.5, 0.2, 'X', 0.32]],
+      B: [[0, 0.5, 'T', 0.5], [1, 0.5, 'U', 0.55], [1.5, 0.5, 't', 0.44], [2, 0.9, 'TC', 0.7], [3, 0.2, 'X', 0.3], [3.5, 0.5, 'tC', 0.55]] },
     { d: 0.8,
-      A: [[0, 0.8, 0.6], [1, 0.45, 0.5], [1.5, 0.9, 0.54], [2.5, 0.8, 0.54], [3.5, 0.9, 0.5]],
-      B: [[1, 0.45, 0.52], [1.5, 0.9, 0.54], [2.5, 0.8, 0.54], [3.5, 0.9, 0.52]] }
+      A: [[0, 0.9, 'TC', 0.82], [0.5, 0.2, 'X', 0.3], [1.5, 0.5, 'tC', 0.6], [2, 0.5, 'T', 0.5], [2.5, 0.2, 'X', 0.3], [3, 0.45, 'U', 0.58], [3.5, 0.45, 'U', 0.5]],
+      B: [[0, 0.5, 'T', 0.52], [1, 0.45, 'U', 0.58], [1.5, 0.5, 't', 0.46], [2, 0.9, 'TC', 0.74], [2.5, 0.2, 'X', 0.3], [3, 0.2, 'X', 0.32], [3.5, 0.5, 'tC', 0.6]] },
+    // Balancements ajoutés, tirés de l'accompagnement de bossa : le pouce reste sur les temps 1 et 3, les doigts syncopent.
+    // doigts sur la clave de bossa (1, 2&, 4 | 2, 3&)
+    { d: 0.36,
+      A: [[0, 1.4, 'TC', 0.74], [1.5, 0.9, 'U', 0.5], [2, 0.9, 't', 0.5], [3, 0.5, 'U', 0.5]],
+      B: [[0, 0.9, 'T', 0.52], [1, 0.9, 'U', 0.52], [2, 0.5, 't', 0.48], [2.5, 1.2, 'U', 0.54]] },
+    // 1, 2, 3& | 1&, 2&, 4
+    { d: 0.5,
+      A: [[0, 0.9, 'TC', 0.76], [1, 0.5, 'U', 0.5], [2, 0.5, 't', 0.5], [2.5, 1.2, 'U', 0.54]],
+      B: [[0, 0.5, 'T', 0.52], [0.5, 0.9, 'U', 0.5], [1.5, 0.5, 'U', 0.54], [2, 0.9, 't', 0.5], [3, 0.5, 'U', 0.52]] },
+    // le même, relancé sur le « et » du 4e temps
+    { d: 0.68,
+      A: [[0, 0.9, 'TC', 0.78], [1, 0.5, 'U', 0.5], [2, 0.5, 't', 0.5], [2.5, 0.9, 'U', 0.55], [3.5, 0.5, 'U', 0.5]],
+      B: [[0, 0.5, 'T', 0.52], [0.5, 1.2, 'U', 0.52], [2, 0.9, 'tC', 0.6], [3, 0.5, 'U', 0.52]] }
 ];
 // Samba : batida de guitare (pouce sur chaque temps, accords étouffés sur les doubles croches)
 const LAT_SAMBA = [
@@ -209,14 +214,15 @@ const LAT_PIAZZOLLA = [
 // Basse latine : [position, degré, durée max (temps), vélocité] ; R fondamentale, F quinte (grave), T tierce,
 // O octave, A note de liaison vers l'accord suivant, N « anticipation » : fondamentale de l'accord suivant.
 const LAT_BASS = {
-    // bossa nova : « noire pointée - croche » ; la croche est une levée discrète qui annonce la note du temps suivant
-    // (la quinte avant le 3e temps, la fondamentale — ou celle de l'accord suivant — avant le 1er temps)
     bossa: [
-        [[0, 'R', 1.42, 0.84], [1.5, 'F', 0.45, 0.5], [2, 'F', 1.42, 0.78], [3.5, 'N', 0.45, 0.52]],
-        [[0, 'R', 1.42, 0.84], [1.5, 'F', 0.45, 0.48], [2, 'F', 1.42, 0.76], [3.5, 'N', 0.45, 0.54]],
-        [[0, 'R', 1.9, 0.84], [2, 'F', 1.42, 0.76], [3.5, 'N', 0.45, 0.5]],
-        [[0, 'R', 1.42, 0.84], [1.5, 'R', 0.45, 0.46], [2, 'F', 1.42, 0.78], [3.5, 'N', 0.45, 0.52]],
-        [[0, 'R', 1.9, 0.82], [2, 'F', 1.9, 0.74]]
+        [[0, 'R', 1.4, 0.88], [1.5, 'F', 0.45, 0.7], [2, 'R', 1.4, 0.82], [3.5, 'F', 0.45, 0.7]],
+        [[0, 'R', 1.4, 0.88], [1.5, 'F', 0.45, 0.7], [2, 'O', 0.9, 0.78], [3, 'F', 0.45, 0.64], [3.5, 'A', 0.45, 0.68]],
+        [[0, 'R', 0.9, 0.88], [1.5, 'F', 0.45, 0.7], [2, 'R', 0.9, 0.8], [3, 'T', 0.4, 0.62], [3.5, 'F', 0.45, 0.68]],
+        [[0, 'R', 1.9, 0.86], [2, 'F', 1.4, 0.72], [3.5, 'A', 0.45, 0.66]],
+        [[0, 'R', 1.4, 0.88], [1.5, 'F', 0.45, 0.68], [2, 'T', 0.9, 0.74], [3, 'F', 0.4, 0.62], [3.5, 'A', 0.45, 0.68]],
+        // « noire pointée - croche » : la croche est une levée vers la note du temps suivant (quinte, puis fondamentale à venir)
+        [[0, 'R', 1.4, 0.88], [1.5, 'F', 0.45, 0.6], [2, 'F', 1.4, 0.8], [3.5, 'N', 0.45, 0.62]],
+        [[0, 'R', 1.4, 0.88], [1.5, 'F', 0.45, 0.6], [2, 'F', 1.4, 0.8], [3.5, 'A', 0.45, 0.64]]
     ],
     samba: [
         [[0, 'R', 0.45, 0.82], [1, 'F', 0.9, 0.82], [2, 'R', 0.45, 0.78], [3, 'F', 0.9, 0.82]],

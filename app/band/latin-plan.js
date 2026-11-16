@@ -49,14 +49,12 @@ function latinPhraseExtras(ctx, rng, prev, index) {
         claveOn: rng() < 0.88,
         fill: rng() < 0.45 && groove !== 'tango', // le tango marcato n'a pas de fills de batterie
         fillKind: Math.floor(rng() * 3),
-        // bossa : charleston fermé, ganzá (shaker) seul pour les phrases les plus douces, ou les deux ensemble
-        bossaPerc: pickW(I < 0.42 ? [['shaker', 0.5], ['hat', 0.5]] : [['hat', 0.6], ['both', 0.4]]),
-        bossaThumb: rng() < 0.75 ? 'alt' : 'root' // pouce fondamentale / quinte, ou fondamentale répétée
+        // bossa : second balancement, pris dans la deuxième moitié de la phrase (moins de répétition)
+        bossaAlt: rng() < 0.6 ? byDensity(LATIN_PAT.LAT_BOSSA) : undefined
     };
 }
 
 function buildLatinPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-    if (ph.groove === 'bossa') return buildBossaPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
     const rng = ph.rng;
     const I = ph.intensity;
     const g = ph.groove;
@@ -138,7 +136,11 @@ function buildLatinPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i,
     };
 
     let cell;
-    if (g === 'bossa') { const pair = LATIN_PAT.LAT_BOSSA[ph.bossaIdx]; cell = (m % 2 === 0) ? pair.A : pair.B; }
+    if (g === 'bossa') {
+        const bIdx = (ph.bossaAlt !== undefined && L >= 4 && i >= 2) ? ph.bossaAlt : ph.bossaIdx;
+        const pair = LATIN_PAT.LAT_BOSSA[bIdx % LATIN_PAT.LAT_BOSSA.length];
+        cell = (m % 2 === 0) ? pair.A : pair.B;
+    }
     else if (g === 'samba') cell = LATIN_PAT.LAT_SAMBA[ph.sambaIdx].A;
     else if (g === 'tango') cell = LATIN_PAT.LAT_TANGO[ph.tangoIdx].A;
     else if (g === 'piazzolla') cell = LATIN_PAT.LAT_PIAZZOLLA[ph.piazzollaIdx].A;
@@ -234,262 +236,6 @@ function buildLatinPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i,
     return { piano: gtr, bass, drums, guitar: true };
 }
 
-// ===================== Bossa nova =====================
-// Écriture calquée sur le trio de bossa (violão, contrebasse, batterie légère) :
-//  - guitare : le pouce joue la basse sur les temps 1 et 3 sans jamais s'interrompre ; trois doigts pincent ensemble
-//    un accord sans fondamentale (tierce, septième, neuvième quand la gamme le permet) sur un motif syncopé de deux
-//    mesures (LAT_BOSSA). L'accord suivant est anticipé sur le « et » du 4e temps et reste lié par-dessus la barre de
-//    mesure : c'est le pouce seul qui marque le 1er temps. Ni grattés, ni accords étouffés, ni arpèges.
-//  - basse : fondamentale et quinte en « noire pointée - croche », la croche étant une levée discrète.
-//  - batterie : croches régulières et douces (charleston fermé et / ou ganzá), clave de bossa au cross-stick
-//    (1, 2&, 4 | 2, 3&), grosse caisse feutrée qui double la basse (1, 2&, 3, 4&). Pas de roulements de toms ni de crash.
-
-// Gammes dont la neuvième majeure colore l'accord sans le brouiller.
-const BOSSA_NINTH_OK = new Set(['ionian', 'lydian', 'dorian', 'aeolian', 'mixolydian', 'lydianDominant', 'melodicMinor',
-    'harmonicMinor', 'majorBebop', 'dominantBebop', 'majorPentatonic', 'mixolydianFlat13']);
-const bossaMod = (x) => ((x % 12) + 12) % 12;
-
-// Classes de hauteur jouées par les doigts : tierce, septième et une couleur (tension notée dans l'accord, neuvième si la
-// gamme l'admet, sinon quinte). `sixth` : la septième majeure laisse la place à la sixte (Fmaj7 → F6/9).
-function bossaFingerPcs(env, cs, sixth) {
-    const t = env.findChordObj(cs.chordId).notes;
-    const r0 = t[0] || 0;
-    const rel = (k) => bossaMod(t[k] - r0);
-    let ivs;
-    if (t.length <= 3) ivs = t.map((_, k) => rel(k));
-    else if (t.length > 4) ivs = [rel(1), rel(3), rel(t.length - 1)];
-    else {
-        const third = rel(1), fifth = rel(2);
-        let sev = rel(3);
-        const plain = fifth === 7 && (third === 3 || third === 4);
-        if (sixth && third === 4 && sev === 11) sev = 9;
-        ivs = [third, sev, (plain && BOSSA_NINTH_OK.has(cs.scaleId)) ? 2 : fifth];
-    }
-    const pcs = [];
-    ivs.forEach(iv => { const pc = bossaMod(cs.rootIndex + r0 + iv); if (!pcs.includes(pc)) pcs.push(pc); });
-    return pcs.sort((a, b) => a - b);
-}
-
-// Peut-on alléger la septième majeure en sixte quand l'accord dure ? (accords maj7 à quatre sons seulement)
-function bossaHasSixth(env, cs) {
-    const t = env.findChordObj(cs.chordId).notes;
-    if (t.length !== 4) return false;
-    const r0 = t[0] || 0;
-    return bossaMod(t[1] - r0) === 4 && bossaMod(t[2] - r0) === 7 && bossaMod(t[3] - r0) === 11;
-}
-
-// Dominante altérée (tierce majeure, quinte diminuée) : la basse ne joue pas la quinte diminuée, elle redit la fondamentale.
-function bossaNoFifth(env, cs) {
-    const t = env.findChordObj(cs.chordId).notes;
-    const r0 = t[0] || 0;
-    return t.length > 2 && bossaMod(t[1] - r0) === 4 && bossaMod(t[2] - r0) !== 7;
-}
-
-// Pouce de la guitare (hauteurs écrites) : fondamentale sur la 6e ou la 5e corde (mi2 à mi♭3 réels), quinte sur la corde
-// voisine (dessous si la guitare le permet, sinon dessus).
-function bossaThumb(env, cs) {
-    const off = env.transOffset;
-    const T = latBassTones(env, cs);
-    let root = bossaMod(T.root + off);
-    if (root > 3) root -= 12;
-    const up = bossaMod(T.fifth - T.root) || 7;
-    const fifth = bossaNoFifth(env, cs) ? root : ((root - (12 - up) >= -8) ? root - (12 - up) : root + up);
-    return { root: root - off, fifth: fifth - off };
-}
-
-// Accord des doigts (hauteurs écrites, du grave à l'aigu) : position serrée sur les cordes 4-3-2 / 3-2-1 (ré3 à fa4
-// réels), au-dessus du pouce, choisie pour bouger le moins possible par rapport à l'accord précédent.
-function bossaFingers(env, cs, prev, sixth) {
-    const off = env.transOffset;
-    const pcs = bossaFingerPcs(env, cs, sixth);
-    if (!pcs.length) return [];
-    const thumb = bossaThumb(env, cs).root + off;
-    let best = null, bestCost = Infinity;
-    for (let r = 0; r < pcs.length; r++) {
-        const order = pcs.slice(r).concat(pcs.slice(0, r));
-        for (let lo = 2; lo <= 13; lo++) {
-            if (bossaMod(lo) !== order[0]) continue;
-            const v = [lo];
-            for (let k = 1; k < order.length; k++) v.push(v[k - 1] + (bossaMod(order[k] - v[k - 1]) || 12));
-            const top = v[v.length - 1];
-            if (top > 19) continue;
-            let c = 0.35 * Math.abs((v[0] + top) / 2 - 10) + Math.max(0, top - 16) * 1.2;
-            if (v[0] <= thumb + 2) c += 6;
-            for (let k = 0; k + 1 < v.length; k++) if (v[k + 1] - v[k] === 1) c += 16; // pas de seconde mineure serrée
-            if (prev && prev.length === v.length) for (let k = 0; k < v.length; k++) c += Math.abs(v[k] - (prev[k] + off));
-            if (c < bestCost - 1e-9) { bestCost = c; best = v; }
-        }
-    }
-    return best ? best.map(n => n - off) : [];
-}
-
-function buildBossaPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-    const rng = ph.rng;
-    const I = ph.intensity;
-    const prog = L > 1 ? i / (L - 1) : 0;
-    const gv = (0.88 + 0.14 * I) * (0.95 + 0.05 * prog); // la bossa reste égale : nuances resserrées
-    const segs = halves
-        ? [{ s: 0, e: 2, cs: halves[0] }, { s: 2, e: 4, cs: halves[1] }]
-        : [{ s: 0, e: 4, cs: step }];
-    const lastSeg = segs[segs.length - 1];
-    const sameChord = (a, b) => !!a && !!b && a.rootIndex === b.rootIndex && a.chordId === b.chordId
-        && (Number.isInteger(a.bassRootIndex) ? a.bassRootIndex : -1) === (Number.isInteger(b.bassRootIndex) ? b.bassRootIndex : -1);
-    const changeNext = !!nextStep && isLastMeasureOfStep && !sameChord(lastSeg.cs, nextStep);
-    const keyOf = (cs) => cs.rootIndex + ':' + cs.chordId;
-    const st = (env.state.latVoice && env.state.latVoice.bossa) ? env.state.latVoice : null;
-    const tied = !!st && st.tie === m - 1 && st.tieKey === keyOf(segs[0].cs); // accord déjà posé sur le « et » du 4 précédent
-    const mainKey = keyOf(lastSeg.cs);
-    const hold = (!halves && st && st.main === mainKey) ? (st.hold || 0) + 1 : 0; // mesures passées sur le même accord
-    const sixth = hold % 2 === 1 && bossaHasSixth(env, lastSeg.cs);
-
-    // ---- motif des doigts ----
-    const pair = LATIN_PAT.LAT_BOSSA[(ph.bossaIdx || 0) % LATIN_PAT.LAT_BOSSA.length];
-    let hits = ((m % 2 === 0) ? pair.A : pair.B).map(h => h.slice());
-    const at = (p) => hits.findIndex(h => Math.abs(h[0] - p) < 0.01);
-    const drop = (p) => { const k = at(p); if (k >= 0) hits.splice(k, 1); };
-    const put = (p, d, v) => { drop(p); hits.push([p, d, v]); };
-    // petite respiration : en cours de phrase, un contretemps léger disparaît parfois (jamais deux mesures de suite au même endroit)
-    if (i > 0 && hits.length > 3 && rng() < 0.18 * (1.1 - I)) {
-        const soft = hits.map((h, k) => k).filter(k => hits[k][0] > 0.01 && hits[k][0] < 3.4);
-        if (soft.length) hits.splice(soft[Math.floor(rng() * soft.length)], 1);
-    }
-    if (tied) drop(0);
-    // Anticipation : l'accord suivant arrive sur le « et » du 4e temps, lié jusqu'à la mesure suivante
-    const anticip = changeNext && rng() < (at(3.5) >= 0 ? 0.9 : 0.55 + 0.2 * I);
-    if (anticip) {
-        const k3 = at(3);
-        if (k3 >= 0) hits[k3][1] = Math.min(hits[k3][1], 0.42);
-        put(3.5, 1.3, 0.54);
-    } else if (changeNext) drop(3.5); // sans anticipation, rien ne déborde sur le nouvel accord
-    // Mesure à deux accords : le second arrive souvent en avance sur le « et » du 2e temps
-    let midAntic = false;
-    if (halves) {
-        midAntic = at(1.5) >= 0 ? rng() < 0.75 : rng() < 0.3;
-        if (midAntic) { put(1.5, 1.2, 0.54); drop(2); }
-        const cut = midAntic ? 1.5 : 2;
-        if (!tied && !hits.some(h => h[0] < cut - 0.01)) put(0, 0.9, 0.56);
-        if (!hits.some(h => h[0] >= cut - 0.01 && h[0] < 3.4)) put(2, 0.9, 0.54);
-    }
-    hits.sort((a, b) => a[0] - b[0]);
-    const ties = hits.some(h => h[0] >= 3.5 - 0.01);
-    const tieKey = ties ? keyOf(anticip ? nextStep : lastSeg.cs) : null;
-
-    // ---- conduite des voix ----
-    const cache = {};
-    let lastV = st ? st.v : null;
-    let lastKey = st ? st.key : null;
-    const voiceFor = (cs, six) => {
-        const key = keyOf(cs) + (six ? ':6' : '');
-        if (cache[key]) return cache[key];
-        const v = (st && st.key === key) ? st.v : bossaFingers(env, cs, lastV, six);
-        cache[key] = v; lastV = v; lastKey = key;
-        return v;
-    };
-    const csAtPos = (pos) => (anticip && pos >= 3.5 - 0.01) ? nextStep : (halves && pos >= (midAntic ? 1.5 : 2) - 0.01 ? segs[1].cs : segs[0].cs);
-
-    // ---- guitare ----
-    const gtr = [];
-    const lay = () => 0.003 + rng() * 0.008;
-    // pouce : temps 1 et 3, note qui résonne presque jusqu'à la suivante
-    const thumbAlt = ph.bossaThumb !== 'root';
-    [0, 2].forEach(p => {
-        const cs = (halves && p === 2) ? segs[1].cs : segs[0].cs;
-        const th = bossaThumb(env, cs);
-        const note = (p === 2 && !halves && thumbAlt) ? th.fifth : th.root;
-        gtr.push({
-            pos: p, dur: 1.8, vel: Math.min(1, (p === 0 ? 0.62 : 0.54) * gv * (0.96 + rng() * 0.08)),
-            rootIndex: 0, intervals: [note], noteVels: [1], dir: 1, roll: 0, lay: lay(), thumb: true
-        });
-    });
-    // doigts : trois cordes pincées ensemble (à peine égrenées), tenues jusqu'à la frappe suivante
-    hits.forEach(([p, d, v], k) => {
-        const cs = csAtPos(p);
-        const six = sixth && cs === lastSeg.cs && !halves;
-        const V = voiceFor(cs, six);
-        if (!V.length) return;
-        const nx = hits[k + 1];
-        const room = nx ? nx[0] - p - 0.06 : (p >= 3.5 - 0.01 ? 1.4 : 4.3 - p);
-        const dur = Math.max(0.3, Math.min(d, room));
-        const onBeat = Math.abs(p - Math.round(p)) < 0.01;
-        gtr.push({
-            pos: p, dur, vel: Math.max(0.1, Math.min(1, v * gv * (onBeat ? 1 : 1.05) * (0.95 + rng() * 0.1))),
-            rootIndex: 0, intervals: V.slice(),
-            noteVels: V.map((_, j) => j === V.length - 1 ? 1 : (j === 0 ? 0.86 : 0.8)), // la voix du haut chante
-            dir: 1, roll: 0.002 + rng() * 0.004, lay: lay()
-        });
-    });
-    gtr.sort((a, b) => a.pos - b.pos || (a.thumb ? -1 : 1));
-
-    // ---- contrebasse ----
-    const bass = [];
-    const bassSet = LATIN_PAT.LAT_BASS.bossa;
-    const bi = ((i === 2 && rng() < 0.35) ? ph.bassAlt : ph.bassIdx) || 0;
-    const bv = (0.86 + 0.16 * I) * (0.95 + 0.05 * prog);
-    segs.forEach((sg, si) => {
-        const T = latBassTones(env, sg.cs);
-        const isLast = si === segs.length - 1;
-        const follow = !isLast ? segs[si + 1].cs : (changeNext ? nextStep : null);
-        const approach = (follow && rng() < 0.25) ? popBassApproach(env, T.root, follow, rng) : null;
-        const pickup = () => approach !== null ? approach : (follow ? latBassTones(env, follow).root : T.root);
-        const tpl = (sg.e - sg.s) >= 4
-            ? bassSet[bi % bassSet.length]
-            : [[0, 'R', 1.42, 0.82], [1.5, 'N', 0.45, 0.5]];
-        tpl.forEach(([p, tok, d, v]) => {
-            let abs;
-            switch (tok) {
-                case 'F': abs = bossaNoFifth(env, sg.cs) ? T.root : T.fifth; break;
-                case 'N': abs = pickup(); break;
-                default: abs = T.root;
-            }
-            bass.push({ pos: sg.s + p, abs, dur: d, tok, vel: Math.min(1, v * bv * (0.96 + rng() * 0.08)), wide: true });
-        });
-    });
-    bass.sort((a, b) => a.pos - b.pos);
-    bass.forEach((b, k) => {
-        const nx = bass[k + 1];
-        b.dur = Math.max(0.12, Math.min(b.dur, nx ? nx.pos - b.pos + 0.02 : 4 - b.pos - 0.03));
-    });
-
-    const drums = buildBossaDrums(env, ph, i, L, isTurn, rng, I, m);
-    env.state.latTie = false;
-    env.state.latVoice = lastKey ? { key: lastKey, v: lastV, bossa: true, tie: ties ? m : -9, tieKey, main: mainKey, hold } : null;
-    return { piano: gtr, bass, drums, guitar: true };
-}
-
-// Batterie de bossa nova : tout est doux et régulier, la clave au cross-stick porte le rythme.
-function buildBossaDrums(env, ph, i, L, isTurn, rng, I, m) {
-    const d = [];
-    const prog = L > 1 ? i / (L - 1) : 0;
-    const dv = (0.8 + 0.2 * I) * (0.95 + 0.05 * prog);
-    const add = (pos, drum, vel) => d.push({ pos, drum, vel: Math.max(0.06, Math.min(1, vel * dv)), lay: drum === 'rim' ? 0.004 : 0 });
-    const jit = () => (rng() - 0.5) * 0.05;
-    const doFill = isTurn && ph.fill;
-    const kind = ph.fillKind;
-    env.state.bandLastFill = false; // pas de crash après une relance de bossa
-    const perc = ph.bossaPerc || 'hat';
-
-    // croches : charleston fermé (égal, temps à peine appuyés) et / ou ganzá (contretemps un peu poussés)
-    for (let k = 0; k < 8; k++) {
-        const p = k * 0.5;
-        const on = k % 2 === 0;
-        if (perc !== 'shaker') {
-            const open = doFill && kind === 0 && p === 3.5;
-            add(p, open ? 'ohat' : 'hat', (on ? 0.32 : 0.26) + 0.08 * I + jit());
-        }
-        if (perc !== 'hat') add(p, 'shaker', (on ? 0.26 : 0.36) * (perc === 'both' ? 0.8 : 1) + jit());
-    }
-    // clave de bossa (3-2) au cross-stick ; absente seulement des phrases les plus retenues
-    if (ph.claveOn || I >= 0.4) {
-        const claveA = m % 2 === 0;
-        (claveA ? [0, 1.5, 3] : [1, 2.5]).forEach((p, k) => add(p, 'rim', (claveA && k === 0 ? 0.5 : 0.44) + jit()));
-        if (doFill && kind === 1) add(3.5, 'rim', 0.32);
-    }
-    // grosse caisse feutrée : 1 et 3, chacun précédé de sa levée (comme la basse)
-    [[0, 0.5], [1.5, 0.28], [2, 0.44], [3.5, 0.3]].forEach(([p, v]) => add(p, 'kick', v + jit()));
-    if (doFill && kind === 2) { add(3.25, 'ghost', 0.26); add(3.75, 'ghost', 0.34); }
-    return d.sort((a, b) => a.pos - b.pos);
-}
-
 // Batterie latine : trois grooves (bossa, samba, afro-cubain), dynamique qui monte dans la phrase,
 // grosse caisse calée sur les attaques de la basse, petits fills en fin de phrase.
 function buildLatinDrums(env, ph, i, L, isTurn, bass, rng, I, m) {
@@ -514,9 +260,10 @@ function buildLatinDrums(env, ph, i, L, isTurn, bass, rng, I, m) {
     }
     if (isTurn) env.state.bandLastFill = doFill;
 
-    const clave = (vel) => {
+    // `two` : mesure « 2 » de la clave — 2 et 3 pour la clave de son (afro-cubain), 2 et 3& pour la clave de bossa
+    const clave = (vel, two = [1, 2]) => {
         if (!ph.claveOn) return;
-        (claveA ? [0, 1.5, 3] : [1, 2]).forEach(p => { if (p < fillFrom) add(p, 'rim', vel + (rng() - 0.5) * 0.1); });
+        (claveA ? [0, 1.5, 3] : two).forEach(p => { if (p < fillFrom) add(p, 'rim', vel + (rng() - 0.5) * 0.1); });
     };
     const kicksOnBass = (base, maxN, pR, pF) => {
         const ks = new Set(base);
@@ -537,7 +284,7 @@ function buildLatinDrums(env, ph, i, L, isTurn, bass, rng, I, m) {
             const open = p === 3.5 && rng() < 0.12 + 0.2 * I;
             add(p, open ? 'ohat' : 'hat', (k % 2 === 0 ? hb : hb * 0.62) + jit());
         }
-        clave(0.5);
+        clave(0.5, [1, 2.5]);
         const ks = kicksOnBass([0, 2], 4, 0.5, 0.3 + 0.3 * I);
         ks.forEach(p => { if (p < fillFrom) add(p, 'kick', p === 0 ? 0.78 : (p === 2 ? 0.6 : 0.46 + rng() * 0.1)); });
     } else if (g === 'samba') {
@@ -587,5 +334,5 @@ function buildLatinDrums(env, ph, i, L, isTurn, bass, rng, I, m) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { latinPhraseExtras, buildLatinPlan, buildLatinDrums, buildBossaPlan, buildBossaDrums, bossaFingerPcs, bossaFingers, bossaThumb };
+    module.exports = { latinPhraseExtras, buildLatinPlan, buildLatinDrums };
 }
