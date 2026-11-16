@@ -240,3 +240,27 @@ describe('styles rock', () => {
         assert.ok(minor);
     });
 });
+
+describe('bossa nova : grille AABA en mineur', () => {
+    test('32 mesures, départ et fin sur la tonique mineure, pont qui commence dans le relatif majeur', () => {
+        for (let seed = 0; seed <= 60; seed++) {
+            const tpl = build('bossa', 0, seed ? seeded(seed) : null);
+            assert.equal(tpl.reduce((a, x) => a + x.m, 0), 32, `graine ${seed}`);
+            assert.deepEqual([tpl[0].r, tpl[0].c], [0, 'm7']);
+            const end = tpl[tpl.length - 1];
+            assert.deepEqual([end.r, end.c, end.m], [0, 'm7', 2]);
+            assert.equal(tpl[tpl.length - 2].c, '7alt', 'cadence V7 - i');
+            const b1 = tpl.find(x => x.phrase === 'B1');
+            assert.ok((b1.r === 5 && b1.c === 'm7') || (b1.r === 3 && b1.c === 'maj7'), 'ii ou I du relatif majeur');
+        }
+    });
+    test('forme de référence : i - iv - ii° - V7alt - i', () => {
+        const tpl = build('bossa', 0, null);
+        assert.deepEqual(tpl.slice(0, 5).map(x => [x.r, x.c, x.m]), [[0, 'm7', 2], [5, 'm7', 2], [2, 'm7b5', 1], [7, '7alt', 1], [0, 'm7', 2]]);
+    });
+    test('« Générer » renouvelle la grille', () => {
+        const seen = new Set();
+        for (let seed = 1; seed <= 40; seed++) seen.add(build('bossa', 0, seeded(seed)).map(x => x.r + x.c + x.m).join(' '));
+        assert.ok(seen.size >= 10, `${seen.size} grilles différentes`);
+    });
+});

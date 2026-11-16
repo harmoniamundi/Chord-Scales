@@ -550,23 +550,48 @@ const STYLE_BUILDERS = {
         return template;
     },
     bossa: (t) => {
-        const { abs, join, cadence } = t;
+        const { pick, join, cells, twinOf } = t;
         let template = [];
-        // 32 mesures AABA : cadence mineure, dominantes secondaires et retour clair.
-        const A = [
-            abs(0,'m7',2,'dorian','A','A1','tonic'),
-            abs(5,'m7',2,'dorian','A','A1','predominant'),
-            abs(10,'m7b5',1,'locrianSharp2','A','A2','predominant'),
-            abs(3,'7alt',1,'altered','A','A2','dominant'),
-            abs(8,'7',2,'mixolydian','A','A2','dominant')
+        // Bossa nova, 32 mesures AABA en mineur, avec le vocabulaire du répertoire (Blue Bossa, Manhã de Carnaval,
+        // Insensatez…) : i - iv, ii° - V7 - i, bVImaj7 et bIImaj7 (sixte napolitaine) comme couleurs, pont dans le relatif
+        // majeur (ii - V - I en bIII) qui revient par ii° - V7. Chaque cellule fait 4 mesures ; toutes les cellules de A
+        // partent de la tonique, la dernière conclut par V7 - i.
+        const a1Opts = [
+            [['m7',0,2],['m7',5,2]],                          // i | i | iv | iv
+            [['m7',0],['hd',2],['D9b',7],['m7',0]],           // i | ii° | V7(b9) | i
+            [['m7',0,2],['maj7',8,2]],                        // i | i | bVImaj7 | bVImaj7
+            [['m7',0],['m7',5],['D',10],['maj7i',3]],         // i | iv | bVII7 | bIIImaj7
+            [['m7',0,2],['maj7',1,2]]                         // i | i | bIImaj7 | bIImaj7
         ];
-        const A2 = A.map(x=>({...x,section:'A2',phrase:x.phrase.replace(/^A/,'A2')}));
-        const B = [
-            abs(5,'m7',2,'dorian','B','B1','predominant'), abs(10,'7',2,'mixolydian','B','B1','dominant'),
-            abs(3,'maj7',2,'lydian','B','B2','tonic'), abs(8,'7alt',2,'altered','B','B2','dominant')
+        const a2Opts = [
+            [['hd',2],['alt',7],['m7',0,2]],                  // ii° | V7alt | i | i
+            [['maj7',8],['alt',7],['m7',0,2]],                // bVImaj7 | V7alt | i | i
+            [['hd',2],['D9b',7],['m7',0],['maj7',1]],         // ii° | V7(b9) | i | bIImaj7
+            [['m7',5],['D9b',7],['m7',0,2]]                   // iv | V7(b9) | i | i
         ];
-        const A3 = A.map(x=>({...x,section:'A3',phrase:x.phrase.replace(/^A/,'A3')}));
-        template=join(A,A2,B,A3);
+        const b1Opts = [
+            [['m7',5],['D',10],['maj7i',3,2]],                // ii | V | I | I (dans le relatif majeur)
+            [['maj7i',3],['m7a',0],['m7',5],['D',10]],        // I | vi | ii | V
+            [['m7',5],['D',10],['maj7i',3],['maj7',8]]        // ii | V | I | IV
+        ];
+        const b2Opts = [
+            [['maj7i',3,2],['hd',2],['alt',7]],               // I | I | puis ii° | V7alt de la tonalité d'origine
+            [['maj7',8,2],['hd',2],['alt',7]],                // IV | IV | ii° | V7alt
+            [['m7',5],['D',10],['hd',2],['D9b',7]]            // ii | V | ii° | V7(b9)
+        ];
+        const endOpts = [
+            [['hd',2],['alt',7],['m7',0,2]],                  // ii° | V7alt | i | i
+            [['maj7',8],['alt',7],['m7',0,2]],                // bVImaj7 | V7alt | i | i
+            [['maj7',1],['alt',7],['m7',0,2]]                 // bIImaj7 | V7alt | i | i
+        ];
+        const a1 = pick(a1Opts);
+        // la cellule suivante ne redit pas l'accord sur lequel la précédente vient de se poser
+        const last = a1[a1.length - 1];
+        const fresh = (opts) => { const ok = opts.filter(o => !(o[0][0] === last[0] && o[0][1] === last[1])); return ok.length ? ok : opts; };
+        const A = join(cells(a1,'A','A1'), cells(pick(fresh(a2Opts)),'A','A2'));
+        const B = join(cells(pick(b1Opts),'B','B1'), cells(pick(b2Opts),'B','B2'));
+        const A3 = join(cells(a1,'A3','A3'), cells(pick(fresh(endOpts)),'A3','A4'));
+        template = join(A, twinOf(A,'A2'), B, A3);
         return template;
     },
     pop: (t) => {
