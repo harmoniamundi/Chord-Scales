@@ -8,9 +8,11 @@ const step = (over = {}) => ({ rootIndex: 2, chordId: 'm7', scaleId: 'dorian', m
 
 describe('sanitizeImportedGrid : refus', () => {
     test('pas un tableau, vide ou trop long → null', () => {
-        for (const bad of [null, undefined, {}, 'x', 5, [], Array.from({ length: 65 }, () => step())]) assert.equal(F.sanitizeImportedGrid(bad), null);
+        for (const bad of [null, undefined, {}, 'x', 5, [], Array.from({ length: 513 }, () => step())]) assert.equal(F.sanitizeImportedGrid(bad), null);
     });
-    test('64 blocs : accepté', () => {
+    test('grille longue (morceau écrit en entier) : 91 blocs acceptés, 512 au plus', () => {
+        assert.equal(F.sanitizeImportedGrid(Array.from({ length: 91 }, () => step())).length, 91);
+        assert.equal(F.sanitizeImportedGrid(Array.from({ length: 512 }, () => step())).length, 512);
         assert.equal(F.sanitizeImportedGrid(Array.from({ length: 64 }, () => step())).length, 64);
     });
     test('un seul bloc invalide rejette toute la grille', () => {

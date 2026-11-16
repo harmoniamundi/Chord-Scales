@@ -266,8 +266,12 @@ function unpackSavedEntry(entry) {
     return null;
 }
 
+// Nombre maximal de blocs (cases) d'une grille importée ou relue depuis les sauvegardes. L'éditeur n'impose aucune limite :
+// celle-ci ne sert qu'à écarter un fichier aberrant (elle valait 64, ce qui refusait les morceaux écrits en entier).
+const GRID_MAX_BLOCKS = 512;
+
 function sanitizeImportedGrid(raw) {
-    if (!Array.isArray(raw) || raw.length === 0 || raw.length > 64) return null;
+    if (!Array.isArray(raw) || raw.length === 0 || raw.length > GRID_MAX_BLOCKS) return null;
     const knownChord = (id) => !!GF_THEORY.lookupChord(id);
     const clean = [];
     for (const item of raw) {
@@ -450,6 +454,6 @@ function describeExport(opts) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { MEASURE_NOTE_MAX, MEASURE_NOTE_SPAN_MAX, GRID_NOTE_MAX, NOTE_FONTS, NOTE_MAX_STAVES, NOTE_MAX_FRAMES, NOTE_MAX_CHORDS, NOTE_MAX_DRAWS, sanitizeNoteHtml, BAND_DENSITY_DEFAULTS, PART_LABELS, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings,
+    module.exports = { GRID_MAX_BLOCKS, MEASURE_NOTE_MAX, MEASURE_NOTE_SPAN_MAX, GRID_NOTE_MAX, NOTE_FONTS, NOTE_MAX_STAVES, NOTE_MAX_FRAMES, NOTE_MAX_CHORDS, NOTE_MAX_DRAWS, sanitizeNoteHtml, BAND_DENSITY_DEFAULTS, PART_LABELS, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings,
         EXPORT_OPTIONS, EXPORT_MODES, exportOptionsFor, exportOptionsNormalized, filterGridForExport, filterSettingsForExport, describeExport };
 }

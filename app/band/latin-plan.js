@@ -132,7 +132,9 @@ function buildLatinPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i,
             }
         }
         notes = notes.slice().sort((a, b) => a - b).filter((n, k, arr) => k === 0 || n !== arr[k - 1]); // pas de note doublée
-        return mkGtr(pos, dur, notes, vel, dir, roll, kind === 'X');
+        const out = mkGtr(pos, dur, notes, vel, dir, roll, kind === 'X');
+        out.kind = kind;
+        return out;
     };
 
     let cell;
@@ -150,6 +152,10 @@ function buildLatinPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i,
     if (halves) { // mesure à deux accords : chaque accord commence par un pouce + accord
         [0, 2].forEach(st => { if (!ev.some(h => Math.abs(h[0] - st) < 0.01)) ev.push([st, 1.4, 'TC', 0.7]); });
         ev.sort((a, b) => a[0] - b[0]);
+    }
+    if (g === 'bossa' && env.state.latVoice && env.state.latVoice.ant === m - 1 && env.state.latVoice.key === keyOf(segs[0].cs)) {
+        // l'accord a déjà été posé sur le « et » du 4e temps précédent et sonne encore : le pouce seul marque le 1er temps
+        ev.forEach(h => { if (h[0] < 0.01) { if (h[2] === 'TC') h[2] = 'T'; else if (h[2] === 'tC') h[2] = 't'; } });
     }
     ev.forEach(([p, d, k, v]) => { const e = mk(p, d, k, v); if (e) gtr.push(e); });
 
@@ -179,6 +185,7 @@ function buildLatinPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i,
         if (a) gtr.push(a);
     }
     gtr.sort((a, b) => a.pos - b.pos);
+    if (g === 'bossa') bossaLegato(gtr, endOf, gv);
 
     // ---- basse ----
     const bass = [];
@@ -230,10 +237,37 @@ function buildLatinPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i,
         b.dur = Math.max(0.12, Math.min(b.dur, limit));
     });
     env.state.latTie = g === 'afro' && bass.some(b => b.tok === 'N' && b.pos >= 3.5 - 1e-6);
+    // bossa : la contrebasse lie ses notes (chaque note tient jusqu'à la suivante), sans trou entre deux appuis
+    if (g === 'bossa') bass.forEach((b, k) => {
+        const nx = bass[k + 1];
+        const room = nx ? nx.pos - b.pos : (b.tok === 'N' ? 1.2 : 4 - b.pos);
+        b.dur = Math.max(b.dur, Math.min(2, room) - 0.04);
+    });
 
     const drums = buildLatinDrums(env, ph, i, L, isTurn, bass, rng, I, m);
     env.state.latVoice = lastKey ? { key: lastKey, v: lastV } : null;
+    if (env.state.latVoice && g === 'bossa' && anticip && !ran) env.state.latVoice.ant = m;
     return { piano: gtr, bass, drums, guitar: true };
+}
+
+// Bossa : jeu lié. Les hauteurs et les positions ne changent pas ; seules les durées et les nuances sont retouchées.
+//  - le pouce résonne jusqu'à la note de pouce suivante, les accords pincés jusqu'à la frappe d'accord suivante
+//    (sans jamais déborder sur un changement d'accord : `endOf` donne la limite) ;
+//  - les écarts de nuance entre frappes voisines sont resserrés, pour un débit égal.
+function bossaLegato(gtr, endOf, gv) {
+    const isThumb = (e) => e.kind === 'T' || e.kind === 't' || e.kind === 'TC' || e.kind === 'tC';
+    const isChord = (e) => e.kind === 'C' || e.kind === 'U' || e.kind === 'TC' || e.kind === 'tC' || e.kind === 'X';
+    const mid = 0.52 * gv;
+    gtr.forEach((e, k) => {
+        if (!e.kind) return;                       // petite phrase conjointe : inchangée
+        if (e.kind !== 'X' && e.kind[0] !== 'a') {
+            const same = (e.kind === 'T' || e.kind === 't') ? isThumb : isChord;
+            const nx = gtr.slice(k + 1).find(o => o.pos > e.pos + 0.01 && same(o));
+            const room = Math.min(nx ? nx.pos - e.pos - 0.03 : 9, endOf(e.pos) - e.pos, 2);
+            e.dur = Math.max(e.dur, room);
+        }
+        e.vel = Math.max(0.1, Math.min(1, mid + (e.vel - mid) * (e.kind === 'X' ? 0.7 : 0.8)));
+    });
 }
 
 // Batterie latine : trois grooves (bossa, samba, afro-cubain), dynamique qui monte dans la phrase,
@@ -280,13 +314,13 @@ function buildLatinDrums(env, ph, i, L, isTurn, bass, rng, I, m) {
         for (let k = 0; k < 8; k++) {
             const p = k * 0.5;
             if (p >= fillFrom) break;
-            if (k % 2 === 1 && rng() < 0.06) continue;
+            const skip = k % 2 === 1 && rng() < 0.06; // (tirage conservé) le charleston ne saute plus de croche : débit continu
             const open = p === 3.5 && rng() < 0.12 + 0.2 * I;
-            add(p, open ? 'ohat' : 'hat', (k % 2 === 0 ? hb : hb * 0.62) + jit());
+            add(p, open ? 'ohat' : 'hat', (k % 2 === 0 ? hb : hb * (skip ? 0.7 : 0.86)) + jit() * 0.5);
         }
         clave(0.5, [1, 2.5]);
         const ks = kicksOnBass([0, 2], 4, 0.5, 0.3 + 0.3 * I);
-        ks.forEach(p => { if (p < fillFrom) add(p, 'kick', p === 0 ? 0.78 : (p === 2 ? 0.6 : 0.46 + rng() * 0.1)); });
+        ks.forEach(p => { if (p < fillFrom) add(p, 'kick', p === 0 ? 0.7 : (p === 2 ? 0.58 : 0.38 + rng() * 0.08)); }); // grosse caisse feutrée
     } else if (g === 'samba') {
         for (let k = 0; k < 16; k++) {
             const p = k * 0.25;
@@ -328,7 +362,7 @@ function buildLatinDrums(env, ph, i, L, isTurn, bass, rng, I, m) {
             1: [[3, 'snare', 0.4], [3.25, 'snare', 0.46], [3.5, 'snare', 0.58], [3.75, 'snare', 0.74]],
             2: [[2.5, 'tom1', 0.5], [3, 'tom2', 0.6], [3.5, 'tom3', 0.7], [3.75, 'tom3', 0.62]]
         };
-        (fills[kind] || []).forEach(([p, dr, v]) => add(p, dr, v));
+        (fills[kind] || []).forEach(([p, dr, v]) => add(p, dr, g === 'bossa' ? v * 0.78 : v)); // bossa : relance plus douce, qui ne casse pas le débit
     }
     return d;
 }

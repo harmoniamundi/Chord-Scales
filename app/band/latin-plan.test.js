@@ -129,3 +129,26 @@ describe('bossa nova', () => {
         }
     });
 });
+
+describe('bossa nova : jeu lié', () => {
+    const bossaPh = (seed, extra = {}) => mkPhrase(seed, ctx({ groove: 'bossa', bpm: 130 }), extra);
+    test('contrebasse sans trou : chaque note tient jusqu’à la suivante', () => {
+        for (let seed = 1; seed <= 50; seed++) {
+            const p = plan({ seed, i: seed % 4, m: seed % 4, ph: bossaPh(seed) });
+            p.bass.forEach((b, k) => {
+                const nx = p.bass[k + 1];
+                if (nx) assert.ok(nx.pos - (b.pos + b.dur) < 0.06 || b.dur >= 1.9, `graine ${seed} : trou après ${b.pos}`);
+                if (nx) assert.ok(b.pos + b.dur <= nx.pos + 0.04, 'pas de chevauchement');
+            });
+        }
+    });
+    test('guitare : aucune note ne déborde sur le changement d’accord, le charleston joue les huit croches', () => {
+        for (let seed = 1; seed <= 50; seed++) {
+            const p = plan({ seed, i: seed % 4, m: seed % 4, last: true, nextStep: G7, ph: bossaPh(seed, { fill: false }) });
+            const dm = [2, 5, 9, 0];
+            p.piano.filter(e => e.kind && e.pos < 3.5 && e.intervals.every(n => dm.includes(((n % 12) + 12) % 12)))
+                .forEach(e => assert.ok(e.pos + e.dur <= 4.06, `graine ${seed} : ${e.pos}+${e.dur}`));
+            assert.equal(p.drums.filter(e => e.drum === 'hat' || e.drum === 'ohat').length, 8);
+        }
+    });
+});
