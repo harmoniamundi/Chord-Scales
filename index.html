@@ -5639,25 +5639,33 @@
                 if (this._pdfAfter) { window.removeEventListener('afterprint', this._pdfAfter); this._pdfAfter = null; }
             }
 
-            async exportPdf(name, opts) {
+            // Tout se fait d'un trait, sans attente : Safari n'ouvre la fenêtre d'impression que si window.print() suit directement le clic
+            // sur « Créer le PDF » (après une attente, il l'ignore sans rien dire). Une annotation qui ne peut pas être mise en page
+            // n'empêche pas d'imprimer la grille.
+            exportPdf(name, opts) {
                 const area = document.getElementById('jam-print-area');
                 const flat = this.getFlatMeasureList();
-                if (!area || flat.length === 0) return;
-                if (this.isPlaying) this.stop();
-                this.annotDeactivate(); // une annotation en cours de saisie est validée avant l'export
-                this._pdfCleanup();
-                const fileName = String(name || 'grille').replace(/[\\/:*?"<>|]+/g, '_').trim() || 'grille';
-                this._fillPrintGrid(area, flat, name || this.loadedGridName || "Grille d'accords", !!opts.analysis);
-                if (opts.annotations && this._pdfHasAnnotations()) {
-                    // Police des annotations (Kalam) chargée avant de mesurer la place des blocs
-                    if (document.fonts && document.fonts.status !== 'loaded') { try { await document.fonts.ready; } catch (e) {} }
-                    this._pdfAnnotations(area, flat);
+                if (!area || flat.length === 0) { alert("Aucune grille d'accords à exporter."); return; }
+                try {
+                    if (this.isPlaying) this.stop();
+                    try { this.annotDeactivate(); } catch (e) {} // une annotation en cours de saisie est validée avant l'export
+                    this._pdfCleanup();
+                    const fileName = String(name || 'grille').replace(/[\\/:*?"<>|]+/g, '_').trim() || 'grille';
+                    this._fillPrintGrid(area, flat, name || this.loadedGridName || "Grille d'accords", !!opts.analysis);
+                    if (opts.annotations && this._pdfHasAnnotations()) {
+                        try { this._pdfAnnotations(area, flat); }
+                        catch (e) { console.error('Annotations non exportées', e); area.classList.remove('jam-pdf-staging'); }
+                    }
+                    // Le nom du PDF proposé par le navigateur est le titre de la page
+                    this._pdfTitle = document.title;
+                    document.title = fileName;
+                    this._pdfAfter = () => this._pdfCleanup();
+                    window.addEventListener('afterprint', this._pdfAfter);
+                } catch (e) {
+                    console.error('Export PDF', e);
+                    alert('Le PDF n\'a pas pu être préparé : ' + (e && e.message ? e.message : e));
+                    return;
                 }
-                // Le nom du PDF proposé par le navigateur est le titre de la page
-                this._pdfTitle = document.title;
-                document.title = fileName;
-                this._pdfAfter = () => this._pdfCleanup();
-                window.addEventListener('afterprint', this._pdfAfter);
                 window.print();
             }
 
