@@ -1130,6 +1130,7 @@
                 }
                 this._exportRefresh();
                 modal.classList.remove('hidden');
+                this._exportSyncTitle();
                 const nameEl = document.getElementById('export-name');
                 if (nameEl && !this._exportRec) { try { nameEl.focus(); nameEl.select(); } catch (e) {} }
             }
@@ -1139,6 +1140,23 @@
                 if (this._exportRec) this._exportCancel();
                 const modal = document.getElementById('export-modal');
                 if (modal) modal.classList.add('hidden');
+                this._exportSyncTitle();
+            }
+
+            // Nom proposé pour le PDF : les navigateurs prennent le titre de la page. Safari (et l'appli installée) relève ce titre
+            // avant le clic sur « Créer le PDF » : il est donc mis au nom de la grille dès que « PDF » est choisi dans le pop-up,
+            // et suit le champ « Nom du fichier ». Il revient au titre de l'appli à la fermeture du pop-up, ou après l'impression.
+            _exportSyncTitle() {
+                const modal = document.getElementById('export-modal');
+                const open = modal && !modal.classList.contains('hidden');
+                if ((open && this._exportKind === 'pdf') || this._pdfAfter) {
+                    if (this._pdfTitle == null) this._pdfTitle = document.title;
+                    const want = this._exportFileName();
+                    if (open && document.title !== want) document.title = want;
+                } else if (this._pdfTitle != null) {
+                    document.title = this._pdfTitle;
+                    this._pdfTitle = null;
+                }
             }
 
             setExportKind(kind) {
@@ -1146,6 +1164,7 @@
                 this._exportKind = (kind === 'audio' || kind === 'pdf') ? kind : 'grid';
                 this._exportStatus('', 0);
                 this._exportRefresh();
+                this._exportSyncTitle();
             }
 
             // --- Contenu du fichier .json : complète · grille seule · personnalisée (cases à cocher), mémorisé d'une fois sur l'autre ---
@@ -1270,6 +1289,7 @@
                 if (this._exportKind === 'audio') this.exportAudio();
                 else if (this._exportKind === 'pdf') {
                     const name = this._exportFileName();
+                    this._pdfAfter = this._pdfAfter || (() => {}); // le titre (nom du PDF) reste en place pendant l'impression
                     this.closeExportModal();
                     this.exportPdf(name, this._pdfPrefs());
                 } else {
@@ -5568,6 +5588,12 @@
                 }
                 this._pdfCleanup();
                 this._fillPrintGrid(printArea, flatMeasures, this.loadedGridName || "Grille d'accords", false);
+                if (this.loadedGridName) { // nom proposé si l'on choisit « Enregistrer au format PDF »
+                    this._pdfTitle = document.title;
+                    document.title = this.loadedGridName.replace(/[\\/:*?"<>|]+/g, '_');
+                    this._pdfAfter = () => this._pdfCleanup();
+                    window.addEventListener('afterprint', this._pdfAfter);
+                }
                 window.print();
             }
 
@@ -5626,7 +5652,7 @@
             }
 
             // Retire de la page d'impression les blocs d'annotation du PDF précédent (et leurs écouteurs), remet le titre de la page.
-            _pdfCleanup() {
+            _pdfCleanup(keepTitle = false) {
                 const area = document.getElementById('jam-print-area');
                 if (area) {
                     area.querySelectorAll('.annot-staff, .annot-frame, .annot-chords, .annot-draw').forEach((b) => {
@@ -5635,7 +5661,7 @@
                     });
                     area.classList.remove('jam-pdf-staging');
                 }
-                if (this._pdfTitle != null) { document.title = this._pdfTitle; this._pdfTitle = null; }
+                if (!keepTitle && this._pdfTitle != null) { document.title = this._pdfTitle; this._pdfTitle = null; }
                 if (this._pdfAfter) { window.removeEventListener('afterprint', this._pdfAfter); this._pdfAfter = null; }
             }
 
@@ -5649,7 +5675,7 @@
                 try {
                     if (this.isPlaying) this.stop();
                     try { this.annotDeactivate(); } catch (e) {} // une annotation en cours de saisie est validée avant l'export
-                    this._pdfCleanup();
+                    this._pdfCleanup(true);
                     const fileName = String(name || 'grille').replace(/[\\/:*?"<>|]+/g, '_').trim() || 'grille';
                     this._fillPrintGrid(area, flat, name || this.loadedGridName || "Grille d'accords", !!opts.analysis);
                     if (opts.annotations && this._pdfHasAnnotations()) {
@@ -5657,12 +5683,13 @@
                         catch (e) { console.error('Annotations non exportées', e); area.classList.remove('jam-pdf-staging'); }
                     }
                     // Le nom du PDF proposé par le navigateur est le titre de la page
-                    this._pdfTitle = document.title;
-                    document.title = fileName;
+                    if (this._pdfTitle == null) this._pdfTitle = document.title;
+                    if (document.title !== fileName) document.title = fileName;
                     this._pdfAfter = () => this._pdfCleanup();
                     window.addEventListener('afterprint', this._pdfAfter);
                 } catch (e) {
                     console.error('Export PDF', e);
+                    this._pdfCleanup();
                     alert('Le PDF n\'a pas pu être préparé : ' + (e && e.message ? e.message : e));
                     return;
                 }
@@ -9083,7 +9110,7 @@
                 <div id="export-options" class="exp-options hidden" role="group" aria-label="Éléments à exporter avec la grille"></div>
             </div>
             <label class="exp-field"><span>Nom du fichier</span>
-                <input type="text" id="export-name" class="exp-input" value="grille" maxlength="80" autocomplete="off" onkeydown="if (event.key === 'Enter') app.jam.runExport()">
+                <input type="text" id="export-name" class="exp-input" value="grille" maxlength="80" autocomplete="off" oninput="app.jam._exportSyncTitle()" onkeydown="if (event.key === 'Enter') app.jam.runExport()">
             </label>
             <div id="export-note" class="exp-note"></div>
             <div id="export-bar" class="exp-bar hidden"><i></i></div>
