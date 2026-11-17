@@ -286,7 +286,7 @@
         #jam-print-area { display: none; }
         @media print {
             @page { size: auto; margin: 1.5cm; }
-            html, body { background: #ffffff !important; height: auto !important; }
+            html, body { background: #ffffff !important; height: auto !important; overflow: visible !important; display: block !important; }
             #app-shell, .cs-build-tag { display: none !important; }
             #jam-print-area {
                 display: block !important;
@@ -314,16 +314,19 @@
             #jam-print-area .jam-print-info { display: flex; justify-content: space-between; align-items: baseline; gap: 12pt; margin: 0 0 14pt 0; font: 400 13pt "Kalam", cursive; color: #000000; }
             #jam-print-area .jam-print-tempo b { font-weight: 700; margin-right: 10pt; }
             #jam-print-area .jam-print-note { display: inline-block; height: 15pt; width: auto; vertical-align: -2pt; }
-            #jam-print-area .jam-print-grid {
-                display: flex;
-                flex-direction: column;
-                gap: 3mm;
+            /* Lignes de mesures : jamais coupées entre deux pages. Blocs simples les uns sous les autres (pas de flex) :
+               Safari n'applique « ne pas couper » qu'aux blocs ordinaires. */
+            #jam-print-area .jam-print-grid { display: block; }
+            #jam-print-area .jam-print-line {
+                display: block;
+                padding-bottom: 3mm;
+                break-inside: avoid;
+                page-break-inside: avoid;
             }
             #jam-print-area .jam-print-row {
                 display: grid;
                 grid-template-columns: repeat(4, 1fr);
                 gap: 3mm;
-                page-break-inside: avoid;
             }
             #jam-print-area .jam-print-cell {
                 border: 1.75pt solid #000000;
@@ -392,7 +395,6 @@
         #jam-print-area.jam-pdf-staging { display: block !important; position: absolute; left: -30000px; top: 0; width: 680px; visibility: hidden; pointer-events: none; }
         #jam-print-area .jam-pdf-notes-title { font: 800 14pt -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; text-transform: uppercase; letter-spacing: .02em; color: #000; padding-bottom: 4pt; border-bottom: 1.5pt solid #000; }
         #jam-print-area .jam-pdf-note-head { font: 700 11pt -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; color: #000; margin-bottom: 3pt; }
-        #jam-print-area .jam-pdf-note-sub { margin-left: 10pt; font: 400 11pt "Kalam", cursive; color: #475569; }
         #jam-print-area .jam-pdf-note-clip { position: relative; overflow: hidden; }
         #jam-print-area .jam-annot-text.jam-pdf-zone { min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; overflow: visible; }
         #jam-print-area .jam-pdf-zone::before { content: none !important; }

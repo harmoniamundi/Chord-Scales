@@ -188,7 +188,8 @@ function printGridHtml(v) {
         }
         const rowPart = v.partLabelOf(systemMeasures[0]);
         const gutterHtml = hasParts ? `<div class="jam-print-gutter">${rowPart ? `<span class="jam-print-part${rowPart.length > 1 ? ' jam-part-long' : ''}${rowPart.length > 2 ? ' jam-part-l3' : ''}">${rowPart}</span>` : ''}</div>` : '';
-        rowsHtml += `<div class="jam-print-row">${gutterHtml}${cellsHtml}</div>`;
+        // Ligne enveloppée dans un bloc simple : Safari ne sait pas éviter de couper une ligne en grille / en flex entre deux pages
+        rowsHtml += `<div class="jam-print-line"><div class="jam-print-row">${gutterHtml}${cellsHtml}</div></div>`;
     });
     return `
                     <div class="jam-print-title"></div>

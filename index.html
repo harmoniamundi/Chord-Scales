@@ -5661,7 +5661,7 @@
                 window.print();
             }
 
-            // Annotations après la grille : d'abord celle de la grille, puis celles des mesures (titre « Mesure N » ou « Mesures N–M » et accords).
+            // Annotations après la grille : d'abord celle de la grille, puis celles des mesures (titre « Mesure N » ou « Mesures N–M »).
             // Chaque annotation est reconstruite hors écran à la largeur de sa zone dans l'appli (les portées s'y découpent pareil), figée,
             // puis réduite si elle est plus large que la page.
             _pdfAnnotations(area, flat) {
@@ -5669,15 +5669,9 @@
                 const screenZone = document.getElementById('jam-annot-measure') || document.getElementById('jam-annot-general');
                 const zoneW = Math.max(PAGE_W, Math.round((screenZone && screenZone.clientWidth) || 0)) || PAGE_W;
                 const items = [];
-                if (this.gridNote) items.push({ title: 'Grille', sub: '', html: sanitizeNoteHtml(this.gridNote, GRID_NOTE_MAX) });
+                if (this.gridNote) items.push({ title: 'Grille', html: sanitizeNoteHtml(this.gridNote, GRID_NOTE_MAX) });
                 measureNotes(this.grid).forEach((o) => {
-                    const chords = [];
-                    for (let n = o.startMeasure; n <= o.endMeasure; n++) {
-                        const m = flat[n - 1];
-                        if (!m) continue;
-                        chords.push(this.getChordSymbol(m) + (m.split ? ' ' + this.getChordSymbol(m.split) : ''));
-                    }
-                    items.push({ title: measureNoteTitle(o), sub: chords.join(' | '), html: sanitizeNoteHtml(o.note, MEASURE_NOTE_MAX) });
+                    items.push({ title: measureNoteTitle(o), html: sanitizeNoteHtml(o.note, MEASURE_NOTE_MAX) });
                 });
                 if (!items.length) return;
 
@@ -5698,12 +5692,6 @@
                     const head = document.createElement('div');
                     head.className = 'jam-pdf-note-head';
                     head.textContent = it.title;
-                    if (it.sub) {
-                        const sub = document.createElement('span');
-                        sub.className = 'jam-pdf-note-sub';
-                        sub.innerHTML = glyphHtml(it.sub.replace(/&/g, '&amp;').replace(/</g, '&lt;'));
-                        head.appendChild(sub);
-                    }
                     const clip = document.createElement('div');
                     clip.className = 'jam-pdf-note-clip';
                     const ed = document.createElement('div');
