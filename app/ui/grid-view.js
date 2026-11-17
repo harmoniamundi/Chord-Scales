@@ -154,7 +154,8 @@ function printMarks(grid, effV, m, flat) {
 }
 
 // HTML de la page d'impression de la grille. Les symboles sont posés ensuite via data-symbol (texte, pas HTML).
-// v : grid, flat, effV, bpb, partLabelOf, measureKey, chordSymbol(chord) (texte).
+// v : grid, flat, effV, bpb, partLabelOf, measureKey, chordSymbol(chord) (texte) ;
+//     fnHtml(chord, flat, index, half) (facultatif) : chiffrage de fonction en HTML, imprimé sous l'accord (export PDF avec l'analyse).
 function printGridHtml(v) {
     const systems = layoutRows(v.flat, v.partLabelOf);
     const hasParts = v.flat.some(m => !!v.partLabelOf(m));
@@ -165,11 +166,21 @@ function printGridHtml(v) {
             const previousMeasure = v.flat[m.measureNumber - 2];
             const repeat = !!previousMeasure && !v.partLabelOf(m) && v.measureKey(previousMeasure) === v.measureKey(m);
             const pm = printMarks(v.grid, v.effV, m, v.flat);
+            // Analyse fonctionnelle (option du PDF) : chiffrage en bas à droite de la case, ou de chaque moitié d'une mesure à deux accords
+            const flatIdx = v.flat.indexOf(m);
+            const fn = (c, half) => {
+                if (!v.fnHtml) return '';
+                const t = v.fnHtml(c, v.flat, flatIdx, half);
+                return t ? `<span class="jam-print-fn${half === 1 ? ' jam-print-fn-b' : (m.split && !repeat ? ' jam-print-fn-a' : '')}">${t}</span>` : '';
+            };
             if (m.split && !repeat) {
-                cellsHtml += `<div class="jam-print-cell${pm.cls}"><div class="jam-print-split${v.bpb === 3 ? ' jam-print-split-3' : ''}"><span class="jam-print-chord" data-symbol="${encodeURIComponent(v.chordSymbol(m))}"></span><span class="jam-print-chord" data-symbol="${encodeURIComponent(v.chordSymbol(m.split))}"></span></div>${pm.html}</div>`;
+                const fnA = fn({ rootIndex: m.rootIndex, chordId: m.chordId, harmonicFunction: null, fnLabel: m.fnLabel }, 0);
+                const fnB = fn({ rootIndex: m.split.rootIndex, chordId: m.split.chordId, harmonicFunction: null, fnLabel: m.split.fnLabel }, 1);
+                cellsHtml += `<div class="jam-print-cell${pm.cls}${fnA || fnB ? ' has-fn' : ''}"><div class="jam-print-split${v.bpb === 3 ? ' jam-print-split-3' : ''}"><span class="jam-print-chord" data-symbol="${encodeURIComponent(v.chordSymbol(m))}"></span><span class="jam-print-chord" data-symbol="${encodeURIComponent(v.chordSymbol(m.split))}"></span></div>${fnA}${fnB}${pm.html}</div>`;
             } else {
                 const displayChordSymbol = repeat ? '%' : v.chordSymbol(m);
-                cellsHtml += `<div class="jam-print-cell${pm.cls}"><span class="jam-print-chord" data-symbol="${encodeURIComponent(displayChordSymbol)}"></span>${pm.html}</div>`;
+                const f = fn(m, 0);
+                cellsHtml += `<div class="jam-print-cell${pm.cls}${f ? ' has-fn' : ''}"><span class="jam-print-chord" data-symbol="${encodeURIComponent(displayChordSymbol)}"></span>${f}${pm.html}</div>`;
             }
         });
         for (let k = systemMeasures.length; k < 4; k++) {
@@ -183,6 +194,11 @@ function printGridHtml(v) {
                     <div class="jam-print-title"></div>
                     <div class="jam-print-grid${hasParts ? ' has-parts' : ''}">${rowsHtml}</div>
                 `;
+}
+
+// Titre d'une annotation de mesure dans le PDF : « Mesure 5 » ou « Mesures 9–12 ». o : { startMeasure, endMeasure }.
+function measureNoteTitle(o) {
+    return o.endMeasure > o.startMeasure ? `Mesures ${o.startMeasure}–${o.endMeasure}` : `Mesure ${o.startMeasure}`;
 }
 
 // ---- Position, sélection et défilement de la grille ----
@@ -279,7 +295,7 @@ function scrollTargetFor(containerTop, clientHeight, rowTop, rowHeight) {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        layoutRows, cellClassName, measureCellModel, cellExtraClasses, cellInnerHtml, cellMarksHtml, sequenceFingerprint, printMarks, printGridHtml,
+        layoutRows, cellClassName, measureCellModel, cellExtraClasses, cellInnerHtml, cellMarksHtml, sequenceFingerprint, printMarks, printGridHtml, measureNoteTitle,
         currentMeasureNumber, selectionFix, gutterMark, rowFillers, needsAddRow, clickPosition, playRangeAfterClick, halfToHighlight, neighborMeasure, scrollTargetFor,
     };
 }

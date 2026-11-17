@@ -1143,7 +1143,7 @@
 
             setExportKind(kind) {
                 if (this._exportRec) return;
-                this._exportKind = kind === 'audio' ? 'audio' : 'grid';
+                this._exportKind = (kind === 'audio' || kind === 'pdf') ? kind : 'grid';
                 this._exportStatus('', 0);
                 this._exportRefresh();
             }
@@ -1195,8 +1195,9 @@
 
             _exportRefresh() {
                 const audio = this._exportKind === 'audio';
+                const pdf = this._exportKind === 'pdf';
                 const busy = !!this._exportRec;
-                [['export-kind-grid', !audio], ['export-kind-audio', audio]].forEach(([id, on]) => {
+                [['export-kind-grid', !audio && !pdf], ['export-kind-audio', audio], ['export-kind-pdf', pdf]].forEach(([id, on]) => {
                     const b = document.getElementById(id);
                     if (!b) return;
                     b.classList.toggle('is-on', on);
@@ -1205,7 +1206,19 @@
                 });
                 const opts = this._exportOptions();
                 const content = document.getElementById('export-content');
-                if (content) content.classList.toggle('hidden', audio);
+                if (content) content.classList.toggle('hidden', audio || pdf);
+                const pdfBox = document.getElementById('export-pdf');
+                if (pdfBox) pdfBox.classList.toggle('hidden', !pdf);
+                const pp = this._pdfPrefs();
+                const hasNotes = this._pdfHasAnnotations();
+                const pa = document.getElementById('export-pdf-analysis');
+                if (pa) pa.checked = pp.analysis;
+                const pn = document.getElementById('export-pdf-annotations');
+                if (pn) {
+                    pn.checked = pp.annotations && hasNotes;
+                    pn.disabled = !hasNotes;
+                    pn.closest('label').title = hasNotes ? '' : 'Cette grille n\'a pas d\'annotation';
+                }
                 const checks = document.getElementById('export-options');
                 if (checks) {
                     checks.classList.toggle('hidden', this._exportMode !== 'custom');
@@ -1225,12 +1238,14 @@
                 });
                 const note = document.getElementById('export-note');
                 if (note) {
-                    note.textContent = audio
+                    note.textContent = pdf
+                        ? 'La fenêtre d\'impression s\'ouvre : choisissez « Enregistrer au format PDF » (sur Mac : menu « PDF » en bas à gauche). Le nom du fichier est proposé d\'office.'
+                        : audio
                         ? `Le son est enregistré en temps réel : la grille est jouée une fois par l'orchestre (sans métronome, sans boucle, mesures sélectionnées ignorées). Durée de l'export : environ ${wavDurationLabel(this._exportSeconds() + this._EXPORT_TAIL)}. Fichier WAV stéréo.`
                         : `${describeExport(opts)} Le fichier .json peut être importé dans une autre copie de l'appli.`;
                 }
                 const go = document.getElementById('export-go');
-                if (go) { go.textContent = audio ? 'Enregistrer le son' : 'Exporter la grille'; go.disabled = busy; }
+                if (go) { go.textContent = pdf ? 'Créer le PDF' : audio ? 'Enregistrer le son' : 'Exporter la grille'; go.disabled = busy; }
                 const cancel = document.getElementById('export-cancel');
                 if (cancel) cancel.textContent = busy ? 'Annuler l\'export' : 'Fermer';
                 const nameEl = document.getElementById('export-name');
@@ -1253,7 +1268,11 @@
             runExport() {
                 if (this._exportRec) return;
                 if (this._exportKind === 'audio') this.exportAudio();
-                else {
+                else if (this._exportKind === 'pdf') {
+                    const name = this._exportFileName();
+                    this.closeExportModal();
+                    this.exportPdf(name, this._pdfPrefs());
+                } else {
                     const nameEl = document.getElementById('export-name');
                     this._exportGridFile((nameEl && nameEl.value.trim()) || 'grille');
                     this.closeExportModal();
@@ -5547,19 +5566,163 @@
                     alert("Aucune grille d'accords à imprimer.");
                     return;
                 }
+                this._pdfCleanup();
+                this._fillPrintGrid(printArea, flatMeasures, this.loadedGridName || "Grille d'accords", false);
+                window.print();
+            }
 
+            // Page d'impression de la grille (titre, cases, et chiffrage des degrés si `withAnalysis`).
+            _fillPrintGrid(printArea, flatMeasures, title, withAnalysis) {
                 printArea.innerHTML = printGridHtml({
-                    ...this._gridViewCtx(flatMeasures, this._effectiveVolta(), 0), chordSymbol: (c) => this.getChordSymbol(c)
+                    ...this._gridViewCtx(flatMeasures, this._effectiveVolta(), 0), chordSymbol: (c) => this.getChordSymbol(c),
+                    fnHtml: withAnalysis ? (c, f, i, half) => glyphHtml(this.getHarmonicFunctionLabel(c, f, i, half) || '') : null
                 });
-
-                printArea.querySelector('.jam-print-title').textContent = this.loadedGridName || "Grille d'accords";
+                printArea.querySelector('.jam-print-title').textContent = title;
                 printArea.querySelectorAll('.jam-print-chord[data-symbol]').forEach((el) => {
                     // glyphHtml : sur téléphone, Δ ♭ ♯ − viennent d'une police qui les contient (comme dans la grille à l'écran)
                     const txt = decodeURIComponent(el.getAttribute('data-symbol')).replace(/&/g, '&amp;').replace(/</g, '&lt;');
                     el.innerHTML = glyphHtml(txt);
                 });
+            }
 
+            // ===== Export PDF : la grille mise en page, avec ou sans analyse fonctionnelle et annotations =====
+            // Le PDF passe par la fenêtre d'impression du navigateur (« Enregistrer au format PDF ») : le texte reste net et sélectionnable,
+            // les portées, cadres, accords et dessins des annotations sont imprimés tels qu'ils s'affichent. Choix mémorisés d'une fois sur l'autre.
+            _pdfPrefs() {
+                if (!this._pdfOpts) {
+                    this._pdfOpts = { analysis: true, annotations: true };
+                    try {
+                        const p = JSON.parse(localStorage.getItem('jamPdfPrefs'));
+                        if (p && typeof p === 'object') this._pdfOpts = { analysis: p.analysis !== false, annotations: p.annotations !== false };
+                    } catch (e) { /* préférences absentes ou illisibles : valeurs par défaut */ }
+                }
+                return { ...this._pdfOpts };
+            }
+
+            setPdfOption(key, on) {
+                if (key !== 'analysis' && key !== 'annotations') return;
+                this._pdfOpts = { ...this._pdfPrefs(), [key]: !!on };
+                try { localStorage.setItem('jamPdfPrefs', JSON.stringify(this._pdfOpts)); } catch (e) { /* stockage plein ou refusé : sans importance */ }
+                this._exportRefresh();
+            }
+
+            // La grille a-t-elle une annotation (générale ou de mesure) ?
+            _pdfHasAnnotations() {
+                const filled = (h) => !!String(h || '').replace(/<[^>]*>/g, '').replace(/&nbsp;| /g, ' ').trim() || /class="annot-(staff|frame|chords|draw)/.test(String(h || ''));
+                return filled(this.gridNote) || measureNotes(this.grid).some(o => filled(o.note));
+            }
+
+            // Retire de la page d'impression les blocs d'annotation du PDF précédent (et leurs écouteurs), remet le titre de la page.
+            _pdfCleanup() {
+                const area = document.getElementById('jam-print-area');
+                if (area) {
+                    area.querySelectorAll('.annot-staff, .annot-frame, .annot-chords, .annot-draw').forEach((b) => {
+                        const v = b.__noteStaff || b.__noteFrame || b.__chordBlock || b.__drawBlock;
+                        if (v && v.destroy) { try { v.destroy(); } catch (e) {} }
+                    });
+                    area.classList.remove('jam-pdf-staging');
+                }
+                if (this._pdfTitle != null) { document.title = this._pdfTitle; this._pdfTitle = null; }
+                if (this._pdfAfter) { window.removeEventListener('afterprint', this._pdfAfter); this._pdfAfter = null; }
+            }
+
+            async exportPdf(name, opts) {
+                const area = document.getElementById('jam-print-area');
+                const flat = this.getFlatMeasureList();
+                if (!area || flat.length === 0) return;
+                if (this.isPlaying) this.stop();
+                this.annotDeactivate(); // une annotation en cours de saisie est validée avant l'export
+                this._pdfCleanup();
+                const fileName = String(name || 'grille').replace(/[\\/:*?"<>|]+/g, '_').trim() || 'grille';
+                this._fillPrintGrid(area, flat, name || this.loadedGridName || "Grille d'accords", !!opts.analysis);
+                if (opts.annotations && this._pdfHasAnnotations()) {
+                    // Police des annotations (Kalam) chargée avant de mesurer la place des blocs
+                    if (document.fonts && document.fonts.status !== 'loaded') { try { await document.fonts.ready; } catch (e) {} }
+                    this._pdfAnnotations(area, flat);
+                }
+                // Le nom du PDF proposé par le navigateur est le titre de la page
+                this._pdfTitle = document.title;
+                document.title = fileName;
+                this._pdfAfter = () => this._pdfCleanup();
+                window.addEventListener('afterprint', this._pdfAfter);
                 window.print();
+            }
+
+            // Annotations après la grille : d'abord celle de la grille, puis celles des mesures (titre « Mesure N » ou « Mesures N–M » et accords).
+            // Chaque annotation est reconstruite hors écran à la largeur de sa zone dans l'appli (les portées s'y découpent pareil), figée,
+            // puis réduite si elle est plus large que la page.
+            _pdfAnnotations(area, flat) {
+                const PAGE_W = 680; // largeur utile d'une page A4 avec des marges de 1,5 cm, en pixels CSS
+                const screenZone = document.getElementById('jam-annot-measure') || document.getElementById('jam-annot-general');
+                const zoneW = Math.max(PAGE_W, Math.round((screenZone && screenZone.clientWidth) || 0)) || PAGE_W;
+                const items = [];
+                if (this.gridNote) items.push({ title: 'Grille', sub: '', html: sanitizeNoteHtml(this.gridNote, GRID_NOTE_MAX) });
+                measureNotes(this.grid).forEach((o) => {
+                    const chords = [];
+                    for (let n = o.startMeasure; n <= o.endMeasure; n++) {
+                        const m = flat[n - 1];
+                        if (!m) continue;
+                        chords.push(this.getChordSymbol(m) + (m.split ? ' ' + this.getChordSymbol(m.split) : ''));
+                    }
+                    items.push({ title: measureNoteTitle(o), sub: chords.join(' | '), html: sanitizeNoteHtml(o.note, MEASURE_NOTE_MAX) });
+                });
+                if (!items.length) return;
+
+                area.classList.add('jam-pdf-staging'); // visible hors écran le temps de mettre les blocs en page
+                const section = document.createElement('div');
+                section.className = 'jam-pdf-notes';
+                section.innerHTML = '<div class="jam-pdf-notes-title">Annotations</div>';
+                area.appendChild(section);
+                const ro = {
+                    isEditable: () => false, canvas: () => null, onChange() {}, onMoved() {}, onActivate() {}, onDeactivate() {}, onFocusBack() {},
+                    onGrab() {}, onRemove() {}, onCopy() {}, onPaste() {}, keepOpen: () => false, toolsHost: () => null,
+                    maxStaves: NOTE_MAX_STAVES, maxFrames: NOTE_MAX_FRAMES, audio: this._annotAudio()
+                };
+                const BLOCKS = ':scope > .annot-staff, :scope > .annot-frame, :scope > .annot-chords, :scope > .annot-draw';
+                items.forEach((it) => {
+                    const box = document.createElement('div');
+                    box.className = 'jam-pdf-note';
+                    const head = document.createElement('div');
+                    head.className = 'jam-pdf-note-head';
+                    head.textContent = it.title;
+                    if (it.sub) {
+                        const sub = document.createElement('span');
+                        sub.className = 'jam-pdf-note-sub';
+                        sub.innerHTML = glyphHtml(it.sub.replace(/&/g, '&amp;').replace(/</g, '&lt;'));
+                        head.appendChild(sub);
+                    }
+                    const clip = document.createElement('div');
+                    clip.className = 'jam-pdf-note-clip';
+                    const ed = document.createElement('div');
+                    ed.className = 'jam-annot-text jam-pdf-zone';
+                    ed.setAttribute('data-editable', 'false');
+                    ed.style.width = zoneW + 'px';
+                    ed.innerHTML = it.html;
+                    clip.appendChild(ed);
+                    box.appendChild(head);
+                    box.appendChild(clip);
+                    section.appendChild(box);
+                    if (!ed.querySelector('.annot-staff, .annot-frame, .annot-chords, .annot-draw') && !/\S/.test(ed.textContent.replace(/ /g, ' '))) { box.remove(); return; }
+                    const legacy = this._annotIsLegacy(ed);
+                    if (legacy) { ed.classList.add('legacy-flow'); this._annotWrapLoose(ed); }
+                    try {
+                        hydrateNoteStaves(ed, ro);
+                        hydrateNoteFrames(ed, ro);
+                        hydrateChordBlocks(ed, ro);
+                        hydrateDrawBlocks(ed, ro);
+                    } catch (e) { console.warn('Annotation non imprimable', e); }
+                    const blocks = Array.from(ed.querySelectorAll(BLOCKS));
+                    blocks.forEach((b) => { const v = b.__noteStaff || b.__noteFrame || b.__chordBlock || b.__drawBlock; if (v && v.destroy) { try { v.destroy(); } catch (e) {} } }); // figé : plus de redessin
+                    let w = 0, h = 0;
+                    if (legacy) { w = ed.scrollWidth; h = ed.scrollHeight; }
+                    else blocks.forEach((b) => { w = Math.max(w, b.offsetLeft + b.offsetWidth); h = Math.max(h, b.offsetTop + b.offsetHeight); });
+                    if (!legacy) { w += 4; h += 4; ed.style.height = h + 'px'; }
+                    const k = Math.min(1, PAGE_W / Math.max(1, w));
+                    if (k < 1) { ed.style.transform = `scale(${k})`; ed.style.transformOrigin = '0 0'; }
+                    clip.style.height = Math.ceil(h * k) + 'px';
+                });
+                area.classList.remove('jam-pdf-staging');
+                if (!section.querySelector('.jam-pdf-note')) section.remove();
             }
 
             renderGridUI() {
@@ -8884,7 +9047,7 @@
             </div>
         </div>
     </div>
-    <!-- Pop-up « Exporter » : la grille (fichier .json) ou son son (fichier .wav, enregistré en temps réel) -->
+    <!-- Pop-up « Exporter » : la grille (fichier .json), son son (fichier .wav, enregistré en temps réel) ou sa mise en page (PDF) -->
     <div id="export-modal" class="hidden" role="dialog" aria-modal="true" aria-label="Exporter" onclick="if (event.target === this) app.jam.closeExportModal()">
         <div class="exp-card">
             <div class="exp-head">
@@ -8896,6 +9059,11 @@
             <div class="jm-seg jm-seg-deg" role="group" aria-label="Que faut-il exporter ?">
                 <button type="button" id="export-kind-grid" class="jm-chip is-on" onclick="app.jam.setExportKind('grid')" title="La grille d'accords et ses réglages, dans un fichier .json">Grille (.json)</button>
                 <button type="button" id="export-kind-audio" class="jm-chip" onclick="app.jam.setExportKind('audio')" title="Le son de la grille jouée par l'orchestre, dans un fichier .wav">Son (.wav)</button>
+                <button type="button" id="export-kind-pdf" class="jm-chip" onclick="app.jam.setExportKind('pdf')" title="La grille mise en page, avec ou sans analyse fonctionnelle et annotations, dans un fichier .pdf">PDF</button>
+            </div>
+            <div id="export-pdf" class="exp-options hidden" role="group" aria-label="Contenu du PDF">
+                <label class="exp-opt"><input type="checkbox" id="export-pdf-analysis" onchange="app.jam.setPdfOption('analysis', this.checked)"><span><b>Analyse fonctionnelle</b><small>Chiffrage des degrés sous les accords</small></span></label>
+                <label class="exp-opt"><input type="checkbox" id="export-pdf-annotations" onchange="app.jam.setPdfOption('annotations', this.checked)"><span><b>Annotations</b><small>Après la grille : celle de la grille, puis celles des mesures</small></span></label>
             </div>
             <div id="export-content" class="exp-content">
                 <div class="jm-seg jm-seg-deg" role="group" aria-label="Contenu du fichier">
@@ -9091,7 +9259,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-09-a';
+        var BUILD = '2026-11-17-a';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }
@@ -9116,11 +9284,13 @@
                 'app/ui/draw-notes.js': typeof drawParse === 'function' && typeof drawStubHtml === 'function' && typeof drawEraseAt === 'function' && typeof drawVarPathD === 'function' && typeof drawFillAt === 'function',
                 'app/ui/chord-block.js': typeof ChordBlockView === 'function' && typeof hydrateChordBlocks === 'function' && typeof annotBlocksToClipText === 'function' && typeof CHB_ARP_ICON === 'string',
                 'app/ui/draw-block.js': typeof DrawBlockView === 'function' && typeof hydrateDrawBlocks === 'function' && typeof DrawBlockView.prototype._touchLock === 'function',
+                'app/ui/grid-view.js': typeof measureNoteTitle === 'function' && typeof printGridHtml === 'function',
                 'app/ui/annot-bar.js': typeof ANNOT_FONT_DEFAULT_CSS !== 'undefined' && typeof annotToolsHtml === 'function' && typeof annotModeHtml === 'function' && typeof ANNOT_DELETE_ICON === 'string'
             };
             Object.keys(needed).forEach(function (f) { seen[f] = needed[f] ? BUILD : ''; });
             var old = Object.keys(seen).filter(function (f) { return seen[f] !== BUILD; });
             var tag = document.createElement('div');
+            tag.className = 'cs-build-tag';
             tag.textContent = 'version ' + BUILD;
             tag.style.cssText = 'position:fixed;right:8px;bottom:3px;z-index:5;font:10px/1 sans-serif;color:#64748b;pointer-events:none';
             document.body.appendChild(tag);

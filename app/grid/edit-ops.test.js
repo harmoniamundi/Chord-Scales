@@ -653,3 +653,14 @@ describe('durée d\'une annotation de mesure (noteSpan)', () => {
     });
 });
 
+
+describe('annotations de mesure (export PDF)', () => {
+    test('measureNotes : dans l\'ordre, avec leur étendue (bloc ou noteSpan, bornée à la grille)', () => {
+        const g = [st(0, 'maj7', 2, { note: 'a' }), st(2, 'm7'), st(7, '7', 1, { note: 'b', noteSpan: 4 }), st(0, 'maj7')];
+        const l = E.measureNotes(g);
+        assert.equal(l.length, 2);
+        assert.deepEqual([l[0].startMeasure, l[0].endMeasure, l[0].note], [1, 2, 'a']);
+        assert.deepEqual([l[1].startMeasure, l[1].endMeasure, l[1].span, l[1].stepIndex], [4, 5, 2, 2]);
+        assert.deepEqual(E.measureNotes([st(0, 'maj7')]), []);
+    });
+});

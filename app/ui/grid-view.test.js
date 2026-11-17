@@ -175,6 +175,18 @@ describe('impression', () => {
         assert.ok(html.includes('jam-print-part">A<'));
         assert.ok(html.includes(`jam-print-part jam-part-long">A'<`));
     });
+    test('analyse fonctionnelle : chiffrage imprimé seulement si fnHtml est fourni', () => {
+        const g = [blk({}), blk({ split: { rootIndex: 7, chordId: '7', scaleId: 'mixolydian' } })];
+        assert.ok(!V.printGridHtml(ctx(g)).includes('jam-print-fn'));
+        const html = V.printGridHtml({ ...ctx(g), fnHtml: (c, f, i, half) => (half ? 'V' : 'I') + i });
+        assert.ok(html.includes('<span class="jam-print-fn">I0</span>'));
+        assert.ok(html.includes('jam-print-fn jam-print-fn-a">I1<') && html.includes('jam-print-fn jam-print-fn-b">V1<'));
+        assert.equal((html.match(/has-fn/g) || []).length, 2);
+    });
+    test('titre d\'une annotation de mesure', () => {
+        assert.equal(V.measureNoteTitle({ startMeasure: 5, endMeasure: 5 }), 'Mesure 5');
+        assert.equal(V.measureNoteTitle({ startMeasure: 9, endMeasure: 12 }), 'Mesures 9–12');
+    });
     test('deux accords : cellule double, variante 3/4', () => {
         const g = [blk({ split: { rootIndex: 7, chordId: '7', scaleId: 'mixolydian' } })];
         assert.ok(V.printGridHtml(ctx(g)).includes('jam-print-split'));

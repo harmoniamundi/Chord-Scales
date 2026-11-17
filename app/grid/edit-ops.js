@@ -29,7 +29,7 @@ if (typeof romanDegByRank === 'undefined' && typeof require === 'function') {
     var { romanDegByRank, fnMinorRef } = require('./generation.js');
 }
 
-const EDIT_OPS_BUILD = '2026-11-09-a'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
+const EDIT_OPS_BUILD = '2026-11-17-a'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
 const cloneStep = (o) => JSON.parse(JSON.stringify(o));
 
 // Repère de partie porté par la mesure m (liste à plat), seulement si elle ouvre son bloc ; '' sinon.
@@ -278,6 +278,23 @@ function noteCoverage(grid) {
     return owners;
 }
 
+// Toutes les annotations de mesure, dans l'ordre de la grille (export PDF) : [{ stepIndex, startMeasure, endMeasure, span, note }].
+// L'étendue est celle de l'annotation elle-même (son bloc, ou `noteSpan` mesures), bornée à la fin de la grille.
+function measureNotes(grid) {
+    const total = flatMeasureList(grid).length;
+    const out = [];
+    let start = 1;
+    grid.forEach((st, stepIndex) => {
+        if (typeof st.note === 'string' && st.note) {
+            const len = Math.max(st.measures, Math.min(Math.floor(Number(st.noteSpan)) || 1, EDIT_NOTE_SPAN_MAX));
+            const end = Math.min(total, start + len - 1);
+            out.push({ stepIndex, startMeasure: start, endMeasure: end, span: end - start + 1, note: st.note });
+        }
+        start += st.measures;
+    });
+    return out;
+}
+
 // Annotation affichée sur la mesure n : { stepIndex, startMeasure, endMeasure, span, note } ou null.
 function noteOwnerAt(grid, measureNumber) {
     const o = noteCoverage(grid)[measureNumber - 1];
@@ -467,7 +484,7 @@ function diatonicDegrees(env) {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { partLabelOfMeasure, measureItems, isolateMeasure, isolateRange, splitBeforeMeasure, mergeAround, deleteRange,
-        deleteMeasureAt, insertItemsAfter, duplicateMeasureAfter, appendCopyOfLast, setMeasureSplit, transposeRange, setFunctionLabel, setMeasureNote, noteCoverage, noteOwnerAt, setMeasureNoteSpan,
+        deleteMeasureAt, insertItemsAfter, duplicateMeasureAfter, appendCopyOfLast, setMeasureSplit, transposeRange, setFunctionLabel, setMeasureNote, noteCoverage, noteOwnerAt, measureNotes, setMeasureNoteSpan,
         chordPositions, laterChordOccurrences, applyFunctionLabelToLater, chordSuggestionsForRoot, rememberChord,
         withIsolatedRange, toggleRepeatStart, cycleRepeatEnd, toggleVolta, clearRepeats, markMeasure, assignAutoParts, diatonicDegrees, qualityTargetChord };
 }
