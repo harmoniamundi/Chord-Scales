@@ -183,6 +183,14 @@ describe('impression', () => {
         assert.ok(html.includes('jam-print-fn jam-print-fn-a">I1<') && html.includes('jam-print-fn jam-print-fn-b">V1<'));
         assert.equal((html.match(/has-fn/g) || []).length, 2);
     });
+    test('en-tête : tempo, swing et tonalité', () => {
+        const a = V.printInfoParts({ keyName: 'Bb', qualityLabel: 'Majeur', bpm: 120, ternary: false, swingAvailable: true, swing: 0.667 });
+        assert.deepEqual(a, { tempo: '♩ = 120', feel: 'Swing 67 %', key: 'Tonalité : Bb majeur' });
+        assert.equal(V.printInfoParts({ keyName: 'D', qualityLabel: 'Mineur', bpm: 90, swingAvailable: true, swing: 0.5 }).feel, 'Sans swing (croches droites)');
+        const t = V.printInfoParts({ keyName: 'A', qualityLabel: 'Dorien', bpm: 60, ternary: true, swingAvailable: false, swing: 0.67 });
+        assert.equal(t.tempo, '♩. = 60'); assert.equal(t.feel, ''); assert.equal(t.key, 'Tonalité : A dorien');
+        assert.ok(V.printGridHtml(ctx([blk({})])).includes('jam-print-info'));
+    });
     test('titre d\'une annotation de mesure', () => {
         assert.equal(V.measureNoteTitle({ startMeasure: 5, endMeasure: 5 }), 'Mesure 5');
         assert.equal(V.measureNoteTitle({ startMeasure: 9, endMeasure: 12 }), 'Mesures 9–12');

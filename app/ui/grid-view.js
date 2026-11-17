@@ -192,8 +192,22 @@ function printGridHtml(v) {
     });
     return `
                     <div class="jam-print-title"></div>
+                    <div class="jam-print-info"><span class="jam-print-tempo"></span><span class="jam-print-key"></span></div>
                     <div class="jam-print-grid${hasParts ? ' has-parts' : ''}">${rowsHtml}</div>
                 `;
+}
+
+// En-tête de la page d'impression / du PDF : tempo et swing (à gauche, comme sur une partition Real Book), tonalité (à droite).
+// o : { keyName ('Bb'), qualityLabel ('Majeur'), bpm, ternary (mesure composée : le tempo compte des noires pointées),
+//       swingAvailable (le swing a un sens dans cette mesure), swing (rapport 0.5 à 0.75) }.
+function printInfoParts(o) {
+    const pct = Math.round((Number(o.swing) || 0.5) * 100);
+    const swung = !!o.swingAvailable && pct > 50;
+    return {
+        tempo: `${o.ternary ? '♩.' : '♩'} = ${Math.round(Number(o.bpm) || 0)}`,
+        feel: o.swingAvailable ? (swung ? `Swing ${pct} %` : 'Sans swing (croches droites)') : '',
+        key: `Tonalité : ${o.keyName} ${String(o.qualityLabel || '').toLowerCase()}`.trim()
+    };
 }
 
 // Titre d'une annotation de mesure dans le PDF : « Mesure 5 » ou « Mesures 9–12 ». o : { startMeasure, endMeasure }.
@@ -295,7 +309,7 @@ function scrollTargetFor(containerTop, clientHeight, rowTop, rowHeight) {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        layoutRows, cellClassName, measureCellModel, cellExtraClasses, cellInnerHtml, cellMarksHtml, sequenceFingerprint, printMarks, printGridHtml, measureNoteTitle,
+        layoutRows, cellClassName, measureCellModel, cellExtraClasses, cellInnerHtml, cellMarksHtml, sequenceFingerprint, printMarks, printGridHtml, printInfoParts, measureNoteTitle,
         currentMeasureNumber, selectionFix, gutterMark, rowFillers, needsAddRow, clickPosition, playRangeAfterClick, halfToHighlight, neighborMeasure, scrollTargetFor,
     };
 }

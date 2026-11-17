@@ -5578,6 +5578,19 @@
                     fnHtml: withAnalysis ? (c, f, i, half) => glyphHtml(this.getHarmonicFunctionLabel(c, f, i, half) || '') : null
                 });
                 printArea.querySelector('.jam-print-title').textContent = title;
+                // Tempo, swing (à gauche) et tonalité de la grille (à droite)
+                const qSel = document.getElementById('jam-quality-select');
+                const qOpt = qSel && Array.from(qSel.options).find(o => o.value === this.mainQuality);
+                const info = printInfoParts({
+                    keyName: rootLabels[this.mainKey] || 'C', qualityLabel: qOpt ? qOpt.textContent : '', bpm: this.bpm,
+                    ternary: this.isTernary(), swingAvailable: this.isBandSwingAvailable(), swing: this.getBandSwing()
+                });
+                const tEl = printArea.querySelector('.jam-print-tempo');
+                // Noire (pointée en mesure composée) dessinée : le signe ♩ manque à la plupart des polices
+                const note = `<svg class="jam-print-note" viewBox="0 0 ${this.isTernary() ? 14 : 10} 22" aria-label="${this.isTernary() ? 'noire pointée' : 'noire'}"><ellipse cx="4.6" cy="18.2" rx="4.3" ry="3" transform="rotate(-22 4.6 18.2)" fill="#000"/><rect x="7.7" y="1" width="1.3" height="17" fill="#000"/>${this.isTernary() ? '<circle cx="12" cy="18.5" r="1.4" fill="#000"/>' : ''}</svg>`;
+                if (tEl) tEl.innerHTML = (info.feel ? `<b>${glyphHtml(info.feel)}</b>` : '') + `<span>${note} ${glyphHtml(info.tempo.replace(/^♩\.? /, ''))}</span>`;
+                const kEl = printArea.querySelector('.jam-print-key');
+                if (kEl) kEl.innerHTML = glyphHtml(info.key);
                 printArea.querySelectorAll('.jam-print-chord[data-symbol]').forEach((el) => {
                     // glyphHtml : sur téléphone, Δ ♭ ♯ − viennent d'une police qui les contient (comme dans la grille à l'écran)
                     const txt = decodeURIComponent(el.getAttribute('data-symbol')).replace(/&/g, '&amp;').replace(/</g, '&lt;');

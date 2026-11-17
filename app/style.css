@@ -309,6 +309,11 @@
                 text-transform: uppercase;
                 letter-spacing: 0.02em;
             }
+            /* En-tête : tempo et swing à gauche (comme sur un Real Book), tonalité à droite */
+            #jam-print-area .jam-print-title { margin-bottom: 8pt; }
+            #jam-print-area .jam-print-info { display: flex; justify-content: space-between; align-items: baseline; gap: 12pt; margin: 0 0 14pt 0; font: 400 13pt "Kalam", cursive; color: #000000; }
+            #jam-print-area .jam-print-tempo b { font-weight: 700; margin-right: 10pt; }
+            #jam-print-area .jam-print-note { display: inline-block; height: 15pt; width: auto; vertical-align: -2pt; }
             #jam-print-area .jam-print-grid {
                 display: flex;
                 flex-direction: column;
