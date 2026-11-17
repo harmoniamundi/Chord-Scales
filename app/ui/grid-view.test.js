@@ -185,8 +185,8 @@ describe('impression', () => {
     });
     test('en-tête : tempo, swing et tonalité', () => {
         const a = V.printInfoParts({ keyName: 'Bb', qualityLabel: 'Majeur', bpm: 120, ternary: false, swingAvailable: true, swing: 0.667 });
-        assert.deepEqual(a, { tempo: '♩ = 120', feel: 'Swing 67 %', key: 'Tonalité : Bb majeur' });
-        assert.equal(V.printInfoParts({ keyName: 'D', qualityLabel: 'Mineur', bpm: 90, swingAvailable: true, swing: 0.5 }).feel, 'Sans swing (croches droites)');
+        assert.deepEqual(a, { tempo: '♩ = 120', feel: 'Swing', key: 'Tonalité : Bb majeur' });
+        assert.equal(V.printInfoParts({ keyName: 'D', qualityLabel: 'Mineur', bpm: 90, swingAvailable: true, swing: 0.5 }).feel, '');
         const t = V.printInfoParts({ keyName: 'A', qualityLabel: 'Dorien', bpm: 60, ternary: true, swingAvailable: false, swing: 0.67 });
         assert.equal(t.tempo, '♩. = 60'); assert.equal(t.feel, ''); assert.equal(t.key, 'Tonalité : A dorien');
         assert.ok(V.printGridHtml(ctx([blk({})])).includes('jam-print-info'));

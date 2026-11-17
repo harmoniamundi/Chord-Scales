@@ -206,7 +206,7 @@ function printInfoParts(o) {
     const swung = !!o.swingAvailable && pct > 50;
     return {
         tempo: `${o.ternary ? '♩.' : '♩'} = ${Math.round(Number(o.bpm) || 0)}`,
-        feel: o.swingAvailable ? (swung ? `Swing ${pct} %` : 'Sans swing (croches droites)') : '',
+        feel: swung ? 'Swing' : '', // « Swing » seulement si la grille swingue ; rien sinon
         key: `Tonalité : ${o.keyName} ${String(o.qualityLabel || '').toLowerCase()}`.trim()
     };
 }
