@@ -409,7 +409,7 @@
         #jam-chord-sequence-display .jam-cell-top > span:last-child { min-width: 0; }
         #jam-chord-sequence-display .jam-add-cell { align-self: stretch; min-height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 1.5px dashed #2f6f57; background: rgba(16,185,129,.06); color: #34d399; font-size: 24px; line-height: 1; cursor: pointer; user-select: none; transition: background .12s, border-color .12s; }
         #jam-chord-sequence-display .jam-add-cell:hover { background: rgba(16,185,129,.16); border-color: #34d399; }
-        :root { --cs-build: '2026-11-17-a'; } /* numéro de version lu par la page */
+        :root { --cs-build: '2026-11-18-a'; } /* numéro de version lu par la page */
         .jm-pop { position: fixed; z-index: 2000; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); color: #e2e8f0; padding: 10px 12px 12px; font-size: 12px; }
         .jm-pop.jm-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; max-height: 62vh; }
         /* Pop-up « Orchestre » : fenêtre flottante à gauche de l'écran, sans voile, déplaçable par sa barre de titre */
@@ -1382,3 +1382,30 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 .cn-draw-pop.is-collapsed > .jm-head { position: static; margin: 0; padding: 0; box-shadow: none; background: transparent; }
 .cn-draw-pop.jm-sheet.is-collapsed { padding-bottom: max(8px, env(safe-area-inset-bottom)); border-radius: 12px 12px 0 0; }
 @media (pointer: coarse) { .dr-head-btns .jm-btn { min-height: 36px; } }
+
+/* ===== Raccourcis clavier personnalisables (bouton ⌨ de l'en-tête, ui/shortcuts.js) ===== */
+.kb-open-btn { height: 28px; min-width: 34px; padding: 0 8px; border-radius: 7px; border: 1px solid #333333; background: #1a1a1a; color: #cbd5e1; font-size: 15px; line-height: 1; cursor: pointer; }
+.kb-open-btn:hover { color: #fff; background: #333333; }
+#jam-stop-btn[hidden] { display: none !important; }
+.kb-modal { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0, 0, 0, .55); }
+.kb-card { width: min(540px, 100%); max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow: auto; padding: 16px 18px; background: #1f1f21; color: #e2e8f0; border: 1px solid #3a3a3c; border-radius: 14px; box-shadow: 0 12px 40px rgba(0, 0, 0, .5); font: 13px/1.45 system-ui, -apple-system, sans-serif; }
+.kb-card h2 { margin: 0 0 8px; font-size: 15px; font-weight: 700; }
+.kb-p { margin: 0 0 8px; color: #cbd5e1; }
+.kb-status { min-height: 18px; margin: 0 0 6px; color: #93c5fd; }
+.kb-status.is-error { color: #fca5a5; }
+.kb-group { margin: 12px 0 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; }
+.kb-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; border-bottom: 1px solid #2a2a2c; }
+.kb-name { flex: 1; min-width: 0; }
+.kb-key { min-width: 72px; height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #e2e8f0; font: 600 13px system-ui, -apple-system, sans-serif; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; cursor: pointer; white-space: nowrap; }
+button.kb-key:hover { border-color: #60a5fa; }
+.kb-key.is-custom { border-color: #2563eb; color: #bfdbfe; }
+.kb-row.is-wait .kb-key { border-color: #f59e0b; color: #fde68a; font-weight: 500; }
+.kb-row.is-fixed .kb-key { cursor: default; opacity: .7; }
+.kb-reset { width: 28px; height: 28px; border-radius: 7px; border: 1px solid #3a3a3c; background: transparent; color: #cbd5e1; cursor: pointer; }
+.kb-reset[hidden] { display: inline-block; visibility: hidden; }
+.kb-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.kb-btn { height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #e2e8f0; font: 600 13px system-ui, sans-serif; cursor: pointer; }
+.kb-btn:hover { background: #333336; }
+.kb-btn-primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+.kb-btn-primary:hover { background: #3b82f6; }
+@media print { .kb-modal { display: none !important; } }

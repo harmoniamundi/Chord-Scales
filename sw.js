@@ -14,7 +14,7 @@
 importScripts('app/audio/local-soundfonts.js'); // définit LOCAL_SOUNDFONT_FILES
 importScripts('app/audio/vpo-brass.js'); // définit VPO_ALL_FILES (cuivres et cordes Virtual Playing Orchestra)
 
-const SHELL_CACHE = 'chord-scales-shell-v4';
+const SHELL_CACHE = 'chord-scales-shell-v5';
 const SOUNDS_CACHE = 'chord-scales-sounds-v1';
 const SHELL_TIMEOUT_MS = 3000;
 
@@ -59,6 +59,7 @@ const SHELL_FILES = [
     'app/band/phrase-plan.js',
     'app/band/band-state.js',
     'app/grid/play-order.js',
+    'app/ui/shortcuts.js',
     'app/ui/staff-notes.js',
     'app/ui/chord-notes.js',
     'app/ui/draw-notes.js',

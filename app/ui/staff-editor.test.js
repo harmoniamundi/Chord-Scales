@@ -303,3 +303,21 @@ describe('nseSmallTimeSig : indication de mesure réduite', () => {
         assert.doesNotThrow(() => E.nseSmallTimeSig(null));
     });
 });
+
+describe('tonalité de la portée : majeur et mineur', () => {
+    const N = require('./staff-notes.js');
+    test('propose les tonalités mineures', () => {
+        const html = E.nseKeyOptions(-3, 'm');
+        assert.match(html, /<optgroup label="Mineur">/);
+        assert.match(html, /<option value="-3m" selected>Do min\. · 3♭<\/option>/);
+        assert.match(E.nseKeyOptions(0, ''), /<option value="0" selected>Do maj\. · aucune<\/option>/);
+    });
+    test('le mode mineur s\'enregistre et se relit', () => {
+        const st = N.parseStaff('t,4/4,1,min;q:e4');
+        assert.equal(st.mode, 'm');
+        assert.equal(N.formatStaff(st), 't,4/4,1,min;q:e4');
+        assert.equal(N.parseStaff('t,4/4,1;q:e4').mode, '');
+        assert.equal(N.parseStaff('t,4/4,1,min,min;q:e4'), null);
+        assert.equal(N.cloneStaff(st).mode, 'm');
+    });
+});

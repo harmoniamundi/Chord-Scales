@@ -8,6 +8,7 @@
 // Format : « clé,métrique,armure[,taille][,puN][,bpmN][,swN];événement événement… »
 //   Exemple : « t,4/4,0;q:c4 (3 8:e4 8:g4 8:b4) qr h.:a4 »
 //   clé : t (sol) ou b (fa) ; métrique : 4/4, 6/8… ; armure : nombre d'altérations, de -7 (bémols) à 7 (dièses)
+//   « min » (facultatif) : tonalité mineure (relative) de cette armure — seul le nom de la tonalité change, pas les altérations
 //   réglages facultatifs (écrits seulement quand ils diffèrent de la valeur par défaut, dans cet ordre) :
 //     taille (50 à 200, par pas de 10) ; puN = levée : la portée commence par une mesure incomplète de N événements ;
 //     bpmN = tempo de lecture (30 à 300 ; absent = tempo de la jam) ; swN = swing (50 à 75 % ; absent = « Jam » : le swing de la jam chargée, sw50 = croches droites)
@@ -29,6 +30,9 @@ const SN_SHARP_ORDER = 'fcgdaeb';
 const SN_FLAT_ORDER = 'beadgcf';
 const SN_KEY_NAMES = { 0: 'C', 1: 'G', 2: 'D', 3: 'A', 4: 'E', 5: 'B', 6: 'F#', 7: 'C#', '-1': 'F', '-2': 'Bb', '-3': 'Eb', '-4': 'Ab', '-5': 'Db', '-6': 'Gb', '-7': 'Cb' };
 const SN_KEY_LABELS = { 0: 'Do', 1: 'Sol', 2: 'Ré', 3: 'La', 4: 'Mi', 5: 'Si', 6: 'Fa♯', 7: 'Do♯', '-1': 'Fa', '-2': 'Si♭', '-3': 'Mi♭', '-4': 'La♭', '-5': 'Ré♭', '-6': 'Sol♭', '-7': 'Do♭' };
+// Tonalités mineures relatives de chaque armure (même armure, tonique une tierce mineure sous la majeure).
+const SN_MINOR_KEY_NAMES = { 0: 'A', 1: 'E', 2: 'B', 3: 'F#', 4: 'C#', 5: 'G#', 6: 'D#', 7: 'A#', '-1': 'D', '-2': 'G', '-3': 'C', '-4': 'F', '-5': 'Bb', '-6': 'Eb', '-7': 'Ab' };
+const SN_MINOR_KEY_LABELS = { 0: 'La', 1: 'Mi', 2: 'Si', 3: 'Fa♯', 4: 'Do♯', 5: 'Sol♯', 6: 'Ré♯', 7: 'La♯', '-1': 'Ré', '-2': 'Sol', '-3': 'Do', '-4': 'Fa', '-5': 'Si♭', '-6': 'Mi♭', '-7': 'La♭' };
 const SN_FR_NAMES = { c: 'Do', d: 'Ré', e: 'Mi', f: 'Fa', g: 'Sol', a: 'La', b: 'Si' };
 const SN_MIDI_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']; // noms acceptés par le piano de l'appli
 // Hauteur de la ligne du bas de la portée, en degrés diatoniques (octave × 7 + lettre) : Mi4 en clé de sol, Sol2 en clé de fa.
@@ -81,7 +85,7 @@ const SN_TUPLET_M = { 2: 3, 3: 2, 4: 3, 5: 4, 6: 4, 7: 4, 9: 8 };
 const SN_TUPLETS = [2, 3, 4, 5, 6, 7, 9];
 const SN_TUPLET_NAMES = { 2: 'Duolet', 3: 'Triolet', 4: 'Quartolet', 5: 'Quintolet', 6: 'Sextolet', 7: 'Septolet', 9: 'Nonolet' };
 
-function staffDefault() { return { clef: 't', meter: '4/4', ks: 0, size: SN_SIZE_DEFAULT, pu: 0, bpm: 0, swing: SN_SWING_DEFAULT, instr: '', ev: [] }; }
+function staffDefault() { return { clef: 't', meter: '4/4', ks: 0, mode: '', size: SN_SIZE_DEFAULT, pu: 0, bpm: 0, swing: SN_SWING_DEFAULT, instr: '', ev: [] }; }
 
 // Un événement du groupe ouvre-t-il un tuplet (premier du groupe) ? Le groupe continue tant que le suivant a le même N sans marque de début.
 function staffTupletStarts(ev, i) { return !!ev[i].tu && (!!ev[i].gs || i === 0 || ev[i - 1].tu !== ev[i].tu); }
@@ -134,17 +138,21 @@ function parseStaff(text) {
     if (typeof text !== 'string' || text.length > SN_MAX_LENGTH) return null;
     const semi = text.indexOf(';');
     const head = (semi < 0 ? text : text.slice(0, semi)).split(',');
-    if (head.length < 3 || head.length > 8) return null;
+    if (head.length < 3 || head.length > 9) return null;
     const clef = head[0];
     if (clef !== 't' && clef !== 'b') return null;
     if (!SN_METERS.includes(head[1])) return null;
     if (!/^-?[0-7]$/.test(head[2])) return null;
     const ks = parseInt(head[2], 10);
-    let size = SN_SIZE_DEFAULT, pu = 0, bpm = 0, swing = SN_SWING_DEFAULT, instr = '';
+    let size = SN_SIZE_DEFAULT, pu = 0, bpm = 0, swing = SN_SWING_DEFAULT, instr = '', mode = '';
     const seen = {};
     for (const part of head.slice(3)) {
         let m;
-        if (/^\d{2,3}$/.test(part)) {
+        if (part === 'min') {
+            if (seen.mode) return null;
+            seen.mode = true;
+            mode = 'm';
+        } else if (/^\d{2,3}$/.test(part)) {
             if (seen.size) return null;
             seen.size = true;
             size = parseInt(part, 10);
@@ -208,7 +216,7 @@ function parseStaff(text) {
     });
     if (pu > ev.length) return null;
     if (pu > 0 && pu < ev.length && ev[pu].tu && !staffTupletStarts(ev, pu)) return null;
-    return { clef, meter: head[1], ks, size, pu, bpm, swing, instr, ev };
+    return { clef, meter: head[1], ks, mode, size, pu, bpm, swing, instr, ev };
 }
 
 // Texte canonique d'une portée (l'inverse de parseStaff pour tout texte valide).
@@ -228,7 +236,7 @@ function formatStaff(st) {
     const bpm = clampStaffBpm(st.bpm) ? `,bpm${clampStaffBpm(st.bpm)}` : '';
     const sw = clampStaffSwing(st.swing) ? `,sw${clampStaffSwing(st.swing)}` : '';
     const instr = clampStaffInstr(st.instr) ? `,in${clampStaffInstr(st.instr)}` : '';
-    return `${st.clef},${st.meter},${st.ks}${size}${pu}${bpm}${sw}${instr};${toks.join(' ')}`;
+    return `${st.clef},${st.meter},${st.ks}${st.mode === 'm' ? ',min' : ''}${size}${pu}${bpm}${sw}${instr};${toks.join(' ')}`;
 }
 
 // Texte à enregistrer, ou null s'il n'est pas valide : renvoie la forme canonique.
@@ -635,7 +643,7 @@ function playbackPlan(st, jamSwing) {
 function cloneStaffEvent(e) { return { d: e.d, dot: !!e.dot, tu: e.tu || 0, gs: !!(e.tu && e.gs), tie: !!(e.p && e.tie), p: e.p ? { ...e.p } : null }; }
 
 function cloneStaff(st) {
-    return { clef: st.clef, meter: st.meter, ks: st.ks, size: st.size || SN_SIZE_DEFAULT, pu: st.pu || 0, bpm: st.bpm || 0, swing: st.swing || SN_SWING_DEFAULT, instr: clampStaffInstr(st.instr), ev: st.ev.map(cloneStaffEvent) };
+    return { clef: st.clef, meter: st.meter, ks: st.ks, mode: st.mode === 'm' ? 'm' : '', size: st.size || SN_SIZE_DEFAULT, pu: st.pu || 0, bpm: st.bpm || 0, swing: st.swing || SN_SWING_DEFAULT, instr: clampStaffInstr(st.instr), ev: st.ev.map(cloneStaffEvent) };
 }
 
 // Insère un événement (ou, avec ev.tu, le membre d'un tuplet : ev.gs = premier du groupe).
@@ -927,7 +935,7 @@ function staffHasTie(st, indices) { return staffSortedIndices(st, indices).some(
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { SN_POS_MAX, clampStaffPos, parseStaffPos, formatStaffPos, SN_AT_MAX, clampBlockAt, parseBlockAt, formatBlockAt, parseBlockBorder,
         SN_FRAME_W_MIN, SN_FRAME_W_MAX, SN_FRAME_W_DEFAULT, SN_FRAME_SCALE_MIN, SN_FRAME_SCALE_MAX, SN_FRAME_SCALE_DEFAULT, clampFrameWidth, clampFrameScale, parseFrameBox, formatFrameBox,
-        staffClipText, frameClipText, splitStaffClips, SN_UNITS, SN_DURATIONS, SN_METERS, SN_MAX_EVENTS, SN_MAX_LENGTH, SN_KEY_NAMES, SN_KEY_LABELS, SN_BOTTOM_LINE,
+        staffClipText, frameClipText, splitStaffClips, SN_UNITS, SN_DURATIONS, SN_METERS, SN_MAX_EVENTS, SN_MAX_LENGTH, SN_KEY_NAMES, SN_KEY_LABELS, SN_MINOR_KEY_NAMES, SN_MINOR_KEY_LABELS, SN_BOTTOM_LINE,
         SN_SIZE_MIN, SN_SIZE_MAX, SN_SIZE_STEP, SN_SIZE_DEFAULT, clampStaffSize,
         SN_BPM_MIN, SN_BPM_MAX, SN_SWING_MIN, SN_SWING_MAX, SN_SWING_AUTO, SN_SWING_DEFAULT, clampStaffBpm, clampStaffSwing, SN_INSTRUMENTS, clampStaffInstr, setStaffInstr, staffSwingRatio, staffTempo,
         staffSamePitch, staffTieValid, staffTieChain, staffExpandTies, staffSortedIndices, staffNormalizeTuplets,

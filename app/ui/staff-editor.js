@@ -21,9 +21,11 @@ const NSE_N = (typeof parseStaff !== 'undefined')
         shiftEvents, alterEvents, removeEvents, staffExtractEvents, staffInsertEvents, staffToggleTies, staffAddTiedNote, staffHasTie, staffTieValid, staffSwingRatio,
         staffClipText, frameClipText, parseFrameBox, splitStaffClips, parseStaffPos, formatStaffPos, clampStaffPos,
         parseBlockAt, formatBlockAt, clampBlockAt, parseBlockBorder,
-        SN_KEY_NAMES, SN_KEY_LABELS, SN_BOTTOM_LINE, SN_METERS, SN_SIZE_MIN, SN_SIZE_MAX, SN_SIZE_STEP, SN_SIZE_DEFAULT, clampStaffSize,
+        SN_KEY_NAMES, SN_KEY_LABELS, SN_MINOR_KEY_NAMES, SN_MINOR_KEY_LABELS, SN_BOTTOM_LINE, SN_METERS, SN_SIZE_MIN, SN_SIZE_MAX, SN_SIZE_STEP, SN_SIZE_DEFAULT, clampStaffSize,
         SN_TUPLETS, SN_TUPLET_M, SN_TUPLET_NAMES, SN_BPM_MIN, SN_BPM_MAX, SN_SWING_MIN, SN_SWING_MAX }
     : require('./staff-notes.js');
+// Raccourcis clavier personnalisables (ui/shortcuts.js) : global en navigateur, chargé sous Node.
+const NSE_KB = (typeof Shortcuts !== 'undefined') ? Shortcuts : require('./shortcuts.js');
 
 const NSE_SPACING = 10;        // écart entre deux lignes de la portée (pixels)
 const NSE_ABOVE = 3;           // lignes d'espace au-dessus de la portée
@@ -342,7 +344,9 @@ const NSE_COPY_ICON = '<svg width="18" height="18" viewBox="0 0 16 16" aria-hidd
 const NSE_PASTE_ICON = '<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="3" width="11" height="11.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="5.5" y="1.3" width="5" height="3.2" rx="1" fill="currentColor"/></svg>';
 const NSE_TIE_ICON = '<svg width="22" height="18" viewBox="0 0 22 18" aria-hidden="true"><ellipse cx="4.5" cy="5" rx="3.3" ry="2.4" transform="rotate(-22 4.5 5)" fill="currentColor"/><ellipse cx="17.5" cy="5" rx="3.3" ry="2.4" transform="rotate(-22 17.5 5)" fill="currentColor"/><path d="M4.5 9.5C8 16.5 14 16.5 17.5 9.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
 const NSE_MULTI_ICON = '<svg width="20" height="18" viewBox="0 0 20 18" aria-hidden="true"><rect x="1.5" y="2.5" width="17" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 2"/><circle cx="7" cy="9" r="2.2" fill="currentColor"/><circle cx="13.5" cy="9" r="2.2" fill="currentColor"/></svg>';
-const NSE_DURATION_TITLES = { w: 'Ronde (clavier : 5)', h: 'Blanche (clavier : 4)', q: 'Noire (clavier : 3)', '8': 'Croche (clavier : 2)', '16': 'Double-croche (clavier : 1)' };
+const NSE_DURATION_NAMES = { w: ['Ronde', 'durw'], h: ['Blanche', 'durh'], q: ['Noire', 'durq'], '8': ['Croche', 'dur8'], '16': ['Double-croche', 'dur16'] };
+const nseDurTitle = (d) => NSE_DURATION_NAMES[d][0] + NSE_KB.kbHint(NSE_DURATION_NAMES[d][1]);
+const nseKeyName = (id) => { const c = NSE_KB.kbBinding(id); return c ? NSE_KB.kbLabel(c) : ''; };
 const NSE_DURATION_KEYS = { '1': '16', '2': '8', '3': 'q', '4': 'h', '5': 'w' };
 
 // Choix du swing de lecture : « Jam » (valeur 0, par défaut) suit le swing de la jam (onglet Annotations du mode Jam) ; sinon 50 % = croches droites, 67 % = triolet.
@@ -370,39 +374,46 @@ function nseTupletOptions(current) {
     return `<option value="0"${!current ? ' selected' : ''}>Tuplet</option>` + NSE_N.SN_TUPLETS.map(n => `<option value="${n}"${n === current ? ' selected' : ''}>${NSE_N.SN_TUPLET_NAMES[n]} (${n})</option>`).join('');
 }
 
-function nseKeyOptions(current) {
-    const opts = [];
-    for (let k = -7; k <= 7; k++) {
-        const label = k === 0 ? 'Do maj. · aucune' : `${NSE_N.SN_KEY_LABELS[k]} maj. · ${Math.abs(k)}${k > 0 ? '♯' : '♭'}`;
-        opts.push(`<option value="${k}"${k === current ? ' selected' : ''}>${label}</option>`);
-    }
-    return opts.join('');
+// Tonalité de la portée : majeures puis mineures (même liste d'armures). Valeur « 2 » = Ré majeur, « 2m » = Si mineur.
+function nseKeyValue(ks, mode) { return `${ks}${mode === 'm' ? 'm' : ''}`; }
+function nseKeyOptions(current, mode) {
+    const cur = nseKeyValue(current, mode);
+    const acc = (k) => (k === 0 ? 'aucune' : `${Math.abs(k)}${k > 0 ? '♯' : '♭'}`);
+    const group = (m, title, labels, suffix) => {
+        const opts = [];
+        for (let k = -7; k <= 7; k++) {
+            const v = nseKeyValue(k, m);
+            opts.push(`<option value="${v}"${v === cur ? ' selected' : ''}>${labels[k]} ${suffix} · ${acc(k)}</option>`);
+        }
+        return `<optgroup label="${title}">${opts.join('')}</optgroup>`;
+    };
+    return group('', 'Majeur', NSE_N.SN_KEY_LABELS, 'maj.') + group('m', 'Mineur', NSE_N.SN_MINOR_KEY_LABELS, 'min.');
 }
 
 // HTML de la barre d'outils d'une portée (pur : testé sans navigateur).
 function nseToolsHtml(st, cur, jamPct) {
-    const dur = ['w', 'h', 'q', '8', '16'].map(d => `<button type="button" class="ns-btn" data-dur="${d}" title="${NSE_DURATION_TITLES[d]}" aria-label="${NSE_DURATION_TITLES[d]}">${nseNoteIcon(d)}</button>`).join('');
+    const dur = ['w', 'h', 'q', '8', '16'].map(d => `<button type="button" class="ns-btn" data-dur="${d}" title="${nseDurTitle(d)}" aria-label="${NSE_DURATION_NAMES[d][0]}">${nseNoteIcon(d)}</button>`).join('');
     const meters = NSE_N.SN_METERS.map(m => `<option value="${m}"${m === st.meter ? ' selected' : ''}>${m}</option>`).join('');
     return `
         <button type="button" class="ns-btn ns-txt ns-exit" data-act="exit" title="Revenir à la mise en forme du texte" aria-label="Revenir à la mise en forme du texte">◂ Texte</button>
         <span class="ns-sep"></span>
-        <button type="button" class="ns-btn ns-txt ns-input is-on" data-act="input" aria-pressed="true" title="Saisie de notes (clavier : N), comme dans MuseScore. Allumée : un clic sur la portée pose une note, et les boutons de durée règlent la prochaine note. Éteinte (mode sélection) : un clic choisit une note (en bleu) ou encadre un groupe, et les boutons de durée changent la note choisie. Échap quitte la saisie." aria-label="Saisie de notes">Saisie</button>
+        <button type="button" class="ns-btn ns-txt ns-input is-on" data-act="input" aria-pressed="true" title="Saisie de notes${NSE_KB.kbHint('input')}, comme dans MuseScore. Allumée : un clic sur la portée pose une note, et les boutons de durée règlent la prochaine note. Éteinte (mode sélection) : un clic choisit une note (en bleu) ou encadre un groupe, et les boutons de durée changent la note choisie. Échap quitte la saisie." aria-label="Saisie de notes">Saisie</button>
         <div class="ns-grp" role="group" aria-label="Durée : de la note bleue si une note est sélectionnée, sinon de la prochaine note posée">${dur}
-            <button type="button" class="ns-btn" data-mod="dot" title="Note pointée (clavier : .)" aria-label="Note pointée"><b>•</b></button>
-            <select class="ns-sel ns-sel-tup" data-set="tuplet" title="Tuplet : transforme la note sélectionnée en triolet, quintolet, sextolet… (vraies notes, dans la même durée) ; sans note sélectionnée, règle les prochaines notes. Clavier : t = triolet" aria-label="Tuplet">${nseTupletOptions(cur && cur.tu)}</select>
-            <button type="button" class="ns-btn" data-mod="rest" title="Silence : le prochain clic pose un silence (clavier : r)" aria-label="Silence">${NSE_REST_ICON}</button>
-            <button type="button" class="ns-btn" data-act="tie" title="Liaison de prolongation : relie la note sélectionnée à la suivante, de même hauteur (clavier : l). Sur la dernière note, ajoute une note liée. Plusieurs notes sélectionnées : toutes les liaisons possibles." aria-label="Liaison de prolongation">${NSE_TIE_ICON}</button>
+            <button type="button" class="ns-btn" data-mod="dot" title="Note pointée${NSE_KB.kbHint('dot')}" aria-label="Note pointée"><b>•</b></button>
+            <select class="ns-sel ns-sel-tup" data-set="tuplet" title="Tuplet : transforme la note sélectionnée en triolet, quintolet, sextolet… (vraies notes, dans la même durée) ; sans note sélectionnée, règle les prochaines notes. ${nseKeyName('tuplet') ? `Clavier : ${nseKeyName('tuplet')} = triolet` : ''}" aria-label="Tuplet">${nseTupletOptions(cur && cur.tu)}</select>
+            <button type="button" class="ns-btn" data-mod="rest" title="Silence : le prochain clic pose un silence${NSE_KB.kbHint('rest')}" aria-label="Silence">${NSE_REST_ICON}</button>
+            <button type="button" class="ns-btn" data-act="tie" title="Liaison de prolongation : relie la note sélectionnée à la suivante, de même hauteur${NSE_KB.kbHint('tie')}. Sur la dernière note, ajoute une note liée. Plusieurs notes sélectionnées : toutes les liaisons possibles." aria-label="Liaison de prolongation">${NSE_TIE_ICON}</button>
         </div>
         <span class="ns-sep"></span>
         <div class="ns-grp" role="group" aria-label="Altération de la note sélectionnée">
-            <button type="button" class="ns-btn" data-alt="1" title="Dièse (clavier : #)" aria-label="Dièse">♯</button>
-            <button type="button" class="ns-btn" data-alt="-1" title="Bémol (clavier : -)" aria-label="Bémol">♭</button>
-            <button type="button" class="ns-btn" data-alt="0" title="Bécarre (clavier : 0)" aria-label="Bécarre">♮</button>
+            <button type="button" class="ns-btn" data-alt="1" title="Dièse${NSE_KB.kbHint('sharp')}" aria-label="Dièse">♯</button>
+            <button type="button" class="ns-btn" data-alt="-1" title="Bémol${NSE_KB.kbHint('flat')}" aria-label="Bémol">♭</button>
+            <button type="button" class="ns-btn" data-alt="0" title="Bécarre${NSE_KB.kbHint('natural')}" aria-label="Bécarre">♮</button>
         </div>
         <span class="ns-sep"></span>
         <select class="ns-sel" data-set="clef" aria-label="Clé"><option value="t"${st.clef === 't' ? ' selected' : ''}>Clé de sol</option><option value="b"${st.clef === 'b' ? ' selected' : ''}>Clé de fa</option></select>
         <select class="ns-sel" data-set="meter" aria-label="Mesure">${meters}</select>
-        <select class="ns-sel ns-sel-key" data-set="ks" aria-label="Armure">${nseKeyOptions(st.ks)}</select>
+        <select class="ns-sel ns-sel-key" data-set="ks" aria-label="Tonalité (armure)" title="Tonalité : majeure ou mineure ; l'armure en découle">${nseKeyOptions(st.ks, st.mode)}</select>
         <button type="button" class="ns-btn ns-txt" data-act="pickup" title="Levée (anacrouse) : la portée commence par une mesure incomplète. Sélectionnez la dernière note de la levée puis cliquez ici, ou écrivez les notes de la levée puis cliquez dans la portée derrière la barre de mesure." aria-label="Levée (anacrouse)">Levée</button>
         <span class="ns-sep"></span>
         <label class="ns-zoom" title="Taille de la portée">
@@ -437,6 +448,13 @@ function nseToolsHtml(st, cur, jamPct) {
 }
 
 // Touche du clavier → action sur la ou les notes sélectionnées (pur : testé sans navigateur). Renvoie null si la touche n'est pas pour la portée.
+// Actions personnalisables de la portée (id de ui/shortcuts.js → action).
+const NSE_KB_ACTS = {
+    input: { type: 'input' }, dur16: { type: 'dur', dur: '16' }, dur8: { type: 'dur', dur: '8' }, durq: { type: 'dur', dur: 'q' }, durh: { type: 'dur', dur: 'h' }, durw: { type: 'dur', dur: 'w' },
+    dot: { type: 'mod', mod: 'dot' }, rest: { type: 'mod', mod: 'rest' }, tuplet: { type: 'tuplet', n: 3 }, tie: { type: 'tie' },
+    sharp: { type: 'alter', delta: 1 }, flat: { type: 'alter', delta: -1 }, natural: { type: 'alter', delta: null }
+};
+
 function nseKeyAction(key, mods = {}) {
     if (mods.meta || mods.ctrl) {
         const k = String(key).toLowerCase();
@@ -445,25 +463,19 @@ function nseKeyAction(key, mods = {}) {
         if (k === 'c') return { type: 'copy' };
         if (k === 'x') return { type: 'cut' };
         if (k === 'v') return { type: 'paste' };
-        return null;
+    } else {
+        if (key === 'ArrowUp') return { type: 'shift', steps: mods.shift ? 7 : 1 };
+        if (key === 'ArrowDown') return { type: 'shift', steps: mods.shift ? -7 : -1 };
+        if (key === 'ArrowLeft') return mods.shift ? { type: 'extend', delta: -1 } : { type: 'move', delta: -1 };
+        if (key === 'ArrowRight') return mods.shift ? { type: 'extend', delta: 1 } : { type: 'move', delta: 1 };
+        if (key === 'Delete' || key === 'Backspace') return { type: 'delete' };
+        if (key === 'Escape') return { type: 'deselect' };
     }
-    if (key === 'ArrowUp') return { type: 'shift', steps: mods.shift ? 7 : 1 };
-    if (key === 'ArrowDown') return { type: 'shift', steps: mods.shift ? -7 : -1 };
-    if (key === 'ArrowLeft') return mods.shift ? { type: 'extend', delta: -1 } : { type: 'move', delta: -1 };
-    if (key === 'ArrowRight') return mods.shift ? { type: 'extend', delta: 1 } : { type: 'move', delta: 1 };
-    if (key === 'l' || key === 'L') return { type: 'tie' };
-    if (key === 'Delete' || key === 'Backspace') return { type: 'delete' };
-    if (key === 'Escape') return { type: 'deselect' };
-    if (/^[a-gA-G]$/.test(key)) return { type: 'letter', letter: key.toLowerCase() };
-    if (key === '#') return { type: 'alter', delta: 1 };
-    if (key === '-') return { type: 'alter', delta: -1 };
-    if (key === 'n' || key === 'N') return { type: 'input' };          // N : entrer dans / sortir de la saisie de notes (comme MuseScore)
-    if (key === '0') return { type: 'alter', delta: null };            // 0 : bécarre
-    if (key === '.') return { type: 'mod', mod: 'dot' };
-    if (key === 't' || key === 'T') return { type: 'tuplet', n: 3 };
-    if (key === 'r' || key === 'R') return { type: 'mod', mod: 'rest' };
-    if (NSE_DURATION_KEYS[key]) return { type: 'dur', dur: NSE_DURATION_KEYS[key] };
-    return null;
+    // Le reste suit les raccourcis choisis (panneau « Raccourcis ») : N, durées 1-5, point, R, T, L, # - 0, lettres a-g par défaut.
+    const id = NSE_KB.kbActionFor(NSE_KB.kbCombo({ key: String(key), code: mods.code, shift: mods.shift, meta: mods.meta, ctrl: mods.ctrl, alt: mods.alt }), 'staff');
+    if (!id) return null;
+    if (id.startsWith('note-')) return { type: 'letter', letter: id.slice(5) };
+    return NSE_KB_ACTS[id] ? { ...NSE_KB_ACTS[id] } : null;
 }
 
 // Hauteur la plus proche de la hauteur actuelle pour la lettre demandée (touche a-g).
@@ -598,7 +610,7 @@ class NoteStaffView {
             hint = document.createElement('div');
             hint.className = 'annot-staff-hint';
             const touch = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
-            hint.textContent = !this.inputMode ? 'Mode sélection : touchez « Saisie » (N) pour poser des notes'
+            hint.textContent = !this.inputMode ? `Mode sélection : touchez « Saisie »${nseKeyName('input') ? ` (${nseKeyName('input')})` : ''} pour poser des notes`
                 : (touch ? 'Choisissez une durée, puis touchez la portée' : 'Choisissez une durée puis cliquez sur la portée pour poser des notes');
             this.svgHost.appendChild(hint);
         }
@@ -664,7 +676,7 @@ class NoteStaffView {
         const szv = this.tools.querySelector('.ns-zoom-val'); if (szv) szv.textContent = `${this.st.size || NSE_N.SN_SIZE_DEFAULT} %`;
         ['clef', 'meter', 'ks'].forEach(k => {
             const s = this.tools.querySelector(`[data-set="${k}"]`);
-            if (s) s.value = String(k === 'clef' ? this.st.clef : (k === 'meter' ? this.st.meter : this.st.ks));
+            if (s) s.value = String(k === 'clef' ? this.st.clef : (k === 'meter' ? this.st.meter : nseKeyValue(this.st.ks, this.st.mode)));
         });
     }
 
@@ -1052,7 +1064,7 @@ class NoteStaffView {
             try { host.releasePointerCapture(ev.pointerId); } catch (e) { /* déjà relâché */ }
             if (box) box.remove();
             if (!moved && clearOnTap && this.selSet.size) this.select(-1);
-            else if (!moved && clearOnTap && !this.inputMode && !this.multiMode) this._flashHint('Mode sélection : touchez « Saisie » (N) pour poser des notes');
+            else if (!moved && clearOnTap && !this.inputMode && !this.multiMode) this._flashHint(`Mode sélection : touchez « Saisie »${nseKeyName('input') ? ` (${nseKeyName('input')})` : ''} pour poser des notes`);
         };
         host.addEventListener('pointermove', onMove);
         host.addEventListener('pointerup', onUp);
@@ -1373,7 +1385,7 @@ class NoteStaffView {
         const next = NSE_N.cloneStaff(this.st);
         if (s.dataset.set === 'clef') next.clef = s.value === 'b' ? 'b' : 't';
         else if (s.dataset.set === 'meter') next.meter = NSE_N.SN_METERS.includes(s.value) ? s.value : '4/4';
-        else if (s.dataset.set === 'ks') next.ks = Math.max(-7, Math.min(7, parseInt(s.value, 10) || 0));
+        else if (s.dataset.set === 'ks') { next.ks = Math.max(-7, Math.min(7, parseInt(s.value, 10) || 0)); next.mode = /m$/.test(s.value) ? 'm' : ''; }
         this._apply(next);
         if (this.opts.onFocusBack) this.opts.onFocusBack(this);
     }
@@ -1428,7 +1440,7 @@ class NoteStaffView {
 
     handleKey(ev) {
         if (!this.editable || ev.target.closest('select, input')) return false;
-        const act = nseKeyAction(ev.key, { shift: ev.shiftKey, meta: ev.metaKey, ctrl: ev.ctrlKey });
+        const act = nseKeyAction(ev.key, { shift: ev.shiftKey, meta: ev.metaKey, ctrl: ev.ctrlKey, alt: ev.altKey, code: ev.code });
         if (!act) return false;
         const list = this._selList();
         const has = list.length > 0;
@@ -1600,5 +1612,5 @@ function nseBlocksToClipText(els) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { nseHandDrawn, nseSmallTimeSig, NSE_TIMESIG_SCALE, NSE_SPACING, NSE_BAND, NSE_TOP, nseToolsHtml, nseKeyAction, nseNearestLetter, nseNoteIcon, nseKeyOptions, nseToolState, nseShownSelection, nseTempoMarkInfo, nseBlocksToClipText, noteStaffStubHtml };
+    module.exports = { nseHandDrawn, nseSmallTimeSig, NSE_TIMESIG_SCALE, NSE_SPACING, NSE_BAND, NSE_TOP, nseToolsHtml, nseKeyAction, nseNearestLetter, nseNoteIcon, nseKeyOptions, nseKeyValue, nseToolState, nseShownSelection, nseTempoMarkInfo, nseBlocksToClipText, noteStaffStubHtml };
 }

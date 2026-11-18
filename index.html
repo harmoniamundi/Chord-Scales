@@ -30,6 +30,7 @@
                     <button id="nav-btn-jam" onclick="app.switchView('jam')" class="px-3 py-1 rounded-md bg-[#3a3a3c] text-white transition shadow-sm">Mode Jam</button>
                 </div>
             </div>
+            <button type="button" id="kb-btn" onclick="app.jam.openShortcutsPanel()" title="Raccourcis clavier : les voir et les personnaliser" aria-label="Raccourcis clavier" class="kb-open-btn">⌨</button>
         </header>
 
         <!-- VUE ENTRAÎNEMENT -->
@@ -425,6 +426,9 @@
                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                                 <span>Jam it!</span>
                             </button>
+                            <button id="jam-stop-btn" type="button" hidden onclick="app.jam.stopToStart()" class="jam-metronome-toggle" title="Arrêter : la prochaine lecture repart du début" aria-label="Arrêter et revenir au début">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -492,6 +496,7 @@
     <script src="app/band/phrase-plan.js"></script>
     <script src="app/band/band-state.js"></script>
     <script src="app/grid/play-order.js"></script>
+    <script src="app/ui/shortcuts.js"></script>
     <script src="app/ui/staff-notes.js"></script>
     <script src="app/ui/chord-notes.js"></script>
     <script src="app/ui/draw-notes.js"></script>
@@ -645,6 +650,7 @@
                 this.initDefaultGrid();
                 this.bindUndoShortcuts();
                 this.bindGridEditShortcuts();
+                this.bindAppShortcuts();
                 // Icône disquette du titre : empreinte (grille + réglages) de chaque grille au moment de sa dernière sauvegarde
                 this._savedSigs = {};
                 setInterval(() => { if (!document.hidden) this.refreshSaveButton(); }, 600); // filet de sécurité : réglages modifiés par un curseur, etc.
@@ -3887,6 +3893,7 @@
                 if (this.isPlaying) return;
                 const span = document.querySelector('#jam-play-btn span');
                 if (!span) return;
+                if (this._paused) { span.textContent = `Reprendre · m.${this._pausedMeasure()}`; return; }
                 const rg = this._computePlayRange();
                 span.textContent = rg ? (rg.from === rg.to ? `Jam it! · m.${rg.from}` : `Jam it! · m.${rg.from}–${rg.to}`) : 'Jam it!';
             }
@@ -3905,6 +3912,209 @@
             _sameChordStep(a, b) { return sameChordStep(a, b); }
 
             _peekNextDisplayIndex(i) { return peekNextDisplayIndex(this.grid, i, { playRange: this._playRange, loopEnabled: this.loopEnabled, passes: this._passes }); }
+
+            // ===== Pause / reprise / arrêt (raccourcis : Espace = lire / pause, ⇧Espace = arrêter ; voir ui/shortcuts.js) =====
+
+            // Numéro (1…) de la mesure où la lecture reprendra.
+            _pausedMeasure() {
+                const p = this._paused;
+                if (!p) return 0;
+                return this.getStepStartMeasure(p.idx) + Math.floor(p.beat / this.getBeatsPerBar());
+            }
+
+            togglePlayPause() {
+                if (this.isPlaying) { this.pause(); return; }
+                if (this._paused) { this.resume(); return; }
+                this.togglePlay();
+            }
+
+            // Arrête le son en gardant la position : la lecture reprendra au début de la mesure en cours.
+            pause() {
+                if (!this.isPlaying || this._exporting || this._exportRec) return;
+                const bpb = this.getBeatsPerBar();
+                const counting = this._countInBeats > 0; // encore dans la mesure d'intro : on reprendra au même endroit de la grille
+                const p = {
+                    idx: Math.max(0, this.currentStepIndex),
+                    beat: counting ? Math.max(0, this.currentBeat) : Math.floor(Math.max(0, this.currentBeat) / bpb) * bpb,
+                    passes: { ...(this._passes || {}) },
+                    range: this._playRange,
+                    arp: !!this._arpPrevStyle
+                };
+                this.stop();
+                this._paused = p;
+                this._updatePlayLabel();
+                this._refreshPauseUI();
+            }
+
+            async resume() {
+                const p = this._paused;
+                if (!p) { this.togglePlay(); return; }
+                this._resumeFrom = p;
+                this._paused = null;
+                if (p.arp) await this.toggleArpeggioPlay(); else await this.start();
+                if (!this.isPlaying) { this._resumeFrom = null; this._refreshPauseUI(); }
+            }
+
+            // Arrêt complet : la prochaine lecture repart du début (ou de la sélection).
+            stopToStart() {
+                const was = !!this._paused;
+                this._paused = null;
+                this._resumeFrom = null;
+                if (this.isPlaying) this.stop();
+                else if (was) { this._updatePlayLabel(); }
+                this._refreshPauseUI();
+            }
+
+            _refreshPauseUI() {
+                const stopBtn = document.getElementById('jam-stop-btn');
+                if (stopBtn) stopBtn.hidden = !this._paused;
+                const counter = document.getElementById('jam-bar-counter');
+                if (counter && !this.isPlaying) counter.textContent = this._paused ? `Pause : m.${this._pausedMeasure()}` : 'Mesure : -/-';
+                const span = document.querySelector('#jam-play-btn span');
+                if (span && !this.isPlaying && !this._paused && /^Reprendre/.test(span.textContent)) this._updatePlayLabel();
+            }
+
+            // ===== Raccourcis clavier personnalisables (ui/shortcuts.js, panneau ⌨ de l'en-tête) =====
+
+            bindAppShortcuts() {
+                if (this._appShortcutsBound) return;
+                this._appShortcutsBound = true;
+                const nonText = ['range', 'checkbox', 'radio', 'button', 'file', 'color'];
+                document.addEventListener('keydown', (e) => {
+                    if (this._kbModal || e.defaultPrevented || e.isComposing) return;
+                    const view = document.getElementById('view-jam');
+                    if (!view || view.classList.contains('hidden')) return;
+                    if (this._editor || this._fnEditor || this._exportRec) return;
+                    const em = document.getElementById('export-modal');
+                    if (em && !em.classList.contains('hidden')) return;
+                    const t = e.target;
+                    // Saisie de texte et zones d'annotation (portées, cadres) : leurs propres touches passent avant.
+                    if (t && t.closest && (t.isContentEditable || t.tagName === 'TEXTAREA' || t.closest('.jam-annot-zone, .jam-annot-text, [contenteditable="true"]'))) return;
+                    if (t && t.tagName === 'INPUT' && !nonText.includes(t.type)) return;
+                    const combo = Shortcuts.kbCombo(e);
+                    if (!combo) return;
+                    // Liste déroulante sélectionnée : ses lettres et ses flèches servent à choisir ; seuls Espace et les combinaisons passent.
+                    if (t && t.tagName === 'SELECT' && !/^(Shift\+)?Space$|^(Mod|Alt)\+/.test(combo)) return;
+                    if (t && t.tagName === 'INPUT' && t.type === 'range' && /^(Shift\+)?Arrow/.test(combo)) return;
+                    const id = Shortcuts.kbActionFor(combo, 'jam');
+                    if (!id) return;
+                    e.preventDefault();
+                    if (t && (t.tagName === 'BUTTON' || t.tagName === 'SELECT' || t.tagName === 'INPUT')) { try { t.blur(); } catch (err) {} } // Espace ne doit pas aussi « cliquer » le bouton qui a le focus
+                    this._kbSwallowUp = e.code || e.key;
+                    if (e.repeat && id !== 'tempoUp' && id !== 'tempoDown') return;
+                    this.runShortcut(id);
+                }, true);
+                document.addEventListener('keyup', (e) => {
+                    if (this._kbSwallowUp && (e.code || e.key) === this._kbSwallowUp) { e.preventDefault(); this._kbSwallowUp = null; }
+                }, true);
+            }
+
+            runShortcut(id) {
+                const bpmStep = (d) => {
+                    const sl = document.getElementById('jam-bpm-slider');
+                    const lo = sl ? parseInt(sl.min, 10) || 50 : 50, hi = sl ? parseInt(sl.max, 10) || 220 : 220;
+                    this.setBpm(Math.max(lo, Math.min(hi, (this.bpm || 120) + d)));
+                };
+                switch (id) {
+                    case 'play': this.togglePlayPause(); break;
+                    case 'stop': this.stopToStart(); break;
+                    case 'arp': this.toggleArpeggioPlay(); break;
+                    case 'loop': this.toggleLoop(); break;
+                    case 'metro': this.toggleMetronome(); break;
+                    case 'subdiv': this.toggleMetronomeSubdivision(); break;
+                    case 'tempoUp': bpmStep(5); break;
+                    case 'tempoDown': bpmStep(-5); break;
+                    case 'chordArp': this.playDisplayedChordArpeggio(); break;
+                    case 'blind': this.toggleBlindMode(); break;
+                    case 'functions': this.toggleHarmonicFunctions(); break;
+                    case 'fullscreen': this.toggleGridFullscreen(); break;
+                    case 'band': this.toggleBandModal(); break;
+                    case 'harmony': this.toggleHarmonyModal(); break;
+                    case 'editBar': this.toggleEditBar(); break;
+                    case 'generate': this.resetGrid(); break;
+                }
+            }
+
+            closeShortcutsPanel() {
+                const m = this._kbModal;
+                if (!m) return;
+                this._kbModal = null;
+                if (m._onKey) document.removeEventListener('keydown', m._onKey, true);
+                m.remove();
+                // Barre d'outils d'une portée ouverte : infobulles à jour
+                if (typeof NSE_ACTIVE !== 'undefined' && NSE_ACTIVE && NSE_ACTIVE.tools) { try { NSE_ACTIVE._renderTools(); NSE_ACTIVE._refreshTools(); } catch (e) { /* refaite à la prochaine ouverture */ } }
+            }
+
+            openShortcutsPanel() {
+                if (this._kbModal) return;
+                const K = Shortcuts;
+                const esc = (x) => String(x).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+                const el = document.createElement('div');
+                el.className = 'kb-modal';
+                el.setAttribute('role', 'dialog');
+                el.setAttribute('aria-modal', 'true');
+                el.setAttribute('aria-labelledby', 'kb-h');
+                let waiting = null; // action dont on attend la nouvelle touche
+                const groups = [];
+                K.KB_ACTIONS.forEach((a) => { let g = groups.find(x => x.name === a.group); if (!g) groups.push(g = { name: a.group, list: [] }); g.list.push(a); });
+                const label = (id) => { const a = K.KB_ACTIONS.find(x => x.id === id); return a ? a.label : id; };
+                const render = (msg, isErr) => {
+                    const rows = groups.map(g => `<h3 class="kb-group">${esc(g.name)}</h3>` + g.list.map((a) => {
+                        const c = K.kbBinding(a.id), custom = c !== a.def;
+                        return `<div class="kb-row${waiting === a.id ? ' is-wait' : ''}"><span class="kb-name">${esc(a.label)}</span>
+                            <button type="button" class="kb-key${custom ? ' is-custom' : ''}" data-kb="${a.id}" title="Cliquer puis appuyer sur la nouvelle touche (Échap : annuler ; Suppr. : aucun raccourci)">${waiting === a.id ? 'Appuyez sur une touche…' : esc(K.kbLabel(c))}</button>
+                            <button type="button" class="kb-reset" data-kb-reset="${a.id}" title="Revenir à ${esc(K.kbLabel(a.def))}" aria-label="Revenir au raccourci par défaut"${custom ? '' : ' hidden'}>↺</button></div>`;
+                    }).join('')).join('');
+                    const fixed = K.KB_FIXED.map(([c, t]) => `<div class="kb-row is-fixed"><span class="kb-name">${esc(t)}</span><span class="kb-key">${esc(K.kbLabel(c))}</span></div>`).join('');
+                    el.innerHTML = `<div class="kb-card">
+                        <h2 id="kb-h">Raccourcis clavier</h2>
+                        <p class="kb-p">Cliquez sur un raccourci puis appuyez sur la touche (ou la combinaison) voulue. Si elle servait déjà dans la même partie, l'autre action la perd. Les raccourcis du mode Jam ne jouent pas pendant la saisie de texte ni dans les annotations ; ceux de la portée agissent quand une portée d'annotation est en édition. Réglage gardé sur cet appareil.</p>
+                        <div class="kb-status${isErr ? ' is-error' : ''}" role="status" aria-live="polite">${msg ? esc(msg) : ''}</div>
+                        <div class="kb-list">${rows}<h3 class="kb-group">Fixes</h3>${fixed}</div>
+                        <div class="kb-actions">
+                            <button type="button" class="kb-btn" data-kb-all="1">Tout rétablir</button>
+                            <button type="button" class="kb-btn kb-btn-primary" data-kb-close="1">Fermer</button>
+                        </div>
+                    </div>`;
+                    const w = waiting && el.querySelector(`[data-kb="${waiting}"]`);
+                    if (w) w.focus();
+                };
+                el.addEventListener('click', (ev) => {
+                    const b = ev.target.closest('button');
+                    if (!b) return;
+                    if (b.dataset.kbClose) { this.closeShortcutsPanel(); return; }
+                    if (b.dataset.kbAll) { if (confirm('Rétablir tous les raccourcis par défaut ?')) { K.kbReset(); waiting = null; render('Raccourcis par défaut rétablis.'); } return; }
+                    if (b.dataset.kbReset) { K.kbReset(b.dataset.kbReset); waiting = null; render(`« ${label(b.dataset.kbReset)} » : ${K.kbLabel(K.kbBinding(b.dataset.kbReset))}`); return; }
+                    if (b.dataset.kb) { waiting = waiting === b.dataset.kb ? null : b.dataset.kb; render(waiting ? `Nouvelle touche pour « ${label(waiting)} » ?` : ''); }
+                });
+                el.addEventListener('pointerdown', (ev) => { if (ev.target === el) this.closeShortcutsPanel(); });
+                const onKey = (ev) => {
+                    if (!this._kbModal) return;
+                    if (!waiting) {
+                        if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); this.closeShortcutsPanel(); }
+                        return;
+                    }
+                    if (ev.key === 'Tab') return;
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    const id = waiting;
+                    if (ev.key === 'Escape') { waiting = null; render(''); return; }
+                    if (ev.key === 'Delete' || ev.key === 'Backspace') { waiting = null; K.kbSet(id, ''); render(`« ${label(id)} » n'a plus de raccourci.`); return; }
+                    const combo = K.kbCombo(ev);
+                    if (!combo) return; // touche de modification seule : on attend la suite
+                    const r = K.kbSet(id, combo);
+                    if (!r.ok) { render(r.error, true); return; }
+                    waiting = null;
+                    render(`« ${label(id)} » : ${K.kbLabel(combo)}${r.replaced ? ` — retiré de « ${label(r.replaced)} »` : ''}`);
+                };
+                el._onKey = onKey;
+                document.addEventListener('keydown', onKey, true);
+                document.body.appendChild(el);
+                this._kbModal = el;
+                render('');
+                const first = el.querySelector('[data-kb]');
+                if (first) first.focus();
+            }
 
             toggleLoop(force) {
                 this.loopEnabled = typeof force === 'boolean' ? force : !this.loopEnabled;
@@ -7522,6 +7732,7 @@
             }
 
             togglePlay() {
+                if (!this.isPlaying && this._paused) { this.resume(); return; } // en pause : le bouton « Reprendre » repart de la mesure arrêtée
                 if (this._arpPrevStyle && this.isPlaying) { this.stop(); return; }
                 if (this.isPlaying) {
                     this.stop();
@@ -7563,6 +7774,22 @@
                 const startPos = this._playRange ? this._stepOfMeasure(this._playRange.from) : { idx: 0, measureInStep: 1 };
                 this.currentStepIndex = startPos.idx;
                 this.currentBeat = (startPos.measureInStep - 1) * this.getBeatsPerBar();
+                // Reprise après une pause : on repart du début de la mesure où la lecture s'était arrêtée (après la mesure d'intro),
+                // avec les mêmes passages de reprises et la même plage. Une position devenue invalide (grille modifiée) repart du début.
+                const resume = this._resumeFrom;
+                this._resumeFrom = null;
+                this._paused = null;
+                if (resume && !this._exporting) {
+                    const rs = this.grid[resume.idx];
+                    if (rs && resume.beat < rs.measures * this.getBeatsPerBar()) {
+                        this.currentStepIndex = resume.idx;
+                        this.currentBeat = resume.beat;
+                        this._passes = resume.passes || {};
+                        const total = this._totalMeasures();
+                        this._playRange = resume.range && resume.range.to <= total ? resume.range : null;
+                    }
+                }
+                this._refreshPauseUI();
                 this.activeSlot = 0;
                 Object.assign(this, bandRunState(newBandSeed()), bandVoiceState());
                 this._countInBeats = this._exporting ? 0 : this.getBeatsPerBar(); // l'intro d'une mesure est toujours jouée (sauf à l'export du son)
@@ -7597,6 +7824,7 @@
             }
 
             stop() {
+                this._paused = null; // pause() la repose juste après
                 this.isPlaying = false;
                 this._annotJamTransport();
                 this._countInBeats = 0;
@@ -9295,7 +9523,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-17-a';
+        var BUILD = '2026-11-18-a';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }
@@ -9311,9 +9539,10 @@
                 'app/ui/scale-harmony.js': typeof scaleHarmonyHtml === 'function' && typeof scaleHarmony === 'function',
                 'app/ui/scale-map.js': typeof scaleMapEntries === 'function' && typeof scaleMapHtml === 'function' && typeof trainingMapCards === 'function',
                 'app/ui/chord-picker.js': typeof chordPickerHtml === 'function' && typeof chordPickerBuild === 'function' && typeof chordPickerParseRoot === 'function',
-                'app/ui/staff-notes.js': typeof splitStaffClips === 'function' && typeof parseBlockAt === 'function' && typeof staffMakeTuplet === 'function' && typeof staffSetPickup === 'function' && typeof setStaffSwing === 'function' && typeof staffInsertEvents === 'function' && typeof staffToggleTies === 'function' && typeof shiftEvents === 'function',
+                'app/ui/shortcuts.js': typeof Shortcuts === 'object' && typeof Shortcuts.kbSet === 'function' && typeof Shortcuts.kbActionFor === 'function',
+                'app/ui/staff-notes.js': typeof SN_MINOR_KEY_NAMES !== 'undefined' && typeof splitStaffClips === 'function' && typeof parseBlockAt === 'function' && typeof staffMakeTuplet === 'function' && typeof staffSetPickup === 'function' && typeof setStaffSwing === 'function' && typeof staffInsertEvents === 'function' && typeof staffToggleTies === 'function' && typeof shiftEvents === 'function',
                 'app/grid/grid-format.js': typeof NOTE_FONTS !== 'undefined' && !!NOTE_FONTS.menlo && typeof sanitizeNoteHtml === 'function' && sanitizeNoteHtml('<div class="annot-frame" data-frame="200" data-at="5,5" data-border="0">x</div>', 300).indexOf('data-border') >= 0,
-                'app/ui/staff-editor.js': typeof nseToolState === 'function' && typeof nseBlocksToClipText === 'function' && typeof NoteStaffView === 'function' && typeof NoteStaffView.prototype.setBorder === 'function' && typeof NoteStaffView.prototype._setTuplet === 'function' && typeof nseSwingOptions === 'function' && typeof NoteStaffView.prototype._toggleTie === 'function' && typeof NoteStaffView.prototype._startMarquee === 'function',
+                'app/ui/staff-editor.js': typeof nseKeyValue === 'function' && typeof nseToolState === 'function' && typeof nseBlocksToClipText === 'function' && typeof NoteStaffView === 'function' && typeof NoteStaffView.prototype.setBorder === 'function' && typeof NoteStaffView.prototype._setTuplet === 'function' && typeof nseSwingOptions === 'function' && typeof NoteStaffView.prototype._toggleTie === 'function' && typeof NoteStaffView.prototype._startMarquee === 'function',
                 'app/ui/text-frame.js': typeof NoteFrameView === 'function' && typeof NoteFrameView.prototype.setBorder === 'function',
                 'app/ui/annot-canvas.js': typeof AnnotCanvas === 'function' && typeof acZoomOffset === 'function' && typeof acEmptySpot === 'function' && typeof AC_GUTTER === 'number',
                 'app/ui/chord-notes.js': typeof chordsParse === 'function' && typeof chordsStubHtml === 'function' && typeof chordsDefault === 'function',
