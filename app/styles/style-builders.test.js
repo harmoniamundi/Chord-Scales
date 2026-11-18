@@ -19,8 +19,8 @@ const STYLES = Object.keys(STYLE_BUILDERS);
 const bars = (tpl) => tpl.reduce((s, x) => s + x.m, 0);
 
 describe('catalogue des styles', () => {
-    test('58 styles (dont sept styles rock et quatre danses aksak), dont les alias blues128, ballad128 et balkan98', () => {
-        assert.equal(STYLES.length, 58);
+    test('64 styles (dont sept styles rock, quatre danses aksak et six styles afro-cubains), dont les alias blues128, ballad128 et balkan98', () => {
+        assert.equal(STYLES.length, 64);
         assert.equal(STYLE_BUILDERS.blues128, STYLE_BUILDERS.blues);
         assert.equal(STYLE_BUILDERS.ballad128, STYLE_BUILDERS.ballad);
         assert.equal(STYLE_BUILDERS.balkan98, STYLE_BUILDERS.balkan);
@@ -256,5 +256,52 @@ describe('Balkans : danses aksak', () => {
     test('mineur (paidouchko, lesnoto, kopanitsa) ; majeur (ratchenitsa)', () => {
         for (const st of ['balkan58', 'balkan78', 'balkan118']) assert.equal(build(st, 0)[0].c, 'minTriad', st);
         assert.equal(build('balkan78r', 0)[0].c, 'majTriad');
+    });
+});
+
+describe('styles afro-cubains', () => {
+    const CUBAN = ['sonmontuno', 'chachacha', 'bolerocubano', 'guajira', 'danzon', 'guaguanco'];
+    test('formes : 16 mesures (danzón : 32 mesures de 2/4), de référence et renouvelées', () => {
+        for (const st of CUBAN) {
+            assert.equal(bars(build(st, 0)), st === 'danzon' ? 32 : 16, st);
+            for (let seed = 1; seed <= 30; seed++) assert.equal(bars(build(st, seed % 12, seeded(seed))), st === 'danzon' ? 32 : 16, `${st} graine ${seed}`);
+        }
+    });
+    test('chaque gamme proposée appartient aux gammes de son accord', () => {
+        for (const st of CUBAN) for (let seed = 0; seed <= 30; seed++) {
+            const tpl = seed ? build(st, 2, seeded(seed)) : build(st, 2);
+            tpl.forEach(x => assert.ok(T.lookupChord(x.c).scales.some(sc => sc.id === x.s), `${st} : ${x.c} / ${x.s}`));
+        }
+    });
+    test('son, guajira, danzón : triades et dominantes seulement (sauf le ii7 du son)', () => {
+        for (const st of ['guajira', 'danzon']) for (let seed = 0; seed <= 30; seed++) {
+            const tpl = seed ? build(st, 0, seeded(seed)) : build(st, 0);
+            tpl.forEach(x => assert.ok(['majTriad', 'minTriad', '7'].includes(x.c), `${st} : ${x.c}`));
+        }
+        for (let seed = 0; seed <= 30; seed++) {
+            const tpl = seed ? build('sonmontuno', 0, seeded(seed)) : build('sonmontuno', 0);
+            tpl.forEach(x => assert.ok(['majTriad', 'minTriad', '7', 'm7'].includes(x.c), `son : ${x.c}`));
+        }
+    });
+    test('bolero : harmonie de septièmes et de neuvièmes (aucune triade)', () => {
+        for (let seed = 0; seed <= 30; seed++) {
+            const tpl = seed ? build('bolerocubano', 0, seeded(seed)) : build('bolerocubano', 0);
+            tpl.forEach(x => assert.ok(!['majTriad', 'minTriad'].includes(x.c), x.c));
+        }
+    });
+    test('danzón : le paseo (A) revient à l\'identique entre les parties B et C', () => {
+        for (let seed = 0; seed <= 20; seed++) {
+            const tpl = seed ? build('danzon', 0, seeded(seed)) : build('danzon', 0);
+            const sig = (sec) => tpl.filter(x => x.phrase === sec).map(x => x.r + x.c + x.m).join('|');
+            assert.equal(sig('A1'), sig('A2'));
+            assert.ok(tpl.some(x => x.section === 'C'));
+        }
+    });
+    test('forme de référence : commence sur la tonique', () => {
+        for (const st of CUBAN) {
+            const tpl = build(st, 0);
+            assert.equal(tpl[0].r, 0, st);
+            assert.equal(tpl[0].function, 'tonic', st);
+        }
     });
 });

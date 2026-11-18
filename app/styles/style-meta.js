@@ -22,7 +22,8 @@ const STYLE_SCALE_PROFILE = {
     balkan78r:'classic',
     cumbia:'classic',
     rockroll:'blues', rockclassic:'classic', hardrock:'classic', punk:'classic', rockballad:'classic', bluesrock:'blues', indierock:'classic',
-    flamencosolea:'flamenco', flamencobulerias:'flamenco', flamencotangos:'flamenco'
+    flamencosolea:'flamenco', flamencobulerias:'flamenco', flamencotangos:'flamenco',
+    sonmontuno:'classic', chachacha:'jazz', bolerocubano:'jazz', guajira:'classic', danzon:'classic', guaguanco:'classic'
 };
 
 // Orchestre proposé pour chaque style (modifiable ensuite dans la fenêtre « Orchestre »).
@@ -41,14 +42,16 @@ const STYLE_BAND = {
     balkan58: 'balkan', balkan78: 'balkan', balkan78r: 'balkan', balkan118: 'balkan',
     cumbia: 'cumbia',
     rockroll: 'pop', rockclassic: 'pop', hardrock: 'pop', punk: 'pop', rockballad: 'pop', bluesrock: 'pop', indierock: 'pop',
-    flamencosolea: 'guitar', flamencobulerias: 'guitar', flamencotangos: 'guitar'
+    flamencosolea: 'guitar', flamencobulerias: 'guitar', flamencotangos: 'guitar',
+    sonmontuno: 'cuba', chachacha: 'cuba', bolerocubano: 'cuba', guajira: 'cuba', danzon: 'cuba', guaguanco: 'cuba'
 };
 
 // Rythme imposé à l'orchestre Latin par certains styles (sinon le moteur choisit bossa / samba selon le tempo).
 const STYLE_GROOVE = { baroque: 'c-baroque', bossa: 'bossa', samba: 'samba', tango: 'lyrique', piazzolla: 'piazzolla', milongalyrique: 'lyrique', afro68: 'afro', salsa: 'salsa', brasshymn: 'b-chorale', brasscantique: 'b-chorale',
     flamencosolea: 'f-solea', flamencobulerias: 'f-bulerias', flamencotangos: 'f-tangos',
     balkansevdah: 'bk-sevdah', balkantsifte: 'bk-tsifte',
-    rockroll: 'r-roll', rockclassic: 'r-classic', hardrock: 'r-hard', punk: 'r-punk', rockballad: 'r-ballad', bluesrock: 'r-blues', indierock: 'r-indie' };
+    rockroll: 'r-roll', rockclassic: 'r-classic', hardrock: 'r-hard', punk: 'r-punk', rockballad: 'r-ballad', bluesrock: 'r-blues', indierock: 'r-indie',
+    sonmontuno: 'cu-son', chachacha: 'cu-chacha', bolerocubano: 'cu-bolero', guajira: 'cu-guajira', danzon: 'cu-danzon', guaguanco: 'cu-guaguanco' };
 
 // Entrées « Flamenco » du menu Orchestre : orchestre Guitare + rythme du palo (même rythme que le style de grille du même nom).
 const FLAMENCO_BAND_GROOVES = { flamencosolea: 'f-solea', flamencobulerias: 'f-bulerias', flamencotangos: 'f-tangos' };
@@ -58,7 +61,10 @@ const ROCK_BAND_GROOVES = { rockroll: 'r-roll', rockclassic: 'r-classic', hardro
 
 // Entrées latines du menu Orchestre : bossa nova et samba (orchestre Brasil) et salsa (orchestre Cuba), avec le même
 // rythme que le style de grille du même nom — utilisables sur n'importe quelle grille, comme les entrées Flamenco et Rock.
-const LATIN_BAND_GROOVES = { bossa: { band: 'latin', groove: 'bossa' }, samba: { band: 'latin', groove: 'samba' }, salsa: { band: 'cuba', groove: 'salsa' } };
+const LATIN_BAND_GROOVES = { bossa: { band: 'latin', groove: 'bossa' }, samba: { band: 'latin', groove: 'samba' }, salsa: { band: 'cuba', groove: 'salsa' },
+    // styles afro-cubains (orchestre Cuba, band/afrocuban-plan.js)
+    sonmontuno: { band: 'cuba', groove: 'cu-son' }, chachacha: { band: 'cuba', groove: 'cu-chacha' }, bolerocubano: { band: 'cuba', groove: 'cu-bolero' },
+    guajira: { band: 'cuba', groove: 'cu-guajira' }, danzon: { band: 'cuba', groove: 'cu-danzon' }, guaguanco: { band: 'cuba', groove: 'cu-guaguanco' } };
 
 // Tempo (noires par minute ; pulsations ♩. en mesure composée) et signature proposés pour chaque style.
 // Valeurs modifiables ensuite avec le curseur de tempo et le sélecteur « Mesure ».
@@ -121,7 +127,13 @@ const STYLE_TEMPO_METER = {
     flamencosolea:    { bpm: 52,  meter: '12/8' }, // 12 temps : un compás = 4 pulsations ♩. (≈ 4,6 s)
     flamencobulerias: { bpm: 88,  meter: '12/8' }, // compás de ≈ 2,7 s
     flamencotangos:   { bpm: 108, meter: '4/4' },
-    salsa:            { bpm: 180, meter: '4/4' } // salsa dansée : noire autour de 180 (clave sur deux mesures ≈ 2,7 s)
+    salsa:            { bpm: 180, meter: '4/4' }, // salsa dansée : noire autour de 180 (clave sur deux mesures ≈ 2,7 s)
+    sonmontuno:       { bpm: 104, meter: '4/4' }, // son montuno de septeto
+    chachacha:        { bpm: 116, meter: '4/4' }, // cha-cha-chá dansé : 110-125
+    bolerocubano:     { bpm: 72,  meter: '4/4' },
+    guajira:          { bpm: 92,  meter: '4/4' },
+    danzon:           { bpm: 112, meter: '2/4' }, // danzón : noire autour de 110, cinquillo en doubles croches
+    guaguanco:        { bpm: 108, meter: '4/4' }
 };
 
 // Recherche par clé propre : une clé inattendue (« constructor »…) ne renvoie jamais un membre hérité d'Object.

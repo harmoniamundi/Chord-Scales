@@ -266,6 +266,171 @@ const STYLE_BUILDERS = {
         );
         return template;
     },
+    // ============ Styles afro-cubains (orchestre Cuba, voir band/afrocuban-plan.js) ============
+    // Quatre phrases de quatre mesures (danzón : quatre phrases de huit mesures de 2/4). Chaque phrase part de l'accord que la
+    // précédente appelle (okAfter). Cellules : [nom d'accord du toolkit, décalage depuis la tonique, mesures].
+    sonmontuno: (t) => {
+        const { R, pick, join, cells, okAfter } = t;
+        // Son montuno (4/4) : triades et dominante V7, le plus souvent en majeur (Septeto Nacional, Trío Matamoros) : I - IV - V7 - IV,
+        // ii - V7 - I ; plus rarement en mineur (i - iv - V7, cadence andalouse). Le couplet (« largo ») puis le montuno, vamp de
+        // deux ou quatre mesures où le coro répond au soneo.
+        const minor = !!(R && R() < 0.35);
+        let A, B1, B2;
+        if (!minor) {
+            A  = [ [['M',0],['M',5],['D',7],['M',5]],                      // I - IV - V7 - IV
+                   [['M',0,2],['D',7,2]],                                  // I - V7
+                   [['M',0],['m7',2],['D',7],['M',0]],                     // I - ii - V7 - I
+                   [['M',0],['D',9],['m7',2],['D',7]] ];                   // I - VI7 - ii - V7
+            B1 = [ [['M',0],['M',5],['D',7],['M',5]],
+                   [['m7',2],['D',7],['M',0,2]],
+                   [['M',5],['D',7],['M',0],['D',7]] ];
+            B2 = [ [['M',0],['M',5],['D',7],['M',0]],
+                   [['m7',2],['D',7],['M',0,2]],
+                   [['M',0,2],['D',7],['M',0]] ];
+        } else {
+            A  = [ [['m',0],['m',5],['Dm',7],['m',0]],                     // i - iv - V7 - i
+                   [['m',0,2],['Dm',7,2]],                                 // vamp i - V7
+                   [['m',0],['M',10],['M',8],['Dm',7]] ];                  // cadence andalouse
+            B1 = [ [['m',0],['Dm',7],['m',0],['Dm',7]],
+                   [['m',5,2],['Dm',7,2]],
+                   [['M',8],['Dm',7],['m',0,2]] ];
+            B2 = [ [['m',0],['m',5],['Dm',7],['m',0]],
+                   [['m',0,2],['Dm',7],['m',0]] ];
+        }
+        const a1 = pick(A);
+        const a2o = okAfter(a1, A).filter(o => o !== a1);
+        const a2 = pick(a2o.length ? a2o : A);
+        const b1 = pick(okAfter(a2, B1));
+        return join(cells(a1,'A','A1'), cells(a2,'A','A2'), cells(b1,'B','B1'), cells(pick(okAfter(b1, B2)),'B','B2'));
+    },
+    chachacha: (t) => {
+        const { R, pick, join, cells, okAfter } = t;
+        // Cha-cha-chá (4/4, Enrique Jorrín, Orquesta Aragón) : harmonie de charanga, accords de septième, souvent I - vi - ii - V7,
+        // ii - V7 - I, iii - VI7 - ii - V7 ; en mineur i - iv - V7 ; parfois le vamp dorien i7 - IV7 (« Oye cómo va »).
+        const r = R ? R() : 0;
+        let A, B1, B2;
+        if (r < 0.55) {
+            A  = [ [['maj7i',0],['m7a',9],['m7',2],['D',7]],               // I - vi - ii - V7
+                   [['maj7i',0,2],['D',7,2]],
+                   [['maj7i',0],['maj7',5],['D',7],['maj7i',0]],           // I - IV - V7 - I
+                   [['m7',2],['D',7],['maj7i',0,2]] ];                     // ii - V7 - I
+            B1 = [ [['m7',2,2],['D',7,2]],
+                   [['m7',4],['D',9],['m7',2],['D',7]],                    // iii - VI7 - ii - V7
+                   [['maj7',5],['D',7],['maj7i',0],['D',9]] ];
+            B2 = [ [['maj7i',0],['m7a',9],['m7',2],['D',7]],
+                   [['m7',2],['D',7],['maj7i',0,2]],
+                   [['maj7',5],['D',7],['maj7i',0,2]] ];
+        } else if (r < 0.85) {
+            A  = [ [['m7a',0],['m7',5],['D9b',7],['m7a',0]],               // i - iv - V7 - i
+                   [['m7a',0,2],['D9b',7,2]],
+                   [['m7a',0],['maj7',8],['hd',2],['D9b',7]] ];            // i - ♭VI - iiø - V7
+            B1 = [ [['m7',5,2],['D9b',7,2]],
+                   [['maj7',8],['D9b',7],['m7a',0,2]],
+                   [['hd',2],['D9b',7],['m7a',0],['D9b',7]] ];
+            B2 = [ [['m7a',0],['m7',5],['D9b',7],['m7a',0]],
+                   [['hd',2],['D9b',7],['m7a',0,2]] ];
+        } else {
+            // vamp dorien : i7 - IV7 (toute la grille en dorien), avec un pont v7 - IV7
+            A  = [ [['m7',0],['D',5],['m7',0],['D',5]] ];
+            B1 = [ [['m7',7],['D',5],['m7',0],['D',5]], [['m7',0,2],['D',5,2]] ];
+            B2 = [ [['m7',0],['D',5],['m7',0,2]] ];
+        }
+        const a1 = pick(A);
+        const a2o = okAfter(a1, A).filter(o => o !== a1);
+        const a2 = pick(a2o.length ? a2o : A);
+        const b1 = pick(okAfter(a2, B1));
+        return join(cells(a1,'A','A1'), cells(a2,'A','A2'), cells(b1,'B','B1'), cells(pick(okAfter(b1, B2)),'B','B2'));
+    },
+    bolerocubano: (t) => {
+        const { R, pick, join, abs } = t;
+        // Bolero cubain (4/4 lent, trío de guitares, filin) : harmonie riche, accords de septième et de neuvième, ii - V7 enchaînés,
+        // dominantes secondaires (VI7, I7 vers IV), le iv mineur emprunté (IV - iv - I), le diminué de passage I - #I° - ii - V7.
+        // A1 finit sur la dominante (question), A2 sur la tonique, B part vers IV (ou le relatif majeur en mineur), B2 conclut.
+        const row = (rows, sec, phr) => rows.map(([off, c, sc, fn, m = 1]) => abs(off, c, m, sc, sec, phr, fn));
+        const minor = !!(R && R() < 0.35);
+        let A1, A2, B1, B2;
+        if (!minor) {
+            const I = (m = 1) => [0, 'maj7', 'ionian', 'tonic', m], I9 = (m = 1) => [0, 'maj9', 'ionian', 'tonic', m];
+            const ii = [2, 'm7', 'dorian', 'predominant'], V = [7, '7', 'mixolydian', 'dominant'], V9 = [7, '9', 'mixolydian', 'dominant'];
+            const vi = [9, 'm7', 'aeolian', 'predominant'], iii = [4, 'm7', 'phrygian', 'tonic'];
+            const VI7 = [9, '7b9', 'phrygianDominant', 'secondaryDominant'], I7 = [0, '7', 'mixolydian', 'secondaryDominant'];
+            const IV = [5, 'maj7', 'lydian', 'predominant'], iv = [5, 'm7', 'dorian', 'predominant'], dimp = [1, 'dim7', 'wholeHalfDim', 'color'];
+            const iiIV = [7, 'm7', 'dorian', 'predominant'];
+            A1 = [ [I(), vi, ii, V], [I(), dimp, ii, V9], [iii, VI7, ii, V], [I9(), I7, IV, iv] ];
+            A2 = [ [ii, V, I(2)], [IV, iv, I(2)], [iii, VI7, ii, V9], [ii, V9, iii, VI7] ];
+            B1 = [ [iiIV, I7, IV, IV], [I7, IV, iv, I()], [iiIV, I7, IV, iv] ];
+            B2 = [ [iii, VI7, ii, V], [ii, V9, I(2)], [IV, iv, iii, VI7], [ii, V, I9(2)] ];
+        } else {
+            const i = (m = 1) => [0, 'm7', 'aeolian', 'tonic', m], im = (m = 1) => [0, 'm9', 'aeolian', 'tonic', m];
+            const iv = [5, 'm7', 'dorian', 'predominant'], iio = [2, 'm7b5', 'locrianSharp2', 'predominant'], V = [7, '7b9', 'phrygianDominant', 'dominant'];
+            const VI = [8, 'maj7', 'lydian', 'predominant'], III = (m = 1) => [3, 'maj7', 'ionian', 'tonic', m];
+            const iiR = [5, 'm7', 'dorian', 'predominant'], VR = [10, '7', 'mixolydian', 'dominant'];
+            A1 = [ [i(), iv, iio, V], [i(), VI, iio, V], [im(), iv, VI, V] ];
+            A2 = [ [i(), iv, V, i()], [VI, iio, V, i()], [iio, V, i(2)] ];
+            B1 = [ [iiR, VR, III(2)], [iv, VR, III(), VI], [III(2), iio, V] ];
+            B2 = [ [VI, iio, V, i()], [iv, V, i(2)], [iio, V, im(2)] ];
+        }
+        return join(row(pick(A1), 'A', 'A1'), row(pick(A2), 'A', 'A2'), row(pick(B1), 'B', 'B1'), row(pick(B2), 'B', 'B2'));
+    },
+    guajira: (t) => {
+        const { R, pick, join, cells, okAfter } = t;
+        // Guajira (4/4, musique paysanne, « Guantanamera ») : triades et V7, majeur le plus souvent, la boucle I - IV - V7 - IV qui
+        // tourne sans s'arrêter ; parfois en mineur (i - iv - V7 - i).
+        const minor = !!(R && R() < 0.2);
+        let A1, A2, B1, B2;
+        if (!minor) {
+            A1 = [ [['M',0],['M',5],['D',7],['M',5]], [['M',0,2],['D',7,2]], [['M',0],['M',5],['D',7,2]] ];        // I .. V7 / IV
+            A2 = [ [['M',0],['M',5],['D',7],['M',5]], [['M',0],['M',5],['D',7],['M',0]], [['M',0,2],['D',7],['M',0]] ];
+            B1 = [ [['M',5,2],['M',0],['D',7]], [['M',5],['M',0],['M',5],['D',7]], [['m',9],['M',5],['D',7,2]] ];
+            B2 = [ [['M',0],['M',5],['D',7],['M',0]], [['M',5],['D',7],['M',0,2]] ];
+        } else {
+            A1 = [ [['m',0],['m',5],['Dm',7],['m',5]], [['m',0,2],['Dm',7,2]] ];
+            A2 = [ [['m',0],['m',5],['Dm',7],['m',0]], [['m',0,2],['Dm',7],['m',0]] ];
+            B1 = [ [['m',5,2],['m',0],['Dm',7]], [['M',8],['M',10],['m',0],['Dm',7]] ];
+            B2 = [ [['m',0],['m',5],['Dm',7],['m',0]], [['m',5],['Dm',7],['m',0,2]] ];
+        }
+        const a1 = pick(A1);
+        const a2 = pick(okAfter(a1, A2));
+        const b1 = pick(okAfter(a2, B1));
+        return join(cells(a1,'A','A1'), cells(a2,'A','A2'), cells(b1,'B','B1'), cells(pick(okAfter(b1, B2)),'B','B2'));
+    },
+    danzon: (t) => {
+        const { R, pick, join, cells } = t;
+        // Danzón (2/4, Miguel Failde) : forme en rondo, le paseo (A) revient entre les parties chantées par la flûte et les violons ;
+        // harmonie classique, triades et dominantes, accords de deux mesures. A (paseo) - B - A - C (partie au relatif mineur ou à
+        // la sous-dominante), 32 mesures.
+        const minor = !!(R && R() < 0.15);
+        let A, Bp, Cp;
+        if (!minor) {
+            A  = [ [['M',0,2],['D',7,2],['D',7,2],['M',0,2]], [['M',0,2],['M',5,2],['D',7,2],['M',0,2]], [['M',0,2],['D',0,2],['M',5,2],['D',7,2]] ];
+            Bp = [ [['M',0,2],['D',9,2],['m',2,2],['D',7,2]], [['M',0,2],['D',0,2],['M',5,2],['D',7,2]], [['m',2,2],['D',7,2],['M',0,2],['D',7,2]] ];
+            Cp = [ [['m',9,2],['D',4,2],['m',9,2],['D',7,2]], [['M',5,2],['D',0,2],['M',5,2],['D',7,2]], [['m',9,2],['m',2,2],['D',4,2],['D',7,2]] ];
+        } else {
+            A  = [ [['m',0,2],['Dm',7,2],['Dm',7,2],['m',0,2]], [['m',0,2],['m',5,2],['Dm',7,2],['m',0,2]] ];
+            Bp = [ [['M',3,2],['D',10,2],['M',3,2],['Dm',7,2]], [['m',5,2],['Dm',7,2],['m',0,2],['Dm',7,2]] ];
+            Cp = [ [['M',8,2],['m',5,2],['Dm',7,2],['Dm',7,2]], [['m',5,2],['m',0,2],['Dm',7,2],['Dm',7,2]] ];
+        }
+        const a = pick(A);
+        return join(cells(a,'A','A1'), cells(pick(Bp),'B','B1'), cells(a,'A','A2'), cells(pick(Cp),'C','C1'));
+    },
+    guaguanco: (t) => {
+        const { R, pick, join, cells, okAfter } = t;
+        // Rumba guaguancó (4/4) : la vraie rumba n'a que les voix et les percussions ; ici une guitare discrète soutient le coro.
+        // Harmonie minimale : vamps i - V7, i - iv - V7 (le plus souvent en mineur), ou I - V7 en majeur.
+        const minor = !!(R ? R() < 0.7 : true);
+        let A, B;
+        if (minor) {
+            A = [ [['m7a',0,2],['D9b',7,2]], [['m7a',0],['D9b',7],['m7a',0],['D9b',7]], [['m7a',0],['m7',5],['D9b',7],['m7a',0]] ];
+            B = [ [['m7',5,2],['D9b',7,2]], [['m7a',0,2],['m7',5],['D9b',7]], [['m7a',0],['M',10],['maj7',8],['D9b',7]] ];
+        } else {
+            A = [ [['M',0,2],['D',7,2]], [['M',0],['D',7],['M',0],['D',7]], [['M',0],['M',5],['D',7],['M',0]] ];
+            B = [ [['M',5,2],['D',7,2]], [['M',0,2],['M',5],['D',7]] ];
+        }
+        const a1 = pick(A);
+        const a2 = pick(okAfter(a1, A));
+        const b1 = pick(okAfter(a2, B));
+        return join(cells(a1,'A','A1'), cells(a2,'A','A2'), cells(b1,'B','B1'), cells(pick(okAfter(b1, B)),'B','B2'));
+    },
     barcarolle: (t) => {
         const { pick, join, cells } = t;
         let template = [];

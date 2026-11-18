@@ -21,7 +21,8 @@ const isPartLabel = (v) => typeof v === 'string' && (PART_LABELS.includes(v) || 
 
 // Rythmes imposés par un style (samba, tango…), valables dans un fichier importé.
 const IMPORT_GROOVES = ['bossa', 'samba', 'salsa', 'tango', 'piazzolla', 'lyrique', 'afro', 'b-chorale', 'bk-sevdah', 'bk-tsifte', 'f-solea', 'f-bulerias', 'f-tangos',
-    'r-roll', 'r-classic', 'r-hard', 'r-punk', 'r-ballad', 'r-blues', 'r-indie', 'c-baroque'];
+    'r-roll', 'r-classic', 'r-hard', 'r-punk', 'r-ballad', 'r-blues', 'r-indie', 'c-baroque',
+    'cu-son', 'cu-chacha', 'cu-bolero', 'cu-guajira', 'cu-danzon', 'cu-guaguanco'];
 
 // Densité de notes par orchestre (curseur « Densité » du pop-up Orchestre, 0 à 1) et valeur par défaut :
 // Guitare 60 % (un peu plus fourni que l'écriture d'origine, vers 35 %) ; autres orchestres 50 % = l'écriture d'origine.
