@@ -238,7 +238,7 @@
                     <div class="flex items-center gap-4 pt-1 jr-wrap">
                         <div class="jr-full flex-1 flex items-center gap-2">
                             <span id="jam-bpm-label" class="text-xs font-semibold text-slate-400 whitespace-nowrap">BPM</span>
-                            <input type="range" id="jam-bpm-slider" min="50" max="220" value="120" oninput="app.jam.setBpm(this.value)" class="w-full accent-blue-500">
+                            <input type="range" id="jam-bpm-slider" title="Tempo" min="50" max="220" value="120" oninput="app.jam.setBpm(this.value)" class="w-full accent-blue-500">
                             <span id="jam-bpm-display" class="text-xs font-mono font-bold text-slate-200 min-w-[32px]">120</span>
                         </div>
                         <div class="jr-full jr-meter-row flex items-center gap-1.5">
@@ -302,7 +302,7 @@
                     </div>
                     <div class="flex items-center gap-1.5">
                         <button onclick="app.jam.clearGrid()" class="text-xs bg-rose-600 hover:bg-rose-500 text-white font-semibold px-2.5 py-1 rounded transition">Effacer</button>
-                        <button onclick="app.jam.resetGrid()" class="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2.5 py-1 rounded transition">Générer</button>
+                        <button onclick="app.jam.resetGrid()" title="Générer une nouvelle grille selon le style choisi" class="text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2.5 py-1 rounded transition">Générer</button>
                     </div>
                 </div>
 
@@ -422,7 +422,7 @@
                             <button id="jam-loop-toggle" onclick="app.jam.toggleLoop()" class="jam-metronome-toggle" title="Boucle : activée = la grille repart au début quand elle est terminée ; désactivée = la jam s'arrête à la fin de la grille" aria-label="Lecture en boucle de la grille" aria-pressed="false">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
                             </button>
-                            <button id="jam-play-btn" onclick="app.jam.togglePlay()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3 rounded-lg transition flex items-center justify-center gap-2 shadow text-xs">
+                            <button id="jam-play-btn" onclick="app.jam.togglePlay()" title="Lire / mettre en pause la grille" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3 rounded-lg transition flex items-center justify-center gap-2 shadow text-xs">
                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                                 <span>Jam it!</span>
                             </button>
@@ -1067,8 +1067,8 @@
                 const titleChanged = typing && inp.value.trim() !== (name || '');
                 const clean = !!name && !titleChanged && !!this._savedSigs && this._savedSigs[name] === this._stateSignature();
                 btn.classList.toggle('is-dirty', !clean);
-                const kb = (typeof Shortcuts !== 'undefined' && Shortcuts.kbBinding('save')) ? ` — ${Shortcuts.kbLabel(Shortcuts.kbBinding('save'))}` : '';
-                const tip = clean ? `Grille « ${name} » sauvegardée` : `Sauvegarder la grille (modifications non enregistrées)${kb}`;
+                const kb = (typeof Shortcuts !== 'undefined' && Shortcuts.kbBinding('save')) ? ` (${Shortcuts.kbLabel(Shortcuts.kbBinding('save'))})` : '';
+                const tip = clean ? `Grille « ${name} » sauvegardée${kb}` : `Sauvegarder la grille (modifications non enregistrées)${kb}`;
                 if (btn.title !== tip) { btn.title = tip; btn.setAttribute('aria-label', tip); }
             }
 
@@ -4016,6 +4016,43 @@
                 document.addEventListener('keyup', (e) => {
                     if (this._kbSwallowUp && (e.code || e.key) === this._kbSwallowUp) { e.preventDefault(); this._kbSwallowUp = null; }
                 }, true);
+                this.applyShortcutTitles();
+            }
+
+            // Infobulles : chaque bouton qui a un raccourci l'affiche à la fin de son titre (« Boucle … (B) »).
+            // Les titres que l'appli change en cours de route (plein écran, antisèches…) sont suivis par un MutationObserver.
+            // La disquette du titre est à part : refreshSaveButton écrit elle-même le raccourci.
+            applyShortcutTitles() {
+                const map = {
+                    '#jam-play-btn': 'play', '#jam-stop-btn': 'stop', '#jam-arpeggio-toggle': 'arp', '#jam-loop-toggle': 'loop',
+                    '#jam-metronome-toggle': 'metro', '#jam-subdivision-toggle': 'subdiv', '#jam-bpm-slider': 'tempoUp,tempoDown',
+                    '#jam-current-chord-title': 'chordArp', '#jam-blind-toggle': 'blind', '#jam-antiseche-btn': 'antiseches',
+                    '#jam-tonal-function-toggle': 'functions', '#jam-grid-fullscreen-btn': 'fullscreen',
+                    '[onclick="app.jam.toggleBandModal()"]': 'band', '#jam-harmony-btn': 'harmony', '#jam-edit-toggle': 'editBar',
+                    '[onclick="app.jam.resetGrid()"]': 'generate'
+                };
+                if (!this._kbTitleObs && typeof MutationObserver !== 'undefined') {
+                    this._kbTitleObs = new MutationObserver((list) => list.forEach(m => this._kbDecorateTitle(m.target)));
+                }
+                Object.keys(map).forEach((sel) => {
+                    document.querySelectorAll(sel).forEach((el) => {
+                        el.dataset.kbAction = map[sel];
+                        this._kbDecorateTitle(el);
+                        if (this._kbTitleObs && !el._kbObserved) { el._kbObserved = true; this._kbTitleObs.observe(el, { attributes: true, attributeFilter: ['title'] }); }
+                    });
+                });
+                this.refreshSaveButton && this.refreshSaveButton();
+            }
+
+            _kbDecorateTitle(el) {
+                if (!el || !el.dataset || !el.dataset.kbAction) return;
+                const cur = el.getAttribute('title') || '';
+                const base = el._kbSuffix && cur.endsWith(el._kbSuffix) ? cur.slice(0, -el._kbSuffix.length) : cur;
+                const keys = el.dataset.kbAction.split(',').map(id => Shortcuts.kbBinding(id)).filter(Boolean).map(c => Shortcuts.kbLabel(c));
+                const suffix = keys.length ? ` (${keys.join(' / ')})` : '';
+                el._kbSuffix = suffix;
+                const want = base + suffix;
+                if (want !== cur) el.setAttribute('title', want);
             }
 
             runShortcut(id) {
@@ -4036,6 +4073,7 @@
                     case 'chordArp': this.playDisplayedChordArpeggio(); break;
                     case 'blind': this.toggleBlindMode(); break;
                     case 'functions': this.toggleHarmonicFunctions(); break;
+                    case 'antiseches': this.toggleAntiseches(); break;
                     case 'fullscreen': this.toggleGridFullscreen(); break;
                     case 'band': this.toggleBandModal(); break;
                     case 'harmony': this.toggleHarmonyModal(); break;
@@ -4062,6 +4100,7 @@
                 this._kbModal = null;
                 if (m._onKey) document.removeEventListener('keydown', m._onKey, true);
                 m.remove();
+                this.applyShortcutTitles();
                 // Barre d'outils d'une portée ouverte : infobulles à jour
                 if (typeof NSE_ACTIVE !== 'undefined' && NSE_ACTIVE && NSE_ACTIVE.tools) { try { NSE_ACTIVE._renderTools(); NSE_ACTIVE._refreshTools(); } catch (e) { /* refaite à la prochaine ouverture */ } }
             }
@@ -9544,7 +9583,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-18-a';
+        var BUILD = '2026-11-18-b';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }

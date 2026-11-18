@@ -21,6 +21,7 @@ const KB_ACTIONS = [
     { id: 'tempoDown', scope: 'jam', group: 'Lecture (mode Jam)', label: 'Tempo − 5', def: 'Alt+ArrowDown' },
     { id: 'chordArp',  scope: 'jam', group: 'Lecture (mode Jam)', label: "Écouter l'accord affiché (arpège)", def: 'c' },
     { id: 'blind',     scope: 'jam', group: 'Affichage (mode Jam)', label: "À l'aveugle", def: '' },
+    { id: 'antiseches', scope: 'jam', group: 'Affichage (mode Jam)', label: 'Antisèches (afficher / masquer)', def: 'Alt+a' },
     { id: 'functions', scope: 'jam', group: 'Affichage (mode Jam)', label: 'Fonction tonale (afficher / masquer)', def: 'f' },
     { id: 'fullscreen', scope: 'jam', group: 'Affichage (mode Jam)', label: 'Plein écran de la grille', def: 'Shift+f' },
     { id: 'band',      scope: 'jam', group: 'Affichage (mode Jam)', label: 'Fenêtre Orchestre', def: 'o' },
