@@ -146,7 +146,7 @@ const STYLE_TEMPO_METER = {
     highlife:         { bpm: 120, meter: '4/4' },
     rumbacongo:       { bpm: 116, meter: '4/4' },
     soukous:          { bpm: 144, meter: '4/4' }, // sebene dansé : 135-155
-    benga:            { bpm: 150, meter: '4/4' },
+    benga:            { bpm: 132, meter: '4/4' }, // Shirati Jazz, D.O. Misiani : 125-140
     mbaqanga:         { bpm: 126, meter: '4/4' }
 };
 

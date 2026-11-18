@@ -317,8 +317,8 @@ const BAND_SWING_DEFAULTS = {
 };
 
 // Swing propre à certains rythmes imposés : orchestre Pop-Rock (rock'n'roll des années 50, shuffle du blues rock) et orchestre
-// Afrique (le highlife balance légèrement ses croches).
-const GROOVE_SWING_DEFAULTS = { 'r-roll': 0.62, 'r-blues': 0.667, 'af-highlife': 0.56 };
+// Afrique (le highlife et le benga balancent légèrement leurs croches et doubles croches).
+const GROOVE_SWING_DEFAULTS = { 'r-roll': 0.62, 'r-blues': 0.667, 'af-highlife': 0.56, 'af-benga': 0.55 };
 
 // Valeur par défaut (« Auto ») du swing d'un orchestre au tempo donné (et au rythme imposé, s'il y en a un).
 function defaultBandSwing(style, bpm, groove) {

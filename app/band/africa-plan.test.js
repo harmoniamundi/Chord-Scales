@@ -106,7 +106,7 @@ describe('buildAfricaPlan', () => {
     test('les notes des guitares appartiennent à l\'accord ou à sa pentatonique (riff de l\'afrobeat)', () => {
         for (const g of A.AFRICA_GROOVES) for (let s = 1; s <= 20; s++) {
             const p = plan(g, { seed: s, step: G7 });
-            const ok = new Set([...A.afChordPcs({ findChordObj }, G7).triad, A.afChordPcs({ findChordObj }, G7).seventh, ...A.afPentaPcs({ findChordObj }, G7)]);
+            const ok = new Set([...A.afChordPcs({ findChordObj }, G7).triad, A.afChordPcs({ findChordObj }, G7).seventh, ...A.afPentaPcs({ findChordObj }, G7), ...(g === 'af-benga' ? [0, 4] : [])]);   // benga : la gamme (sol mixolydien) entière
             inst(p, 'gtr').forEach(e => e.intervals.forEach(x => assert.ok(ok.has(pc(x)), `${g} ${x}`)));
         }
     });
@@ -122,7 +122,7 @@ describe('buildAfricaPlan', () => {
         for (const g of A.AFRICA_GROOVES) for (const off of [-2, -9]) {
             const p0 = plan(g, { seed: 3 });
             const pt = plan(g, { seed: 3, env: mkEnv(g, { transOffset: off }) });
-            const okPcs = new Set([...A.afChordPcs({ findChordObj }, C).triad, ...A.afPentaPcs({ findChordObj }, C)]);
+            const okPcs = new Set([...A.afChordPcs({ findChordObj }, C).triad, ...A.afPentaPcs({ findChordObj }, C), ...(g === 'af-benga' ? [5, 11] : [])]);
             inst(pt, 'gtr').forEach(e => e.intervals.forEach(x => assert.ok(okPcs.has(pc(x)), `${g} ${off} note ${x}`)));
             assert.ok(Math.abs(inst(pt, 'gtr').length - inst(p0, 'gtr').length) <= 4, `${g} même écriture`);
             inst(pt, 'gtr').forEach(e => e.intervals.forEach(x => assert.ok(x + off + 48 >= 52 && x + off + 48 <= 91, `${g} ${off} ${x}`)));
@@ -152,7 +152,7 @@ describe('buildAfricaPlan', () => {
             const b2 = p.bass.find(b => Math.abs(b.pos - 2) < 1e-6);
             assert.ok(b2, `${g} basse au temps 3`);
             assert.equal(pc(b2.abs), 7, g);
-            const G7ok = new Set([...A.afChordPcs({ findChordObj }, G7).triad, 5, ...A.afPentaPcs({ findChordObj }, G7)]);
+            const G7ok = new Set([...A.afChordPcs({ findChordObj }, G7).triad, 5, ...A.afPentaPcs({ findChordObj }, G7), ...(g === 'af-benga' ? [0, 4] : [])]);
             inst(p, 'gtr').filter(e => e.pos >= 2).forEach(e => e.intervals.forEach(x => assert.ok(G7ok.has(pc(x)), `${g} ${x}`)));
         }
     });
@@ -200,11 +200,37 @@ describe('buildAfricaPlan', () => {
         const solo = inst(p, 'gtr').filter(e => e.art === 'arp' && e.intervals.length === 1 && e.intervals[0] + 48 >= 69);
         assert.ok(solo.length >= 14, `${solo.length}`);
     });
-    test('benga : basse en croches continues, guitares pincées très courtes', () => {
-        const p = plan('af-benga', { seed: 2 });
-        assert.ok(p.bass.length >= 8);
-        const g = inst(p, 'gtr');
-        assert.ok(g.every(e => e.art === 'pluck'));
+    test('benga : basse en noires sur chaque temps, guitare solo liée qui coule par degrés, accents sur le temps et le « a »', () => {
+        for (let s = 1; s <= 20; s++) {
+            const p = plan('af-benga', { seed: s, ph: mkPhrase(s, 'af-benga', { intensity: 0.8 }) });
+            [0, 1, 2, 3].forEach(b => assert.ok(p.bass.some(x => Math.abs(x.pos - b) < 1e-6), `basse au temps ${b + 1}`));
+            assert.ok(p.bass.length <= 7);
+            const g = inst(p, 'gtr');
+            assert.ok(g.every(e => e.art === 'arp'), 'notes liées, aucune note étouffée');
+            const solo = g.filter(e => e.part === 'solo').sort((a, b) => a.pos - b.pos);
+            assert.ok(solo.length >= 4 && solo.length <= 14, `${solo.length} notes`);
+            // par degrés : la plupart des intervalles successifs font au plus une tierce
+            let steps = 0;
+            for (let k = 1; k < solo.length; k++) if (Math.abs(solo[k].intervals[0] - solo[k - 1].intervals[0]) <= 4) steps++;
+            assert.ok(steps / (solo.length - 1) >= 0.75, `degrés conjoints ${steps}/${solo.length - 1}`);
+            // liées : chaque note dure au moins jusqu'à la suivante (sauf la dernière)
+            for (let k = 0; k + 1 < solo.length; k++) if (solo[k + 1].pos - solo[k].pos <= 0.5 + 1e-6) assert.ok(solo[k].dur >= solo[k + 1].pos - solo[k].pos - 1e-6);
+            // sur les temps : une note de l'accord (Do majeur)
+            solo.filter(e => Number.isInteger(e.pos)).forEach(e => assert.ok([0, 4, 7].includes(pc(e.intervals[0])), `temps ${e.pos} : ${e.intervals[0]}`));
+        }
+        // charleston sur le « et » et le « a »
+        const p = plan('af-benga', { seed: 3 });
+        const hats = p.drums.filter(e => e.drum === 'hat' && e.vel > 0.15).map(e => e.pos % 1);
+        assert.ok(hats.includes(0.5) && hats.includes(0.75));
+    });
+    test('benga : la ligne continue d\'une mesure à la suivante (pas de saut de registre)', () => {
+        const env = mkEnv('af-benga');
+        const ph = mkPhrase(4, 'af-benga', { intensity: 0.7 });
+        const a = plan('af-benga', { env, ph, i: 0 });
+        const b = plan('af-benga', { env, ph, i: 1, step: F, nextStep: C });
+        const top = (p) => inst(p, 'gtr').filter(e => e.part === 'solo').sort((x, y) => x.pos - y.pos);
+        const last = top(a).pop().intervals[0], first = top(b)[0].intervals[0];
+        assert.ok(Math.abs(first - last) <= 7, `${last} → ${first}`);
     });
     test('mbaqanga : orgue en contretemps quand il joue avec de l\'énergie', () => {
         const p = plan('af-mbaqanga', { seed: 2, ph: mkPhrase(2, 'af-mbaqanga', { organ: true, intensity: 0.8 }) });

@@ -908,6 +908,12 @@
 #jam-swing-select { width: auto; flex: 0 0 auto; padding: 6px 4px; } /* largeur non compressible : le texte ne doit jamais être rogné */
 #jam-swing-select.jam-swing-manual { color: #6ee7b7; } /* réglé à la main (sinon : valeur automatique de l'orchestre) */
 #jam-swing-wrap.hidden { display: none; }
+#jam-swing-wrap { flex: 0 0 auto; }
+/* Le menu Mesure prend sa largeur sur l'option la plus longue (« 7/8 (3+2+2) ») : dans la colonne étroite il repoussait le menu
+   Swing hors du cadre. Il se resserre désormais pour laisser toute sa place au Swing (le texte choisi reste lisible). */
+#jam-grid-editor .jr-meter-row { min-width: 0; }
+#jam-grid-editor .jr-meter-row > div:first-child { flex: 1 1 auto; min-width: 0; }
+#jam-timesig-select { flex: 1 1 auto; min-width: 0; width: 100%; max-width: 120px; text-overflow: ellipsis; }
 @media (max-width: 639px) {
     /* Mesure et Swing se partagent une ligne ; le bouton Orchestre passe sur la ligne suivante */
     #jam-grid-editor .jr-meter-row { justify-content: space-between; }

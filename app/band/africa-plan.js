@@ -14,8 +14,10 @@
 //  - af-soukous   (soukous / sebene, années 80) : batterie « cavacha » (caisse claire en doubles croches continues, grosse caisse
 //                 sur chaque temps), basse rebondissante, guitare solo en arpèges rapides et aigus (groupes de trois doubles
 //                 croches contre la mesure), guitare médium en croches, guitare rythmique en contretemps ;
-//  - af-benga     (Kenya, D.O. Misiani) : tempo vif, grosse caisse sur chaque temps, basse aiguë et mélodique en croches
-//                 continues (héritée de la lyre nyatiti), guitares pincées très courtes qui s'imbriquent ;
+//  - af-benga     (Kenya, D.O. Misiani et Shirati Jazz) : autour de 132 à la noire, doubles croches légèrement balancées
+//                 (swing 55 % par défaut) ; basse mélodique en noires qui pompent sur chaque temps ; guitare solo en doubles
+//                 croches continues et liées, qui coulent par degrés dans la gamme et s'appuient sur le temps et sur le « a » ;
+//                 seconde guitare en arpèges de croches ; charleston sur le « et » et le « a », grosse caisse douce sur chaque temps ;
 //  - af-mbaqanga  (Afrique du Sud, Makgona Tsohle Band) : basse très bondissante (octaves, doubles croches), batterie à quatre
 //                 temps, guitare en riff aigu de croches, guitare rythmique, orgue en contretemps.
 //
@@ -197,18 +199,33 @@ const AFRICA_STYLE = {
     },
     // ---------------- Benga ----------------
     'af-benga': {
+        // basse : des noires qui pompent sur chaque temps (fondamentale, quinte, octave, tierce), parfois une double croche
+        // d'appel sur le « a » ; la dernière annonce l'accord suivant
         bass: [
-            [[0, 'R', 0.4, 0.88], [0.5, 'T', 0.4, 0.66], [1, 'F', 0.4, 0.74], [1.5, 'O', 0.4, 0.66], [2, 'H', 0.4, 0.76], [2.5, 'O', 0.4, 0.62], [3, 'F', 0.4, 0.72], [3.5, 'T', 0.4, 0.62]],
-            [[0, 'R', 0.4, 0.88], [0.5, 'F', 0.4, 0.64], [1, 'O', 0.4, 0.74], [1.5, 'F', 0.4, 0.62], [2, 'T', 0.4, 0.76], [2.5, 'F', 0.4, 0.62], [3, 'O', 0.4, 0.72], [3.5, 'A', 0.4, 0.64]],
-            [[0, 'R', 0.4, 0.9], [0.5, 'O', 0.25, 0.6], [0.75, 'O', 0.25, 0.56], [1, 'F', 0.4, 0.72], [1.5, 'T', 0.4, 0.64], [2, 'R', 0.4, 0.8], [2.5, 'H', 0.4, 0.66], [3, 'O', 0.4, 0.72], [3.5, 'F', 0.4, 0.62]]
+            [[0, 'R', 0.85, 0.9], [1, 'F', 0.85, 0.74], [2, 'O', 0.85, 0.8], [3, 'F', 0.6, 0.72], [3.75, 'A', 0.25, 0.6]],
+            [[0, 'R', 0.85, 0.9], [1, 'T', 0.85, 0.72], [2, 'F', 0.85, 0.78], [2.75, 'F', 0.25, 0.5], [3, 'O', 0.6, 0.72], [3.75, 'A', 0.25, 0.6]],
+            [[0, 'R', 0.6, 0.9], [0.75, 'R', 0.25, 0.52], [1, 'F', 0.85, 0.74], [2, 'O', 0.85, 0.8], [3, 'T', 0.85, 0.72]],
+            [[0, 'R', 0.85, 0.9], [1, 'O', 0.85, 0.74], [2, 'F', 0.6, 0.78], [2.75, 'R', 0.25, 0.52], [3, 'T', 0.6, 0.7], [3.75, 'A', 0.25, 0.6]]
         ],
-        // guitare pincée en doubles croches (notes très courtes), qui s'imbrique avec la seconde guitare en contretemps
-        lead: [
-            [[0, 2], [0.25, 1], [0.5, 0], [1, 2], [1.25, 1], [1.5, 0], [2, 3], [2.25, 2], [2.5, 1], [3, 2], [3.5, 1]],
-            [[0, 0], [0.25, 1], [0.5, 2], [0.75, 1], [1.5, 2], [2, 0], [2.25, 1], [2.5, 2], [2.75, 3], [3.5, 2]],
-            [[0, 1], [0.5, 2], [0.75, 1], [1, 0], [1.5, 1], [2, 2], [2.5, 3], [2.75, 2], [3, 1], [3.5, 0]]
+        // rythme de la guitare solo, temps par temps : positions dans le temps et poids selon l'énergie (lo, hi)
+        // (allégé : les doubles croches continues ne sont plus qu'une couleur ; croche + « a » domine, avec des respirations)
+        cells: [
+            { c: [0, 0.5, 0.75], lo: 2.6, hi: 2.6 },          // croche, double, double : l'appui sur le « a »
+            { c: [0, 0.75], lo: 2.0, hi: 1.8 },               // noire pointée de double, puis le « a »
+            { c: [0, 0.5], lo: 1.8, hi: 1.3 },
+            { c: [0], lo: 1.2, hi: 0.7 },                     // une note qui sonne tout le temps
+            { c: [0.5, 0.75], lo: 1.0, hi: 0.9 },             // part après le temps (la note précédente sonne)
+            { c: [0, 0.25, 0.5, 0.75], lo: 0.3, hi: 1.1 },    // doubles croches continues : seulement quand l'énergie monte
+            { c: [], lo: 0.5, hi: 0.25 }                      // respiration
         ],
-        chop: [[0.5, 1.5, 2.5, 3.5], [0.25, 0.5, 1.5, 2.25, 2.5, 3.5]]
+        // seconde guitare : arpèges de croches dans le médium (rang dans le voicing : 0 grave, 2 aigu)
+        broken: [
+            [[0, 0], [0.5, 1], [1, 2], [1.5, 1], [2, 0], [2.5, 1], [3, 2], [3.5, 1]],
+            [[0, 0], [0.5, 2], [1, 1], [1.5, 2], [2, 0], [2.5, 2], [3, 1], [3.5, 2]],
+            [[0, 0], [0.75, 1], [1.5, 2], [2, 0], [2.75, 1], [3.5, 2]],
+            [[0, 0], [1, 2], [1.5, 1], [2, 0], [3, 2], [3.5, 1]],
+            [[0, 0], [1, 1], [2, 0], [3, 2]]
+        ]
     },
     // ---------------- Mbaqanga ----------------
     'af-mbaqanga': {
@@ -255,7 +272,9 @@ function africaPhraseExtras(rng, prev, index, groove) {
         organ: rng() < 0.4 + 0.45 * I,
         lead2: rng() < 0.35 + 0.5 * I,                          // seconde guitare (sebene, benga) selon l'énergie
         fill: rng() < 0.7,
-        ghost16: rng() < 0.3 + 0.5 * I
+        ghost16: rng() < 0.3 + 0.5 * I,
+        melSeed: rng(),                                         // ligne de la guitare solo du benga
+        melDir: rng() < 0.5 ? 1 : -1
     };
 }
 
@@ -300,7 +319,7 @@ function buildAfricaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep,
     const fillFrom = bpb - 1;
 
     // ---- guitare rythmique : voicing aigu, conduite des voix d'une mesure à l'autre ----
-    const VREG = { 'af-afrobeat': [58, 74], 'af-highlife': [57, 72], 'af-rumba': [55, 71], 'af-soukous': [60, 76], 'af-benga': [62, 78], 'af-mbaqanga': [60, 76] }[g];
+    const VREG = { 'af-afrobeat': [58, 74], 'af-highlife': [57, 72], 'af-rumba': [55, 71], 'af-soukous': [60, 76], 'af-benga': [55, 71], 'af-mbaqanga': [60, 76] }[g];
     const use7 = g === 'af-afrobeat';
     let lastV = env.state.africaVoice || null;
     const vCache = {};
@@ -507,12 +526,17 @@ function buildAfricaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep,
         if (I > 0.5) [[1.75, 'conga1', 0.3], [3.5, 'conga2', 0.4]].forEach(([p, d, v]) => dr(p, d, v));
         if (turnFill) [[3, 'snare', 0.5], [3.25, 'snare', 0.55], [3.5, 'snare', 0.62], [3.75, 'snare', 0.7]].forEach(([p, d, v]) => dr(p, d, v));
     } else if (g === 'af-benga') {
-        // Grosse caisse sur chaque temps, caisse claire sur 2 et 4, charleston sur les contretemps, maracas en croches.
-        each(1, p => dr(p, 'kick', p === 0 ? 0.78 : 0.56));
-        [1, 3].forEach(p => { if (notInFill(p)) dr(p, 'snare', 0.56); });
-        each(1, p => { if (notInFill(p + 0.5)) dr(p + 0.5, 'hat', 0.4); });
-        each(0.5, p => dr(p, 'shaker', Number.isInteger(p) ? 0.16 : 0.24));
-        if (I > 0.6) dr(3.75, 'ghost', 0.22);
+        // Grosse caisse douce sur chaque temps (avec la basse), caisse claire légère sur 2 et 4, charleston sur le « et » et le « a »
+        // (c'est lui qui fait balancer), maracas en doubles croches très douces.
+        each(1, p => dr(p, 'kick', p === 0 ? 0.7 : 0.52));
+        [1, 3].forEach(p => { if (notInFill(p)) dr(p, 'snare', 0.42); });
+        each(1, p => {
+            if (notInFill(p + 0.5)) dr(p + 0.5, 'hat', 0.4);
+            if (notInFill(p + 0.75)) dr(p + 0.75, 'hat', 0.3);
+            if (ph.ghost16 && notInFill(p + 0.25)) dr(p + 0.25, 'hat', 0.13);
+        });
+        each(0.25, p => dr(p, 'shaker', Math.abs(frac(p) - 0.75) < eps ? 0.2 : 0.11));
+        if (I > 0.6 && par === 1) dr(3.75, 'ghost', 0.2);
         if (turnFill) [[3, 'rtom1', 0.5], [3.25, 'rtom2', 0.5], [3.5, 'rtom3', 0.55], [3.75, 'rtom4', 0.6]].forEach(([p, d, v]) => dr(p, d, v));
     } else {
         // Mbaqanga : grosse caisse sur chaque temps, caisse claire sur 2 et 4, charleston ouvert sur les contretemps, tambourin.
@@ -521,6 +545,59 @@ function buildAfricaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep,
         each(1, p => { if (notInFill(p)) dr(p, 'hat', 0.26); if (notInFill(p + 0.5)) dr(p + 0.5, I > 0.5 ? 'ohat' : 'hat', I > 0.5 ? 0.22 : 0.34); });
         if (I > 0.45) each(1, p => dr(p + 0.5, 'tmb', 0.26));
         if (turnFill) [[3, 'rtom1', 0.5], [3.25, 'rtom2', 0.52], [3.5, 'rtom3', 0.56], [3.75, 'rtom4', 0.62]].forEach(([p, d, v]) => dr(p, d, v));
+    }
+
+    // ---- guitare solo du benga : une ligne qui coule par degrés dans la gamme de l'accord ----
+    // Rythme tiré temps par temps (surtout des doubles croches continues), rejoué à l'identique d'une mesure « question » à l'autre
+    // pour que la ligne tourne comme un motif ; la hauteur avance par degrés conjoints (parfois une tierce), change de sens aux
+    // bords du registre ou de temps en temps, et se pose sur une note de l'accord sur chaque temps. Notes liées (elles sonnent
+    // jusqu'à la suivante), accents sur le temps et sur le « a ».
+    function bengaLine() {
+        let sd = (Math.floor((ph.melSeed || 0.37) * 1e9) + par * 7919 + (Math.floor(i / 2) % 2) * 104729) >>> 0;
+        const mr = () => { sd = (Math.imul(sd, 1664525) + 1013904223) >>> 0; return sd / 4294967296; };
+        const cells = S.cells;
+        const wOf = (c) => c.lo + (c.hi - c.lo) * I;
+        const pickCell = () => {
+            const tot = cells.reduce((a, c) => a + wOf(c), 0);
+            let r = mr() * tot;
+            for (const c of cells) { r -= wOf(c); if (r <= 0) return c.c; }
+            return cells[0].c;
+        };
+        const onsets = [];
+        for (let b = 0; b < bpb; b++) pickCell().forEach(f => onsets.push(b + f));
+        if (!onsets.length) onsets.push(0);
+        const kept = onsets.filter(pos => keep(pos) && !(turnFill && pos >= fillFrom + 0.5 - eps && mr() < 0.5));
+        let prevX = anchor;                                       // dernière note de la mesure précédente
+        let dir = ph.melDir || 1, run = 0;
+        const notes = [];
+        kept.forEach((pos) => {
+            const cs = csAt(pos);
+            const Sc = popScaleNotes(cs, leadLo, leadHi);
+            if (Sc.length < 5) return;
+            const ct = afChordPcs(env, cs).triad;
+            let j = Sc.reduce((b, n, k) => Math.abs(n - prevX) < Math.abs(Sc[b] - prevX) ? k : b, 0);
+            if (notes.length) {
+                run++;
+                if (run > 3 + Math.floor(mr() * 4)) { dir = -dir; run = 0; }   // une vague de 4 à 7 notes, puis l'autre sens
+                j += dir * (mr() < 0.92 ? 1 : 2);
+            }
+            if (j <= 0) { j = 0; dir = 1; run = 0; }
+            if (j >= Sc.length - 1) { j = Sc.length - 1; dir = -1; run = 0; }
+            // sur le temps : une note de l'accord, la plus proche dans le sens de la marche
+            if (Math.abs(frac(pos)) < eps && !ct.includes(afMod(Sc[j]))) {
+                for (const d of [dir, -dir]) { if (Sc[j + d] !== undefined && ct.includes(afMod(Sc[j + d]))) { j += d; break; } }
+            }
+            prevX = Sc[j];
+            notes.push({ pos, note: Sc[j] });
+        });
+        notes.forEach((n, k) => {
+            const nextPos = k + 1 < notes.length ? notes[k + 1].pos : Math.min(bpb, n.pos + 0.5);
+            const dur = Math.max(0.2, Math.min(1, (nextPos - n.pos) * 1.1));     // liées : chaque note recouvre un peu la suivante
+            const f = frac(n.pos);
+            const acc = Math.abs(f) < eps ? 0.95 : Math.abs(f - 0.75) < eps ? 1 : Math.abs(f - 0.5) < eps ? 0.8 : 0.7;
+            gtr(n.pos, [n.note], dur, 0.66 * acc * (0.94 + 0.12 * rng()), 'arp', { roll: 0, part: 'solo' });
+        });
+        if (notes.length) env.state.africaLead = notes[notes.length - 1].note;
     }
 
     // ---- guitares, orgue, cuivres selon le style ----
@@ -595,13 +672,15 @@ function buildAfricaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep,
         // seconde guitare (mi-solo) une octave plus bas, en croches et doubles cordes
         if (ph.lead2) playLead(leadPat, { vel: 0.42, art: 'arp', legato: 0.9, maxDur: 0.5, shift: -3 });
     } else if (g === 'af-benga') {
-        chop(pick(S.chop, ph.chopIdx), 0.56, 'pluck', 0.12, true);
-        playLead(leadPat, { vel: 0.78, art: 'pluck', legato: 0.6, maxDur: 0.22 });
-        // seconde guitare : une mesure sur deux, le motif voisin décalé d'une croche et plus grave, entre les notes de la première
-        if (ph.lead2 && par === 1) {
-            const taken = new Set(piano.filter(e => e.inst === 'gtr').map(e => Math.round(e.pos * 4)));
-            playLead(pick(S.lead, ph.leadAlt + 1).map(([p, r]) => [p + 0.5, r]).filter(h => h[0] < 4 && !taken.has(Math.round(P(h[0]) * 4))), { vel: 0.58, art: 'pluck', legato: 0.5, maxDur: 0.18, shift: -2 });
-        }
+        // seconde guitare : arpèges de croches liés, dans le médium
+        // les arpèges serrés (motifs 0 à 2) seulement une mesure sur deux quand l'énergie le demande ; sinon les motifs aérés (3, 4)
+        const busy = ph.lead2 && par === 1;
+        pick(S.broken, busy ? ph.brokenIdx % 3 : 3 + (ph.brokenIdx % 2)).forEach(([pos, r]) => {
+            if (!keep(pos)) return;
+            const v = Vs[segAt(pos)];
+            gtr(pos, [v[Math.min(2, r)]], 0.8, Number.isInteger(pos) ? 0.4 : 0.34, 'arp');
+        });
+        bengaLine();
     } else {
         chop(pick(S.chop, ph.chopIdx), 0.54, 'mute', 0.15, true);
         playLead(leadPat, { vel: 0.8, art: 'pluck', legato: 0.8, maxDur: 0.3 });
@@ -613,7 +692,9 @@ function buildAfricaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep,
     }
 
     // deux guitares sur la même note au même instant : une seule (évite les doublons des motifs qui se croisent)
+    // (la ligne de la guitare solo passe en premier : c'est l'accompagnement qui s'efface)
     const seen = new Set();
+    piano.sort((a, b) => (b.part === 'solo') - (a.part === 'solo'));
     const out = piano.filter(e => {
         if (e.inst !== 'gtr') return true;
         const key = Math.round(e.pos * 48) + ':' + e.intervals.join(',');
