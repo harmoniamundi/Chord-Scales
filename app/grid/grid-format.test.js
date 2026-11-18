@@ -135,7 +135,7 @@ describe('sanitizeImportedSettings', () => {
     });
     test('signature : valeurs reconnues seulement (anciens fichiers : 2, 3, 4)', () => {
         for (const [v, k] of [['3/4', '3/4'], ['12/8', '12/8'], [3, '3/4'], ['4', '4/4'], [' 6/8 ', '6/8']]) assert.equal(F.sanitizeImportedSettings({ timeSignature: v }).timeSignature, k, String(v));
-        for (const v of ['7/8', 'x', 99, true, {}]) assert.equal('timeSignature' in F.sanitizeImportedSettings({ timeSignature: v }), false, String(v));
+        for (const v of ['13/8', '7/4', 'x', 99, true, {}]) assert.equal('timeSignature' in F.sanitizeImportedSettings({ timeSignature: v }), false, String(v));
     });
     test('orchestre : style connu, rythme imposé, volumes et reverb bornés à 0-1', () => {
         const { orchestration: o } = F.sanitizeImportedSettings({ orchestration: { style: 'pop', groove: 'samba', volumes: { piano: 2, bass: -1, drums: 0.5, violin: 'x', guitar: null }, reverb: 0.4 } });
@@ -174,11 +174,36 @@ describe('unpackSavedEntry et parseMeter', () => {
         for (const bad of [null, undefined, 'x', 5, {}, { grid: 5 }]) assert.equal(F.unpackSavedEntry(bad), null);
     });
     test('parseMeter : signatures connues, anciens nombres, repli sur 4/4', () => {
-        assert.deepEqual(F.parseMeter('6/8'), { key: '6/8', bpb: 2, ternary: true });
-        assert.deepEqual(F.parseMeter('12/8'), { key: '12/8', bpb: 4, ternary: true });
-        assert.deepEqual(F.parseMeter(3), { key: '3/4', bpb: 3, ternary: false });
-        assert.deepEqual(F.parseMeter('7/8'), { key: '4/4', bpb: 4, ternary: false });
-        assert.deepEqual(F.parseMeter(undefined), { key: '4/4', bpb: 4, ternary: false });
+        assert.deepEqual(F.parseMeter('6/8'), { key: '6/8', bpb: 2, ternary: true, groups: null });
+        assert.deepEqual(F.parseMeter('12/8'), { key: '12/8', bpb: 4, ternary: true, groups: null });
+        assert.deepEqual(F.parseMeter(3), { key: '3/4', bpb: 3, ternary: false, groups: null });
+        assert.deepEqual(F.parseMeter('13/8'), { key: '4/4', bpb: 4, ternary: false, groups: null });
+        assert.deepEqual(F.parseMeter(undefined), { key: '4/4', bpb: 4, ternary: false, groups: null });
+    });
+});
+
+describe('mesures aksak (5/8, 7/8, 11/8)', () => {
+    test('parseMeter : groupes de croches, un temps par groupe', () => {
+        assert.deepEqual(F.parseMeter('5/8'), { key: '5/8', bpb: 2, ternary: false, groups: [2, 3] });
+        assert.deepEqual(F.parseMeter('7/8'), { key: '7/8', bpb: 3, ternary: false, groups: [3, 2, 2] });
+        assert.deepEqual(F.parseMeter('7/8b'), { key: '7/8b', bpb: 3, ternary: false, groups: [2, 2, 3] });
+        assert.deepEqual(F.parseMeter(' 11/8 '), { key: '11/8', bpb: 5, ternary: false, groups: [2, 2, 3, 2, 2] });
+    });
+    test('table cohérente : le proxy dure autant que la mesure, les coupures tombent au même endroit', () => {
+        for (const [k, a] of Object.entries(F.AKSAK_METERS)) {
+            const sum = (l) => l.reduce((x, y) => x + y, 0);
+            assert.equal(sum(a.proxy), sum(a.groups), k);
+            assert.equal(sum(a.groups), Number(k.split('/')[0]), k);
+            assert.ok(a.groups.every(g => g === 2 || g === 3), k);
+            assert.equal(sum(a.groups.slice(0, a.split)), sum(a.proxy.slice(0, a.proxySplit)), k);
+            assert.ok(a.split > 0 && a.split < a.groups.length, k);
+        }
+        assert.equal(F.aksakInfo('4/4'), null);
+        assert.equal(F.aksakInfo('constructor'), null);
+    });
+    test('import : les signatures aksak sont reconnues', () => {
+        for (const k of ['5/8', '7/8', '7/8b', '11/8']) assert.equal(F.sanitizeImportedSettings({ timeSignature: k }).timeSignature, k);
+        assert.ok(!('timeSignature' in F.sanitizeImportedSettings({ timeSignature: '13/8' })));
     });
 });
 

@@ -445,3 +445,32 @@ describe('lineDensify', () => {
         lines(ev).forEach(e => { assert.equal(e.oct, true); assert.equal(e.art, 'lin'); assert.equal(e.rootIndex, 0); });
     });
 });
+
+describe('mesures aksak : étirement d\'un plan en pulsations égales', () => {
+    test('aksakWarp : chaque temps du proxy prend sa durée réelle (en noires)', () => {
+        const lens = [3, 2, 2];                    // 7/8 : 3+2+2
+        assert.equal(H.aksakWarp(0, lens), 0);
+        assert.equal(H.aksakWarp(0.5, lens), 0.75);
+        assert.equal(H.aksakWarp(1, lens), 1.5);
+        assert.equal(H.aksakWarp(2, lens), 2.5);
+        assert.equal(H.aksakWarp(2.5, lens), 3);
+        assert.equal(H.aksakWarp(3, lens), 3.5);   // fin de mesure : 7 croches
+        assert.equal(H.aksakWarp(1.5, [4, 3, 4]), 2 + 0.75);   // 11/8 vu comme 3 temps de 4, 3 et 4 croches
+    });
+    test('stretchPlanToGroups : positions et durées étirées, plan d\'origine intact, marqué units', () => {
+        const plan = { piano: [{ pos: 0.5, dur: 1 }], bass: [{ pos: 1, dur: 0.5 }], drums: [{ pos: 2 }], other: 1 };
+        const out = H.stretchPlanToGroups(plan, [2, 3]);   // 5/8
+        assert.equal(out.units, true);
+        assert.equal(out.other, 1);
+        assert.deepEqual(out.piano[0], { pos: 0.5, dur: 1.25 });   // de 0,5 à 1,5 temps → de 0,5 à 1,75 noire
+        assert.deepEqual(out.bass[0], { pos: 1, dur: 0.75 });
+        assert.equal(out.drums[0].pos, 2.5);
+        assert.equal(plan.piano[0].pos, 0.5);
+        assert.equal(H.stretchPlanToGroups(null, [2, 3]), null);
+    });
+    test('aksakBeatWindow : début et durée de chaque temps, en noires', () => {
+        assert.deepEqual(H.aksakBeatWindow([2, 2, 3, 2, 2], 0), { s: 0, len: 1 });
+        assert.deepEqual(H.aksakBeatWindow([2, 2, 3, 2, 2], 2), { s: 2, len: 1.5 });
+        assert.deepEqual(H.aksakBeatWindow([2, 2, 3, 2, 2], 4), { s: 4.5, len: 1 });
+    });
+});

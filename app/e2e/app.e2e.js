@@ -697,6 +697,54 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         noErrors();
     });
 
+    test('Jam : Balkans — danses aksak (5/8, 7/8, 11/8) : signature, temps inégaux au métronome, percussions ; un autre orchestre suit les mêmes temps', async () => {
+        const info = () => page.evaluate(() => ({ band: app.jam.bandStyle, meter: app.jam.getMeterKey(), sel: document.getElementById('jam-timesig-select').value,
+            bpb: app.jam.getBeatsPerBar(), swing: app.jam.isBandSwingAvailable(), bars: app.jam.grid.reduce((s, x) => s + (x.measures || 1), 0) }));
+        // Temps du métronome pendant la lecture : écarts entre deux temps, en noires (doit suivre les groupes de croches / 2)
+        const beatsHeard = async (n) => {
+            await page.evaluate(() => {
+                window.__clk = []; window.__drums = [];
+                app.jam.metronomeEnabled = true;
+                if (!window.__akSpy) {   // espions posés une seule fois
+                    window.__akSpy = true;
+                    const rc = app.jam.playMetronomeClick.bind(app.jam);
+                    app.jam.playMetronomeClick = (acc, t, sub) => { if (!sub) window.__clk.push([!!acc, t]); return rc(acc, t, sub); };
+                    const rd = app.jam.playBandDrum.bind(app.jam);
+                    app.jam.playBandDrum = (e, t) => { window.__drums.push(e.drum); return rd(e, t); };
+                }
+            });
+            await page.click('#jam-play-btn');
+            await waitFor((k) => window.__clk.length >= k, n, 30000);
+            await page.click('#jam-play-btn');
+            return page.evaluate(() => {
+                const c = window.__clk, q = 60 / app.jam.bpm;
+                const first = c.findIndex(x => x[0]);
+                const out = [];
+                for (let k = first; k + 1 < c.length; k++) out.push(Math.round((c[k + 1][1] - c[k][1]) / q * 4) / 4);
+                return { gaps: out, drums: [...new Set(window.__drums)].sort(), accents: c.slice(first).map(x => x[0]) };
+            });
+        };
+        for (const [style, meter, groups] of [['balkan58', '5/8', [2, 3]], ['balkan78', '7/8', [3, 2, 2]], ['balkan78r', '7/8b', [2, 2, 3]], ['balkan118', '11/8', [2, 2, 3, 2, 2]]]) {
+            await page.selectOption('#jam-style-select', style);
+            assert.deepEqual(await info(), { band: 'balkan', meter, sel: meter, bpb: groups.length, swing: false, bars: 16 }, style);
+            await page.evaluate(() => app.jam.setBpm(200));
+            const r = await beatsHeard(groups.length * 3 + 2);
+            const want = groups.map(g => g / 2);
+            r.gaps.slice(0, groups.length * 2).forEach((gp, k) => assert.equal(gp, want[k % groups.length], `${style} : temps ${k} ${JSON.stringify(r.gaps)}`));
+            r.accents.slice(0, groups.length * 2).forEach((a, k) => assert.equal(a, k % groups.length === 0, `${style} : accent ${k}`));
+            assert.ok(r.drums.some(d => ['tapan', 'dum'].includes(d)), `${style} : ${r.drums.join(' ')}`);
+        }
+        // 11/8 joué par l'orchestre Jazz : plan étiré sur les temps inégaux, toujours régulier au métronome
+        await page.evaluate(() => app.jam.setBandStyle('swing'));
+        const r = await beatsHeard(12);
+        assert.deepEqual(r.gaps.slice(0, 5), [1, 1, 1.5, 1, 1]);
+        // retour à une signature ordinaire
+        await page.selectOption('#jam-style-select', 'swing');
+        assert.equal((await info()).meter, '4/4');
+        await page.evaluate(() => { app.jam.metronomeEnabled = false; });
+        noErrors();
+    });
+
     test('Jam : Flamenco — cajón, palmas et pitos jouent, le curseur « Percus. » les règle ; les autres orchestres Guitare gardent la batterie grisée', async () => {
         const sliders = () => page.evaluate(() => ({ label: document.getElementById('band-vol-drums-label').textContent, drumsOff: document.getElementById('band-vol-drums').disabled, bassOff: document.getElementById('band-vol-bass').disabled }));
         await page.selectOption('#jam-style-select', 'flamencobulerias');

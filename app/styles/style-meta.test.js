@@ -27,6 +27,11 @@ describe('tables par style', () => {
         assert.deepEqual(M.tempoMeterFor('balkan98'), { bpm: 100, meter: '9/8' });
         assert.deepEqual(M.tempoMeterFor('balkansevdah'), { bpm: 60, meter: '4/4' });
         assert.deepEqual(M.tempoMeterFor('balkantsifte'), { bpm: 100, meter: '4/4' });
+        assert.deepEqual(M.tempoMeterFor('balkan58'), { bpm: 140, meter: '5/8' });
+        assert.deepEqual(M.tempoMeterFor('balkan78'), { bpm: 120, meter: '7/8' });
+        assert.deepEqual(M.tempoMeterFor('balkan78r'), { bpm: 150, meter: '7/8b' });
+        assert.deepEqual(M.tempoMeterFor('balkan118'), { bpm: 150, meter: '11/8' });
+        for (const st of ['balkan58', 'balkan78', 'balkan78r', 'balkan118']) { assert.equal(M.bandStyleFor(st), 'balkan'); assert.equal(M.grooveHintFor(st), null); }
         assert.equal(M.bandStyleFor('balkansevdah'), 'balkan');
         assert.equal(M.bandStyleFor('balkantsifte'), 'balkan');
         assert.equal(M.grooveHintFor('balkansevdah'), 'bk-sevdah');
@@ -65,7 +70,7 @@ describe('tables par style', () => {
     });
     test('signatures valides et tempos plausibles', () => {
         for (const [st, t] of Object.entries(M.STYLE_TEMPO_METER)) {
-            assert.match(t.meter, /^(2\/4|3\/4|4\/4|6\/8|9\/8|12\/8)$/, st);
+            assert.match(t.meter, /^(2\/4|3\/4|4\/4|6\/8|9\/8|12\/8|5\/8|7\/8|7\/8b|11\/8)$/, st);
             assert.ok(t.bpm >= 40 && t.bpm <= 220, st);
         }
     });
@@ -102,9 +107,9 @@ describe('lecture d\'un accord dans une tonalité cible', () => {
 });
 
 describe('règles de modulation', () => {
-    test('dix styles modulants', () => {
+    test('onze styles modulants', () => {
         assert.deepEqual(Object.keys(M.styleModulations()).sort(),
-            ['balkan', 'balkansevdah', 'bossa', 'milongalyrique', 'piazzolla', 'samba', 'tango', 'tarentelle', 'valsemusette', 'valseviennoise']);
+            ['balkan', 'balkan58', 'balkansevdah', 'bossa', 'milongalyrique', 'piazzolla', 'samba', 'tango', 'tarentelle', 'valsemusette', 'valseviennoise']);
     });
     test('chaque règle a un prédicat et une cible numérique ou \'home\'', () => {
         for (const rules of Object.values(M.styleModulations())) rules.forEach(r => {

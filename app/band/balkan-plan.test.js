@@ -460,3 +460,62 @@ describe('Balkans : curseur « Densité »', () => {
         }
     });
 });
+
+describe('danses aksak (5/8, 7/8, 11/8) : temps inégaux', () => {
+    const METERS = [[[2, 3], 1], [[3, 2, 2], 1], [[2, 2, 3], 2], [[2, 2, 3, 2, 2], 2]];
+    const akPlan = (groups, split, o = {}) => plan({ bpb: groups.length, env: mkEnv({ groups, splitBeat: split, bpm: 140 }), ...o });
+    const starts = (groups) => { const out = []; let a = 0; groups.forEach(g => { out.push(a / 2); a += g; }); return out; };
+    test('plan en noires (units) : tout tient dans la mesure, durées positives', () => {
+        for (const [groups, split] of METERS) {
+            const len = groups.reduce((a, b) => a + b, 0) / 2;
+            for (let seed = 1; seed <= 60; seed++) for (const i of [0, 1, 3]) {
+                const p = akPlan(groups, split, { seed, i, isTurn: i === 3, last: true, halves: seed % 4 === 0 ? [Am, E7] : null });
+                assert.equal(p.units, true);
+                for (const e of [...p.piano, ...p.bass, ...p.drums]) {
+                    assert.ok(e.pos >= -1e-9 && e.pos < len - 1e-9, `${groups} pos ${e.pos}`);
+                    if (e.dur !== undefined) assert.ok(e.dur > 0, `${groups} dur ${e.dur}`);
+                }
+            }
+        }
+    });
+    test('les signatures ordinaires ne sont pas marquées units', () => {
+        assert.ok(!plan({ bpb: 2 }).units);
+        assert.ok(!plan({ bpb: 3, ternary: true }).units);
+    });
+    test('chaque temps (groupe) est frappé ; le premier est le plus fort ; la basse joue sur les débuts de temps', () => {
+        for (const [groups, split] of METERS) {
+            const st = starts(groups);
+            for (let seed = 1; seed <= 30; seed++) {
+                const p = akPlan(groups, split, { seed, i: 1 });
+                const hits = p.drums.filter(d => d.drum !== 'daire');
+                for (const s of st) assert.ok(hits.some(d => Math.abs(d.pos - s) < 1e-9), `${groups} : rien sur le temps ${s}`);
+                const first = hits.filter(d => d.pos === 0).reduce((a, d) => Math.max(a, d.vel), 0);
+                assert.ok(hits.every(d => d.vel <= first + 1e-9), `${groups} : premier temps pas le plus fort`);
+                const bassOn = p.bass.filter(b => st.some(s => Math.abs(b.pos - s) < 1e-9));
+                assert.ok(bassOn.length >= 1 && p.bass.some(b => b.pos === 0), `${groups} : basse`);
+            }
+        }
+    });
+    test('mesure à deux accords : la coupure tombe au début du temps choisi', () => {
+        for (const [groups, split] of METERS) {
+            const cut = starts(groups)[split];
+            const p = akPlan(groups, split, { halves: [Am, E7], seed: 3 });
+            const e7pc = new Set([4, 8, 11, 2, 5].map(x => x % 12));
+            const pahs = p.piano.filter(e => e.art === 'pah');
+            pahs.forEach(e => {
+                const pcs = e.intervals.map(x => ((x % 12) + 12) % 12);
+                if (e.pos >= cut - 1e-9) assert.ok(pcs.every(x => e7pc.has(x)), `${groups} : accord de la 2e moitié`);
+                else assert.ok(pcs.includes(9) || pcs.includes(0), `${groups} : accord de la 1re moitié`);
+            });
+        }
+    });
+    test('phrase rapide et roulement de fin : dans le dernier temps', () => {
+        for (const [groups, split] of METERS) {
+            const lastStart = starts(groups)[groups.length - 1];
+            for (let seed = 1; seed <= 40; seed++) {
+                const p = akPlan(groups, split, { seed, i: 3, L: 4, isTurn: true, last: true });
+                p.piano.filter(e => e.art === 'run').forEach(e => assert.ok(e.pos >= lastStart - 1e-9, `${groups} run ${e.pos}`));
+            }
+        }
+    });
+});

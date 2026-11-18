@@ -249,13 +249,33 @@ function sanitizeNoteHtml(raw, maxText = MEASURE_NOTE_MAX) {
     return out;
 }
 
-// Lit une signature (nombre 2, 3, 4 des anciennes versions, ou texte « 6/8 »).
+// Mesures « aksak » (boiteuses) des Balkans : la mesure se compte en temps inégaux, de 2 ou 3 croches (groups).
+//   groups      croches de chaque temps (un temps = un groupe : le métronome et le compteur suivent ces temps inégaux)
+//   split       temps où une mesure à deux accords change d'accord
+//   proxy       temps « réguliers » prêtés aux orchestres écrits en pulsations égales (tous sauf Balkans) : leur mesure de
+//               proxy.length temps est étirée sur ces durées (en croches), voir stretchPlanToGroups (band/band-helpers.js)
+//   proxySplit  même coupure, comptée dans le proxy
+// Le BPM compte le temps court (2 croches = une noire) : une croche dure 30 / BPM secondes, un temps de 3 croches 1,5 noire.
+const AKSAK_METERS = {
+    '5/8':  { groups: [2, 3],          split: 1, proxy: [2, 3],    proxySplit: 1, label: '5/8 (2+3)' },
+    '7/8':  { groups: [3, 2, 2],       split: 1, proxy: [3, 2, 2], proxySplit: 1, label: '7/8 (3+2+2)' },
+    '7/8b': { groups: [2, 2, 3],       split: 2, proxy: [2, 2, 3], proxySplit: 2, label: '7/8 (2+2+3)' },
+    '11/8': { groups: [2, 2, 3, 2, 2], split: 2, proxy: [4, 3, 4], proxySplit: 1, label: '11/8 (2+2+3+2+2)' }
+};
+function aksakInfo(key) {
+    return (typeof key === 'string' && Object.prototype.hasOwnProperty.call(AKSAK_METERS, key)) ? AKSAK_METERS[key] : null;
+}
+
+// Lit une signature (nombre 2, 3, 4 des anciennes versions, ou texte « 6/8 », « 7/8 »…).
+// groups : croches de chaque temps pour une mesure aksak (5/8, 7/8, 11/8), sinon null.
 function parseMeter(val) {
     const k = String(val === undefined || val === null ? '' : val).trim();
     const key = ({ '2': '2/4', '3': '3/4', '4': '4/4' })[k] || k;
+    const ak = aksakInfo(key);
+    if (ak) return { key, bpb: ak.groups.length, ternary: false, groups: ak.groups.slice() };
     const table = { '2/4': [2, false], '3/4': [3, false], '4/4': [4, false], '6/8': [2, true], '9/8': [3, true], '12/8': [4, true] };
     const t = table[key] || table['4/4'];
-    return { key: table[key] ? key : '4/4', bpb: t[0], ternary: t[1] };
+    return { key: table[key] ? key : '4/4', bpb: t[0], ternary: t[1], groups: null };
 }
 
 // Une entrée sauvegardée est { grid, settings } ; les anciennes sauvegardes
@@ -454,6 +474,6 @@ function describeExport(opts) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { GRID_MAX_BLOCKS, MEASURE_NOTE_MAX, MEASURE_NOTE_SPAN_MAX, GRID_NOTE_MAX, NOTE_FONTS, NOTE_MAX_STAVES, NOTE_MAX_FRAMES, NOTE_MAX_CHORDS, NOTE_MAX_DRAWS, sanitizeNoteHtml, BAND_DENSITY_DEFAULTS, PART_LABELS, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings,
+    module.exports = { AKSAK_METERS, aksakInfo, GRID_MAX_BLOCKS, MEASURE_NOTE_MAX, MEASURE_NOTE_SPAN_MAX, GRID_NOTE_MAX, NOTE_FONTS, NOTE_MAX_STAVES, NOTE_MAX_FRAMES, NOTE_MAX_CHORDS, NOTE_MAX_DRAWS, sanitizeNoteHtml, BAND_DENSITY_DEFAULTS, PART_LABELS, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings,
         EXPORT_OPTIONS, EXPORT_MODES, exportOptionsFor, exportOptionsNormalized, filterGridForExport, filterSettingsForExport, describeExport };
 }

@@ -18,7 +18,8 @@ const STYLE_SCALE_PROFILE = {
     baroque:'classic', mozart:'classic', trad:'classic', chansonsimple:'classic', menuet:'classic', valseviennoise:'classic',
     valsemusette:'classic', barcarolle:'classic', tarentelle:'classic', dixieland:'classic', tango:'classic', brasshymn:'classic',
     brasscantique:'classic', pop:'classic', gospel:'classic', jig:'classic', slipjig:'classic', valsecountry:'classic',
-    balkan:'balkan', balkan98:'balkan', balkansevdah:'balkan', balkantsifte:'balkan',
+    balkan:'balkan', balkan98:'balkan', balkansevdah:'balkan', balkantsifte:'balkan', balkan58:'balkan', balkan78:'balkan', balkan118:'balkan',
+    balkan78r:'classic',
     cumbia:'classic',
     rockroll:'blues', rockclassic:'classic', hardrock:'classic', punk:'classic', rockballad:'classic', bluesrock:'blues', indierock:'classic',
     flamencosolea:'flamenco', flamencobulerias:'flamenco', flamencotangos:'flamenco'
@@ -37,6 +38,7 @@ const STYLE_BAND = {
     samba: 'latin', tango: 'piazzolla', piazzolla: 'piazzolla', milongalyrique: 'piazzolla',
     brasshymn: 'brass', brasscantique: 'brass',
     balkan: 'balkan', balkan98: 'balkan', balkansevdah: 'balkan', balkantsifte: 'balkan',
+    balkan58: 'balkan', balkan78: 'balkan', balkan78r: 'balkan', balkan118: 'balkan',
     cumbia: 'cumbia',
     rockroll: 'pop', rockclassic: 'pop', hardrock: 'pop', punk: 'pop', rockballad: 'pop', bluesrock: 'pop', indierock: 'pop',
     flamencosolea: 'guitar', flamencobulerias: 'guitar', flamencotangos: 'guitar'
@@ -103,6 +105,11 @@ const STYLE_TEMPO_METER = {
     balkan98:      { bpm: 100, meter: '9/8' },
     balkansevdah:  { bpm: 60,  meter: '4/4' },   // ballade lente : noire autour de 60
     balkantsifte:  { bpm: 100, meter: '4/4' },   // tsifteteli / čoček de bal : noire autour de 100
+    // Danses aksak : le BPM compte le temps court (2 croches) ; croches par seconde = BPM / 30
+    balkan58:      { bpm: 140, meter: '5/8' },   // paidouchko / paidushko (2+3) : mesure d'environ 1,1 s
+    balkan78:      { bpm: 120, meter: '7/8' },   // lesnoto (3+2+2) : allure de marche chantée
+    balkan78r:     { bpm: 150, meter: '7/8b' },  // račenica (2+2+3) : vive
+    balkan118:     { bpm: 150, meter: '11/8' },  // kopanica (2+2+3+2+2)
     cumbia:        { bpm: 98,  meter: '4/4' },    // cumbia colombienne : 85-110 à la noire
     rockroll:      { bpm: 160, meter: '4/4' },    // rock'n'roll des années 50 (swingué à 62 %)
     rockclassic:   { bpm: 118, meter: '4/4' },
@@ -142,6 +149,7 @@ function styleModulations() {
         tango:          [{ at: sec('B'),  to: 3 }, { at: phr('B4'), to: 'home' }],
         balkan:         [{ at: sec('B'),  to: 3 }, { at: phr('B4'), to: 'home' }],
         balkansevdah:   [{ at: sec('B'),  to: 3 }, { at: phr('B2'), to: 'home' }],
+        balkan58:       [{ at: sec('B'),  to: 3 }, { at: phr('B2'), to: 'home' }],
         piazzolla:      [{ at: phr('B1'), to: 3 }, { at: phr('B2'), to: 'home' }],
         milongalyrique: [{ at: phr('B1'), to: 3 }, { at: phr('B2'), to: 'home' }, { at: sec('A3'), to: 'home' }],
         bossa:          [{ at: phr('B1'), to: 3 }, { at: sec('A3'), to: 'home' }]

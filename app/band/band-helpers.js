@@ -352,6 +352,38 @@ function swingPlan(plan, swing) {
     return { ...plan, piano: map(plan.piano), bass: map(plan.bass), drums: map(plan.drums) };
 }
 
+// ---------------------------------------------------------------------------------------------
+// Mesures aksak (5/8, 7/8, 11/8) : temps inégaux
+// ---------------------------------------------------------------------------------------------
+// En mesure aksak, le moteur lit les plans en « unités » : une unité = une noire = 2 croches (la croche k est à k / 2).
+// Les orchestres écrits en pulsations égales (tous sauf Balkans) jouent une mesure de proxy.length temps réguliers ; on l'étire
+// ici sur les durées réelles de ces temps (en croches) : le temps b, de lens[b] croches, va de start[b] / 2 à (start[b] + lens[b]) / 2.
+function aksakWarp(pos, lens) {
+    const n = lens.length;
+    const b = Math.max(0, Math.min(n - 1, Math.floor(pos + 1e-9)));
+    let start = 0;
+    for (let k = 0; k < b; k++) start += lens[k];
+    return (start + (pos - b) * lens[b]) / 2;
+}
+
+// Plan en pulsations égales → plan en unités (positions et durées étirées) ; le plan d'origine n'est pas modifié.
+function stretchPlanToGroups(plan, lens) {
+    if (!plan) return plan;
+    const map = (list) => (list || []).map(e => {
+        const out = { ...e, pos: aksakWarp(e.pos, lens) };
+        if (typeof e.dur === 'number' && e.dur > 0) out.dur = Math.max(0.05, aksakWarp(e.pos + e.dur, lens) - out.pos);
+        return out;
+    });
+    return { ...plan, piano: map(plan.piano), bass: map(plan.bass), drums: map(plan.drums), units: true };
+}
+
+// Fenêtre (en unités) du temps b d'une mesure aksak : { s, len }.
+function aksakBeatWindow(groups, b) {
+    let s = 0;
+    for (let k = 0; k < b; k++) s += groups[k];
+    return { s: s / 2, len: groups[b] / 2 };
+}
+
 // Décale vers le triolet les croches placées sur un « et » (x.5).
 function swingPos(pos, swing) {
     const base = Math.floor(pos + 1e-6);
@@ -569,6 +601,6 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = { lineDensify, popFoldBass, bassPc, bassNear, popBassTones, popBassApproach, popScaleNotes, popLineNote, popRun, latBassTones,
         jamChordPlaybackNotes, popVoicing, popSusVoicing, latThumb, latVary, latDetach,
         brassParts, isSplit, isSplitEffective, getStepHalves,
-        bandSwing, defaultBandSwing, BAND_SWING_DEFAULTS, GROOVE_SWING_DEFAULTS, swingWarp, swingPlan, swingPos, pickWeighted, meterKey, patternLib, pianoGuideInterval, pianoHitIntervals,
+        aksakWarp, stretchPlanToGroups, aksakBeatWindow, bandSwing, defaultBandSwing, BAND_SWING_DEFAULTS, GROOVE_SWING_DEFAULTS, swingWarp, swingPlan, swingPos, pickWeighted, meterKey, patternLib, pianoGuideInterval, pianoHitIntervals,
         clsVoicing, clsLowNote, clsMutate };
 }

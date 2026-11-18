@@ -19,8 +19,8 @@ const STYLES = Object.keys(STYLE_BUILDERS);
 const bars = (tpl) => tpl.reduce((s, x) => s + x.m, 0);
 
 describe('catalogue des styles', () => {
-    test('54 styles (dont sept styles rock), dont les alias blues128, ballad128 et balkan98', () => {
-        assert.equal(STYLES.length, 54);
+    test('58 styles (dont sept styles rock et quatre danses aksak), dont les alias blues128, ballad128 et balkan98', () => {
+        assert.equal(STYLES.length, 58);
         assert.equal(STYLE_BUILDERS.blues128, STYLE_BUILDERS.blues);
         assert.equal(STYLE_BUILDERS.ballad128, STYLE_BUILDERS.ballad);
         assert.equal(STYLE_BUILDERS.balkan98, STYLE_BUILDERS.balkan);
@@ -238,5 +238,23 @@ describe('styles rock', () => {
         let minor = false;
         for (let seed = 1; seed <= 80; seed++) if (build('bluesrock', 0, seeded(seed)).some(x => x.c === 'minTriad')) minor = true;
         assert.ok(minor);
+    });
+});
+
+describe('Balkans : danses aksak', () => {
+    test('16 mesures, triades et dominantes, tonique au début et à la fin', () => {
+        for (const st of ['balkan58', 'balkan78', 'balkan78r', 'balkan118']) {
+            for (let seed = 0; seed <= 20; seed++) {
+                const tpl = build(st, 2, seed ? seeded(seed) : null);
+                assert.equal(bars(tpl), 16, st);
+                assert.equal(tpl[0].r, 2, st);
+                assert.equal(tpl[tpl.length - 1].r, 2, st);
+                for (const x of tpl) assert.ok(['majTriad', 'minTriad', '7', '7b9', 'm7b5'].includes(x.c), `${st} ${x.c}`);
+            }
+        }
+    });
+    test('mineur (paidouchko, lesnoto, kopanitsa) ; majeur (ratchenitsa)', () => {
+        for (const st of ['balkan58', 'balkan78', 'balkan118']) assert.equal(build(st, 0)[0].c, 'minTriad', st);
+        assert.equal(build('balkan78r', 0)[0].c, 'majTriad');
     });
 });

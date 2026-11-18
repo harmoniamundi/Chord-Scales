@@ -69,6 +69,7 @@ function styleProfile(styleKey) {
         brasscantique: { turn: false, w: { secDom: 1.5, subdom: 1.5 } },
         // Balkans : triades et dominante V7(b9), aucune réharmonisation (la couleur est dans le mode, pas dans les accords)
         balkan: { turn: false, w: {} }, balkan98: { turn: false, w: {} }, balkansevdah: { turn: false, w: {} }, balkantsifte: { turn: false, w: {} },
+        balkan58: { turn: false, w: {} }, balkan78: { turn: false, w: {} }, balkan78r: { turn: false, w: {} }, balkan118: { turn: false, w: {} },
         // Cumbia : triades et dominante V7, boucles courtes, aucune réharmonisation
         cumbia: { turn: false, w: {} },
         // Rock : triades (la guitare joue des accords de puissance) et dominantes septièmes, aucune réharmonisation
@@ -772,7 +773,8 @@ function normalizeGeneratedGrid(template, styleKey) {
         'blues128': 12, 'gospel': 16, 'ballad128': 32,
         'samba': 32, 'tango': 32, 'piazzolla': 16, 'milongalyrique': 32,
         'brasshymn': 16, 'brasscantique': 16,
-        'balkan': 32, 'balkan98': 16, 'balkansevdah': 16, 'balkantsifte': 16, 'cumbia': 16,
+        'balkan': 32, 'balkan98': 16, 'balkansevdah': 16, 'balkantsifte': 16,
+        'balkan58': 16, 'balkan78': 16, 'balkan78r': 16, 'balkan118': 16, 'cumbia': 16,
         'rockroll': 12, 'rockclassic': 16, 'hardrock': 16, 'punk': 16, 'rockballad': 16, 'bluesrock': 12, 'indierock': 16
     }[styleKey] || 16;
     if (!template.length) return template;

@@ -200,6 +200,10 @@
                                 <option value="balkan98">Balkans : aksak (9/8)</option>
                                 <option value="balkansevdah">Balkans : sevdah, ballade lente (4/4)</option>
                                 <option value="balkantsifte">Balkans : tsifteteli / čoček (4/4)</option>
+                                <option value="balkan58">Balkans : paidouchko (5/8 : 2+3)</option>
+                                <option value="balkan78">Balkans : lesnoto (7/8 : 3+2+2)</option>
+                                <option value="balkan78r">Balkans : ratchenitsa (7/8 : 2+2+3)</option>
+                                <option value="balkan118">Balkans : kopanitsa (11/8 : 2+2+3+2+2)</option>
                             </optgroup>
                             <optgroup label="Flamenco">
                                 <option value="flamencosolea">Flamenco : soleá (12 temps)</option>
@@ -251,6 +255,12 @@
                                     <option value="6/8">6/8</option>
                                     <option value="9/8">9/8</option>
                                     <option value="12/8">12/8</option>
+                                    <optgroup label="Aksak (Balkans)">
+                                        <option value="5/8" title="5/8 : 2+3">5/8</option>
+                                        <option value="7/8" title="7/8 : 3+2+2 (lesnoto, kalamatianós)">7/8 (3+2+2)</option>
+                                        <option value="7/8b" title="7/8 : 2+2+3 (račenica)">7/8 (2+2+3)</option>
+                                        <option value="11/8" title="11/8 : 2+2+3+2+2 (kopanica)">11/8</option>
+                                    </optgroup>
                                 </select>
                             </div>
                             <div id="jam-swing-wrap" class="flex items-center gap-1.5" title="Swing : balancement des croches. 50 % = croches droites, 67 % = triolet, plus haut = plus pointé.">
@@ -593,6 +603,8 @@
                 // Signature rythmique de la jam : nombre de temps par mesure (2, 3 ou 4 ; la noire est toujours le temps).
                 this.beatsPerBar = 4;
                 this.ternary = false;            // mesure composée (6/8, 9/8, 12/8) : la pulsation est la noire pointée
+                this.aksakKey = null;            // mesure aksak (5/8, 7/8, 11/8) : temps inégaux de 2 ou 3 croches (voir AKSAK_METERS)
+                this._planProxy = null;          // pendant la construction d'un plan « étiré » en aksak : temps réguliers prêtés
                 this.bandGains = { piano: null, bass: null, drums: null, bandoneon: null, violin: null, guitar: null, rguitar: null, organ: null, strings: null };
                 this.bandReverbInput = null;
                 this.bandReverbWet = null;
@@ -931,7 +943,7 @@
 
             changeStyle(styleKey) {
                 if (styleKey === 'custom') return;
-                const BRASS_KEYS = { brasshymn: 5, brasscantique: 3, balkan: 2, balkan98: 9, balkansevdah: 9, balkantsifte: 2, cumbia: 7, milongalyrique: 2, flamencosolea: 9, flamencobulerias: 9, flamencotangos: 9, rockroll: 9, rockclassic: 2, hardrock: 4, punk: 7, rockballad: 7, bluesrock: 9, indierock: 0 }; // + Rock : la (rock'n'roll, blues rock), ré (classique), mi mineur (hard rock), sol (punk, ballade), do (indie) ; + Balkans : ré mineur (kolo), la mineur (aksak), la mineur (sevdah), ré mineur (tsifteteli) ; Milonga lyrique : ré mineur (Oblivion) ; Flamenco : la (cadence andalouse La m - Sol - Fa - Mi)
+                const BRASS_KEYS = { brasshymn: 5, brasscantique: 3, balkan: 2, balkan98: 9, balkansevdah: 9, balkantsifte: 2, balkan58: 9, balkan78: 2, balkan78r: 7, balkan118: 4, cumbia: 7, milongalyrique: 2, flamencosolea: 9, flamencobulerias: 9, flamencotangos: 9, rockroll: 9, rockclassic: 2, hardrock: 4, punk: 7, rockballad: 7, bluesrock: 9, indierock: 0 }; // + Rock : la (rock'n'roll, blues rock), ré (classique), mi mineur (hard rock), sol (punk, ballade), do (indie) ; + Balkans : ré mineur (kolo), la mineur (aksak), la mineur (sevdah), ré mineur (tsifteteli) ; Milonga lyrique : ré mineur (Oblivion) ; Flamenco : la (cadence andalouse La m - Sol - Fa - Mi)
                 this.withUndo(() => {
                     if (styleKey === 'i-got-rythm') {
                         const prevKey = this.mainKey;
@@ -1220,7 +1232,7 @@
             }
 
             // Estimation de la durée du son exporté (toute la grille une fois, reprises comprises)
-            _exportSeconds() { return playedMeasureCount(this.grid) * this.getBeatsPerBar() * 60 / this.bpm; }
+            _exportSeconds() { return playedMeasureCount(this.grid) * this._barUnits() * 60 / this.bpm; }
 
             _exportRefresh() {
                 const audio = this._exportKind === 'audio';
@@ -1826,24 +1838,56 @@
                 ];
             }
 
-            getBeatsPerBar() { return [2, 3, 4].includes(this.beatsPerBar) ? this.beatsPerBar : 4; }
+            getBeatsPerBar() {
+                if (this._planProxy) return this._planProxy.proxy.length;    // plan étiré : la mesure « régulière » prêtée
+                const ak = this.getAksak();
+                if (ak) return ak.groups.length;                            // aksak : un temps par groupe de croches
+                return [2, 3, 4].includes(this.beatsPerBar) ? this.beatsPerBar : 4;
+            }
 
-            isTernary() { return !!this.ternary; }
+            isTernary() { return !!this.ternary && !this.getAksak(); }
 
-            // Signature courante : '2/4', '3/4', '4/4', '6/8', '9/8' ou '12/8'.
+            // Mesure aksak courante (table AKSAK_METERS de grid/grid-format.js) ou null.
+            getAksak() { return this.aksakKey ? aksakInfo(this.aksakKey) : null; }
+
+            // Signature courante : '2/4', '3/4', '4/4', '6/8', '9/8', '12/8', ou aksak '5/8', '7/8', '7/8b', '11/8'.
             getMeterKey() {
+                if (this._planProxy) return this._planProxy.proxy.length + '/4';   // plan étiré : bibliothèque de la mesure prêtée
+                if (this.getAksak()) return this.aksakKey;
                 const b = this.getBeatsPerBar();
                 return this.isTernary() ? ({ 2: '6/8', 3: '9/8', 4: '12/8' })[b] : (b + '/4');
             }
 
             parseMeter(val) { return parseMeter(val); }
 
-            // Temps après lequel une mesure à deux accords change d'accord : 4/4 → 2+2, 3/4 → 2+1, 2/4 → 1+1.
-            getSplitBeat() { return this.getBeatsPerBar() === 2 ? 1 : 2; }
+            // Durée (en noires) du temps b de la mesure : 1, ou en aksak 1 (2 croches) ou 1,5 (3 croches).
+            _beatUnitsAt(b) {
+                const ak = this.getAksak();
+                return ak ? ak.groups[((b % ak.groups.length) + ak.groups.length) % ak.groups.length] / 2 : 1;
+            }
+
+            // Durée totale d'une mesure, en noires (pulsations en mesure composée).
+            _barUnits() {
+                const ak = this.getAksak();
+                return ak ? ak.groups.reduce((a, g) => a + g, 0) / 2 : this.getBeatsPerBar();
+            }
+
+            // Temps après lequel une mesure à deux accords change d'accord : 4/4 → 2+2, 3/4 → 2+1, 2/4 → 1+1 ; aksak : voir AKSAK_METERS.
+            getSplitBeat() {
+                if (this._planProxy) return this._planProxy.proxySplit;
+                const ak = this.getAksak();
+                if (ak) return ak.split;
+                return this.getBeatsPerBar() === 2 ? 1 : 2;
+            }
 
             // Libellé des temps couverts par chaque accord d'une mesure à deux accords.
             halfLabelText(half) {
                 const b = this.getBeatsPerBar();
+                if (this.getAksak()) {
+                    const sp = this.getSplitBeat();
+                    const span = (a, z) => a === z ? 'Temps ' + a : 'Temps ' + a + '–' + z;
+                    return half === 0 ? span(1, sp) : span(sp + 1, b);
+                }
                 if (b === 2) return half === 0 ? 'Temps 1' : 'Temps 2';
                 if (b === 3) return half === 0 ? 'Temps 1–2' : 'Temps 3';
                 return half === 0 ? 'Temps 1–2' : 'Temps 3–4';
@@ -1851,6 +1895,7 @@
 
             halfTitleText() {
                 const b = this.getBeatsPerBar();
+                if (this.getAksak()) return 'Deux accords dans la mesure (' + this.halfLabelText(0).toLowerCase() + ' puis ' + this.halfLabelText(1).toLowerCase() + ')';
                 return b === 2 ? 'Deux accords dans la mesure (temps 1 puis temps 2)'
                     : b === 3 ? 'Deux accords dans la mesure (temps 1-2 puis temps 3)'
                     : 'Deux accords dans la mesure (temps 1-2 puis 3-4)';
@@ -1867,19 +1912,22 @@
 
             setTimeSignature(val) {
                 const mt = this.parseMeter(val);
-                const changed = mt.bpb !== this.beatsPerBar || mt.ternary !== !!this.ternary;
+                const changed = mt.key !== this.getMeterKey();
                 if (changed && this.isPlaying) this.stop();
                 this.beatsPerBar = mt.bpb;
                 this.ternary = mt.ternary;
+                this.aksakKey = mt.groups ? mt.key : null;
                 if (changed) {
                     this.currentBeat = 0;
                     Object.assign(this, bandMeterResetState());
                 }
                 const sel = document.getElementById('jam-timesig-select');
                 if (sel) sel.value = mt.key;
-                // En mesure composée, le BPM compte les noires pointées
+                // En mesure composée, le BPM compte les noires pointées ; en aksak, le temps court (deux croches = une noire)
                 const unit = mt.ternary ? 'BPM ♩.' : 'BPM';
-                const tip = mt.ternary ? 'Tempo en pulsations (noires pointées) par minute' : 'Tempo en noires par minute';
+                const tip = mt.ternary ? 'Tempo en pulsations (noires pointées) par minute'
+                    : mt.groups ? 'Tempo en temps courts (2 croches = une noire) par minute ; les temps longs (3 croches) durent une noire et demie'
+                    : 'Tempo en noires par minute';
                 ['jam-bpm-label'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) { el.textContent = unit; el.title = tip; }
@@ -2183,9 +2231,11 @@
 
             // Clics légers entre deux temps : sur les croches. En mesure composée la pulsation (noire pointée) contient
             // trois croches, donc deux clics ; en mesure simple, le temps (noire) en contient deux, donc un seul clic.
-            _metronomeSubdivide(t, intervalSec) {
+            // En aksak, chaque temps compte ses propres croches (2 ou 3) : beatIdx = numéro du temps dans la mesure.
+            _metronomeSubdivide(t, intervalSec, beatIdx) {
                 if (!this.metronomeSubdivision) return;
-                const n = this.isTernary() ? 3 : 2;
+                const ak = this.getAksak();
+                const n = ak ? ak.groups[(beatIdx || 0) % ak.groups.length] : (this.isTernary() ? 3 : 2);
                 for (let k = 1; k < n; k++) this.playMetronomeClick(false, t + (k * intervalSec) / n, true);
             }
 
@@ -2307,7 +2357,7 @@
                     const mt = tm && this.parseMeter(tm.meter);
                     const samePalo = this.bandStyle === 'guitar' && this.getEffectiveGroove('guitar') === palo;
                     if (mt && !samePalo) {
-                        if (mt.bpb !== this.beatsPerBar || mt.ternary !== !!this.ternary) this.setTimeSignature(tm.meter);
+                        if (mt.key !== this.getMeterKey()) this.setTimeSignature(tm.meter);
                         this.setBpm(tm.bpm);
                     }
                     this._bandGroove = palo;
@@ -2319,7 +2369,7 @@
                     const mt = tm && this.parseMeter(tm.meter);
                     const same = this.bandStyle === 'pop' && this.getEffectiveGroove('pop') === ROCK_BAND_GROOVES[v];
                     if (mt && !same) {
-                        if (mt.bpb !== this.beatsPerBar || mt.ternary !== !!this.ternary) this.setTimeSignature(tm.meter);
+                        if (mt.key !== this.getMeterKey()) this.setTimeSignature(tm.meter);
                         this.setBpm(tm.bpm);
                     }
                     this._bandGroove = ROCK_BAND_GROOVES[v];
@@ -2333,7 +2383,7 @@
                     const mt = tm && this.parseMeter(tm.meter);
                     const same = this.bandStyle === lg.band && this.getEffectiveGroove(lg.band) === lg.groove;
                     if (mt && !same) {
-                        if (mt.bpb !== this.beatsPerBar || mt.ternary !== !!this.ternary) this.setTimeSignature(tm.meter);
+                        if (mt.key !== this.getMeterKey()) this.setTimeSignature(tm.meter);
                         this.setBpm(tm.bpm);
                     }
                     this._bandGroove = lg.groove;
@@ -3074,7 +3124,7 @@
 
             // Le swing n'a de sens qu'à 2, 3 ou 4 temps, et pas pendant le bouton « Arpèges » (en 6/8, 9/8 et 12/8 le balancement
             // ternaire est écrit dans les motifs).
-            isBandSwingAvailable() { return !this.isTernary() && !this._arpPrevStyle; }
+            isBandSwingAvailable() { return !this.isTernary() && !this.getAksak() && !this._arpPrevStyle; }
 
             // Affiche le réglage de swing dans le jukebox (menu à côté de « Mesure ») et dans le pop-up Orchestre (curseur).
             updateBandSwingUI() {
@@ -3127,12 +3177,26 @@
             // Tous les orchestres sauf Jazz : les plans sont écrits en croches droites ; le swing réglé les déforme ensuite (4/4, 2/4, 3/4).
             // Jazz écrit directement ses croches swinguées (swingPos) ; sa valeur par défaut est le triolet.
             buildBandPlan(step, nextStep, measureInStep, isLastMeasureOfStep) {
+                const ak = this.getAksak();
+                if (ak) return this._buildAksakPlan(ak, step, nextStep, measureInStep, isLastMeasureOfStep);
                 const plan = this._buildBandPlanRaw(step, nextStep, measureInStep, isLastMeasureOfStep);
                 if (plan && this.bandStyle !== 'swing' && this.isBandSwingAvailable()) {
                     const sw = this.getBandSwing();
                     if (sw !== 0.5) return swingPlan(plan, sw);
                 }
                 return plan;
+            }
+
+            // Mesures aksak (5/8, 7/8, 11/8) : l'orchestre Balkans écrit directement en temps inégaux (plan en noires, units) ;
+            // les autres orchestres (et le bouton « Arpèges ») jouent une mesure de temps réguliers prêtée (ak.proxy : 2/4 en
+            // 5/8, 3/4 en 7/8 et 11/8), étirée ensuite sur les vraies durées des temps (stretchPlanToGroups). Jamais de swing.
+            _buildAksakPlan(ak, step, nextStep, measureInStep, isLastMeasureOfStep) {
+                if (this.bandStyle === 'balkan' && !this._arpPrevStyle) return this._buildBandPlanRaw(step, nextStep, measureInStep, isLastMeasureOfStep);
+                this._planProxy = ak;
+                let plan;
+                try { plan = this._buildBandPlanRaw(step, nextStep, measureInStep, isLastMeasureOfStep); }
+                finally { this._planProxy = null; }
+                return (plan && !plan.units) ? stretchPlanToGroups(plan, ak.proxy) : plan;
             }
 
             _buildBandPlanRaw(step, nextStep, measureInStep, isLastMeasureOfStep) {
@@ -3487,7 +3551,8 @@
             // ===================== Orchestration BALKANS : le calcul est dans band/balkan-plan.js =====================
 
             buildBalkanPlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                return this._bandRun(['balkanVoice', 'balkanMel'], env => buildBalkanPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat(), bpm: this.bpm, density: this.getBandDensity('balkan') });
+                return this._bandRun(['balkanVoice', 'balkanMel'], env => buildBalkanPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat(), bpm: this.bpm, density: this.getBandDensity('balkan'),
+                    groups: (this.getAksak() && !this._planProxy) ? this.getAksak().groups : null });   // aksak : temps inégaux
             }
 
             // ===================== Orchestration CUMBIA : le calcul est dans band/cumbia-plan.js =====================
@@ -3690,9 +3755,13 @@
                 const plan = this._bandPlan;
                 if (!plan) return;
 
-                const inBeat = (e) => e.pos >= beatInMeasure - 1e-6 && e.pos < beatInMeasure + 1 - 1e-6;
+                // Fenêtre du temps dans le plan : [temps, temps + 1[ ; en aksak le plan est en noires (units) et le temps couvre
+                // son groupe de croches (aksakBeatWindow).
+                const ak = this.getAksak();
+                const win = (ak && plan.units) ? aksakBeatWindow(ak.groups, beatInMeasure) : { s: beatInMeasure, len: 1 };
+                const inBeat = (e) => e.pos >= win.s - 1e-6 && e.pos < win.s + win.len - 1e-6;
                 // Léger jitter d'humanisation (±6 ms), jamais dans le passé
-                const at = (e) => Math.max(now, now + (e.pos - beatInMeasure) * beatSec + (e.lay || 0) + (Math.random() - 0.5) * 0.012);
+                const at = (e) => Math.max(now, now + (e.pos - win.s) * beatSec + (e.lay || 0) + (Math.random() - 0.5) * 0.012);
                 plan.drums.filter(inBeat).forEach(e => this.playBandDrum(e, at(e)));
                 plan.bass.filter(inBeat).forEach(e => plan.piazzolla ? this.playPiazzollaBass(e, at(e), beatSec) : plan.brass ? this.playTubaAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), e.art) : this.playBassAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), !!e.wide, !!plan.upright, e.gainMul || 1));
                 plan.piano.filter(inBeat).forEach(e => plan.rock ? this.playRockHit(e, at(e), beatSec) : plan.classicalGuitar ? this.playClassicalGuitarHit(e, at(e), beatSec) : plan.piazzolla ? this.playPiazzollaHit(e, at(e), beatSec) : plan.brass ? this.playBrassHit(e, at(e), beatSec) : (plan.accordion ? this.playAccordionHit(e, at(e), beatSec) : (plan.guitar ? this.playGuitarHit(e, at(e), beatSec) : this.playPianoHit(e, at(e), beatSec))));
@@ -5747,7 +5816,7 @@
             // Ce dont ui/grid-view.js a besoin pour décrire les cases de la grille (voir ce fichier).
             _gridViewCtx(flat, effV, currentMeasureNum) {
                 return {
-                    grid: this.grid, flat, effV, scalesDb, bpb: this.getBeatsPerBar(), splitBeat: this.getSplitBeat(),
+                    grid: this.grid, flat, effV, scalesDb, bpb: this.getBeatsPerBar(), splitBeat: this.getSplitBeat(), aksak: !!this.getAksak(),
                     currentBeat: this.currentBeat, currentMeasureNum, showHarmonicFunctions: this.showHarmonicFunctions,
                     editBarOpen: this._editBarOpen, sel: this._sel,
                     symbolHtml: (c) => this.getChordSymbolHtml(c),
@@ -8108,9 +8177,11 @@
                 // macOS / Safari / Chrome / Firefox peuvent suspendre l'AudioContext en cours de route.
                 if (ctx.state !== 'running') ctx.resume().catch(() => {});
 
-                const intervalSec = 60 / this.bpm;
                 const bpb = this.getBeatsPerBar();
                 const splitBeat = this.getSplitBeat();
+                // Durée de CE temps : une noire (une pulsation en mesure composée) ; en aksak, 1 ou 1,5 noire selon le groupe de croches
+                const beatIdx = this._countInBeats > 0 ? bpb - this._countInBeats : this.currentBeat % bpb;
+                const intervalSec = 60 / this.bpm * this._beatUnitsAt(beatIdx);
                 // Grille de temps en secondes AUDIO : premier temps, ou recalage après un retard de plus d'un temps.
                 const clock = beatClock({ beatAudio: this._beatAudio, now: ctx.currentTime, intervalSec, firstLead: this._FIRST_LEAD, lead: this._LEAD });
                 const t = clock.t;
@@ -8120,7 +8191,7 @@
                 if (this._countInBeats > 0) {
                     const intro = countInBeat(this._countInBeats, bpb);
                     this.playMetronomeClick(intro.accent, t);
-                    this._metronomeSubdivide(t, intervalSec);
+                    this._metronomeSubdivide(t, intervalSec, intro.n);
                     this._countInBeats--;
                     this._runAtAudioTime(t, runId, () => {
                         const el = document.getElementById('jam-bar-counter');
@@ -8146,7 +8217,7 @@
                 // Le clic est programmé EN PREMIER, à l'instant exact du temps.
                 if (this.metronomeEnabled && !this._exporting) {
                     this.playMetronomeClick(beat % bpb === 0, t);
-                    this._metronomeSubdivide(t, intervalSec);
+                    this._metronomeSubdivide(t, intervalSec, beat % bpb);
                 }
 
                 // Son (arpèges / orchestre) programmé à l'instant exact du temps ; une erreur ne doit

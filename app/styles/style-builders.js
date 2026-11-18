@@ -970,6 +970,58 @@ const STYLE_BUILDERS = {
         const H2 = [ [HJ(1), bII(1), V(1), i(1)], [HJ(1), iv(1), V(1), i(1)], [HJ(2), V(1), i(1)] ];                                                                          // part de HJ, revient à i
         return join(row(pick(T), 'A', 'A1'), row(pick(U), 'A', 'A2'), row(pick(H1), 'B', 'B1'), row(pick(H2), 'B', 'B2'));
     },
+    // ============ Balkans : danses aksak (5/8, 7/8, 11/8) ============
+    // Jouées par l'orchestre Balkans en temps inégaux (signatures aksak : voir AKSAK_METERS, grid/grid-format.js). Triades, dominante
+    // V7(b9) sur le phrygien dominant (hijaz), un accord par mesure ou par deux mesures (ces mesures sont courtes), parfois deux.
+    // Chaque cellule de quatre mesures part de l'accord que la précédente appelle.
+    // Paiduško (5/8 : 2+3), danse bulgare et macédonienne : A (8) en mineur, B (8) qui s'éclaire dans le relatif majeur (III) puis revient à i.
+    balkan58: (t) => {
+        const { pick, join } = t;
+        const { i, iv, V, bII, bVII, bVI, III, V7III, sp, row } = balkanKit(t);
+        const T = [ [i(2), V(2)], [i(1), iv(1), V(2)], [i(1), bVII(1), i(1), V(1)], [i(1), bVII(1), bVI(1), V(1)], [i(1, sp.iv), V(1), i(1), V(1)] ];   // part de i, finit sur V
+        const U = [ [i(1), iv(1), V(1), i(1)], [i(2), V(1), i(1)], [i(1), bII(1), V(1), i(1)], [i(1), bVII(1), V(1), i(1)] ];                         // part de i, finit sur i
+        const W = [ [III(2), V7III(2)], [III(1), bVII(1), III(1), V7III(1)], [III(1), bVI(1), V7III(2)], [III(1), iv(1), V7III(2)] ];                  // part de III, finit sur V7 de III
+        const Z = [ [III(1), iv(1), V(1), i(1)], [III(2), V(1), i(1)], [III(1), bVII(1), V(1), i(1)], [III(1), bII(1), V(1), i(1)] ];                  // revient à i
+        return join(row(pick(T), 'A', 'A1'), row(pick(U), 'A', 'A2'), row(pick(W), 'B', 'B1'), row(pick(Z), 'B', 'B2'));
+    },
+    // Lesnoto / čamče (7/8 : 3+2+2, temps long en tête), chant dansé de Macédoine : A (8) en mineur (cadence andalouse, dominante hijaz),
+    // B (8) qui descend le cycle des quintes du mineur (iv - bVII - III - bVI - ii° - V) avant de revenir à i.
+    balkan78: (t) => {
+        const { pick, join } = t;
+        const { i, iv, V, bII, bVII, bVI, III, iio, sp, row } = balkanKit(t);
+        const T = [ [i(2), iv(1), V(1)], [i(1), bVII(1), bVI(1), V(1)], [i(2), V(2)], [i(1), iv(1, sp.V), i(1), V(1)], [i(1), bII(1), i(1), V(1)] ];   // part de i, finit sur V
+        const U = [ [i(1), iv(1), V(1), i(1)], [i(2), V(1), i(1)], [i(1), bVII(1), V(1), i(1)], [i(1, sp.iv), V(1), i(2)] ];                          // part de i, finit sur i
+        const W = [ [iv(1), bVII(1), III(1), bVI(1)], [iv(2), bVII(1), III(1)], [iv(1), bVII(1), III(2)], [iv(1), i(1), iv(1), bVII(1)] ];            // part de iv (cycle des quintes)
+        const Z = [ [iio(1), V(1), i(2)], [bVI(1), iio(1), V(1), i(1)], [iv(1), V(1), i(2)], [bVI(1), V(1), i(2)] ];                                  // revient à i
+        return join(row(pick(T), 'A', 'A1'), row(pick(U), 'A', 'A2'), row(pick(W), 'B', 'B1'), row(pick(Z), 'B', 'B2'));
+    },
+    // Račenica (7/8 : 2+2+3, temps long à la fin), danse bulgare vive, en majeur avec la septième abaissée (bVII) des musiques de noce :
+    // A (8) sur I et V7, B (8) sur la sous-dominante (IV) et le relatif mineur (vi), qui revient à I.
+    balkan78r: (t) => {
+        const { pick, join, abs } = t;
+        const row = (rows, sec, phr) => rows.map(([off, c, sc, fn, m = 1]) => abs(off, c, m, sc, sec, phr, fn));
+        const I = (m = 1) => [0, 'majTriad', 'ionian', 'tonic', m];
+        const IV = (m = 1) => [5, 'majTriad', 'lydian', 'predominant', m];
+        const V7 = (m = 1) => [7, '7', 'mixolydian', 'dominant', m];
+        const bVII = (m = 1) => [10, 'majTriad', 'lydian', 'color', m];
+        const vi = (m = 1) => [9, 'minTriad', 'aeolian', 'tonic', m];
+        const ii = (m = 1) => [2, 'minTriad', 'dorian', 'predominant', m];
+        const T = [ [I(2), V7(2)], [I(1), IV(1), V7(2)], [I(1), bVII(1), V7(2)], [I(1), bVII(1), I(1), V7(1)], [I(2), IV(1), V7(1)] ];   // part de I, finit sur V7
+        const U = [ [I(1), IV(1), V7(1), I(1)], [I(2), V7(1), I(1)], [I(1), bVII(1), V7(1), I(1)], [IV(1), I(1), V7(1), I(1)] ];         // part de I, finit sur I
+        const W = [ [IV(1), I(1), IV(1), V7(1)], [IV(2), I(1), V7(1)], [vi(1), IV(1), ii(1), V7(1)], [IV(1), bVII(1), IV(1), V7(1)], [vi(2), IV(1), V7(1)] ];   // sous-dominante, finit sur V7
+        return join(row(pick(T), 'A', 'A1'), row(pick(U), 'A', 'A2'), row(pick(W), 'B', 'B1'), row(pick(U), 'B', 'B2'));
+    },
+    // Kopanica / gankino horo (11/8 : 2+2+3+2+2), danse bulgare : A (8) en mineur (va-et-vient i - bII, dominante hijaz), B (8) sur la
+    // tonique majeure hijaz (même tonique, seconde mineure), qui retombe sur i.
+    balkan118: (t) => {
+        const { pick, join } = t;
+        const { i, iv, V, bII, bVII, bVI, HJ, sp, row } = balkanKit(t);
+        const T = [ [i(2), bII(1), V(1)], [i(1), bII(1), i(1), V(1)], [i(2), iv(1), V(1)], [i(1), bVII(1), bVI(1), V(1)], [i(1, sp.bII), iv(1), V(2)] ];   // part de i, finit sur V
+        const U = [ [i(2), V(1), i(1)], [i(1), bII(1), V(1), i(1)], [i(1), iv(1), V(1), i(1)], [i(1, sp.bII), V(1), i(2)] ];                               // part de i, finit sur i
+        const H1 = [ [HJ(1), bII(1), HJ(1), V(1)], [HJ(2), iv(1), V(1)], [HJ(1), bII(1), V(2)] ];                                                            // part de HJ, finit sur V
+        const H2 = [ [HJ(1), bII(1), V(1), i(1)], [HJ(1), iv(1), V(1), i(1)], [HJ(2), V(1), i(1)] ];                                                          // part de HJ, revient à i
+        return join(row(pick(T), 'A', 'A1'), row(pick(U), 'A', 'A2'), row(pick(H1), 'B', 'B1'), row(pick(H2), 'B', 'B2'));
+    },
     // ============ Cumbia ============
     cumbia: (t) => {
         const { R, pick, join, cells } = t;

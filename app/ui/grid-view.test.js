@@ -67,6 +67,7 @@ describe('measureCellModel', () => {
         assert.ok(at(2).centerHtml.includes('jam-half jam-half-active" data-half="1"'));
         assert.equal(at(0).ts3, false);
         assert.equal(V.measureCellModel(ctx(g, { bpb: 3 }), m).ts3, true);
+        assert.equal(V.measureCellModel(ctx(g, { bpb: 3, aksak: true }), m).ts3, false);   // 7/8 : moitiés égales
     });
     test('gamme inconnue : étiquette vide', () => {
         const g = [blk({ scaleId: 'zz' })];

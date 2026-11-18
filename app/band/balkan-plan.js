@@ -15,11 +15,13 @@ if (typeof popRun === 'undefined' && typeof require === 'function') {
 
 // ===================== Orchestration BALKANS =====================
 // Trois « couleurs » partagent le même orchestre (la phrase en retient une, d'après le rythme imposé par le style de grille) :
-//  - « dance »  (par défaut) : kolo / čoček en 2/4, aksak en 9/8 (2+2+2+3) ; tapan, daire, darbuka ;
+//  - « dance »  (par défaut) : kolo / čoček en 2/4, aksak en 9/8 (2+2+2+3), 5/8 (2+3), 7/8 (3+2+2 ou 2+2+3), 11/8 (2+2+3+2+2) ;
+//                             tapan, daire, darbuka ;
 //  - « sevdah »  (rythme 'bk-sevdah') : ballade lente de Bosnie en 4/4 : ligne longue et ornée, accompagnement tenu ou arpégé, percussions
 //                                     à peine là ;
 //  - « tsifte »  (rythme 'bk-tsifte') : tsifteteli / čoček en 4/4, darbuka « maqsum » (dum tek . tek dum . tek .) et ligne syncopée.
 // Tout part des groupes de croches de la mesure : 2/4 = 2+2, 9/8 = 2+2+2+3, 6/8 = 3+3, 12/8 = 3+3+3+3, 3/4 et 4/4 = 2+2…
+// En 5/8, 7/8 et 11/8 (env.groups), chaque groupe est un temps du moteur et le plan est écrit en unités d'une noire (units: true).
 //
 // La ligne de l'accordéon est écrite comme un chant, pas comme un tirage de notes isolées :
 //  - un motif de phrase : les mesures d'une phrase de 4 forment A B A C (question, réponse, question, conclusion) ; A, B et C ont
@@ -216,20 +218,25 @@ function buildBalkanPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep,
     const I = ph.intensity;
     const flavor = ph.flavor || 'dance';
     const eps = 1e-6;
-    const spe = ternary ? 3 : 2;                                  // croches par pulsation
-    const E = bpb * spe;                                          // croches dans la mesure
-    const aksak = ternary && bpb === 3;                           // 9/8 : 2+2+2+3
-    const groups = ternary ? (aksak ? [2, 2, 2, 3] : Array(bpb).fill(3)) : Array(bpb).fill(2);
+    // Mesure aksak (5/8, 7/8, 11/8 : env.groups = croches de chaque temps inégal) : le plan est écrit en unités d'une noire
+    // (2 croches), la mesure dure E / 2 unités ; le moteur le lit tel quel (units: true).
+    const akG = Array.isArray(env.groups) && env.groups.length ? env.groups.slice() : null;
+    const spe = (ternary && !akG) ? 3 : 2;                        // croches par pulsation (par unité en aksak)
+    const aksak = !akG && ternary && bpb === 3;                   // 9/8 : 2+2+2+3
+    const groups = akG || (ternary ? (aksak ? [2, 2, 2, 3] : Array(bpb).fill(3)) : Array(bpb).fill(2));
+    const E = groups.reduce((a, g) => a + g, 0);                  // croches dans la mesure
+    const barLen = E / spe;                                       // longueur de la mesure (en pulsations, en unités en aksak)
     const gs = []; { let a = 0; groups.forEach(g => { gs.push(a); a += g; }); }
     const P = (e) => e / spe;                                     // position (en pulsations) de la croche e
-    const kolo = !ternary && bpb === 2;
-    const native4 = !ternary && bpb === 4;                        // 4/4 binaire : signature des variantes ballade et tsifteteli
+    const kolo = !akG && !ternary && bpb === 2;
+    const native4 = !akG && !ternary && bpb === 4;                // 4/4 binaire : signature des variantes ballade et tsifteteli
     const sevdahN = flavor === 'sevdah' && native4, tsifteN = flavor === 'tsifte' && native4;
     const feel = (!ternary && ph.feel === 'oompah' && flavor === 'dance') ? 'oompah' : 'drive';
-    const splitAt = env.splitBeat;
+    // aksak : la mesure se coupe au début du temps (groupe) env.splitBeat
+    const splitAt = akG ? P(gs[Math.max(1, Math.min(groups.length - 1, env.splitBeat || 1))]) : env.splitBeat;
     const segs = halves
-        ? [{ s: 0, e: splitAt, cs: halves[0] }, { s: splitAt, e: bpb, cs: halves[1] }]
-        : [{ s: 0, e: bpb, cs: step }];
+        ? [{ s: 0, e: splitAt, cs: halves[0] }, { s: splitAt, e: barLen, cs: halves[1] }]
+        : [{ s: 0, e: barLen, cs: step }];
     const sameChord = (a, b) => !!a && !!b && a.rootIndex === b.rootIndex && a.chordId === b.chordId
         && (Number.isInteger(a.bassRootIndex) ? a.bassRootIndex : -1) === (Number.isInteger(b.bassRootIndex) ? b.bassRootIndex : -1);
     const lastSeg = segs[segs.length - 1];
@@ -266,8 +273,11 @@ function buildBalkanPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep,
     env.state.balkanVoice = lastKey ? { key: lastKey, v: lastV } : null;
 
     // ---- phrase rapide de fin de cellule (dans la gamme du dernier accord, vers l'accord suivant) ----
-    const runFrom = bpb - 1;
-    const nRun = thin > 0.35 ? spe : (ternary ? 6 : 4);          // très rapide : croches au lieu de doubles croches
+    // aksak : la phrase rapide occupe le dernier temps (2 ou 3 croches) ; ailleurs la dernière pulsation
+    const lastG = groups[groups.length - 1];
+    const runLen = akG ? lastG / spe : 1;                         // durée de la phrase rapide (en pulsations)
+    const runFrom = barLen - runLen;
+    const nRun = akG ? (thin > 0.35 ? lastG : 2 * lastG) : (thin > 0.35 ? spe : (ternary ? 6 : 4));   // très rapide : croches au lieu de doubles croches
     let runNotes = [];
     if (isTurn && L > 1 && changeNext && ph.run && thin < 0.8 && nextV && bpb >= 2) {
         const lv = Vs[Vs.length - 1];
@@ -420,7 +430,7 @@ function buildBalkanPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep,
                 let leg = nt.d >= 2 ? 0.97 : (interval === 0 ? 0.8 : (interval <= 2 ? 0.97 : 0.9));
                 if (k === n - 1 && breath && !run) leg = Math.min(leg, nt.closing && flavor === 'sevdah' ? 0.97 : 0.82);
                 let pos = P(nt.e), dur = Math.max(0.1 / spe, P(nt.d) * leg);
-                const archV = 0.92 + 0.14 * Math.sin(Math.PI * (li + pos / bpb) / LL);
+                const archV = 0.92 + 0.14 * Math.sin(Math.PI * (li + pos / barLen) / LL);
                 const vel = clampV(((nt.strong ? 0.78 : 0.64) + 0.1 * I) * dyn * archV * (nt.closing ? 0.94 : 1));
                 const S = nt.S, j = nt.idx;
                 const up = S[j + 1], dn = S[j - 1];
@@ -462,7 +472,7 @@ function buildBalkanPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep,
         if (rn.length === nRun) runNotes = rn;
     }
     runNotes.forEach((x, k) => piano.push({
-        pos: runFrom + k / nRun, dur: 0.92 / nRun, vel: clampV((0.5 + 0.32 * k / (nRun - 1)) * dyn),
+        pos: runFrom + k * runLen / nRun, dur: 0.92 * runLen / nRun, vel: clampV((0.5 + 0.32 * k / (nRun - 1)) * dyn),
         rootIndex: 0, intervals: [x], art: 'run'
     }));
 
@@ -577,6 +587,28 @@ function buildBalkanPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep,
         MAQ.forEach(([e, d, v]) => dr(e, d, v));
         [[2, 0.3], [5, 0.28], [7, 0.34]].forEach(([e, v]) => { if (answer || I > 0.6 || e === 7) dr(e, 'ka', v); });
         if (answer && I > 0.5) dr(4.5, 'ka', 0.24);
+    } else if (akG) {
+        // Danses aksak : chaque temps (groupe) est frappé ; le premier et les temps longs (3 croches) sont lourds. Deux jeux :
+        //  - tapan (percIdx 0 ou 1) : mailloche (« tapan ») sur les temps lourds, baguette fine (« stick ») sur les autres temps et
+        //    à l'intérieur des temps longs ; le jeu 1 remet la mailloche sur le dernier temps (élan vers la mesure suivante) ;
+        //  - darbuka (percIdx 2) : dum sur les temps lourds, tek sur les autres, ka de remplissage.
+        const darb = ph.percIdx % 3 === 2;
+        const lastGi = groups.length - 1;
+        groups.forEach((g, gi) => {
+            const e0 = gs[gi];
+            const heavy = gi === 0 || g === 3;
+            const lift = !darb && ph.percIdx % 3 === 1 && gi === lastGi && gi > 0;
+            if (darb) dr(e0, heavy ? 'dum' : 'tek', gi === 0 ? 1 : (heavy ? 0.84 : 0.7));
+            else dr(e0, (heavy || lift) ? 'tapan' : 'stick', gi === 0 ? 1 : (heavy ? 0.82 : (lift ? 0.7 : 0.6)));
+            for (let k = 1; k < g; k++) {
+                const inLong = g === 3;
+                if (!inLong && I < 0.45 && gi !== lastGi) continue;
+                dr(e0 + k, darb ? 'ka' : 'stick', (inLong ? 0.36 : 0.3) + (k === g - 1 ? 0.06 : 0));
+            }
+        });
+        // vif : doubles croches de baguette (ou ka) dans le dernier temps, qui relancent la mesure
+        if (I > 0.62 || i % 2 === 1) dr(gs[lastGi] + lastG - 0.5, darb ? 'ka' : 'stick', 0.28);
+        if (pickup) dr(E - 0.5, darb ? 'ka' : 'stick', 0.32);
     } else if (kolo) {
         // tapan (grosse caisse frappée à la mailloche) sur les temps, baguette fine sur les contretemps
         const TAP = [
@@ -611,15 +643,15 @@ function buildBalkanPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep,
         drums.length = 0; keep.forEach(d => drums.push(d));
         const soft = sevdahN ? 0.5 : 1;
         for (let k = 0; k < nRun; k++) {
-            const d = kolo ? 'stick' : (k % 2 ? 'tek' : 'ka');
-            drums.push({ pos: runFrom + k / nRun, drum: d, vel: Math.min(1, (0.3 + 0.55 * k / (nRun - 1)) * soft) });
+            const d = (kolo || (akG && ph.percIdx % 3 !== 2)) ? 'stick' : (k % 2 ? 'tek' : 'ka');
+            drums.push({ pos: runFrom + k * runLen / nRun, drum: d, vel: Math.min(1, (0.3 + 0.55 * k / (nRun - 1)) * soft) });
         }
     }
 
     // Curseur « Densité » : ligne de l'accordéon étoffée ou dépouillée (0,5 = écriture d'origine)
     if (Number.isFinite(env.density)) {
         lineDensify(piano, {
-            d: Math.max(0, Math.min(1, env.density)), rng, bpm: env.bpm || 120, unit: 1 / spe, barEnd: bpb,
+            d: Math.max(0, Math.min(1, env.density)), rng, bpm: env.bpm || 120, unit: 1 / spe, barEnd: barLen,
             isLine: (e) => e.art === 'lin', isDecor: (e) => e.art === 'orn' || e.art === 'arp',
             scaleAt: (pos, lo, hi) => popScaleNotes(csAt(pos), lo, hi)
         });
@@ -627,7 +659,7 @@ function buildBalkanPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep,
     piano.sort((a, b) => a.pos - b.pos);
     bass.sort((a, b) => a.pos - b.pos);
     drums.sort((a, b) => a.pos - b.pos);
-    return { piano, bass, drums, accordion: true };
+    return { piano, bass, drums, accordion: true, units: !!akG };
 }
 
 if (typeof module !== 'undefined' && module.exports) {
