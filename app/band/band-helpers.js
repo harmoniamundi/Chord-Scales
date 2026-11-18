@@ -299,7 +299,7 @@ function getStepHalves(step) {
 
 // Rapport de swing : position de la croche « et » dans le temps (0.5 = croches droites, 0.667 = triolet, 0.75 = très pointé).
 // Chaque orchestre a une valeur par défaut adaptée à son style (réglage « Auto ») : Jazz joue en triolet qui se rapproche des
-// croches droites quand le tempo monte ; les autres orchestres (Pop-Rock, Brasil, Cuba, Classique, Guitare, Brass, Balkans, Cumbia, Tango nuevo)
+// croches droites quand le tempo monte ; les autres orchestres (Pop-Rock, Brasil, Cuba, Classique, Guitare, Brass, Balkans, Cumbia, Tango nuevo, Afrique)
 // jouent droit par défaut, leurs motifs étant écrits ainsi. Tous se règlent au curseur / menu Swing.
 // `manual` : valeur choisie par l'utilisateur (0.5 à 0.75) ; elle remplace la valeur par défaut du style.
 const BAND_SWING_DEFAULTS = {
@@ -312,15 +312,19 @@ const BAND_SWING_DEFAULTS = {
     brass: 0.5,
     balkan: 0.5,
     cumbia: 0.5,      // croches droites : le balancement de la cumbia est dans l'accent des percussions
-    piazzolla: 0.5
+    piazzolla: 0.5,
+    africa: 0.5       // Afrique : croches droites, sauf le highlife (voir GROOVE_SWING_DEFAULTS)
 };
 
-// Swing propre à certains rythmes imposés de l'orchestre Pop-Rock (rock'n'roll des années 50, shuffle du blues rock).
-const GROOVE_SWING_DEFAULTS = { 'r-roll': 0.62, 'r-blues': 0.667 };
+// Swing propre à certains rythmes imposés : orchestre Pop-Rock (rock'n'roll des années 50, shuffle du blues rock) et orchestre
+// Afrique (le highlife balance légèrement ses croches).
+const GROOVE_SWING_DEFAULTS = { 'r-roll': 0.62, 'r-blues': 0.667, 'af-highlife': 0.56 };
 
 // Valeur par défaut (« Auto ») du swing d'un orchestre au tempo donné (et au rythme imposé, s'il y en a un).
 function defaultBandSwing(style, bpm, groove) {
-    if (style === 'pop' && groove && typeof GROOVE_SWING_DEFAULTS[groove] === 'number') return GROOVE_SWING_DEFAULTS[groove];
+    // un rythme ne vaut que pour son orchestre : r-… pour le Pop-Rock, af-… pour l'Afrique
+    const own = (style === 'pop' && /^r-/.test(groove || '')) || (style === 'africa' && /^af-/.test(groove || ''));
+    if (own && typeof GROOVE_SWING_DEFAULTS[groove] === 'number') return GROOVE_SWING_DEFAULTS[groove];
     const d = BAND_SWING_DEFAULTS[style];
     if (typeof d === 'number') return d;
     if (d === 'auto') return Math.max(0.58, Math.min(0.667, 0.667 - (bpm - 140) * 0.001));

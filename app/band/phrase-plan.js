@@ -23,6 +23,7 @@ if (typeof brassPhraseExtras === 'undefined' && typeof require === 'function') {
 if (typeof balkanPhraseExtras === 'undefined' && typeof require === 'function') { var { balkanPhraseExtras } = require('./balkan-plan.js'); }
 if (typeof cumbiaPhraseExtras === 'undefined' && typeof require === 'function') { var { cumbiaPhraseExtras } = require('./cumbia-plan.js'); }
 if (typeof piazzollaPhraseExtras === 'undefined' && typeof require === 'function') { var { piazzollaPhraseExtras } = require('./piazzolla-plan.js'); }
+if (typeof africaPhraseExtras === 'undefined' && typeof require === 'function') { var { africaPhraseExtras } = require('./africa-plan.js'); }
 if (typeof ternaryPhraseExtras === 'undefined' && typeof require === 'function') { var { ternaryPhraseExtras } = require('./ternary-plan.js'); }
 if (typeof meterPhraseExtras === 'undefined' && typeof require === 'function') { var { meterPhraseExtras } = require('./meter-plan.js'); }
 
@@ -57,6 +58,7 @@ function buildBandPhrase(ctx, index, style, prev) {
     else if (style === 'balkan') Object.assign(phrase, balkanPhraseExtras(rng, prev, index, { groove: ctx.groove }));
     else if (style === 'cumbia') Object.assign(phrase, cumbiaPhraseExtras(rng, prev, index));
     else if (style === 'piazzolla') Object.assign(phrase, piazzollaPhraseExtras({ groove: ctx.groove }, rng, prev, index));
+    else if (style === 'africa') Object.assign(phrase, africaPhraseExtras(rng, prev, index, ctx.groove));
     if (ctx.ternary) phrase.mx = ternaryPhraseExtras(bpb, style, lib, phrase, rng);
     else if (bpb !== 4) phrase.mx = meterPhraseExtras(bpb, style, lib, phrase, rng);
     return phrase;

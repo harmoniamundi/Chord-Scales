@@ -228,6 +228,14 @@
                                 <option value="salsa">Salsa (4/4)</option>
                                 <option value="afro68">Afro-cubain (6/8)</option>
                             </optgroup>
+                            <optgroup label="Afrique">
+                                <option value="afrobeat">Afrobeat (Nigeria)</option>
+                                <option value="highlife">Highlife (Ghana)</option>
+                                <option value="rumbacongo">Rumba congolaise</option>
+                                <option value="soukous">Soukous / sebene</option>
+                                <option value="benga">Benga (Kenya)</option>
+                                <option value="mbaqanga">Mbaqanga (Afrique du Sud)</option>
+                            </optgroup>
                             <option value="custom">Personnalisé (grille modifiée)</option>
                         </select>
                         <select id="jam-key-select" onchange="app.jam.setMainKey(this.value)" title="Tonalité principale" class="jr-half bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-2 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
@@ -501,6 +509,7 @@
     <script src="app/band/latin-plan.js"></script>
     <script src="app/band/balkan-plan.js"></script>
     <script src="app/band/cumbia-plan.js"></script>
+    <script src="app/band/africa-plan.js"></script>
     <script src="app/band/cuban-plan.js"></script>
     <script src="app/band/salsa-plan.js"></script>
     <script src="app/band/afrocuban-plan.js"></script>
@@ -952,7 +961,7 @@
 
             changeStyle(styleKey) {
                 if (styleKey === 'custom') return;
-                const BRASS_KEYS = { brasshymn: 5, brasscantique: 3, balkan: 2, balkan98: 9, balkansevdah: 9, balkantsifte: 2, balkan58: 9, balkan78: 2, balkan78r: 7, balkan118: 4, cumbia: 7, milongalyrique: 2, flamencosolea: 9, flamencobulerias: 9, flamencotangos: 9, rockroll: 9, rockclassic: 2, hardrock: 4, punk: 7, rockballad: 7, bluesrock: 9, indierock: 0 }; // + Rock : la (rock'n'roll, blues rock), ré (classique), mi mineur (hard rock), sol (punk, ballade), do (indie) ; + Balkans : ré mineur (kolo), la mineur (aksak), la mineur (sevdah), ré mineur (tsifteteli) ; Milonga lyrique : ré mineur (Oblivion) ; Flamenco : la (cadence andalouse La m - Sol - Fa - Mi)
+                const BRASS_KEYS = { brasshymn: 5, brasscantique: 3, balkan: 2, balkan98: 9, balkansevdah: 9, balkantsifte: 2, balkan58: 9, balkan78: 2, balkan78r: 7, balkan118: 4, cumbia: 7, milongalyrique: 2, flamencosolea: 9, flamencobulerias: 9, flamencotangos: 9, rockroll: 9, rockclassic: 2, hardrock: 4, punk: 7, rockballad: 7, bluesrock: 9, indierock: 0, afrobeat: 2, highlife: 5, rumbacongo: 9, soukous: 4, benga: 7, mbaqanga: 0 }; // + Afrique : ré dorien (afrobeat), fa (highlife), la (rumba), mi (soukous), sol (benga), do (mbaqanga) ; + Rock : la (rock'n'roll, blues rock), ré (classique), mi mineur (hard rock), sol (punk, ballade), do (indie) ; + Balkans : ré mineur (kolo), la mineur (aksak), la mineur (sevdah), ré mineur (tsifteteli) ; Milonga lyrique : ré mineur (Oblivion) ; Flamenco : la (cadence andalouse La m - Sol - Fa - Mi)
                 this.withUndo(() => {
                     if (styleKey === 'i-got-rythm') {
                         const prevKey = this.mainKey;
@@ -1363,6 +1372,7 @@
                 if (s === 'brass') return !!(this.brassInst && this.brassInst.tuba);
                 if (s === 'balkan') return !!this.accordionInstrument;
                 if (s === 'cumbia') return !!this.accordionInstrument && !!this.bassInstrumentPop;
+                if (s === 'africa') return !!this.rockGtr && !!this.bassInstrumentPop;
                 if (s === 'piazzolla') return !!(this.pzInst && Object.keys(this.pzInst).filter(k => k !== 'violin_stc').length > 1);
                 if (s === 'latin') return !!this.guitarInstrument && !!this.bassInstrument;
                 if (s === 'guitar') return !!this.guitarInstrument;
@@ -2348,7 +2358,7 @@
             // (samba, tango, Piazzolla, afro, brass chorale…) : il ne vaut que pour l'orchestre auquel il appartient, sinon il
             // « fuit » (ex. : rythme afro d'un style Afro-cubain qui ferait sonner Cuba sous l'orchestre Brasil).
             getEffectiveGroove(style) {
-                const ok = { latin: ['bossa', 'samba', 'tango', 'piazzolla'], cuba: ['afro', 'salsa'].concat(AFRO_GROOVES), brass: ['b-chorale'], balkan: ['bk-sevdah', 'bk-tsifte'], piazzolla: ['lyrique'], guitar: ['f-solea', 'f-bulerias', 'f-tangos'], classic: ['c-baroque'], pop: ROCK_GROOVES }[style || this.bandStyle];
+                const ok = { latin: ['bossa', 'samba', 'tango', 'piazzolla'], cuba: ['afro', 'salsa'].concat(AFRO_GROOVES), brass: ['b-chorale'], balkan: ['bk-sevdah', 'bk-tsifte'], piazzolla: ['lyrique'], guitar: ['f-solea', 'f-bulerias', 'f-tangos'], classic: ['c-baroque'], pop: ROCK_GROOVES, africa: AFRICA_GROOVES }[style || this.bandStyle];
                 return (this._bandGroove && ok && ok.includes(this._bandGroove)) ? this._bandGroove : null;
             }
 
@@ -2384,6 +2394,18 @@
                     }
                     this._bandGroove = ROCK_BAND_GROOVES[v];
                     this.setBandStyle('pop');
+                } else if (AFRICA_BAND_GROOVES[v]) {
+                    // Entrées « Afrique » : orchestre Afrique avec le rythme choisi (afrobeat, highlife, rumba, soukous, benga, mbaqanga).
+                    // Comme pour le Rock : tempo habituel du style quand on change de rythme, pas quand on choisit de nouveau le même.
+                    const tm = this._tempoMeterFor(v);
+                    const mt = tm && this.parseMeter(tm.meter);
+                    const same = this.bandStyle === 'africa' && this.getEffectiveGroove('africa') === AFRICA_BAND_GROOVES[v];
+                    if (mt && !same) {
+                        if (mt.key !== this.getMeterKey()) this.setTimeSignature(tm.meter);
+                        this.setBpm(tm.bpm);
+                    }
+                    this._bandGroove = AFRICA_BAND_GROOVES[v];
+                    this.setBandStyle('africa');
                 } else if (LATIN_BAND_GROOVES[v]) {
                     // Entrées latines : « Bossa nova » et « Samba » = orchestre Brasil avec le rythme imposé, « Salsa » = orchestre
                     // Cuba avec la clave et le montuno de la salsa. Comme pour le Flamenco et le Rock : signature et tempo habituels
@@ -2401,7 +2423,7 @@
                 } else {
                     // Un autre choix (y compris « Brasil », « Cuba » ou « Guitare » seuls) ne garde ni le rythme lyrique, ni celui
                     // d'un palo ou d'un style rock, ni la bossa / samba / salsa / les rythmes cubains choisis dans ce menu
-                    if (this._bandGroove === 'lyrique' || ['bossa', 'samba', 'salsa'].includes(this._bandGroove) || (this._bandGroove || '').startsWith('f-') || (this._bandGroove || '').startsWith('r-') || (this._bandGroove || '').startsWith('c-') || (this._bandGroove || '').startsWith('cu-')) this._bandGroove = null;
+                    if (this._bandGroove === 'lyrique' || ['bossa', 'samba', 'salsa'].includes(this._bandGroove) || (this._bandGroove || '').startsWith('f-') || (this._bandGroove || '').startsWith('r-') || (this._bandGroove || '').startsWith('c-') || (this._bandGroove || '').startsWith('cu-') || (this._bandGroove || '').startsWith('af-')) this._bandGroove = null;
                     this.setBandStyle(v);
                 }
             }
@@ -2428,6 +2450,11 @@
                     const k = Object.keys(ROCK_BAND_GROOVES).find(key => ROCK_BAND_GROOVES[key] === g);
                     if (k) return k;
                 }
+                if (this.bandStyle === 'africa') {
+                    // sans rythme imposé, l'orchestre Afrique joue le highlife
+                    const g = africaGroove(this.getEffectiveGroove('africa'));
+                    return Object.keys(AFRICA_BAND_GROOVES).find(key => AFRICA_BAND_GROOVES[key] === g) || 'highlife';
+                }
                 return this.bandStyle;
             }
 
@@ -2435,7 +2462,7 @@
                 this._arpPrevStyle = null; // un choix explicite de style met fin au mode « arpèges » transitoire
                 this._setArpeggioUI(false);
                 const prevBand = this.bandStyle;
-                this.bandStyle = ['swing', 'pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'cumbia', 'piazzolla'].includes(style) ? style : 'swing';
+                this.bandStyle = ['swing', 'pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'cumbia', 'piazzolla', 'africa'].includes(style) ? style : 'swing';
                 if (prevBand !== this.bandStyle) {
                     // Chaque orchestre repart d'un état propre : phrase, plan et conduite des voix de l'orchestre précédent ne doivent pas
                     // se retrouver dans le suivant.
@@ -2453,8 +2480,9 @@
                 const brass = this.bandStyle === 'brass';
                 const balkan = this.bandStyle === 'balkan' || this.bandStyle === 'cumbia'; // même accordéon, mêmes « Percus. »
                 const pz = this.bandStyle === 'piazzolla';
+                const africa = this.bandStyle === 'africa';   // guitares et orgue sur les curseurs du Rock, cuivres sur le premier
                 const el = document.getElementById('band-vol-piano-label');
-                if (el) el.textContent = brass ? 'Cuivres' : (balkan ? 'Accordéon' : ((this.bandStyle === 'latin' || this.bandStyle === 'guitar' || this._cubaGuitar()) ? 'Guitare' : 'Piano'));
+                if (el) el.textContent = (brass || africa) ? 'Cuivres' : (balkan ? 'Accordéon' : ((this.bandStyle === 'latin' || this.bandStyle === 'guitar' || this._cubaGuitar()) ? 'Guitare' : 'Piano'));
                 const eb = document.getElementById('band-vol-bass-label');
                 if (eb) eb.textContent = brass ? 'Tubas' : (pz ? 'Contreb.' : 'Basse');
                 const ed = document.getElementById('band-vol-drums-label');
@@ -2464,10 +2492,11 @@
                     const row = document.getElementById('band-row-pz-' + k);
                     if (row) row.classList.toggle('hidden', !pz);
                 });
-                // curseurs propres au Pop-Rock et aux styles Rock (guitare électrique, orgue, cordes)
+                // curseurs propres au Pop-Rock et aux styles Rock (guitare électrique, orgue, cordes) ; l'orchestre Afrique utilise
+                // ceux des guitares et de l'orgue
                 ['rguitar', 'organ', 'strings'].forEach(k => {
                     const row = document.getElementById('band-row-rk-' + k);
-                    if (row) row.classList.toggle('hidden', this.bandStyle !== 'pop');
+                    if (row) row.classList.toggle('hidden', !(this.bandStyle === 'pop' || (africa && k !== 'strings')));
                 });
             }
 
@@ -2492,7 +2521,7 @@
             updateBandButtonLabel() {
                 const label = document.getElementById('band-btn-label');
                 if (!label) return;
-                const names = { swing: 'Jazz', pop: this._rockBandName() || 'Pop-Rock', latin: ({ bossa: 'Bossa nova', samba: 'Samba' })[this.getEffectiveGroove('latin')] || 'Brasil', cuba: this._cubaBandName(), classic: 'Classique', guitar: (this.getEffectiveGroove('guitar') ? 'Flamenco' : 'Guitare'), brass: 'Brass', balkan: 'Balkans', cumbia: 'Cumbia', piazzolla: (this.getEffectiveGroove() === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
+                const names = { swing: 'Jazz', pop: this._rockBandName() || 'Pop-Rock', latin: ({ bossa: 'Bossa nova', samba: 'Samba' })[this.getEffectiveGroove('latin')] || 'Brasil', cuba: this._cubaBandName(), classic: 'Classique', guitar: (this.getEffectiveGroove('guitar') ? 'Flamenco' : 'Guitare'), brass: 'Brass', balkan: 'Balkans', cumbia: 'Cumbia', africa: AFRICA_NAMES[africaGroove(this.getEffectiveGroove('africa'))], piazzolla: (this.getEffectiveGroove() === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
                 label.textContent = 'Orchestre ' + (names[this.bandStyle] || 'Jazz');
             }
 
@@ -2721,12 +2750,12 @@
                     this.bandGains.drums.connect(dest);
                 }
                 this.loadBandPiano();
-                if (this.bandStyle === 'brass') this.loadBrass();
+                if (this.bandStyle === 'brass' || this.bandStyle === 'africa') this.loadBrass();   // Afrique : section de cuivres
                 if (this.bandStyle === 'balkan' || this.bandStyle === 'cumbia') this.loadAccordion();
                 if (this.bandStyle === 'piazzolla') this.loadPiazzolla();
                 if (this.bandStyle !== 'classic' && this.bandStyle !== 'guitar' && !this.bassInstrument) this.loadBass();
-                if (this.bandStyle === 'pop' || this.bandStyle === 'cumbia') this.loadBassPop();   // basse électrique (doigts)
-                if (this.bandStyle === 'pop') this.loadRock();   // guitare électrique, orgue, cordes
+                if (this.bandStyle === 'pop' || this.bandStyle === 'cumbia' || this.bandStyle === 'africa') this.loadBassPop();   // basse électrique (doigts)
+                if (this.bandStyle === 'pop' || this.bandStyle === 'africa') this.loadRock();   // guitare électrique, orgue, cordes
                 if (this.bandStyle === 'latin' || this.bandStyle === 'guitar' || this._cubaGuitar()) this.loadGuitarLatin();
             }
 
@@ -2821,7 +2850,7 @@
 
             // Réglages d'une mesure rock au premier temps : son de l'ampli de la guitare, vitesse du Leslie de l'orgue.
             _applyRockPlan(plan) {
-                if (!plan || !plan.rock || !this._rockBuses) return;
+                if (!plan || !(plan.rock || plan.africa) || !this._rockBuses) return;
                 if (plan.tone) this._rockBuses.amp.setTone(plan.tone);
                 this._rockBuses.organ.setSpeed(plan.leslie === 'fast' ? 'fast' : 'slow');
             }
@@ -2960,7 +2989,7 @@
                 if (e.onGuitar && this.bandGains.piano) dest = this.bandGains.piano;
                 if (!dest) return;
                 // Niveau minimal : on laisse tomber les notes fantômes et percussions d'ornement
-                if (this.perfTier >= 2 && (e.orn || e.drum === 'ghost' || e.drum === 'rghost' || e.drum === 'tmbs' || e.drum === 'pedal' || e.drum === 'chich' || e.drum === 'latigo' || e.drum === 'pito' || e.drum === 'guirot' || e.drum === 'bongoh' || e.drum === 'bongol' || e.drum === 'guacu' || (e.drum === 'shaker' && this.bandStyle === 'cumbia'))) return;
+                if (this.perfTier >= 2 && (e.orn || e.drum === 'ghost' || e.drum === 'rghost' || e.drum === 'tmbs' || e.drum === 'pedal' || e.drum === 'chich' || e.drum === 'latigo' || e.drum === 'pito' || e.drum === 'guirot' || e.drum === 'bongoh' || e.drum === 'bongol' || e.drum === 'guacu' || (e.drum === 'shaker' && (this.bandStyle === 'cumbia' || this.bandStyle === 'africa')))) return;
                 let v = e.vel * (0.92 + Math.random() * 0.16);
                 // Percussions du flamenco (cajón, palmas, pitos) : pas de batterie derrière, elles doivent tenir leur place face à la guitare
                 if (e.perc) v *= 1.7;
@@ -3096,7 +3125,7 @@
             // upright : contrebasse (rock'n'roll des années 50) même dans l'orchestre Pop-Rock, qui joue sinon la basse électrique ;
             // gainMul : coefficient de niveau de la note (basse qui mène).
             playBassAbs(absSemi, time, duration, vel = 0.85, wide = false, upright = false, gainMul = 1) {
-                const inst = (!(upright && this.bassInstrument) && (this.bandStyle === 'pop' || this.bandStyle === 'cumbia') && this.bassInstrumentPop) ? this.bassInstrumentPop : this.bassInstrument;
+                const inst = (!(upright && this.bassInstrument) && (this.bandStyle === 'pop' || this.bandStyle === 'cumbia' || this.bandStyle === 'africa') && this.bassInstrumentPop) ? this.bassInstrumentPop : this.bassInstrument;
                 if (!inst) return;
                 // soundfont-player n'honore l'option "destination" qu'à la création de l'instrument, pas par note : le curseur
                 // de volume de la basse est donc appliqué directement au gain de la note (wide : dynamique élargie, style Pop).
@@ -3259,6 +3288,8 @@
                 if (style === 'balkan') return this.buildBalkanPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 // Cumbia colombienne : accordéon, basse électrique, guacharaca / llamador / tambora / alegre, quelle que soit la signature
                 if (style === 'cumbia') return this.buildCumbiaPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
+                // Afrique : guitares électriques, basse, batterie et percussions, orgue et cuivres selon le rythme, quelle que soit la signature
+                if (style === 'africa') return this.buildAfricaPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 // Tango nuevo : bandonéon, violon, piano, guitare électrique, contrebasse, quelle que soit la signature
                 if (style === 'piazzolla') return this.buildPiazzollaPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 // Rythme afro-cubain : orchestre dédié (piano montuno, tumbao, cloche, congas), quelle que soit la signature
@@ -3589,6 +3620,20 @@
                     groups: (this.getAksak() && !this._planProxy) ? this.getAksak().groups : null });   // aksak : temps inégaux
             }
 
+            // ===================== Orchestration AFRIQUE : le calcul est dans band/africa-plan.js =====================
+
+            buildAfricaPlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
+                return this._bandRun(['africaVoice', 'africaLead'], env => buildAfricaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m),
+                    { splitBeat: this.getSplitBeat(), bpm: this.bpm, groove: this.getEffectiveGroove('africa') });
+            }
+
+            // Une frappe de l'orchestre Afrique : section de cuivres (e.inst 'horn', comme le Brass band), sinon guitare électrique ou
+            // orgue (mêmes instruments et mêmes bus que le Pop-Rock).
+            playAfricaHit(e, time, beatSec) {
+                if (e.inst === 'horn') { this.playBrassHit(e, time, beatSec); return; }
+                this.playRockHit(e, time, beatSec);
+            }
+
             // ===================== Orchestration CUMBIA : le calcul est dans band/cumbia-plan.js =====================
 
             buildCumbiaPlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
@@ -3798,7 +3843,7 @@
                 const at = (e) => Math.max(now, now + (e.pos - win.s) * beatSec + (e.lay || 0) + (Math.random() - 0.5) * 0.012);
                 plan.drums.filter(inBeat).forEach(e => this.playBandDrum(e, at(e)));
                 plan.bass.filter(inBeat).forEach(e => plan.piazzolla ? this.playPiazzollaBass(e, at(e), beatSec) : plan.brass ? this.playTubaAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), e.art) : this.playBassAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), !!e.wide, !!plan.upright, e.gainMul || 1));
-                plan.piano.filter(inBeat).forEach(e => plan.rock ? this.playRockHit(e, at(e), beatSec) : plan.classicalGuitar ? this.playClassicalGuitarHit(e, at(e), beatSec) : plan.piazzolla ? this.playPiazzollaHit(e, at(e), beatSec) : plan.brass ? this.playBrassHit(e, at(e), beatSec) : (plan.accordion ? this.playAccordionHit(e, at(e), beatSec) : (plan.guitar ? this.playGuitarHit(e, at(e), beatSec) : this.playPianoHit(e, at(e), beatSec))));
+                plan.piano.filter(inBeat).forEach(e => plan.africa ? this.playAfricaHit(e, at(e), beatSec) : plan.rock ? this.playRockHit(e, at(e), beatSec) : plan.classicalGuitar ? this.playClassicalGuitarHit(e, at(e), beatSec) : plan.piazzolla ? this.playPiazzollaHit(e, at(e), beatSec) : plan.brass ? this.playBrassHit(e, at(e), beatSec) : (plan.accordion ? this.playAccordionHit(e, at(e), beatSec) : (plan.guitar ? this.playGuitarHit(e, at(e), beatSec) : this.playPianoHit(e, at(e), beatSec))));
             }
 
 
@@ -9691,6 +9736,12 @@
                         <option value="brass">Brass band</option>
                         <option value="balkan">Balkans</option>
                         <option value="cumbia">Cumbia</option>
+                        <option value="afrobeat">Afrique : afrobeat</option>
+                        <option value="highlife">Afrique : highlife</option>
+                        <option value="rumbacongo">Afrique : rumba congolaise</option>
+                        <option value="soukous">Afrique : soukous / sebene</option>
+                        <option value="benga">Afrique : benga</option>
+                        <option value="mbaqanga">Afrique : mbaqanga</option>
                         <option value="piazzolla">Tango nuevo (quinteto)</option>
                         <option value="milongalyrique">Milonga lyrique (quinteto)</option>
                     </select>
@@ -9751,11 +9802,11 @@
                         <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Guit. élec.</span>
                         <input type="range" id="band-vol-guitar" min="0" max="100" value="50" oninput="app.jam.setBandVolume('guitar', this.value)" class="w-full accent-emerald-500">
                     </div>
-                    <div id="band-row-rk-rguitar" class="hidden flex items-center gap-2" title="Guitare électrique du Pop-Rock et des styles Rock">
+                    <div id="band-row-rk-rguitar" class="hidden flex items-center gap-2" title="Guitare électrique du Pop-Rock, des styles Rock et de l'orchestre Afrique">
                         <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Guit. élec.</span>
                         <input type="range" id="band-vol-rguitar" min="0" max="100" value="60" oninput="app.jam.setBandVolume('rguitar', this.value)" class="w-full accent-emerald-500">
                     </div>
-                    <div id="band-row-rk-organ" class="hidden flex items-center gap-2" title="Orgue (type Hammond) du Pop-Rock et des styles Rock">
+                    <div id="band-row-rk-organ" class="hidden flex items-center gap-2" title="Orgue (type Hammond) du Pop-Rock, des styles Rock et de l'orchestre Afrique (afrobeat, mbaqanga)">
                         <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Orgue</span>
                         <input type="range" id="band-vol-organ" min="0" max="100" value="35" oninput="app.jam.setBandVolume('organ', this.value)" class="w-full accent-emerald-500">
                     </div>

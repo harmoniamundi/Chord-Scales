@@ -23,7 +23,9 @@ const STYLE_SCALE_PROFILE = {
     cumbia:'classic',
     rockroll:'blues', rockclassic:'classic', hardrock:'classic', punk:'classic', rockballad:'classic', bluesrock:'blues', indierock:'classic',
     flamencosolea:'flamenco', flamencobulerias:'flamenco', flamencotangos:'flamenco',
-    sonmontuno:'classic', chachacha:'jazz', bolerocubano:'jazz', guajira:'classic', danzon:'classic', guaguanco:'classic'
+    sonmontuno:'classic', chachacha:'jazz', bolerocubano:'jazz', guajira:'classic', danzon:'classic', guaguanco:'classic',
+    // Afrique : mode diatonique du degré (l'afrobeat est en dorien, voir styleTonality)
+    afrobeat:'classic', highlife:'classic', rumbacongo:'classic', soukous:'classic', benga:'classic', mbaqanga:'classic'
 };
 
 // Orchestre proposé pour chaque style (modifiable ensuite dans la fenêtre « Orchestre »).
@@ -43,7 +45,8 @@ const STYLE_BAND = {
     cumbia: 'cumbia',
     rockroll: 'pop', rockclassic: 'pop', hardrock: 'pop', punk: 'pop', rockballad: 'pop', bluesrock: 'pop', indierock: 'pop',
     flamencosolea: 'guitar', flamencobulerias: 'guitar', flamencotangos: 'guitar',
-    sonmontuno: 'cuba', chachacha: 'cuba', bolerocubano: 'cuba', guajira: 'cuba', danzon: 'cuba', guaguanco: 'cuba'
+    sonmontuno: 'cuba', chachacha: 'cuba', bolerocubano: 'cuba', guajira: 'cuba', danzon: 'cuba', guaguanco: 'cuba',
+    afrobeat: 'africa', highlife: 'africa', rumbacongo: 'africa', soukous: 'africa', benga: 'africa', mbaqanga: 'africa'
 };
 
 // Rythme imposé à l'orchestre Latin par certains styles (sinon le moteur choisit bossa / samba selon le tempo).
@@ -51,7 +54,8 @@ const STYLE_GROOVE = { baroque: 'c-baroque', bossa: 'bossa', samba: 'samba', tan
     flamencosolea: 'f-solea', flamencobulerias: 'f-bulerias', flamencotangos: 'f-tangos',
     balkansevdah: 'bk-sevdah', balkantsifte: 'bk-tsifte',
     rockroll: 'r-roll', rockclassic: 'r-classic', hardrock: 'r-hard', punk: 'r-punk', rockballad: 'r-ballad', bluesrock: 'r-blues', indierock: 'r-indie',
-    sonmontuno: 'cu-son', chachacha: 'cu-chacha', bolerocubano: 'cu-bolero', guajira: 'cu-guajira', danzon: 'cu-danzon', guaguanco: 'cu-guaguanco' };
+    sonmontuno: 'cu-son', chachacha: 'cu-chacha', bolerocubano: 'cu-bolero', guajira: 'cu-guajira', danzon: 'cu-danzon', guaguanco: 'cu-guaguanco',
+    afrobeat: 'af-afrobeat', highlife: 'af-highlife', rumbacongo: 'af-rumba', soukous: 'af-soukous', benga: 'af-benga', mbaqanga: 'af-mbaqanga' };
 
 // Entrées « Flamenco » du menu Orchestre : orchestre Guitare + rythme du palo (même rythme que le style de grille du même nom).
 const FLAMENCO_BAND_GROOVES = { flamencosolea: 'f-solea', flamencobulerias: 'f-bulerias', flamencotangos: 'f-tangos' };
@@ -65,6 +69,10 @@ const LATIN_BAND_GROOVES = { bossa: { band: 'latin', groove: 'bossa' }, samba: {
     // styles afro-cubains (orchestre Cuba, band/afrocuban-plan.js)
     sonmontuno: { band: 'cuba', groove: 'cu-son' }, chachacha: { band: 'cuba', groove: 'cu-chacha' }, bolerocubano: { band: 'cuba', groove: 'cu-bolero' },
     guajira: { band: 'cuba', groove: 'cu-guajira' }, danzon: { band: 'cuba', groove: 'cu-danzon' }, guaguanco: { band: 'cuba', groove: 'cu-guaguanco' } };
+
+// Entrées « Afrique » du menu Orchestre : orchestre Afrique + rythme choisi (même rythme que le style de grille du même nom),
+// utilisables sur n'importe quelle grille, comme les entrées Flamenco, Rock et latines.
+const AFRICA_BAND_GROOVES = { afrobeat: 'af-afrobeat', highlife: 'af-highlife', rumbacongo: 'af-rumba', soukous: 'af-soukous', benga: 'af-benga', mbaqanga: 'af-mbaqanga' };
 
 // Tempo (noires par minute ; pulsations ♩. en mesure composée) et signature proposés pour chaque style.
 // Valeurs modifiables ensuite avec le curseur de tempo et le sélecteur « Mesure ».
@@ -133,7 +141,13 @@ const STYLE_TEMPO_METER = {
     bolerocubano:     { bpm: 72,  meter: '4/4' },
     guajira:          { bpm: 92,  meter: '4/4' },
     danzon:           { bpm: 112, meter: '2/4' }, // danzón : noire autour de 110, cinquillo en doubles croches
-    guaguanco:        { bpm: 108, meter: '4/4' }
+    guaguanco:        { bpm: 108, meter: '4/4' },
+    afrobeat:         { bpm: 112, meter: '4/4' }, // Fela Kuti / Tony Allen : 100-125
+    highlife:         { bpm: 120, meter: '4/4' },
+    rumbacongo:       { bpm: 116, meter: '4/4' },
+    soukous:          { bpm: 144, meter: '4/4' }, // sebene dansé : 135-155
+    benga:            { bpm: 150, meter: '4/4' },
+    mbaqanga:         { bpm: 126, meter: '4/4' }
 };
 
 // Recherche par clé propre : une clé inattendue (« constructor »…) ne renvoie jamais un membre hérité d'Object.
@@ -334,13 +348,13 @@ function styleTonality(styleKey, generated) {
     const tonic = generated[0];
     const fam = chordFamily(tonic.chordId);
     let quality = 'ionian';
-    if (fam === 'min') quality = styleKey === 'modal' ? 'dorian' : 'aeolian';
+    if (fam === 'min') quality = (styleKey === 'modal' || styleKey === 'afrobeat') ? 'dorian' : 'aeolian';   // afrobeat : vamp en dorien
     else if (fam === 'dom') quality = 'mixolydian';
     return { rootIndex: tonic.rootIndex, quality };
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { STYLE_SCALE_PROFILE, STYLE_BAND, STYLE_GROOVE, FLAMENCO_BAND_GROOVES, ROCK_BAND_GROOVES, LATIN_BAND_GROOVES, STYLE_TEMPO_METER, STYLES_FOLLOWING_KEY,
+    module.exports = { STYLE_SCALE_PROFILE, STYLE_BAND, STYLE_GROOVE, FLAMENCO_BAND_GROOVES, ROCK_BAND_GROOVES, LATIN_BAND_GROOVES, AFRICA_BAND_GROOVES, STYLE_TEMPO_METER, STYLES_FOLLOWING_KEY,
         bandStyleFor, grooveHintFor, tempoMeterFor, styleModulations, modReading, annotateModulations,
         styleScaleFor, applyStyleScaleProfile, styleTonality };
 }

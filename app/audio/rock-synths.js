@@ -42,7 +42,9 @@ const AMP_TONES = {
     crunch: { dry: 0.22, wet: 0.78, pre: 3.4,  k: 3,  hp: 150, post: 5200, scoop: 0,  bite: 3,   air: -1,  slap: 0,    trim: 0.268, level: 0.85 },
     drive:  { dry: 0,    wet: 1,    pre: 6.5,  k: 5,  hp: 190, post: 4800, scoop: -1, bite: 3.5, air: -2,  slap: 0,    trim: 0.10,  level: 0.62 },
     heavy:  { dry: 0,    wet: 1,    pre: 12,   k: 9,  hp: 260, post: 4300, scoop: -4, bite: 4,   air: -3,  slap: 0,    trim: 0.072, level: 0.6 },
-    surf:   { dry: 1,    wet: 0,    pre: 1,    k: 1,  hp: 120, post: 7800, scoop: 0,  bite: 2.5, air: 5,   slap: 0.34, trim: 1,     level: 1.35 }
+    surf:   { dry: 1,    wet: 0,    pre: 1,    k: 1,  hp: 120, post: 7800, scoop: 0,  bite: 2.5, air: 5,   slap: 0.34, trim: 1,     level: 1.35 },
+    // guitares des musiques africaines (orchestre Afrique) : son clair et brillant, médium un peu creusé, un soupçon d'écho
+    afro:   { dry: 1,    wet: 0,    pre: 1,    k: 1,  hp: 120, post: 8000, scoop: -1, bite: 3,   air: 3.5, slap: 0.1,  trim: 1,     level: 2 }
 };
 
 // Construit la chaîne d'ampli ; tout le son de la guitare entre par `input` et sort vers `destination`.

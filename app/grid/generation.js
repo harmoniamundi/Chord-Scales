@@ -79,7 +79,10 @@ function styleProfile(styleKey) {
         sonmontuno: { turn: false, w: { secDom: 0.6 } }, guajira: { turn: false, w: {} }, guaguanco: { turn: false, w: {} },
         danzon: { turn: false, w: { secDom: 1.5, subdom: 1 } },
         chachacha: { turn: false, alt: true, w: { iiV: 1.5, secDom: 1, colour: 1.5, subdom: 0.6 } },
-        bolerocubano: { turn: false, alt: true, w: { iiV: 2, secDom: 1.5, tritone: 0.8, dim: 1, colour: 2.5, sus: 0.6, subdom: 1, chrom: 0.6 } }
+        bolerocubano: { turn: false, alt: true, w: { iiV: 2, secDom: 1.5, tritone: 0.8, dim: 1, colour: 2.5, sus: 0.6, subdom: 1, chrom: 0.6 } },
+        // Afrique : triades, dominantes septièmes et m7 du vamp de l'afrobeat ; aucune réharmonisation (« Générer » renouvelle la forme)
+        afrobeat: { turn: false, w: {} }, highlife: { turn: false, w: {} }, rumbacongo: { turn: false, w: {} },
+        soukous: { turn: false, w: {} }, benga: { turn: false, w: {} }, mbaqanga: { turn: false, w: {} }
     };
     return table[styleKey] || { turn: false, w: { colour: 3 } };
 }
@@ -781,7 +784,8 @@ function normalizeGeneratedGrid(template, styleKey) {
         'balkan': 32, 'balkan98': 16, 'balkansevdah': 16, 'balkantsifte': 16,
         'balkan58': 16, 'balkan78': 16, 'balkan78r': 16, 'balkan118': 16, 'cumbia': 16,
         'rockroll': 12, 'rockclassic': 16, 'hardrock': 16, 'punk': 16, 'rockballad': 16, 'bluesrock': 12, 'indierock': 16,
-        'sonmontuno': 16, 'chachacha': 16, 'bolerocubano': 16, 'guajira': 16, 'danzon': 32, 'guaguanco': 16
+        'sonmontuno': 16, 'chachacha': 16, 'bolerocubano': 16, 'guajira': 16, 'danzon': 32, 'guaguanco': 16,
+        'afrobeat': 16, 'highlife': 16, 'rumbacongo': 16, 'soukous': 16, 'benga': 16, 'mbaqanga': 16
     }[styleKey] || 16;
     if (!template.length) return template;
 

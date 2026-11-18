@@ -52,7 +52,7 @@ describe('ampli de guitare', () => {
         assert.ok(mid(9) > mid(1));
     });
     test('cinq sons : propre, crunch, saturé, lourd, surf ; le niveau de sortie est calé', () => {
-        assert.deepEqual(Object.keys(R.AMP_TONES).sort(), ['clean', 'crunch', 'drive', 'heavy', 'surf']);
+        assert.deepEqual(Object.keys(R.AMP_TONES).sort(), ['afro', 'clean', 'crunch', 'drive', 'heavy', 'surf']);
         Object.values(R.AMP_TONES).forEach(t => { assert.ok(t.level > 0 && t.level < 3); assert.ok(t.trim > 0); });
     });
     test('l\'entrée atteint la destination, le son est réglable, un nom inconnu donne le son propre', () => {

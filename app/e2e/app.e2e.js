@@ -462,7 +462,7 @@ describe('appli complÃ¨te (navigateur)', { skip: !pw && 'Playwright non installÃ
         await page.evaluate(() => { app.jam.bpm = 240; });
         await page.click('#jam-play-btn');
         await waitFor(() => /^Mesure/.test(document.getElementById('jam-bar-counter').textContent));
-        for (const band of ['pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'cumbia', 'piazzolla', 'swing']) {
+        for (const band of ['pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'cumbia', 'africa', 'piazzolla', 'swing']) {
             await page.evaluate((b) => app.jam.setBandStyle(b), band);
             await page.waitForTimeout(250);
         }

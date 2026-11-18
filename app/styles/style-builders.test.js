@@ -19,8 +19,8 @@ const STYLES = Object.keys(STYLE_BUILDERS);
 const bars = (tpl) => tpl.reduce((s, x) => s + x.m, 0);
 
 describe('catalogue des styles', () => {
-    test('64 styles (dont sept styles rock, quatre danses aksak et six styles afro-cubains), dont les alias blues128, ballad128 et balkan98', () => {
-        assert.equal(STYLES.length, 64);
+    test('70 styles (dont sept styles rock, quatre danses aksak, six styles afro-cubains et six styles africains), dont les alias blues128, ballad128 et balkan98', () => {
+        assert.equal(STYLES.length, 70);
         assert.equal(STYLE_BUILDERS.blues128, STYLE_BUILDERS.blues);
         assert.equal(STYLE_BUILDERS.ballad128, STYLE_BUILDERS.ballad);
         assert.equal(STYLE_BUILDERS.balkan98, STYLE_BUILDERS.balkan);
@@ -302,6 +302,57 @@ describe('styles afro-cubains', () => {
             const tpl = build(st, 0);
             assert.equal(tpl[0].r, 0, st);
             assert.equal(tpl[0].function, 'tonic', st);
+        }
+    });
+});
+
+describe('styles africains', () => {
+    const AFRICA = ['afrobeat', 'highlife', 'rumbacongo', 'soukous', 'benga', 'mbaqanga'];
+    const G = require('../grid/generation.js');
+    const all = (st, key) => [build(st, key)].concat(Array.from({ length: 30 }, (_, k) => build(st, key, seeded(k + 1))));
+    test('16 mesures, tonique au début et à la fin (forme de référence et renouvelée)', () => {
+        for (const st of AFRICA) for (const tpl of all(st, 3)) {
+            assert.equal(bars(tpl), 16, st);
+            assert.equal(tpl[0].r, 3, st);
+            const last = tpl[tpl.length - 1];
+            assert.equal((last.split || last).r, 3, `${st} fin`);
+            assert.equal(tpl[0].function, 'tonic', st);
+        }
+    });
+    test('vocabulaire : triades et V7 ; afrobeat en m7 (vamp dorien i7 - IV7)', () => {
+        for (const st of AFRICA) for (const tpl of all(st, 0)) {
+            tpl.forEach(x => {
+                const ok = st === 'afrobeat' ? ['m7', '7', 'majTriad'] : ['majTriad', 'minTriad', '7'];
+                assert.ok(ok.includes(x.c), `${st} : ${x.c}`);
+                if (x.split) assert.ok(ok.includes(x.split.c), `${st} : ${x.split.c}`);
+                assert.ok(T.lookupChord(x.c).scales.some(sc => sc.id === x.s), `${st} : ${x.c} / ${x.s}`);
+            });
+        }
+        const ref = build('afrobeat', 2);
+        assert.deepEqual([ref[0].r, ref[0].c, ref[1].r, ref[1].c], [2, 'm7', 7, '7']);   // Rém7 puis Sol7
+    });
+    test('mesures à deux accords : jamais deux fois le même accord', () => {
+        for (const st of AFRICA) for (const tpl of all(st, 0)) tpl.filter(x => x.split).forEach(x => {
+            assert.equal(x.m, 1, st);
+            assert.ok(!(x.split.r === x.r && x.split.c === x.c), st);
+        });
+    });
+    test('mbaqanga : la tonique sur sa quinte (I/V) avant la dominante', () => {
+        const tpl = build('mbaqanga', 0);
+        const i = tpl.findIndex(x => Number.isInteger(x.bassRootIndex));
+        assert.ok(i > 0);
+        assert.deepEqual([tpl[i].r, tpl[i].c, tpl[i].bassRootIndex], [0, 'majTriad', 7]);
+        assert.equal(tpl[i + 1].c, '7');
+        assert.equal(build('mbaqanga', 5)[i].bassRootIndex, 0);   // suit la tonique (fa : basse do)
+    });
+    test('aucune fusion de deux blocs qui ne diffèrent que par la basse', () => {
+        for (const tpl of all('mbaqanga', 0)) {
+            const out = G.enforceChordRepeatLimits(tpl);
+            assert.equal(out.reduce((s, x) => s + x.m, 0), 16);
+            for (let k = 1; k < tpl.length; k++) {
+                const a = tpl[k - 1], b = tpl[k];
+                if (!a.split && !b.split && a.r === b.r && a.c === b.c) assert.equal(Number.isInteger(a.bassRootIndex), Number.isInteger(b.bassRootIndex));
+            }
         }
     });
 });

@@ -319,6 +319,12 @@ describe('rockNotes', () => {
         assert.ok(dur('dead').gain < dur('strum').gain);
         assert.ok(dur('arp').release > dur('mute').release * 4);
     });
+    test('guitare : note pincée brève (« pluck ») plus pleine que la sourdine, mais aussi courte', () => {
+        const o = (art) => N.rockNotes(env, hit({ art, intervals: [4], dur: 2 }), 1, 0.5)[0].opts;
+        assert.ok(o('pluck').duration <= 0.24);
+        assert.ok(o('pluck').release < 0.1);
+        assert.ok(o('pluck').gain >= o('mute').gain * 0.9);
+    });
     test('orgue et cordes : attaque indiquée par l\'événement, cordes plus lentes par défaut', () => {
         const o = N.rockNotes(env, hit({ inst: 'organ', art: 'swell', att: 0.35 }), 1, 0.5)[0].opts;
         assert.equal(o.attack, 0.35);

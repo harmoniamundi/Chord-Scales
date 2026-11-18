@@ -47,6 +47,20 @@ function flamencoForm(t, palo) {
     return template;
 }
 
+// ============ Afrique : cellules ============
+// Cellule = liste de [nom d'accord du toolkit, décalage depuis la tonique, mesures, nom de l'accord de la 2e moitié, son décalage,
+// basse (décalage depuis la tonique)]. Les trois derniers sont facultatifs (null pour ne rien changer) : une mesure peut porter deux
+// accords (moitiés de mesure), ou un accord sur une autre basse (I/V du mbaqanga).
+function africaRows(t, spec, sec, phr) {
+    const { CH, cells, keyRoot } = t;
+    return spec.map(([nm, off, m = 1, snm, soff, boff]) => {
+        const it = cells([[nm, off, m]], sec, phr)[0];
+        if (snm) { const [c, sc] = CH[snm]; it.split = { r: (keyRoot + soff + 12) % 12, c, s: sc }; }
+        if (Number.isInteger(boff)) it.bassRootIndex = (keyRoot + boff + 12) % 12;
+        return it;
+    });
+}
+
 // ============ Balkans : ballade et tsifteteli (4/4) ============
 // Deux variantes jouées par l'orchestre Balkans (rythmes imposés bk-sevdah / bk-tsifte, voir band/balkan-plan.js), écrites avec les
 // mêmes couleurs que le kolo : mineur harmonique sur la tonique, dorien sur iv, phrygien dominant (hijaz) sur V7(b9), seconde bémol.
@@ -1209,6 +1223,67 @@ const STYLE_BUILDERS = {
             B2 = [ [['m',0,2],['Dm',7],['m',0]], [['m',5],['Dm',7],['m',0,2]], [['m',0],['M',10],['Dm',7],['m',0]] ];                                    // ..i
         }
         return join(cells(pick(A1),'A','A1'), cells(pick(A2),'A','A2'), cells(pick(B1),'B','B1'), cells(pick(B2),'B','B2'));
+    },
+    // ============ Afrique ============
+    // Six musiques populaires africaines jouées par l'orchestre « Afrique » (rythmes af-…, voir band/africa-plan.js). Harmonie simple et
+    // répétitive : un ou deux accords en boucle (afrobeat), cycles I - IV - V7 (highlife, rumba, soukous, benga, mbaqanga), triades et
+    // dominante septième, souvent deux accords par mesure. Formes de 16 mesures (A puis B), tonique au début et à la fin.
+    // Cellules : [accord, décalage, mesures, accord de la 2e moitié, décalage, basse] — voir africaRows.
+    afrobeat: (t) => {
+        const { pick, join } = t;
+        // Afrobeat (Fela Kuti) : long vamp modal en dorien sur i7 et IV7 (Rém7 - Sol7), la section de cuivres amène ensuite iv7 - v7
+        // ou les accords voisins bIII et bVII avant de revenir au vamp.
+        const A1 = [ [['m7',0,4],['D',5,4]], [['m7',0,2],['D',5,2],['m7',0,2],['D',5,2]], [['m7',0,3],['M',10,1],['m7',0,3],['D',5,1]], [['m7',0,4],['m7',0,2],['D',5,2]] ];
+        const B1 = [ [['m7',5,2],['m7',7,2]], [['D',5,2],['M',3,1],['M',10,1]], [['m7',7,2],['m7',5,2]], [['M',3,2],['D',5,2]] ];
+        const B2 = [ [['D',5,2],['m7',0,2]], [['M',3,1],['M',10,1],['m7',0,2]], [['m7',5,1],['m7',7,1],['m7',0,2]], [['M',10,2],['m7',0,2]] ];
+        return join(africaRows(t, pick(A1), 'A', 'A1'), africaRows(t, pick(B1), 'B', 'B1'), africaRows(t, pick(B2), 'B', 'B2'));
+    },
+    highlife: (t) => {
+        const { pick, join } = t;
+        // Highlife (Ghana) : cycles I - IV - V7 en carrures de quatre mesures, souvent deux accords par mesure (I|IV, I|V7) comme dans
+        // les « guitar bands » ; le pont passe par le IV, le ii et le vi.
+        const A1 = [ [['M',0],['M',5],['M',0],['D',7]], [['M',0,2],['M',5],['D',7]], [['M',0,1,'M',5],['M',0,1,'D',7],['M',0,1,'M',5],['D',7]], [['M',0],['m',9],['M',5],['D',7]] ];
+        const A2 = [ [['M',0],['M',5],['D',7],['M',0]], [['M',0,1,'M',5],['M',0,1,'D',7],['M',0,1,'M',5],['D',7,1,'M',0]], [['M',5],['M',0],['D',7],['M',0]] ];
+        const B1 = [ [['M',5],['M',0],['M',5],['D',7]], [['m',2],['D',7],['M',0],['D',7]], [['m',9],['m',2],['D',7,2]], [['M',5,1,'M',0],['M',5,1,'M',0],['m',2],['D',7]] ];
+        const B2 = [ [['M',5],['D',7],['M',0,2]], [['M',5],['M',0],['D',7],['M',0]], [['m',2],['D',7],['M',0,1,'M',5],['M',0]] ];
+        return join(africaRows(t, pick(A1),'A','A1'), africaRows(t, pick(A2),'A','A2'), africaRows(t, pick(B1),'B','B1'), africaRows(t, pick(B2),'B','B2'));
+    },
+    rumbacongo: (t) => {
+        const { pick, join } = t;
+        // Rumba congolaise (Franco, Tabu Ley) : la « chanson » sur I - V7 (parfois IV et ii), puis le « sebene », boucle instrumentale
+        // de danse sur I - IV - V7 - IV, un ou deux accords par mesure.
+        const A1 = [ [['M',0,2],['D',7,2]], [['M',0],['M',5],['D',7,2]], [['M',0],['D',7],['M',0],['D',7]] ];
+        const A2 = [ [['M',0],['M',5],['D',7],['M',0]], [['M',0,2],['D',7],['M',0]], [['M',0],['m',2],['D',7],['M',0]] ];
+        const B1 = [ [['M',0],['M',5],['D',7],['M',5]], [['M',0,1,'M',5],['D',7,1,'M',5],['M',0,1,'M',5],['D',7]], [['M',0],['M',5],['M',0],['D',7]] ];
+        const B2 = [ [['M',0],['M',5],['D',7],['M',0]], [['M',0,1,'M',5],['D',7,1,'M',5],['M',0,1,'M',5],['D',7,1,'M',0]], [['M',5],['D',7],['M',0,2]] ];
+        return join(africaRows(t, pick(A1),'A','A1'), africaRows(t, pick(A2),'A','A2'), africaRows(t, pick(B1),'B','B1'), africaRows(t, pick(B2),'B','B2'));
+    },
+    soukous: (t) => {
+        const { pick, join } = t;
+        // Soukous (sebene des années 80) : boucles I - IV - I - V7, I|IV - V7|IV en deux accords par mesure, tempo vif.
+        const A1 = [ [['M',0],['M',5],['M',0],['D',7]], [['M',0,1,'M',5],['M',0,1,'M',5],['M',0,1,'D',7],['M',0,1,'D',7]], [['M',0],['m',9],['M',5],['D',7]] ];
+        const A2 = [ [['M',0],['M',5],['D',7],['M',0]], [['M',0,1,'M',5],['D',7,1,'M',0],['M',0,1,'M',5],['D',7,1,'M',0]] ];
+        const B1 = [ [['M',0,1,'M',5],['D',7,1,'M',5],['M',0,1,'M',5],['D',7,1,'M',5]], [['M',0],['M',5],['D',7],['M',5]], [['m',9],['M',5],['M',0],['D',7]] ];
+        const B2 = [ [['M',0],['M',5],['D',7],['M',0]], [['M',0,1,'M',5],['D',7,1,'M',5],['M',0,1,'M',5],['D',7,1,'M',0]] ];
+        return join(africaRows(t, pick(A1),'A','A1'), africaRows(t, pick(A2),'A','A2'), africaRows(t, pick(B1),'B','B1'), africaRows(t, pick(B2),'B','B2'));
+    },
+    benga: (t) => {
+        const { pick, join } = t;
+        // Benga (Kenya) : I - IV - V7 très répété, pendule I - V7, une mesure par accord ou deux accords par mesure.
+        const A1 = [ [['M',0],['M',5],['M',0],['D',7]], [['M',0],['D',7],['M',0],['D',7]], [['M',0,1,'M',5],['D',7,1,'M',0],['M',0,1,'M',5],['D',7]] ];
+        const A2 = [ [['M',0],['M',5],['D',7],['M',0]], [['M',0],['D',7],['M',5],['M',0]], [['M',5],['M',0],['D',7],['M',0]] ];
+        const B1 = [ [['M',5],['M',0],['M',5],['D',7]], [['m',9],['M',5],['M',0],['D',7]], [['M',5,2],['D',7,2]] ];
+        const B2 = [ [['M',5],['D',7],['M',0,2]], [['M',0],['M',5],['D',7],['M',0]] ];
+        return join(africaRows(t, pick(A1),'A','A1'), africaRows(t, pick(A2),'A','A2'), africaRows(t, pick(B1),'B','B1'), africaRows(t, pick(B2),'B','B2'));
+    },
+    mbaqanga: (t) => {
+        const { pick, join } = t;
+        // Mbaqanga (Afrique du Sud) : le cycle I - IV - I/V - V7 (tonique sur sa quinte à la basse avant la dominante), sans fin.
+        const A1 = [ [['M',0],['M',5],['M',0,1,null,null,7],['D',7]], [['M',0,1,'M',5],['M',0,1,'D',7],['M',0,1,'M',5],['M',0,1,'D',7]], [['M',0],['M',5],['D',7],['M',5]] ];
+        const A2 = [ [['M',0],['M',5],['D',7],['M',0]], [['M',0,1,'M',5],['M',0,1,'D',7],['M',0,1,'M',5],['D',7,1,'M',0]], [['M',5],['M',0,1,null,null,7],['D',7],['M',0]] ];
+        const B1 = [ [['M',5],['M',0],['M',5],['D',7]], [['M',5,1,'M',0],['M',5,1,'M',0],['M',5,1,'M',0],['D',7]], [['M',5],['M',0,1,null,null,7],['D',7],['M',5]] ];
+        const B2 = [ [['M',5],['M',0,1,null,null,7],['D',7],['M',0]], [['M',5],['D',7],['M',0,2]] ];
+        return join(africaRows(t, pick(A1),'A','A1'), africaRows(t, pick(A2),'A','A2'), africaRows(t, pick(B1),'B','B1'), africaRows(t, pick(B2),'B','B2'));
     },
     // ============ Rock ============
     // Sept styles rock, tous en triades et dominantes septièmes (les accords de puissance sont joués par la guitare ; aucune couleur de jazz).

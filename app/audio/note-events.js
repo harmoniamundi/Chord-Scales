@@ -69,7 +69,7 @@ function pianoNotes(env, e, time, beatSec) {
 // Instruments rock (guitare électrique, orgue, cordes) : e.inst = 'gtr' | 'organ' | 'strings'. Les notes vont à des synthés (audio/rock-synths.js)
 // ou à l'échantillon de guitare électrique, déjà branchés sur leur bus : le volume vient du bus, pas d'ici.
 //   guitare   e.art : 'strum' (accord gratté, qui sonne), 'mute' (sourdine de paume, court), 'dead' (corde étouffée, quasi muette),
-//             'arp' (arpège laissé vibrer) ; e.dir < 0 = vers le bas → le haut (coup remonté) ;
+//             'arp' (arpège laissé vibrer), 'pluck' (note pincée brève, étouffée par la main gauche) ; e.dir < 0 = vers le bas → le haut (coup remonté) ;
 //   orgue     e.art 'pad' (nappe) | 'swell' (attaque lente) ; e.att = attaque en secondes ;
 //   cordes    nappe à attaque lente (e.att), relâchement long.
 function rockNotes(env, e, time, beatSec) {
@@ -92,6 +92,10 @@ function rockNotes(env, e, time, beatSec) {
         base = { gain: Math.min(1.2, 0.18 + 0.45 * vel), duration: 0.05, attack: 0.002, release: 0.03 };
     } else if (art === 'arp') {
         base = { gain: Math.min(1.2, 0.3 + 0.8 * vel), duration: dur, attack: 0.003, release: 0.5 };
+    } else if (art === 'pluck') {
+        // note pincée et aussitôt étouffée par la main gauche (guitares du benga, du mbaqanga, riff de l'afrobeat) : brève mais
+        // pleine, sans le son sourd de la sourdine de paume
+        base = { gain: Math.min(1.2, 0.32 + 0.82 * vel), duration: Math.min(dur, 0.24), attack: 0.002, release: 0.07 };
     } else {
         base = { gain: Math.min(1.2, 0.32 + 0.85 * vel), duration: dur, attack: 0.003, release: 0.14 + 0.22 * Math.min(1, dur) };
     }
