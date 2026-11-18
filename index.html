@@ -1067,7 +1067,8 @@
                 const titleChanged = typing && inp.value.trim() !== (name || '');
                 const clean = !!name && !titleChanged && !!this._savedSigs && this._savedSigs[name] === this._stateSignature();
                 btn.classList.toggle('is-dirty', !clean);
-                const tip = clean ? `Grille « ${name} » sauvegardée` : 'Sauvegarder la grille (modifications non enregistrées)';
+                const kb = (typeof Shortcuts !== 'undefined' && Shortcuts.kbBinding('save')) ? ` — ${Shortcuts.kbLabel(Shortcuts.kbBinding('save'))}` : '';
+                const tip = clean ? `Grille « ${name} » sauvegardée` : `Sauvegarder la grille (modifications non enregistrées)${kb}`;
                 if (btn.title !== tip) { btn.title = tip; btn.setAttribute('aria-label', tip); }
             }
 
@@ -3984,9 +3985,17 @@
                     if (this._kbModal || e.defaultPrevented || e.isComposing) return;
                     const view = document.getElementById('view-jam');
                     if (!view || view.classList.contains('hidden')) return;
-                    if (this._editor || this._fnEditor || this._exportRec) return;
+                    if (this._exportRec) return;
                     const em = document.getElementById('export-modal');
                     if (em && !em.classList.contains('hidden')) return;
+                    // Sauvegarde (⌘S par défaut) : partout dans le mode Jam, même pendant une saisie (sinon le navigateur proposerait d'enregistrer la page).
+                    const saveCombo = Shortcuts.kbCombo(e);
+                    if (saveCombo && Shortcuts.kbActionFor(saveCombo, 'jam') === 'save') {
+                        e.preventDefault();
+                        if (!e.repeat) this.runShortcut('save');
+                        return;
+                    }
+                    if (this._editor || this._fnEditor) return;
                     const t = e.target;
                     // Saisie de texte et zones d'annotation (portées, cadres) : leurs propres touches passent avant.
                     if (t && t.closest && (t.isContentEditable || t.tagName === 'TEXTAREA' || t.closest('.jam-annot-zone, .jam-annot-text, [contenteditable="true"]'))) return;
@@ -4032,7 +4041,19 @@
                     case 'harmony': this.toggleHarmonyModal(); break;
                     case 'editBar': this.toggleEditBar(); break;
                     case 'generate': this.resetGrid(); break;
+                    case 'save': this.saveByShortcut(); break;
                 }
+            }
+
+            // Sauvegarde au clavier : comme la disquette du titre si la grille a un nom (affiché ou en cours de saisie) ;
+            // sinon, comme « Sauvegarder… » du menu Sauvegardes (le nom est demandé).
+            saveByShortcut() {
+                if (this._editor) this.closeMeasureEditor(); // les changements du pop-up d'édition sont validés d'abord
+                if (this._fnEditor) this.closeFunctionEditor();
+                const inp = document.getElementById('jam-grid-title-input');
+                const typed = !!(inp && !inp.classList.contains('hidden') && inp.value.trim());
+                if (this.loadedGridName || typed) this.saveCurrentGrid();
+                else this.saveGrid();
             }
 
             closeShortcutsPanel() {

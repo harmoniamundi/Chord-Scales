@@ -58,6 +58,8 @@ describe('raccourcis : personnalisation', () => {
         assert.equal(r.replaced, 'loop');
         assert.deepEqual(E.nseKeyAction('b'), { type: 'letter', letter: 'b' });
         assert.equal(K.kbMatch({ key: 'ArrowUp', altKey: true, code: 'ArrowUp' }, 'tempoUp'), true);
+        assert.equal(K.kbMatch({ key: 's', metaKey: true }, 'save'), true);
+        assert.equal(K.kbMatch({ key: 's', ctrlKey: true }, 'save'), true);
     });
     it('tout rétablir', () => {
         K.kbSet('tie', 'k');

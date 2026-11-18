@@ -26,6 +26,7 @@ const KB_ACTIONS = [
     { id: 'band',      scope: 'jam', group: 'Affichage (mode Jam)', label: 'Fenêtre Orchestre', def: 'o' },
     { id: 'harmony',   scope: 'jam', group: 'Affichage (mode Jam)', label: 'Fenêtre Harmonisation', def: 'h' },
     { id: 'editBar',   scope: 'jam', group: 'Grille (mode Jam)', label: "Outils d'édition de la grille", def: 'e' },
+    { id: 'save',      scope: 'jam', group: 'Grille (mode Jam)', label: 'Sauvegarder la grille', def: 'Mod+s' },
     { id: 'generate',  scope: 'jam', group: 'Grille (mode Jam)', label: 'Générer une nouvelle grille (style choisi)', def: '' },
     { id: 'input',     scope: 'staff', group: 'Portée d\'annotation', label: 'Saisie de notes / sélection', def: 'n' },
     { id: 'dur16',     scope: 'staff', group: 'Portée d\'annotation', label: 'Double-croche', def: '1' },
