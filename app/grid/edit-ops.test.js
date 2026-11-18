@@ -309,11 +309,12 @@ describe('repères de partie automatiques', () => {
         assert.deepEqual(g.map(x => x.partStart), ['A', undefined, 'B']);
     });
     test('partLabelOfMeasure : seulement en tête de bloc et pour un repère valide', () => {
-        const g = [st(0, 'maj7', 2, { partStart: 'A' }), st(5, 'maj7', 1, { partStart: 'zzz' })];
+        const g = [st(0, 'maj7', 2, { partStart: 'A' }), st(5, 'maj7', 1, { partStart: '  ' }), st(7, '7', 1, { partStart: 'Refrain' })];
         const flat = flatMeasureList(g);
         assert.equal(E.partLabelOfMeasure(g, flat[0]), 'A');
         assert.equal(E.partLabelOfMeasure(g, flat[1]), '');
-        assert.equal(E.partLabelOfMeasure(g, flat[2]), '');
+        assert.equal(E.partLabelOfMeasure(g, flat[2]), '');          // repère vide : rien
+        assert.equal(E.partLabelOfMeasure(g, flat[3]), 'Refrain');   // nom libre
         assert.equal(E.partLabelOfMeasure(g, undefined), '');
     });
 });

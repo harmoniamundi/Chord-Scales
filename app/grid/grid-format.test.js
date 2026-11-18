@@ -96,10 +96,19 @@ describe('sanitizeImportedGrid : second accord, reprises, parties', () => {
         assert.equal('repeatStart' in t || 'repeatEnd' in t || 'volta' in t, false);
         assert.equal('repeatEnd' in F.sanitizeImportedGrid([step({ repeatEnd: 1 })])[0], false);
     });
-    test('repères de partie : liste proposée ou lettre A-Z', () => {
-        for (const p of ['A', 'in', "B'", 'out', 'Z']) assert.equal(F.sanitizeImportedGrid([step({ partStart: p })])[0].partStart, p);
-        for (const p of ['AA', '', 5, 'a', 'inx']) assert.equal('partStart' in F.sanitizeImportedGrid([step({ partStart: p })])[0], false, String(p));
+    test('repères de partie : liste proposée, lettre A-Z ou nom libre', () => {
+        for (const p of ['A', 'in', "B'", 'out', 'Z', 'Couplet', 'Refrain 2', 'A1', 'Pont (solo)']) assert.equal(F.sanitizeImportedGrid([step({ partStart: p })])[0].partStart, p);
+        for (const p of ['', '   ', 5, null, {}, '\n\t']) assert.equal('partStart' in F.sanitizeImportedGrid([step({ partStart: p })])[0], false, String(p));
         assert.equal(F.PART_LABELS.length, 16);
+    });
+    test('nom libre : espaces resserrés, caractères de contrôle retirés, 24 caractères au plus', () => {
+        assert.equal(F.cleanPartLabel('  Grand   refrain\n final '), 'Grand refrain final');
+        assert.equal(F.cleanPartLabel('x'.repeat(40)).length, F.PART_FREE_MAX);
+        assert.equal(F.cleanPartLabel(42), '');
+        assert.equal(F.sanitizeImportedGrid([step({ partStart: '  Couplet  ' })])[0].partStart, 'Couplet');
+        assert.ok(F.isPartLabel('Sebene'));
+        assert.ok(!F.isPartLabel(' Sebene'));      // pas encore au propre
+        assert.ok(!F.isPartLabel(''));
     });
     test('idempotent : une grille déjà propre ne change pas', () => {
         const grid = [step({ repeatStart: true, bassRootIndex: 7, section: 'A' }), step({ measures: 1, split: { rootIndex: 7, chordId: '7', scaleId: 'mixolydian' }, repeatEnd: 2 })];

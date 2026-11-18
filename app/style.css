@@ -846,6 +846,24 @@
 .jm-part-pop .jm-part-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 4px; }
 .jm-part-pop .jm-part-wide { display: grid; grid-template-columns: 1fr; gap: 4px; margin-top: 4px; }
 .jm-part-pop .jm-chip { min-width: 0; padding: 6px 0; font-family: "Kalam", cursive; font-size: 15px; font-weight: 700; }
+/* Nom libre de partie (« Couplet », « Refrain »…) : cadre façon Realbook posé au-dessus de la ligne */
+#jam-chord-sequence-display .jam-part-banner {
+    display: block; width: fit-content; box-sizing: border-box; max-width: 100%; margin: 6px 0 0 2px; padding: 1px 8px 0;
+    border: 2px solid #e5e7eb; border-radius: 2px; color: #e5e7eb;
+    font-family: "Kalam", cursive; font-weight: 700; font-size: 15px; line-height: 1.35; user-select: none;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#jam-chord-sequence-display .jam-wrapper.jam-has-parts .jam-part-banner { margin-left: 4px; }
+/* Menu « Partie » : noms libres déjà utilisés, puis champ de saisie */
+.jm-part-pop .jm-part-used { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.jm-part-pop .jm-part-used .jm-chip { padding: 5px 8px; font-size: 13px; }
+.jm-part-pop .jm-part-free-form { display: flex; gap: 4px; margin-top: 6px; }
+.jm-part-pop .jm-part-free-form input {
+    flex: 1 1 auto; min-width: 0; box-sizing: border-box; padding: 6px 8px; border-radius: 6px;
+    background: #2a2a2c; color: #fff; border: 1px solid #4a4a4c; font-size: 13px; outline: none;
+}
+.jm-part-pop .jm-part-free-form input:focus { border-color: #a78bfa; }
+.jm-part-pop .jm-part-free-form .jm-chip { flex: 0 0 auto; padding: 6px 10px; font-family: inherit; font-size: 12px; }
 /* Zone vide au milieu de la grille (fin d'une partie qui ne remplit pas la ligne) */
 #jam-chord-sequence-display .jam-cell.jam-gap { background: #161616; border: 1px dashed #2a2a2c; border-radius: 4px; opacity: .3; pointer-events: none; cursor: default; }
 .jam-part-btn-ico { display: inline-block; box-sizing: border-box; min-width: 15px; margin-right: 5px; padding: 0 3px; border: 1.5px solid currentColor; border-radius: 2px; font: 700 11px/12px "Kalam", cursive; text-align: center; }
@@ -866,6 +884,11 @@
     }
     #jam-print-area .jam-print-part.jam-part-long { font-size: 12pt; }
     #jam-print-area .jam-print-part.jam-part-l3 { font-size: 9.5pt; }
+    #jam-print-area .jam-print-partname {
+        display: inline-block; margin: 2mm 0 1mm; padding: 0 2.5mm; border: 1.75pt solid #000000; color: #000000;
+        font: 700 13pt "Kalam", cursive; line-height: 1.35;
+    }
+    #jam-print-area .jam-print-partname.with-gutter { margin-left: 2mm; }
 }
 
 /* Mode « À l'aveugle » (bouton masque, à côté du bouton Arpèges) : actif seulement pendant la jam.

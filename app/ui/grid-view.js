@@ -11,7 +11,7 @@
 //   currentBeat     temps courant dans le bloc    currentMeasureNum   numéro de la mesure en cours
 //   showHarmonicFunctions, editBarOpen, sel ({from, to} ou null)
 //   symbolHtml(chord)  symbole d'accord en HTML    fnLabel(chord, flat, index, half)  chiffrage de fonction
-//   partLabelOf(m)  lettre de partie qui ouvre la mesure (ou null)    measureKey(m)  clé d'égalité de deux mesures
+//   partLabelOf(m)  repère de partie qui ouvre la mesure (lettre ou nom libre, ou null)    measureKey(m)  clé d'égalité de deux mesures
 
 // Découpe la liste à plat en lignes de 4 mesures ; une nouvelle partie commence toujours une nouvelle ligne.
 function layoutRows(flat, partLabelOf) {
@@ -159,7 +159,7 @@ function printMarks(grid, effV, m, flat) {
 //     fnHtml(chord, flat, index, half) (facultatif) : chiffrage de fonction en HTML, imprimé sous l'accord (export PDF avec l'analyse).
 function printGridHtml(v) {
     const systems = layoutRows(v.flat, v.partLabelOf);
-    const hasParts = v.flat.some(m => !!v.partLabelOf(m));
+    const hasParts = v.flat.some(m => isBoxPart(v.partLabelOf(m)));   // gouttière seulement pour les repères courts
     let rowsHtml = '';
     systems.forEach((systemMeasures) => {
         let cellsHtml = '';
@@ -188,9 +188,11 @@ function printGridHtml(v) {
             cellsHtml += `<div class="jam-print-cell jam-print-cell-empty"></div>`;
         }
         const rowPart = v.partLabelOf(systemMeasures[0]);
-        const gutterHtml = hasParts ? `<div class="jam-print-gutter">${rowPart ? `<span class="jam-print-part${rowPart.length > 1 ? ' jam-part-long' : ''}${rowPart.length > 2 ? ' jam-part-l3' : ''}">${rowPart}</span>` : ''}</div>` : '';
+        const box = isBoxPart(rowPart);
+        const gutterHtml = hasParts ? `<div class="jam-print-gutter">${box ? `<span class="jam-print-part${rowPart.length > 1 ? ' jam-part-long' : ''}${rowPart.length > 2 ? ' jam-part-l3' : ''}">${escPart(rowPart)}</span>` : ''}</div>` : '';
+        const bannerHtml = (rowPart && !box) ? `<div class="jam-print-partname${hasParts ? ' with-gutter' : ''}">${escPart(rowPart)}</div>` : '';
         // Ligne enveloppée dans un bloc simple : Safari ne sait pas éviter de couper une ligne en grille / en flex entre deux pages
-        rowsHtml += `<div class="jam-print-line"><div class="jam-print-row">${gutterHtml}${cellsHtml}</div></div>`;
+        rowsHtml += `<div class="jam-print-line">${bannerHtml}<div class="jam-print-row">${gutterHtml}${cellsHtml}</div></div>`;
     });
     return `
                     <div class="jam-print-title"></div>
@@ -238,12 +240,23 @@ function selectionFix(sel, anchor, total) {
 }
 
 // Repère de partie dans la gouttière d'une ligne (lettre encadrée), ou null si la ligne n'ouvre pas de partie.
+// Repère court (jusqu'à 3 caractères : A, B', in, out, A1, Bis…) : lettre encadrée dans la gouttière, façon Realbook.
+// Nom plus long (« Couplet », « Refrain »…) : cadre posé au-dessus de la ligne (partBanner), la gouttière reste vide.
+const PART_BOX_MAX = 3;
+const isBoxPart = (p) => typeof p === 'string' && p.length > 0 && p.length <= PART_BOX_MAX;
+function partTitle(p) { return p === 'in' ? 'Introduction' : p === 'out' ? 'Conclusion (outro)' : `Partie ${p}`; }
+function partBanner(rowPart) {
+    if (!rowPart || isBoxPart(rowPart)) return null;
+    return { className: 'jam-part-banner', text: rowPart, title: partTitle(rowPart) };
+}
+const escPart = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 function gutterMark(rowPart) {
-    if (!rowPart) return null;
+    if (!isBoxPart(rowPart)) return null;
     return {
         className: 'jam-part-mark' + (rowPart.length > 1 ? ' jam-part-long' : '') + (rowPart.length > 2 ? ' jam-part-l3' : ''),
         text: rowPart,
-        title: rowPart === 'in' ? 'Introduction' : rowPart === 'out' ? 'Conclusion (outro)' : `Partie ${rowPart}`,
+        title: partTitle(rowPart),
     };
 }
 
@@ -312,6 +325,6 @@ function scrollTargetFor(containerTop, clientHeight, rowTop, rowHeight) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         layoutRows, cellClassName, measureCellModel, cellExtraClasses, cellInnerHtml, cellMarksHtml, sequenceFingerprint, printMarks, printGridHtml, printInfoParts, measureNoteTitle,
-        currentMeasureNumber, selectionFix, gutterMark, rowFillers, needsAddRow, clickPosition, playRangeAfterClick, halfToHighlight, neighborMeasure, scrollTargetFor,
+        currentMeasureNumber, selectionFix, gutterMark, partBanner, isBoxPart, rowFillers, needsAddRow, clickPosition, playRangeAfterClick, halfToHighlight, neighborMeasure, scrollTargetFor,
     };
 }

@@ -17,7 +17,15 @@ const GF_DRAW = (typeof drawCanon !== 'undefined') ? { drawCanon } : require('..
 
 // Repères de partie proposés par le menu « Partie » ; les lettres A–Z restent acceptées (anciennes grilles, parties auto)
 const PART_LABELS = ['in', 'A', 'B', 'C', 'D', 'E', 'F', 'G', "A'", "B'", "C'", "D'", "E'", "F'", "G'", 'out'];
-const isPartLabel = (v) => typeof v === 'string' && (PART_LABELS.includes(v) || /^[A-Z]$/.test(v));
+// Nom libre (« Couplet », « Refrain », « Pont », « Sebene »…) : 1 à PART_FREE_MAX caractères, espaces resserrés, sans caractère de
+// contrôle. cleanPartLabel met une saisie au propre ('' si rien ne reste) ; isPartLabel accepte un repère proposé, une lettre A-Z
+// (anciennes grilles) ou un nom libre déjà propre.
+const PART_FREE_MAX = 24;
+function cleanPartLabel(v) {
+    if (typeof v !== 'string') return '';
+    return v.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, PART_FREE_MAX).trim();
+}
+const isPartLabel = (v) => typeof v === 'string' && (PART_LABELS.includes(v) || /^[A-Z]$/.test(v) || (v.length > 0 && cleanPartLabel(v) === v));
 
 // Rythmes imposés par un style (samba, tango…), valables dans un fichier importé.
 const IMPORT_GROOVES = ['bossa', 'samba', 'salsa', 'tango', 'piazzolla', 'lyrique', 'afro', 'b-chorale', 'bk-sevdah', 'bk-tsifte', 'f-solea', 'f-bulerias', 'f-tangos',
@@ -334,7 +342,7 @@ function sanitizeImportedGrid(raw) {
         if (mk0) step.modKey = mk0;
         // Signes de reprise : début, fin (nombre de passages) et 1re / 2e fin
         if (item.repeatStart === true) step.repeatStart = true;
-        if (isPartLabel(item.partStart)) step.partStart = item.partStart; // repère de partie (in, A–G, A'–G', out ; A–Z accepté pour les anciennes grilles)
+        { const pl = cleanPartLabel(item.partStart); if (pl) step.partStart = pl; } // repère de partie (in, A–G, A'–G', out, ou nom libre de 24 caractères au plus)
         const re = Number(item.repeatEnd);
         if (Number.isInteger(re) && re >= 2 && re <= 4) step.repeatEnd = re;
         const vo = Number(item.volta);
@@ -476,6 +484,6 @@ function describeExport(opts) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { AKSAK_METERS, aksakInfo, GRID_MAX_BLOCKS, MEASURE_NOTE_MAX, MEASURE_NOTE_SPAN_MAX, GRID_NOTE_MAX, NOTE_FONTS, NOTE_MAX_STAVES, NOTE_MAX_FRAMES, NOTE_MAX_CHORDS, NOTE_MAX_DRAWS, sanitizeNoteHtml, BAND_DENSITY_DEFAULTS, PART_LABELS, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings,
+    module.exports = { AKSAK_METERS, aksakInfo, GRID_MAX_BLOCKS, MEASURE_NOTE_MAX, MEASURE_NOTE_SPAN_MAX, GRID_NOTE_MAX, NOTE_FONTS, NOTE_MAX_STAVES, NOTE_MAX_FRAMES, NOTE_MAX_CHORDS, NOTE_MAX_DRAWS, sanitizeNoteHtml, BAND_DENSITY_DEFAULTS, PART_LABELS, PART_FREE_MAX, cleanPartLabel, isPartLabel, IMPORT_GROOVES, parseMeter, unpackSavedEntry, sanitizeImportedGrid, sanitizeImportedSettings,
         EXPORT_OPTIONS, EXPORT_MODES, exportOptionsFor, exportOptionsNormalized, filterGridForExport, filterSettingsForExport, describeExport };
 }

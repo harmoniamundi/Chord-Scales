@@ -392,7 +392,7 @@
                             <button type="button" id="jam-eb-v2" class="jam-eb" onclick="app.jam.gridVolta(2)" title="Marque la sélection comme 2e fin (jouée au second passage)">2e fin</button>
                             <button type="button" id="jam-eb-rclr" class="jam-eb" onclick="app.jam.gridClearRepeats()" title="Retire reprises et fins de la sélection">Retirer reprises</button>
                             <span class="jam-eb-sep"></span>
-                            <button type="button" id="jam-eb-part" class="jam-eb" onclick="app.jam.gridPartStart(event)" aria-haspopup="true" title="Repère de partie sur la première mesure de la sélection : ouvre un menu (in, A à G, A' à G', out). Re-choisir le repère actif le retire"><span class="jam-part-btn-ico">A</span>Partie</button>
+                            <button type="button" id="jam-eb-part" class="jam-eb" onclick="app.jam.gridPartStart(event)" aria-haspopup="true" title="Repère de partie sur la première mesure de la sélection : ouvre un menu (in, A à G, A' à G', out, ou un nom libre : Couplet, Refrain…). Re-choisir le repère actif le retire"><span class="jam-part-btn-ico">A</span>Partie</button>
                             <span class="jam-eb-sep"></span>
                             <button type="button" id="jam-eb-tr-dir" class="jam-eb jam-eb-ico" onclick="app.jam.toggleTransposeDir()" title="Sens de la transposition : vers l'aigu (↑) ou vers le grave (↓)" aria-label="Sens de la transposition">↑</button>
                             <select id="jam-eb-tr-int" class="jam-eb" title="Intervalle de transposition" aria-label="Intervalle de transposition">
@@ -5645,8 +5645,8 @@
             // Aucun repère si la grille n'a qu'une seule section (une lettre unique n'apporterait rien).
             _assignAutoParts() { assignAutoParts(this.grid); }
 
-            // Bouton « Partie » : ouvre un menu (in, A–G, A'–G', out) ; le repère choisi est posé sur la 1re mesure de la sélection.
-            // Re-choisir le repère déjà actif le retire.
+            // Bouton « Partie » : ouvre un menu (in, A–G, A'–G', out, et un nom libre) ; le repère choisi est posé sur la 1re mesure de la
+            // sélection. Re-choisir le repère déjà actif le retire. Les noms libres déjà utilisés dans la grille sont proposés en raccourci.
             gridPartStart(ev) {
                 if (this.isPlaying) return;
                 if (this._partMenu) { this._closePartMenu(); return; }
@@ -5668,6 +5668,7 @@
                     b.setAttribute('role', 'menuitem');
                     b.textContent = label;
                     b.title = label === 'in' ? 'Introduction' : label === 'out' ? 'Conclusion (outro)' : `Partie ${label}`;
+                    if (!PART_LABELS.includes(label)) b.classList.add('jm-part-free');
                     b.onclick = (e) => { e.stopPropagation(); this._applyPartLabel(label); };
                     return b;
                 };
@@ -5681,6 +5682,38 @@
                 el.appendChild(grid(PART_LABELS.slice(1, 8)));
                 el.appendChild(grid(PART_LABELS.slice(8, 15)));
                 el.appendChild(wide('out'));
+                // Noms libres : ceux déjà posés dans la grille (raccourcis), puis un champ de saisie
+                const used = [];
+                this.grid.forEach(st => { const p = st.partStart; if (isPartLabel(p) && !PART_LABELS.includes(p) && !/^[A-Z]$/.test(p) && !used.includes(p)) used.push(p); });
+                if (used.length) {
+                    const d = document.createElement('div');
+                    d.className = 'jm-part-used';
+                    used.slice(0, 12).forEach(l => d.appendChild(chip(l)));
+                    el.appendChild(d);
+                }
+                const form = document.createElement('form');
+                form.className = 'jm-part-free-form';
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.maxLength = PART_FREE_MAX;
+                input.placeholder = 'Nom libre (Couplet, Refrain…)';
+                input.setAttribute('aria-label', 'Nom libre de la partie');
+                input.autocomplete = 'off';
+                if (cur && !PART_LABELS.includes(cur)) input.value = cur;
+                const ok = document.createElement('button');
+                ok.type = 'submit';
+                ok.className = 'jm-chip';
+                ok.textContent = 'OK';
+                ok.title = 'Poser ce nom de partie';
+                form.appendChild(input);
+                form.appendChild(ok);
+                form.onsubmit = (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    const v = cleanPartLabel(input.value);
+                    if (!v) { input.focus(); return; }
+                    this._applyPartLabel(v, true);
+                };
+                el.appendChild(form);
                 document.body.appendChild(el);
 
                 // Placement : sous le bouton (au-dessus s'il manque de place) ; feuille du bas sur téléphone
@@ -5716,17 +5749,20 @@
                 if (btn) btn.removeAttribute('aria-expanded');
             }
 
-            _applyPartLabel(label) {
+            // typed : nom saisi dans le champ libre (le valider de nouveau ne retire pas le repère, il le garde)
+            _applyPartLabel(label, typed) {
                 this._closePartMenu();
                 if (this.isPlaying) return;
+                label = cleanPartLabel(label);
+                if (!label) return;
                 const r = this._actionRange();
                 if (!r) { this._flash('Sélectionnez une mesure'); return; }
                 let next = label;
                 this._markRange(r, (i0) => {
                     const a = this.grid[i0];
-                    if (a.partStart === label) { next = ''; delete a.partStart; } else a.partStart = label;
+                    if (a.partStart === label && !typed) { next = ''; delete a.partStart; } else a.partStart = label;
                 });
-                this._flash(next ? (next === 'in' ? 'Partie « in »' : next === 'out' ? 'Partie « out »' : `Partie ${next}`) : 'Repère de partie retiré');
+                this._flash(next ? (PART_LABELS.includes(next) && next !== 'in' && next !== 'out' ? `Partie ${next}` : `Partie « ${next} »`) : 'Repère de partie retiré');
             }
 
             renderSequenceUI() {
@@ -5780,7 +5816,7 @@
 
                 const gridWrapper = document.createElement('div');
                 gridWrapper.className = "jam-wrapper space-y-1.5 w-full px-1";
-                if (flatMeasures.some(m => !!this._partLabelOfMeasure(m))) gridWrapper.classList.add('jam-has-parts');
+                if (flatMeasures.some(m => isBoxPart(this._partLabelOfMeasure(m)))) gridWrapper.classList.add('jam-has-parts');   // gouttière : repères courts seulement
 
                 const makeAddCell = () => {
                     const c = document.createElement('div');
@@ -5792,6 +5828,15 @@
                 };
 
                 systems.forEach((systemMeasures, sysIdx) => {
+                    // Nom libre de partie (« Couplet », « Refrain »…) : cadre posé au-dessus de la ligne
+                    const banner = partBanner(this._partLabelOfMeasure(systemMeasures[0]));
+                    if (banner) {
+                        const bn = document.createElement('div');
+                        bn.className = banner.className;
+                        bn.textContent = banner.text;
+                        bn.title = banner.title;
+                        gridWrapper.appendChild(bn);
+                    }
                     const systemRow = document.createElement('div');
                     systemRow.className = "jam-row grid grid-cols-4 gap-1.5 bg-[#1a1a1a] p-1.5 rounded-lg border border-[#333333]";
 

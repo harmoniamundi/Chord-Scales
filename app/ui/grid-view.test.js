@@ -176,6 +176,16 @@ describe('impression', () => {
         assert.ok(html.includes('jam-print-part">A<'));
         assert.ok(html.includes(`jam-print-part jam-part-long">A'<`));
     });
+    test('parties : nom libre imprimé au-dessus de la ligne (texte échappé), sans gouttière s\'il n\'y a pas de repère court', () => {
+        const g = [blk({ partStart: 'Couplet', measures: 4 }), blk({ partStart: 'Refrain <b>&' })];
+        const html = V.printGridHtml(ctx(g));
+        assert.ok(html.includes('<div class="jam-print-partname">Couplet</div>'));
+        assert.ok(html.includes('Refrain &lt;b&gt;&amp;'));
+        assert.ok(!html.includes('<b>'));
+        assert.ok(!html.includes('has-parts'));
+        const mixed = V.printGridHtml(ctx([blk({ partStart: 'A', measures: 4 }), blk({ partStart: 'Pont' })]));
+        assert.ok(mixed.includes('has-parts') && mixed.includes('jam-print-partname with-gutter'));
+    });
     test('analyse fonctionnelle : chiffrage imprimé seulement si fnHtml est fourni', () => {
         const g = [blk({}), blk({ split: { rootIndex: 7, chordId: '7', scaleId: 'mixolydian' } })];
         assert.ok(!V.printGridHtml(ctx(g)).includes('jam-print-fn'));
@@ -235,6 +245,14 @@ describe('position, sélection et défilement', () => {
         assert.deepEqual(V.selectionFix(null, null, 6), { clearSel: false, newTo: null, clearAnchor: false });
     });
 
+    test('nom libre : cadre au-dessus de la ligne, pas dans la gouttière ; repère de 3 caractères au plus : dans la gouttière', () => {
+        assert.equal(V.gutterMark('Couplet'), null);
+        assert.deepEqual(V.partBanner('Couplet'), { className: 'jam-part-banner', text: 'Couplet', title: 'Partie Couplet' });
+        assert.equal(V.partBanner('A'), null);
+        assert.equal(V.partBanner('A1'), null);
+        assert.ok(V.gutterMark('A1'));
+        assert.equal(V.partBanner(null), null);
+    });
     test('gutterMark : rien sans partie', () => {
         assert.equal(V.gutterMark(null), null);
         assert.equal(V.gutterMark(''), null);
