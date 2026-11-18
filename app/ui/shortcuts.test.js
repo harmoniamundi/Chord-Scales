@@ -72,3 +72,21 @@ describe('raccourcis : personnalisation', () => {
         assert.match(E.nseToolsHtml(require('./staff-notes.js').staffDefault(), null, 0), /Note pointée \(clavier : P\)/);
     });
 });
+
+describe('raccourcis : clavier AZERTY', () => {
+    beforeEach(() => { K.kbReset(); Object.keys(K.KB_LAYOUT).forEach(k => delete K.KB_LAYOUT[k]); });
+    it('⌥ + lettre suit la disposition (AZERTY : la touche A a le code KeyQ)', () => {
+        Object.assign(K.KB_LAYOUT, { KeyQ: 'a', KeyA: 'q' });
+        assert.equal(K.kbCombo({ key: 'æ', code: 'KeyQ', altKey: true }), 'Alt+a');   // Mac
+        assert.equal(K.kbCombo({ key: 'a', code: 'KeyQ', altKey: true }), 'Alt+a');   // Windows / Linux
+        assert.equal(K.kbCombo({ key: '‡', code: 'KeyA', altKey: true }), 'Alt+q');
+    });
+    it('sans disposition connue, la position QWERTY sert de repli', () => {
+        assert.equal(K.kbCombo({ key: 'æ', code: 'KeyA', altKey: true }), 'Alt+a');
+    });
+    it('rangée des chiffres en AZERTY : « & » sur la touche 1 donne la double-croche, « - » reste le bémol', () => {
+        assert.deepEqual(E.nseKeyAction('&', { code: 'Digit1' }), { type: 'dur', dur: '16' });
+        assert.deepEqual(E.nseKeyAction('(', { code: 'Digit5' }), { type: 'dur', dur: 'w' });
+        assert.deepEqual(E.nseKeyAction('-', { code: 'Digit6' }), { type: 'alter', delta: -1 });
+    });
+});

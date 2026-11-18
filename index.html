@@ -653,7 +653,10 @@
                 this.bindAppShortcuts();
                 // Icône disquette du titre : empreinte (grille + réglages) de chaque grille au moment de sa dernière sauvegarde
                 this._savedSigs = {};
-                setInterval(() => { if (!document.hidden) this.refreshSaveButton(); }, 600); // filet de sécurité : réglages modifiés par un curseur, etc.
+                setInterval(() => { if (!document.hidden) { this.refreshSaveButton(); this._sessionWrite(); } }, 600); // filet de sécurité : réglages modifiés par un curseur, etc. ; et copie de travail de la session
+                // Copie de travail écrite aussi quand on quitte la page ou qu'on passe à une autre appli (tablette, téléphone).
+                window.addEventListener('pagehide', () => this._sessionWrite());
+                document.addEventListener('visibilitychange', () => { if (document.hidden) this._sessionWrite(); });
             }
 
             resetGrid() {
@@ -3975,6 +3978,88 @@
                 if (span && !this.isPlaying && !this._paused && /^Reprendre/.test(span.textContent)) this._updatePlayLabel();
             }
 
+            // ===== Session gardée d'une visite à l'autre (localStorage « jamSession ») =====
+            // Au rechargement de la page, on retrouve la grille en cours telle qu'elle était : accords, réglages (comme une sauvegarde),
+            // annotations, nom de la sauvegarde chargée et état de la disquette, style du menu (« Générer » continue de marcher),
+            // et les réglages de jeu (métronome, croches, boucle, à l'aveugle, Master, volume du métronome, instrument).
+            // Ce n'est pas une sauvegarde : rien n'apparaît dans le menu « Sauvegardes ». L'historique ↶ ↷ n'est pas gardé.
+            _sessionSnapshot() {
+                const sel = document.getElementById('jam-style-select');
+                const name = this.loadedGridName || null;
+                return {
+                    v: 1,
+                    grid: this.grid,
+                    settings: this.collectSettings(),
+                    name,
+                    savedSig: name && this._savedSigs ? (this._savedSigs[name] || null) : null,
+                    style: {
+                        menu: sel ? sel.value : null, scaleStyle: this._scaleStyle || null, fnStyle: this._fnStyle || null,
+                        qualityAuto: !!this._qualityAuto, userQuality: this._userQuality || null, variant: this.generationVariant || 0,
+                        seed: Number.isFinite(this._seedBase) ? this._seedBase : null, lastSig: this.lastGeneratedSignature || null,
+                        groove: this._bandGroove || null, triadsOnly: !!this._triadsOnly
+                    },
+                    play: {
+                        metro: !!this.metronomeEnabled, subdiv: !!this.metronomeSubdivision, metroVol: this.metronomeVolume,
+                        loop: !!this.loopEnabled, blind: !!this.blindMode, master: this.bandMaster, instrument: this.instrumentKey
+                    }
+                };
+            }
+
+            _sessionWrite() {
+                if (this._sessionRestoring || this._exportRec || !this._sessionReady) return;
+                let txt;
+                try { txt = JSON.stringify(this._sessionSnapshot()); } catch (e) { return; }
+                if (txt !== this._sessionLast) {
+                    try { localStorage.setItem('jamSession', txt); this._sessionLast = txt; } catch (e) { /* stockage plein ou interdit : on réessaiera */ }
+                }
+                if (this.app && this.app._trainSessionWrite) this.app._trainSessionWrite();
+            }
+
+            // Relit la session ; renvoie true si elle a été appliquée (sinon la grille de départ reste).
+            _sessionRestore() {
+                let s = null;
+                try { s = JSON.parse(localStorage.getItem('jamSession') || 'null'); } catch (e) { s = null; }
+                const valid = s && s.v === 1 && Array.isArray(s.grid) && s.grid.length <= 512 && s.grid.every(b => b && typeof b === 'object'
+                    && Number.isInteger(b.rootIndex) && b.rootIndex >= 0 && b.rootIndex <= 11 && typeof b.chordId === 'string' && lookupChord(b.chordId)
+                    && Number.isInteger(b.measures) && b.measures >= 1);
+                if (!valid) { this._sessionReady = true; return false; }
+                this._sessionRestoring = true;
+                try {
+                    this.grid = JSON.parse(JSON.stringify(s.grid));
+                    if (s.settings) this.applyImportedSettings(this.sanitizeImportedSettings(s.settings));
+                    const st = s.style || {};
+                    this._scaleStyle = st.scaleStyle || null;
+                    this._fnStyle = st.fnStyle || null;
+                    this._qualityAuto = !!st.qualityAuto;
+                    if (st.userQuality) this._userQuality = st.userQuality;
+                    this.generationVariant = Number.isInteger(st.variant) ? st.variant : 0;
+                    if (Number.isFinite(st.seed)) this._seedBase = st.seed;
+                    this.lastGeneratedSignature = st.lastSig || null;
+                    this._bandGroove = st.groove || this._bandGroove || null;
+                    this._triadsOnly = !!st.triadsOnly;
+                    const sel = document.getElementById('jam-style-select');
+                    if (sel) sel.value = (st.menu && sel.querySelector(`option[value="${CSS.escape(st.menu)}"]`)) ? st.menu : 'custom';
+                    this.loadedGridName = typeof s.name === 'string' && s.name ? s.name : null;
+                    if (this.loadedGridName && typeof s.savedSig === 'string') { if (!this._savedSigs) this._savedSigs = {}; this._savedSigs[this.loadedGridName] = s.savedSig; }
+                    const p = s.play || {};
+                    this.metronomeEnabled = !!p.metro;           // sans charger les sons tout de suite : ils viennent au premier geste
+                    this.metronomeSubdivision = !!p.subdiv;
+                    if (typeof p.metroVol === 'number') this.metronomeVolume = Math.max(0, Math.min(1, p.metroVol));
+                    this.updateMetronomeUI();
+                    this.toggleLoop(!!p.loop);
+                    this.toggleBlindMode(!!p.blind);
+                    if (typeof p.master === 'number') this.setBandMaster(Math.round(Math.max(0, Math.min(1, p.master)) * 100));
+                    if (['Bb', 'C', 'Eb'].includes(p.instrument)) this.setInstrumentKey(p.instrument);
+                } catch (e) {
+                    console.warn('Session précédente illisible :', e);
+                } finally {
+                    this._sessionRestoring = false;
+                    this._sessionReady = true;
+                }
+                this.updateLoadedGridNameDisplay();
+                return true;
+            }
+
             // ===== Raccourcis clavier personnalisables (ui/shortcuts.js, panneau ⌨ de l'en-tête) =====
 
             bindAppShortcuts() {
@@ -3990,7 +4075,7 @@
                     if (em && !em.classList.contains('hidden')) return;
                     // Sauvegarde (⌘S par défaut) : partout dans le mode Jam, même pendant une saisie (sinon le navigateur proposerait d'enregistrer la page).
                     const saveCombo = Shortcuts.kbCombo(e);
-                    if (saveCombo && Shortcuts.kbActionFor(saveCombo, 'jam') === 'save') {
+                    if (saveCombo && Shortcuts.kbActionForEvent(e, 'jam') === 'save') {
                         e.preventDefault();
                         if (!e.repeat) this.runShortcut('save');
                         return;
@@ -4005,7 +4090,7 @@
                     // Liste déroulante sélectionnée : ses lettres et ses flèches servent à choisir ; seuls Espace et les combinaisons passent.
                     if (t && t.tagName === 'SELECT' && !/^(Shift\+)?Space$|^(Mod|Alt)\+/.test(combo)) return;
                     if (t && t.tagName === 'INPUT' && t.type === 'range' && /^(Shift\+)?Arrow/.test(combo)) return;
-                    const id = Shortcuts.kbActionFor(combo, 'jam');
+                    const id = Shortcuts.kbActionForEvent(e, 'jam');
                     if (!id) return;
                     e.preventDefault();
                     if (t && (t.tagName === 'BUTTON' || t.tagName === 'SELECT' || t.tagName === 'INPUT')) { try { t.blur(); } catch (err) {} } // Espace ne doit pas aussi « cliquer » le bouton qui a le focus
@@ -8348,6 +8433,20 @@
                 this.wakeLock = null;
 
                 this.jam = new JamEngine(this);
+                // Session précédente (accord de l'Entraînement, grille en cours du Jam et ses réglages) : relue une fois toute la page
+                // en place (le pop-up Orchestre est décrit après ce script).
+                const restoreSession = () => {
+                    this._trainSessionRestore();
+                    if (this.jam._sessionRestore()) {
+                        this.jam.renderGridUI();
+                        this.jam.renderSavedGridsMenu();
+                        this.jam.updateBandSwingUI();
+                    }
+                    this.initUI();
+                    this.update();
+                };
+                if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', restoreSession, { once: true });
+                else setTimeout(restoreSession, 0);
 
                 this.initUI();
                 this.update();
@@ -8795,6 +8894,43 @@
             }
 
             // ===== Sélecteur d'accord (le même que l'éditeur de mesure du Jam : ui/chord-picker.js) =====
+
+            // ===== Entraînement gardé d'une visite à l'autre (localStorage « trainSession ») =====
+            _trainSnapshot() {
+                return {
+                    v: 1, root: this.selectedRootIndex, chord: this.selectedChordId, spell: this.trainSpell, vis: this.visMode,
+                    target: !!this.showTargetNotes, avoid: !!this.showAvoidNotes, charac: !!this.showCharacteristic,
+                    instrument: this.instrumentKey, chordVol: this.chordVolume
+                };
+            }
+
+            _trainSessionWrite() {
+                let txt;
+                try { txt = JSON.stringify(this._trainSnapshot()); } catch (e) { return; }
+                if (txt === this._trainSessionLast) return;
+                try { localStorage.setItem('trainSession', txt); this._trainSessionLast = txt; } catch (e) {}
+            }
+
+            _trainSessionRestore() {
+                let s = null;
+                try { s = JSON.parse(localStorage.getItem('trainSession') || 'null'); } catch (e) { s = null; }
+                if (!s || s.v !== 1) return;
+                try {
+                    if (Number.isInteger(s.root) && s.root >= 0 && s.root <= 11) this.selectedRootIndex = s.root;
+                    if (typeof s.chord === 'string' && lookupChord(s.chord)) this.selectedChordId = s.chord;
+                    if (typeof s.spell === 'string' && /^[sf]{5}$/.test(s.spell)) this.trainSpell = s.spell;
+                    if (['staff', 'harmony', 'intervals', 'notes', 'map'].includes(s.vis)) this.setVisMode(s.vis);
+                    if (!!s.target !== !!this.showTargetNotes) this.toggleShowTargetNotes();
+                    if (!!s.avoid !== !!this.showAvoidNotes) this.toggleShowAvoid();
+                    if (!!s.charac !== !!this.showCharacteristic) this.toggleShowCharacteristic();
+                    if (['Bb', 'C', 'Eb'].includes(s.instrument)) this.setInstrumentKey(s.instrument);
+                    if (typeof s.chordVol === 'number') {
+                        this.setChordVolume(s.chordVol);
+                        const vol = document.getElementById('chord-volume');
+                        if (vol) vol.value = String(this.chordVolume);
+                    }
+                } catch (e) { console.warn('Entraînement précédent illisible :', e); }
+            }
 
             loadChordPickerMode() {
                 let v = null;
@@ -9583,7 +9719,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-18-b';
+        var BUILD = '2026-11-18-c';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }

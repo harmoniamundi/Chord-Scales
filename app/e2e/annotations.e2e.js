@@ -1521,7 +1521,7 @@ describe('plein écran de la grille : faux plein écran (navigateur)', { skip: !
         const { page, errors, close } = await open();
         let s = await state(page);
         assert.equal(s.fs, false);
-        assert.equal(s.title, 'Plein écran');
+        assert.match(s.title, /^Plein écran( \(.+\))?$/); // suivi du raccourci (ex. « (⇧F) »)
         await page.click('#jam-grid-fullscreen-btn');
         await page.waitForTimeout(150);
         s = await state(page);
@@ -1531,7 +1531,7 @@ describe('plein écran de la grille : faux plein écran (navigateur)', { skip: !
         assert.equal(s.native, false, 'document.fullscreenElement reste vide');
         assert.equal(s.calls, 0, 'requestFullscreen n\'est jamais appelé');
         assert.equal(s.lock, true, 'la page derrière ne défile plus');
-        assert.equal(s.title, 'Quitter le plein écran');
+        assert.match(s.title, /^Quitter le plein écran( \(.+\))?$/);
         assert.equal(await page.evaluate(() => app.jam.isGridFullscreen()), true);
         // comme avant sur ordinateur : hors lecture la grille est seule
         assert.equal(s.lean, false);
@@ -1541,7 +1541,7 @@ describe('plein écran de la grille : faux plein écran (navigateur)', { skip: !
         s = await state(page);
         assert.equal(s.fs, false);
         assert.equal(s.lock, false);
-        assert.equal(s.title, 'Plein écran');
+        assert.match(s.title, /^Plein écran( \(.+\))?$/); // suivi du raccourci (ex. « (⇧F) »)
         await page.click('#jam-grid-fullscreen-btn');
         await page.keyboard.press('Escape');
         s = await state(page);

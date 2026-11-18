@@ -472,7 +472,7 @@ function nseKeyAction(key, mods = {}) {
         if (key === 'Escape') return { type: 'deselect' };
     }
     // Le reste suit les raccourcis choisis (panneau « Raccourcis ») : N, durées 1-5, point, R, T, L, # - 0, lettres a-g par défaut.
-    const id = NSE_KB.kbActionFor(NSE_KB.kbCombo({ key: String(key), code: mods.code, shift: mods.shift, meta: mods.meta, ctrl: mods.ctrl, alt: mods.alt }), 'staff');
+    const id = NSE_KB.kbActionForEvent({ key: String(key), code: mods.code, shift: mods.shift, meta: mods.meta, ctrl: mods.ctrl, alt: mods.alt }, 'staff');
     if (!id) return null;
     if (id.startsWith('note-')) return { type: 'letter', letter: id.slice(5) };
     return NSE_KB_ACTS[id] ? { ...NSE_KB_ACTS[id] } : null;
