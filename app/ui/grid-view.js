@@ -312,6 +312,19 @@ function neighborMeasure(rows, n, key) {
     return rows[nr][Math.min(c, rows[nr].length - 1)].measureNumber;
 }
 
+// Navigation au clavier qui s'arrête sur chaque accord : dans une mesure à deux accords, → passe du premier au second avant
+// la mesure suivante, et ← du second au premier ; en arrivant par ← sur une mesure à deux accords, on se pose sur le second
+// (l'ordre de lecture est respecté dans les deux sens). ↑ ↓ changent de ligne et se posent sur le premier accord.
+// cur = { n, half } ; hasTwo(n) : la mesure n porte-t-elle deux accords. Renvoie { n, half } (inchangé au bord de la grille).
+function neighborStop(rows, cur, key, hasTwo) {
+    const half = cur.half === 1 && hasTwo(cur.n) ? 1 : 0;
+    if (key === 'ArrowRight' && half === 0 && hasTwo(cur.n)) return { n: cur.n, half: 1 };
+    if (key === 'ArrowLeft' && half === 1) return { n: cur.n, half: 0 };
+    const n = neighborMeasure(rows, cur.n, key);
+    if (n === cur.n) return { n: cur.n, half };
+    return { n, half: key === 'ArrowLeft' && hasTwo(n) ? 1 : 0 };
+}
+
 // Défilement de la grille pendant la lecture : la ligne de l'accord en cours doit rester entièrement visible.
 // Renvoie la nouvelle position de défilement, ou null si la ligne est déjà visible.
 function scrollTargetFor(containerTop, clientHeight, rowTop, rowHeight) {
@@ -325,6 +338,6 @@ function scrollTargetFor(containerTop, clientHeight, rowTop, rowHeight) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         layoutRows, cellClassName, measureCellModel, cellExtraClasses, cellInnerHtml, cellMarksHtml, sequenceFingerprint, printMarks, printGridHtml, printInfoParts, measureNoteTitle,
-        currentMeasureNumber, selectionFix, gutterMark, partBanner, isBoxPart, rowFillers, needsAddRow, clickPosition, playRangeAfterClick, halfToHighlight, neighborMeasure, scrollTargetFor,
+        currentMeasureNumber, selectionFix, gutterMark, partBanner, isBoxPart, rowFillers, needsAddRow, clickPosition, playRangeAfterClick, halfToHighlight, neighborMeasure, neighborStop, scrollTargetFor,
     };
 }

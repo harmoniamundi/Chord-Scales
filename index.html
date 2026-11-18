@@ -4879,8 +4879,9 @@
                     }
                 });
 
-                // Flèches du clavier : après un clic sur un accord de la grille (jam à l'arrêt), ← → passent à la mesure
-                // précédente / suivante et ↑ ↓ à la ligne du dessus / du dessous (même colonne). Chaque pas fait comme un clic.
+                // Flèches du clavier : après un clic sur un accord de la grille (jam à l'arrêt), ← → passent à l'accord
+                // précédent / suivant (les deux accords d'une mesure scindée l'un après l'autre) et ↑ ↓ à la ligne du dessus /
+                // du dessous (même colonne, premier accord). Chaque pas fait comme un clic : l'accord est lu.
                 // La navigation s'arrête dès qu'on clique en dehors de la carte de la grille.
                 document.addEventListener('pointerdown', (ev) => {
                     if (this._gridNavActive && !(ev.target.closest && ev.target.closest('#jam-chord-card'))) this._gridNavActive = false;
@@ -4898,12 +4899,15 @@
                     const current = this._activeMeasureNumber();
                     if (!current || !flat.length) return;
                     e.preventDefault(); // la page ne défile pas
-                    const target = neighborMeasure(this._layoutRows(flat), current, e.key);
-                    if (target === current) return; // bord de la grille : on reste sur place
-                    this._selAnchor = target;
+                    // Mesure à deux accords : ← → s'arrêtent sur chacun des deux (chacun est lu), dans l'ordre de lecture
+                    const hasTwo = (n) => { const m = flat[n - 1]; return !!(m && m.split && this.isSplitEffective(this.grid[m.stepIndex])); };
+                    const curHalf = (this.currentStepIndex >= 0 && this.grid[this.currentStepIndex]) ? this.getActiveHalf(this.grid[this.currentStepIndex]) : 0;
+                    const to = neighborStop(this._layoutRows(flat), { n: current, half: curHalf }, e.key, hasTwo);
+                    if (to.n === current && to.half === (hasTwo(current) ? curHalf : 0)) return; // bord de la grille : on reste sur place
+                    this._selAnchor = to.n;
                     if (this._sel) this.clearSelection();
-                    this._activateMeasure(flat[target - 1], 0);
-                    this._scrollGridToMeasure(target);
+                    this._activateMeasure(flat[to.n - 1], to.half);
+                    if (to.n !== current) this._scrollGridToMeasure(to.n);
                 });
             }
 

@@ -303,6 +303,22 @@ describe('position, sélection et défilement', () => {
         assert.equal(V.halfToHighlight(true, 6, 4, 2), 1);
         assert.equal(V.halfToHighlight(true, 4, 4, 2), 0);
     });
+    test('neighborStop : ← → s\'arrêtent sur chacun des deux accords d\'une mesure scindée, dans l\'ordre de lecture', () => {
+        const rows = [[{ measureNumber: 1 }, { measureNumber: 2 }, { measureNumber: 3 }, { measureNumber: 4 }], [{ measureNumber: 5 }]];
+        const two = (n) => n === 2 || n === 5;
+        const go = (n, half, key) => V.neighborStop(rows, { n, half }, key, two);
+        assert.deepEqual(go(1, 0, 'ArrowRight'), { n: 2, half: 0 });
+        assert.deepEqual(go(2, 0, 'ArrowRight'), { n: 2, half: 1 });   // second accord de la même mesure
+        assert.deepEqual(go(2, 1, 'ArrowRight'), { n: 3, half: 0 });
+        assert.deepEqual(go(3, 0, 'ArrowLeft'), { n: 2, half: 1 });    // en reculant : d'abord le second accord
+        assert.deepEqual(go(2, 1, 'ArrowLeft'), { n: 2, half: 0 });
+        assert.deepEqual(go(2, 0, 'ArrowLeft'), { n: 1, half: 0 });
+        assert.deepEqual(go(5, 0, 'ArrowRight'), { n: 5, half: 1 });   // dernière mesure : on va encore au second accord
+        assert.deepEqual(go(5, 1, 'ArrowRight'), { n: 5, half: 1 });   // puis bord de la grille
+        assert.deepEqual(go(1, 0, 'ArrowLeft'), { n: 1, half: 0 });
+        assert.deepEqual(go(2, 1, 'ArrowDown'), { n: 5, half: 0 });    // changement de ligne : premier accord
+        assert.deepEqual(go(1, 1, 'ArrowRight'), { n: 2, half: 0 });   // moitié 1 sur une mesure à un accord : ignorée
+    });
     test('neighborMeasure : ← → passent à la mesure voisine, d\'une ligne à l\'autre, sans dépasser les bords', () => {
         const rows = V.layoutRows(Array.from({ length: 10 }, (_, i) => ({ measureNumber: i + 1 })), () => null);
         assert.equal(V.neighborMeasure(rows, 3, 'ArrowRight'), 4);
