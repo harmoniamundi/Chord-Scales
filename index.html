@@ -848,6 +848,7 @@
             clearGrid() { this.withUndo(() => this._clearGrid()); }
 
             _clearGrid() {
+                this._restartFromTop();
                 this.grid = [];
                 this.gridNote = '';
                 this.loadedGridName = null;
@@ -975,6 +976,7 @@
                         this._refreshSpelling(prevKey);
                     }
                     this._fnConvention = null; // un nouveau style revient au chiffrage qui lui convient
+                    this._restartFromTop();    // la nouvelle grille se lit depuis sa première mesure
                     this.generationVariant = 0; // choisir un style affiche sa forme de référence ; « Générer » la renouvelle ensuite
                     this._seedBase = (Math.random() * 4294967296) >>> 0;
                     // Un mode posé automatiquement par le style précédent ne doit pas s'imposer au suivant
@@ -1705,6 +1707,7 @@
                 const saved = this.getSavedGrids();
                 const entry = this.unpackSavedEntry(saved[name]);
                 if (!entry) return;
+                this._restartFromTop();   // une grille chargée (ou importée) se lit depuis sa première mesure
                 this.grid = JSON.parse(JSON.stringify(entry.grid));
                 this._scaleStyle = null; // grille enregistrée : le profil de gammes du style précédent ne s'applique plus
                 this._fnStyle = null; // grille enregistrée : plus de style, donc chiffrage classique sauf choix enregistré avec la grille
@@ -4105,6 +4108,23 @@
                 this._paused = null;
                 if (p.arp) await this.toggleArpeggioPlay(); else await this.start();
                 if (!this.isPlaying) { this._resumeFrom = null; this._refreshPauseUI(); }
+            }
+
+            // Nouvelle grille (style choisi dans le jukebox, grille sauvegardée ou importée, grille effacée) : la lecture repart de la
+            // première mesure. Une pause en cours est oubliée (sa position appartenait à l'ancienne grille) ; pendant la lecture, la
+            // grille enchaîne directement sur sa première mesure, comme avec « Générer ».
+            _restartFromTop() {
+                if (this._paused) {
+                    this._paused = null;
+                    this._resumeFrom = null;
+                    this._updatePlayLabel();
+                    this._refreshPauseUI();
+                }
+                this.currentStepIndex = -1;
+                this.currentBeat = 0;
+                this.activeSlot = 0;
+                this._passes = {};
+                if (this.isPlaying) this._playRange = null;
             }
 
             // Arrêt complet : la prochaine lecture repart du début (ou de la sélection).
