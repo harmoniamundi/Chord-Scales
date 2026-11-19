@@ -1,7 +1,7 @@
 // Tests de la boîte à outils des modèles de grille (styles/toolkit.js). Lancer : node --test
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
-const { makeStyleToolkit } = require('./toolkit.js');
+const { makeStyleToolkit, minorizeJazz } = require('./toolkit.js');
 const T = require('../theory.js');
 
 const findChordObj = (id) => T.lookupChord(id) || T.chordTypes.maj[0];
@@ -26,11 +26,18 @@ describe('accords diatoniques (chord, chordJazz)', () => {
         assert.equal(kit({ keyRoot: undefined }).keyRoot, 0);
         assert.equal(kit({ keyRoot: 'x' }).chord('I').r, 0);
     });
-    test('mode choisi (dorien) : les degrés suivent le mode', () => {
-        const t = kit({ mainQuality: 'dorian' });
+    test('mode choisi (dorien) : les degrés d\'un style classique suivent le mode', () => {
+        const t = kit({ mainQuality: 'dorian', styleKey: 'baroque' });
         assert.equal(t.rotation, 1);
         assert.equal(t.chord('I').c, 'm7');
         assert.equal(t.chord('I').r, 0);
+    });
+    test('jazz tonal en dorien : pas de rotation, tonalité mineure signalée', () => {
+        const t = kit({ mainQuality: 'dorian', styleKey: 'swing' });
+        assert.equal(t.rotation, 0);
+        assert.equal(t.minorKey, true);
+        assert.equal(t.chord('V').c, '7');
+        assert.equal(kit({ mainQuality: 'lydian', styleKey: 'swing' }).minorKey, false);
     });
     test('dominante secondaire : septième de dominante sur la quinte du degré visé', () => {
         const x = kit().secondary('V');
@@ -47,10 +54,15 @@ describe('choix aléatoires (pick, libOK)', () => {
         const t = kit({ R: () => 0.99 });
         assert.equal(t.pick(['a', 'b', 'c']), 'c');
     });
-    test('style écrit en degrés + mode non majeur : bibliothèques désactivées (première option)', () => {
-        const t = kit({ R: () => 0.99, mainQuality: 'dorian', styleKey: 'swing' });
+    test('style classique en degrés + mode non majeur : bibliothèques désactivées (première option)', () => {
+        const t = kit({ R: () => 0.99, mainQuality: 'dorian', styleKey: 'baroque' });
         assert.equal(t.libOK, false);
         assert.equal(t.pick(['a', 'b', 'c']), 'a');
+    });
+    test('jazz tonal en mode mineur : bibliothèques actives', () => {
+        const t = kit({ R: () => 0.99, mainQuality: 'dorian', styleKey: 'swing' });
+        assert.equal(t.libOK, true);
+        assert.equal(t.pick(['a', 'b', 'c']), 'c');
     });
     test('style écrit en absolu : le mode est ignoré, les bibliothèques restent actives', () => {
         const t = kit({ R: () => 0.99, mainQuality: 'dorian', styleKey: 'bossa' });
@@ -105,5 +117,25 @@ describe('accords en absolu et cellules', () => {
         const items = kit().jbr(kit().JBR[1], 'B');
         assert.ok(items.every(x => Number.isInteger(x.kc)));
         assert.ok(items.some(x => x.kc === 5) && items.some(x => x.kc === 0));
+    });
+});
+
+describe('minorizeJazz', () => {
+    const K = makeStyleToolkit({ keyRoot: 0, mainQuality: 'ionian', styleKey: 'swing', R: null, findChordObj });
+    test('ne modifie pas la grille d\'origine (moitiés de mesure comprises)', () => {
+        const src = [Object.assign(K.chord('I'), { split: { r: 9, c: '7', s: 'mixolydian' } }), K.chord('ii'), K.chord('V')];
+        const snap = JSON.stringify(src);
+        minorizeJazz(src, 0);
+        assert.equal(JSON.stringify(src), snap);
+    });
+    test('dominante secondaire vers vi : suit sa cible (E7 - Am7 → E♭7 - A♭maj7)', () => {
+        const out = minorizeJazz([K.chord('I'), K.abs(4, '7', 1, 'mixolydian'), K.chord('vi'), K.chord('V')], 0);
+        assert.deepEqual(out.map(x => [x.r, x.c]), [[0, 'm7'], [3, '7'], [8, 'maj7'], [7, '7b9']]);
+    });
+    test('basse transposée avec l\'accord ; moitiés identiques fusionnées', () => {
+        const a = Object.assign(K.chord('IV'), { split: { r: 5, c: 'm7', s: 'dorian' } });
+        const out = minorizeJazz([K.chord('I'), a, K.chord('V')], 0);
+        assert.equal(out[1].split, undefined);
+        assert.equal(out[1].c, 'm7');
     });
 });

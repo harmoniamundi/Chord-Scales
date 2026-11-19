@@ -164,8 +164,72 @@ describe('mode choisi', () => {
     test('un style en absolu ignore le mode', () => {
         assert.deepEqual(build('bossa', 0, null, 'dorian'), build('bossa', 0, null, 'ionian'));
     });
-    test('les propositions renouvelées des styles en degrés restent sur la forme de référence en mode non majeur', () => {
-        assert.deepEqual(build('swing', 0, seeded(3), 'aeolian'), build('swing', 0, null, 'aeolian'));
+    test('les propositions renouvelées des styles classiques en degrés restent sur la forme de référence en mode non majeur', () => {
+        assert.deepEqual(build('baroque', 0, seeded(3), 'aeolian'), build('baroque', 0, null, 'aeolian'));
+    });
+});
+
+describe('jazz tonal : majeur ou mineur, jamais un mode d\'église (la dominante reste)', () => {
+    const JAZZ = ['ii-v-i', 'anatole', 'bebop', 'swing', 'ballad', 'ballad128', 'hardbop', 'dixieland'];
+    const DOM = ['7', '9', '7alt', '7b9', '7sharp5', '7sus4'];
+    const halves = (tpl) => tpl.flatMap(x => [x, ...(x.split ? [x.split] : [])]);
+    const off = (x, key) => ((x.r - key) % 12 + 12) % 12;
+    test('mode lydien ou mixolydien : grille majeure identique à l\'ionien', () => {
+        for (const s of JAZZ) for (const q of ['lydian', 'mixolydian']) assert.deepEqual(build(s, 2, null, q), build(s, 2, null, 'ionian'), `${s} ${q}`);
+    });
+    test('mode mineur : tonique mineure, une dominante présente, jamais de v mineur en fonction de dominante', () => {
+        for (const s of JAZZ) for (const q of ['dorian', 'aeolian', 'phrygian']) for (const key of [0, 2, 9]) for (let seed = 0; seed <= 6; seed++) {
+            const t = build(s, key, seed ? seeded(seed) : null, q);
+            const H = halves(t);
+            assert.ok(H.some(x => DOM.includes(x.c)), `${s} ${q} : pas de dominante`);
+            assert.ok(!H.some(x => off(x, key) === 7 && x.c === 'm7' && x.function === 'dominant'), `${s} ${q} : v mineur en dominante`);
+            const tonic = t.find(x => x.function === 'tonic' && off(x, key) === 0);
+            if (tonic) assert.ok(['m7', 'm9', 'mmaj7', 'minTriad'].includes(tonic.c), `${s} ${q} : tonique ${tonic.c}`);
+            H.forEach(x => assert.ok(T.scaleFits(x.s, x.c), `${s} ${q} ${x.c} ${x.s}`));
+        }
+    });
+    test('ii-V-I mineur : iiø - V7(b9) - i', () => {
+        const t = build('ii-v-i', 0, null, 'dorian');
+        assert.deepEqual(t.map(x => [x.r, x.c]), [[2, 'm7b5'], [7, '7b9'], [0, 'm7']]);
+    });
+    test('turnaround mineur : i - ♭VImaj7 - iiø - V7(b9) ; VI7 garde sa résolution vers iiø', () => {
+        const t = build('anatole', 0, null, 'aeolian');
+        assert.deepEqual(t.slice(0, 4).map(x => [x.r, x.c]), [[0, 'm7'], [8, 'maj7'], [2, 'm7b5'], [7, '7b9']]);
+        assert.deepEqual([t[5].r, t[5].c], [9, '7b9']);
+    });
+    test('pont de la ballade en mineur : iv7 - ♭VII7 - ♭IIImaj7 (relatif majeur)', () => {
+        const t = build('ballad', 0, null, 'dorian');
+        const B = t.filter(x => x.section === 'B').map(x => [x.r, x.c]);
+        assert.deepEqual(B.slice(0, 3), [[5, 'm7'], [10, '7'], [3, 'maj7']]);
+    });
+});
+
+describe('hard bop et dixieland', () => {
+    const DOM = ['7', '9', '7alt', '7b9', '7sharp5', '7sus4'];
+    test('hard bop : 16 mesures, tonique mineure en mode mineur, iiø - V7alt ; versant soul/gospel en majeur', () => {
+        for (let seed = 0; seed <= 30; seed++) {
+            const R = seed ? seeded(seed) : null;
+            const mi = build('hardbop', 0, R, 'dorian'), ma = build('hardbop', 0, R, 'ionian');
+            assert.equal(bars(mi), 16); assert.equal(bars(ma), 16);
+            assert.ok(['m7', 'm9'].includes(mi[0].c));
+            assert.ok(mi.some(x => x.r === 7 && x.c === '7alt'));
+            assert.ok(['6', '7', '7sus4'].includes(ma[0].c), 'tonique 6 ou 7 bluesy, ou pédale sus4');
+            assert.ok(ma.some(x => x.function === 'dominant' && DOM.includes(x.c)));
+        }
+        const forms = new Set(); for (let seed = 1; seed <= 40; seed++) forms.add(JSON.stringify(build('hardbop', 0, seeded(seed), 'aeolian').map(x => x.c)));
+        assert.ok(forms.size >= 3);
+    });
+    test('dixieland : 32 mesures de 2/4, triades et septièmes de dominante seulement, aucun ii-V en m7', () => {
+        const OK = new Set(['majTriad', 'minTriad', '7', 'dim7']);
+        for (const q of ['ionian', 'dorian', 'aeolian']) for (let seed = 0; seed <= 30; seed++) {
+            const t = build('dixieland', 0, seed ? seeded(seed) : null, q);
+            assert.equal(bars(t), 32);
+            t.forEach(x => assert.ok(OK.has(x.c), `${q} ${x.c}`));
+            t.forEach(x => assert.ok(x.m >= 2, 'au moins deux mesures de 2/4 par accord'));
+            assert.ok(t.some(x => x.r === 7 && x.c === '7'), 'V7');
+        }
+        const chain = new Set(); for (let seed = 1; seed <= 40; seed++) build('dixieland', 0, seeded(seed)).forEach(x => { if (DOM.includes(x.c)) chain.add(x.r); });
+        assert.ok(chain.has(9) && chain.has(2), 'chaîne ragtime VI7 - II7');
     });
 });
 

@@ -5,7 +5,7 @@
 
 // Sous Node, la boîte à outils se charge ; en navigateur c'est un global (styles/toolkit.js).
 if (typeof makeStyleToolkit === 'undefined' && typeof require === 'function') {
-    var { makeStyleToolkit } = require('./toolkit.js');
+    var { makeStyleToolkit, minorizeJazz } = require('./toolkit.js');
 }
 // Triades (theory.js) : globales en navigateur, à charger sous Node.
 const SB_THEORY = (typeof triadizeItem !== 'undefined') ? { triadizeItem, TRIAD_STYLES } : require('../theory.js');
@@ -771,7 +771,7 @@ const STYLE_BUILDERS = {
         let template = [];
         const cad1 = pick(['c0','c2']) === 'c0' ? cadence('A','A1') : [chord('ii',1,'A','A1','predominant'), abs(1,'7',1,'lydianDominant','A','A1','dominant'), chord('I',2,'A','A1','tonic')];
         const p2 = pick(['orig','T1','T0','T3']);
-        const ph2 = p2 === 'orig' ? [chordJazz('vi',1,'A','A2','predominant'), abs(9,'7',1,'altered','A','A2','dominant'), chordJazz('ii',1,'A','A2','predominant'), chordJazz('V',1,'A','A2','dominant')] : turnCell(p2,'A','A2');
+        const ph2 = p2 === 'orig' ? [chordJazz('vi',1,'A','A2','predominant'), abs(9,'7alt',1,'altered','A','A2','dominant'), chordJazz('ii',1,'A','A2','predominant'), chordJazz('V',1,'A','A2','dominant')] : turnCell(p2,'A','A2');
         const A=[...cad1, ...ph2];
         const A2=A.map(x=>({...x,section:'A2',phrase:x.phrase.replace(/^A/,'A2')}));
         const B=[abs(5,'maj7',2,'lydian','B','B1','predominant'),abs(10,'7',2,'mixolydian','B','B1','dominant'),abs(3,'maj7',2,'lydian','B','B2','tonic'),abs(8,'7',2,'mixolydian','B','B2','dominant')];
@@ -798,25 +798,102 @@ const STYLE_BUILDERS = {
         return template;
     },
     hardbop: (t) => {
-        const { chordJazz, abs, join } = t;
-        let template = [];
-        template = join(
-            [chordJazz('ii',1,'A','A1','predominant'),chordJazz('V',1,'A','A1','dominant'),chordJazz('I',1,'A','A2','tonic'),abs(9,'7',1,'altered','A','A2','secondaryDominant')],
-            [chordJazz('ii',1,'B','B1','predominant'),chordJazz('V',1,'B','B1','dominant'),abs(5,'maj7',1,'lydian','B','B2','tonic'),abs(2,'7',1,'mixolydian','B','B2','dominant')],
-            [chordJazz('ii',1,'C','C1','predominant'),chordJazz('V',1,'C','C1','dominant'),chordJazz('I',1,'C','C2','tonic'),chordJazz('V',1,'C','C2','dominant')],
-            [chordJazz('ii',1,'A2','A3','predominant'),chordJazz('V',1,'A2','A3','dominant'),chordJazz('I',1,'A2','A4','tonic'),chordJazz('V',1,'A2','A4','dominant')]
-        );
-        return template;
+        const { keyRoot, pick, abs, join, minorKey } = t;
+        // Hard bop : 16 mesures A (8) + B (8), tirées d'une petite bibliothèque. Le style suit le mode choisi :
+        //  - mode mineur : couleur la plus typique du hard bop — tonique m7, iiø-V7alt, ♭VI7, iv7-♭VII7, pont au relatif (♭III),
+        //    ligne chromatique sur la tonique (m9 - m(maj7) - m7 - IV7) et vamp i - ♭VII7 ;
+        //  - mode majeur : versant « soul jazz / gospel » — tonique 6 ou 7 bluesy, IV7 en balancement plagal, ii-V et VI7 altérés,
+        //    pédale de dominante 7sus4.
+        // Cellule : [décalage, accord, mesures, fonction, gamme ?, 2e moitié [décalage, accord, gamme] ?, basse ?]
+        const SC = { '7': 'mixolydian', '9': 'mixolydian', 'm7': 'dorian', 'm9': 'dorian', 'm7b5': 'locrianSharp2', '7alt': 'altered',
+            '7b9': 'phrygianDominant', 'maj7': 'ionian', '6': 'ionian', 'mmaj7': 'melodicMinor', 'dim7': 'wholeHalfDim', '7sus4': 'mixolydian' };
+        const row = (spec, sec, phr) => spec.map(([off, c, m, fn, sc, sp, bass]) => {
+            const it = abs(off, c, m, sc || ((minorKey && off === 0 && c === 'm7') ? t.minorTonicScale : SC[c]), sec, phr, fn);
+            if (sp) it.split = { r: (keyRoot + sp[0] + 12) % 12, c: sp[1], s: sp[2] || SC[sp[1]] };
+            if (Number.isInteger(bass)) it.bassRootIndex = (keyRoot + bass + 12) % 12;
+            return it;
+        });
+        const iiV = [2, 'm7', 1, 'predominant', null, [7, '7']];
+        const MAJ = [
+            {   // gospel : balancement I - IV7, puis ii-V et VI7 altéré
+                A: [[0, '6', 1, 'tonic'], [5, '7', 1, 'predominant'], [0, '6', 1, 'tonic'], [5, '7', 1, 'predominant'],
+                    [0, '6', 1, 'tonic'], [9, '7alt', 1, 'secondaryDominant'], [2, 'm7', 1, 'predominant'], [7, '7', 1, 'dominant']],
+                B: [[5, '7', 2, 'predominant'], [0, '6', 1, 'tonic'], [9, '7alt', 1, 'secondaryDominant'],
+                    [2, 'm7', 1, 'predominant'], [7, '7alt', 1, 'dominant'], [0, '6', 1, 'tonic', null, [5, '7']], iiV]
+            },
+            {   // blues de 16 mesures : tonique et sous-dominante en septièmes, diminué de passage, I/5 et turnaround
+                A: [[0, '7', 2, 'tonic'], [5, '7', 2, 'predominant'], [0, '7', 2, 'tonic'], iiV, [9, '7alt', 1, 'secondaryDominant']],
+                B: [[5, '7', 2, 'predominant'], [6, 'dim7', 2, 'color'], [0, '7', 1, 'tonic', null, null, 7], [9, '7alt', 1, 'secondaryDominant'],
+                    [2, 'm7', 1, 'predominant'], [7, '7alt', 1, 'dominant']]
+            },
+            {   // pédale de dominante (7sus4) qui se résout, puis turnaround iii-VI7-ii-V
+                A: [[7, '7sus4', 2, 'dominant'], [7, '7alt', 2, 'dominant'], [0, '6', 2, 'tonic'], [9, '7alt', 2, 'secondaryDominant']],
+                B: [iiV, [1, '7', 1, 'dominant', 'lydianDominant'], [0, '6', 2, 'tonic'],
+                    [4, 'm7', 1, 'predominant', 'phrygian'], [9, '7alt', 1, 'secondaryDominant'], [2, 'm7', 1, 'predominant'], [7, '7alt', 1, 'dominant']]
+            }
+        ];
+        const MIN = [
+            {   // appel et réponse sur la tonique, iiø-V7alt, puis pont au relatif majeur
+                A: [[0, 'm7', 2, 'tonic'], [2, 'm7b5', 1, 'predominant', null, [7, '7alt']], [0, 'm7', 1, 'tonic'],
+                    [5, 'm7', 2, 'predominant'], [8, '7', 1, 'color', 'lydianDominant'], [7, '7alt', 1, 'dominant']],
+                B: [[5, 'm7', 1, 'predominant'], [10, '7', 1, 'secondaryDominant'], [3, 'maj7', 2, 'color'],
+                    [8, 'maj7', 1, 'predominant', 'lydian'], [2, 'm7b5', 1, 'predominant'], [7, '7alt', 2, 'dominant']]
+            },
+            {   // vamp i - ♭VII7, cadence ♭VI7 - V7alt ; pont iv7 - ♭VII7 vers ♭III
+                A: [[0, 'm7', 2, 'tonic'], [10, '7', 2, 'color'], [8, '7', 1, 'color', 'lydianDominant'], [7, '7alt', 1, 'dominant'], [0, 'm7', 2, 'tonic']],
+                B: [[5, 'm7', 2, 'predominant'], [10, '7', 2, 'secondaryDominant'], [3, 'maj7', 1, 'color'],
+                    [8, '7', 1, 'color', 'lydianDominant'], [7, '7alt', 2, 'dominant']]
+            },
+            {   // ligne chromatique sur la tonique (m9 - m(maj7) - m7 - IV7), iiø-V7alt ; pont iv7 - ♭VII7 - ♭III, ♭VI, iiø-V
+                A: [[0, 'm9', 1, 'tonic'], [0, 'mmaj7', 1, 'tonic'], [0, 'm7', 1, 'tonic'], [5, '7', 1, 'color'],
+                    [2, 'm7b5', 1, 'predominant'], [7, '7alt', 1, 'dominant'], [0, 'm7', 2, 'tonic']],
+                B: [[5, 'm7', 1, 'predominant'], [10, '7', 1, 'secondaryDominant'], [3, 'maj7', 2, 'color'],
+                    [8, 'maj7', 1, 'predominant', 'lydian'], [2, 'm7b5', 1, 'predominant'], [7, '7alt', 2, 'dominant']]
+            }
+        ];
+        const form = pick(minorKey ? MIN : MAJ);
+        // Phrases : première moitié de chaque section (4 mesures) puis seconde moitié
+        const build = (spec, sec, a, b) => { let acc = 0; return spec.flatMap(x => { const ph = acc >= 4 ? b : a; acc += x[2]; return row([x], sec, ph); }); };
+        return join(build(form.A, 'A', 'A1', 'A2'), build(form.B, 'B', 'B1', 'B2'));
     },
     dixieland: (t) => {
-        const { chord, abs, join, cadence } = t;
-        let template = [];
-        template = join(
-            [chord('I',2,'A','A1','tonic'),abs(9,'7',1,'mixolydian','A','A1','secondaryDominant'),chord('ii',1,'A','A1','predominant'),chord('V',2,'A','A2','dominant'),chord('I',2,'A','A2','tonic')],
-            [chord('IV',2,'B','B1','predominant'),abs(5,'m7',2,'dorian','B','B1','predominant'),chord('I',2,'B','B2','tonic'),chord('V',2,'B','B2','dominant')]
-        );
-        // 8 + 8 mesures : A puis B, avec retour de I et cadence finale.
-        return template;
+        const { keyRoot, pick, abs, join, minorKey } = t;
+        // Dixieland / jazz New Orleans, mesure à 2/4 (« cut time ») : 32 mesures de 2/4 (16 « grandes » mesures), un accord
+        // pour deux mesures de 2/4 au moins. Vocabulaire d'avant le bebop : triades, septièmes de dominante, diminué de passage ;
+        // pas de ii-V en m7 mais des chaînes de dominantes (« ragtime » : VI7 - II7 - V7 - I), I7 vers IV, IV - iv mineur - I.
+        // Le style suit le mode choisi : en mineur, i - iv - V7, ♭VI7 - V7, I7 vers iv, passage au relatif (♭VII7 - ♭III).
+        // Cellule : [décalage, accord, durée en « grandes » mesures (= 2 mesures de 2/4), fonction, basse ?]
+        const row = (spec, sec, phr) => spec.map(([off, c, m, fn, bass]) => {
+            const it = abs(off, c, m * 2, null, sec, phr, fn);
+            if (Number.isInteger(bass)) it.bassRootIndex = (keyRoot + bass + 12) % 12;
+            return it;
+        });
+        const I = (m) => [0, 'majTriad', m, 'tonic'], IV = (m) => [5, 'majTriad', m, 'predominant'], V7 = (m) => [7, '7', m, 'dominant'];
+        const sec = (off, m) => [off, '7', m, 'secondaryDominant'];
+        const i = (m) => [0, 'minTriad', m, 'tonic'], iv = (m) => [5, 'minTriad', m, 'predominant'];
+        const MAJ = [
+            // marche de parade : I tenu, V7, I7 vers IV, IV - iv mineur - I, cadence
+            { A: [I(6), V7(2)], B: [I(1), sec(0, 1), IV(1), iv(1), I(1), V7(1), I(2)] },
+            // chaîne « ragtime » : I - VI7 - II7 - V7
+            { A: [I(2), sec(9, 2), sec(2, 2), V7(2)], B: [I(2), sec(9, 2), sec(2, 1), V7(1), I(2)] },
+            // I - I7 - IV - ♯IV°7 - I/5, puis VI7 - II7 - V7
+            { A: [I(1), sec(0, 1), IV(1), [6, 'dim7', 1, 'color'], [0, 'majTriad', 1, 'tonic', 7], sec(9, 1), sec(2, 1), V7(1)],
+              B: [I(1), sec(0, 1), IV(1), iv(1), [0, 'majTriad', 1, 'tonic', 7], V7(1), I(2)] },
+            // départ sur VI7 : longue chaîne de dominantes VI7 - II7 - V7 - I
+            { A: [sec(9, 4), sec(2, 4)], B: [V7(4), I(2), V7(2)] }
+        ];
+        const MIN = [
+            // i - iv - i, V7 - i, I7 vers iv
+            { A: [i(2), iv(1), i(1), V7(2), i(2)], B: [i(1), sec(0, 1), iv(2), i(1), V7(1), i(2)] },
+            // i tenu, iv - i, ♭VI7 - V7
+            { A: [i(4), iv(2), i(2)], B: [[8, '7', 2, 'color'], V7(2), i(2), V7(2)] },
+            // passage au relatif : ♭VII7 - ♭III, retour par iv - V7
+            { A: [i(2), V7(2), i(4)], B: [[10, '7', 2, 'secondaryDominant'], [3, 'majTriad', 2, 'color'], iv(1), V7(1), i(2)] }
+        ];
+        const form = pick(minorKey ? MIN : MAJ);
+        const half = (spec, a, b) => { let acc = 0; return spec.map(x => { const ph = acc >= 2 ? b : a; acc += x[2]; return [x, ph]; }); };
+        const build = (spec, s, a, b) => half(spec, a, b).flatMap(([x, ph]) => row([x], s, ph));
+        return join(build(form.A, 'A', 'A1', 'A2'), build(form.B, 'B', 'B1', 'B2'));
     },
     latin: (t) => {
         const { pick, abs, join } = t;
@@ -1378,7 +1455,9 @@ STYLE_BUILDERS.balkan98 = STYLE_BUILDERS.balkan;
 function buildStyleTemplate(styleKey, ctx) {
     const t = makeStyleToolkit({ ...ctx, styleKey });
     const builder = STYLE_BUILDERS[styleKey];
-    const template = builder ? builder(t) : [t.chord('I', 4, 'A', 'A1', 'tonic')];
+    let template = builder ? builder(t) : [t.chord('I', 4, 'A', 'A1', 'tonic')];
+    // Jazz tonal en mode mineur : la grille majeure est transposée dans la tonalité mineure (fonctions conservées, dominantes gardées)
+    if (t.minorKey && !t.minorNative) template = minorizeJazz(template, t.keyRoot, t.minorTonicScale);
     // Styles à ponts modulants : tout bloc sans tonalité explicite est dans la tonalité d'origine (kc = 0).
     if (template.some(x => Number.isInteger(x.kc))) template.forEach(x => { if (!Number.isInteger(x.kc)) x.kc = 0; });
     // Styles classiques et traditionnels : triades, sauf les dominantes

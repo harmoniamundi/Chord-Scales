@@ -54,7 +54,7 @@ function styleProfile(styleKey) {
         ballad: light, bossa: light, latin: light,
         baroque: classical, mozart: classical, trad: classical,
         chansonsimple: { turn: false, w: {} }, // triades seules : aucune réharmonisation
-        dixieland: { turn: false, w: { secDom: 3, subdom: 2, dim: 1, colour: 1, iiV: 1.5 } },
+        dixieland: { turn: false, w: { secDom: 3, subdom: 2, dim: 1.2 } }, // jazz New Orleans : dominantes en chaîne, pas de ii-V ni de couleurs modernes
         blues: { turn: false, w: { colour: 4, tritone: 2, sus: 2 } },
         pop: { turn: false, w: { colour: 4 } }, funk: { turn: false, w: { colour: 4 } }, modal: { turn: false, w: { colour: 4 } },
         fusion: { turn: false, w: { colour: 3, tritone: 1 } },
@@ -443,7 +443,7 @@ function renewTemplate(ctx, styleKey, buildTemplate, keyRoot, canonical) {
         reharmonize(ctx, S, styleKey, keyRoot, rand, prof, Math.min(0.3, Math.max(0, attempt - 12) * 0.012));
         copyTwinSlots(S, twinRanges);
         resolveEnding(ctx, S);
-        if (isBrassStyle(styleKey)) simplifyBrass(S);
+        if (isBrassStyle(styleKey) || styleKey === 'dixieland') simplifyBrass(S);
         if (isTriadStyle(styleKey)) simplifyTriads(S);
         if (validateSlots(S).length) continue;
         const out = norm(templateFromSlots(S));
@@ -616,6 +616,14 @@ function createStyleVariation(ctx, template, styleKey, keyRoot) {
         } else if (styleKey === 'blues') {
             const x = out.find(z => z.r === (keyRoot + 5) % 12);
             if (x) x.c = phase % 2 ? '9' : '7';
+        } else if (styleKey === 'dixieland') {
+            // jazz New Orleans : pas de substitution tritonique, mais une dominante de la dominante (II7 - V7, « ragtime »)
+            const i = out.findIndex(z => z.function === 'dominant' && (z.m || 1) >= 2);
+            if (i >= 0) {
+                const x = out[i], h = Math.floor(x.m / 2);
+                out.splice(i, 0, { ...x, r: (x.r + 7) % 12, c: '7', s: 'mixolydian', m: h, function: 'secondaryDominant' });
+                x.m -= h;
+            } else if (first) first.m = Math.max(1, first.m);
         } else if (styleKey === 'baroque' || styleKey === 'mozart' || styleKey === 'trad') {
             if (styleKey === 'mozart') {
                 const x = out.find(z => z.r === (keyRoot + 5) % 12 && z.function === 'predominant');
@@ -635,6 +643,7 @@ function createStyleVariation(ctx, template, styleKey, keyRoot) {
         }
     }
     applyTwinCopies(out, template, twinGroups);
+    if (styleKey === 'dixieland') simplifyBrass(out); // dixieland : triades et septièmes de dominante, comme le brass band
     if (isTriadStyle(styleKey)) simplifyTriads(out); // la variation peut réintroduire une septième (ex. Chanson : maj7 sur le V)
     return out;
 }
@@ -774,7 +783,7 @@ function normalizeGeneratedGrid(template, styleKey) {
     const targetMeasures = {
         'ii-v-i': 4, 'anatole': 8, 'i-got-rythm': 32, 'blues': 12, 'bebop': 32, 'swing': 32,
         'modal': 16, 'bossa': 32, 'pop': 16, 'ballad': 32, 'funk': 16,
-        'hardbop': 16, 'dixieland': 16, 'latin': 16, 'fusion': 16,
+        'hardbop': 16, 'dixieland': 32, 'latin': 16, 'fusion': 16,
         'baroque': 16, 'mozart': 16, 'trad': 16, 'chansonsimple': 16,
         'valsejazz': 32, 'valsemusette': 32, 'valseviennoise': 32, 'menuet': 32, 'valsecountry': 16,
         'jig': 32, 'afro68': 16, 'barcarolle': 16, 'tarentelle': 16, 'slipjig': 16,

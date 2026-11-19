@@ -8,6 +8,76 @@
 // Chargé par index.html via <script src="styles/toolkit.js"> et testé par styles/toolkit.test.js.
 // Un accord de modèle est { r: tonique, c: id d'accord, m: mesures, s: gamme, section, phrase, function }.
 
+// Styles de jazz tonal : tonalité majeure ou mineure selon le mode choisi, jamais un mode d'église (voir makeStyleToolkit).
+const JAZZ_TONAL_STYLES = new Set(['ii-v-i', 'anatole', 'bebop', 'swing', 'ballad', 'ballad128', 'hardbop', 'dixieland']);
+// Styles qui écrivent eux-mêmes leur version mineure (minorizeJazz ne leur est pas appliqué)
+const JAZZ_MINOR_NATIVE = new Set(['hardbop', 'dixieland']);
+const MINOR_QUALITIES = new Set(['dorian', 'phrygian', 'aeolian', 'locrian']);
+
+// Transpose une grille de jazz écrite en majeur dans la tonalité mineure homonyme, en gardant les fonctions :
+//   I → i m7 ; ii → iiø ; iii → ♭IIImaj7 ; IV → iv m7 ; V7 → V7(b9) ; vi → ♭VImaj7 ; viiø → vii°7.
+// Une dominante (secondaire ou non) suit sa cible : si la cible descend d'un demi-ton (vi → ♭VI, iii → ♭III), la dominante aussi ;
+// si la cible devient mineure ou demi-diminuée, la dominante prend la neuvième mineure. Un m7 suivi de « sa » dominante (ii-V)
+// suit cette dominante, et devient m7b5 quand le ii-V mène à un accord mineur. Les accords chromatiques (♭VII7, ♭II7, diminués,
+// ♭III, ♭VI…) restent tels quels. La grille est lue comme une boucle (la dernière dominante résout sur la première mesure).
+const TK_MAJ = ['majTriad', 'maj7', 'maj9', '6', 'maj7sharp11', 'maj7sharp5'];
+const TK_MIN = ['minTriad', 'm7', 'm9', 'm11', 'mmaj7'];
+const TK_DOM = ['7', '9', '7alt', '7b9', '7sharp5', '7sus4'];
+function minorizeJazz(items, keyRoot, tonicScale = 'dorian') {
+    const out = items.map(x => { const y = { ...x }; if (x.split) y.split = { ...x.split }; return y; });
+    const slots = [];
+    out.forEach(it => { slots.push({ h: it, it, half: false }); if (it.split) slots.push({ h: it.split, it, half: true }); });
+    const n = slots.length;
+    if (!n) return out;
+    slots.forEach(sl => { sl.o = ((sl.h.r - keyRoot) % 12 + 12) % 12; sl.c0 = sl.h.c; sl.s0 = sl.h.s; });
+    const isMinorish = (c) => TK_MIN.includes(c) || c === 'm7b5' || c === 'minTriad';
+    const res = new Array(n);
+    const classify = (k, nr) => {
+        const sl = slots[k], nx = slots[(k + 1) % n];
+        const { o, c0, s0 } = sl;
+        if (TK_DOM.includes(c0)) {
+            const resolves = nx.o === (o + 5) % 12;
+            const delta = (resolves && nr) ? nr.delta : 0;
+            const targetMinor = (resolves && nr) ? isMinorish(nr.c) : o === 7;
+            if (targetMinor && (c0 === '7' || c0 === '9')) return { delta, c: '7b9', s: 'phrygianDominant', targetMinor };
+            return { delta, c: c0, s: s0, targetMinor };
+        }
+        if (isMinorish(c0)) {
+            const unit = TK_DOM.includes(nx.c0) && nx.o === (o + 5) % 12;
+            if (unit && nr) {
+                const c = nr.targetMinor ? 'm7b5' : c0;
+                return { delta: nr.delta, c, s: c === 'm7b5' ? 'locrianSharp2' : s0 };
+            }
+            if (o === 0) return { delta: 0, c: 'm7', s: tonicScale };
+            if (o === 2) return { delta: 0, c: 'm7b5', s: 'locrianSharp2' };
+            if (o === 4) return { delta: -1, c: 'maj7', s: 'ionian' };
+            if (o === 5) return { delta: 0, c: c0 === 'm7b5' ? 'm7' : c0, s: 'dorian' };
+            if (o === 9 && TK_DOM.includes(nx.c0) && nx.o === 9) return { delta: 0, c: 'm7b5', s: 'locrianSharp2' };   // vi - VI7 → viø (son de i6) - VI7
+            if (o === 9) return { delta: -1, c: 'maj7', s: 'lydian' };
+            if (o === 11 && c0 === 'm7b5') return { delta: 0, c: 'dim7', s: 'wholeHalfDim' };
+            return { delta: 0, c: c0, s: s0 };
+        }
+        if (TK_MAJ.includes(c0)) {
+            if (o === 0) return { delta: 0, c: 'm7', s: tonicScale };
+            if (o === 5) return { delta: 0, c: 'm7', s: 'dorian' };
+        }
+        return { delta: 0, c: c0, s: s0 };
+    };
+    // De la fin vers le début (chaque accord dépend du suivant) ; la dernière mesure regarde une lecture provisoire de la première.
+    const first = classify(0, null);
+    for (let k = n - 1; k >= 0; k--) res[k] = classify(k, k === n - 1 ? first : res[k + 1]);
+    slots.forEach((sl, k) => {
+        const r = res[k];
+        sl.h.r = (sl.h.r + r.delta + 12) % 12;
+        sl.h.c = r.c;
+        sl.h.s = r.s;
+        if (!sl.half && r.delta && Number.isInteger(sl.it.bassRootIndex)) sl.it.bassRootIndex = (sl.it.bassRootIndex + r.delta + 12) % 12;
+    });
+    // Deux moitiés devenues identiques (ex. IV | iv → iv | iv) : un seul accord pour la mesure
+    out.forEach(it => { if (it.split && it.split.r === it.r && it.split.c === it.c) delete it.split; });
+    return out;
+}
+
 function makeStyleToolkit(ctx) {
     const { styleKey, mainQuality, R, findChordObj } = ctx;
     const keyRoot = Number.isInteger(ctx.keyRoot) ? ctx.keyRoot : 0;
@@ -23,8 +93,15 @@ function makeStyleToolkit(ctx) {
     const DEGREE_INDEX = { I:0, ii:1, iii:2, IV:3, V:4, vi:5, vii:6 };
     const QUALITY_ROTATION = { ionian:0, dorian:1, phrygian:2, lydian:3, mixolydian:4, aeolian:5, locrian:6 };
     const ROTATION_STYLES = new Set(['ii-v-i', 'anatole', 'bebop', 'swing', 'ballad', 'ballad128', 'hardbop', 'dixieland', 'baroque', 'mozart', 'trad']);
-    const rotation = QUALITY_ROTATION[mainQuality] ?? 0;
-    // Les styles écrits en degrés (ii-V-I, swing…) suivent le mode choisi ; leurs bibliothèques de cellules supposent une
+    // Styles de jazz tonal (écrits en degrés) : ils ne tournent PAS dans les modes, ce qui supprimerait la dominante
+    // (en dorien le « V » deviendrait un m7). Mode majeur (ionien, lydien, mixolydien) → tonalité majeure ;
+    // mode mineur (dorien, phrygien, éolien, locrien) → tonalité mineure du jazz (i, iiø, V7(b9/alt), ♭III, iv, ♭VI),
+    // obtenue par minorizeJazz après construction, ou écrite directement par le style (hard bop, dixieland).
+    const jazzTonal = JAZZ_TONAL_STYLES.has(styleKey);
+    const minorKey = jazzTonal && MINOR_QUALITIES.has(mainQuality);
+    const minorTonicScale = (mainQuality === 'aeolian') ? 'aeolian' : 'dorian';
+    const rotation = jazzTonal ? 0 : (QUALITY_ROTATION[mainQuality] ?? 0);
+    // Les styles écrits en degrés (baroque, Mozart, trad) suivent le mode choisi ; leurs bibliothèques de cellules supposent une
     // tonalité majeure. Les styles écrits en absolu (bossa, modal, blues…) ignorent le mode : bibliothèques toujours actives.
     const libOK = !ROTATION_STYLES.has(styleKey) || rotation === 0;
     const diatonicChord = (degree, measures=1, tonicScale='ionian') => {
@@ -124,12 +201,12 @@ function makeStyleToolkit(ctx) {
 
 
     return {
-        styleKey, keyRoot, rotation, libOK, R, pick,
+        styleKey, keyRoot, rotation, libOK, R, pick, jazzTonal, minorKey, minorTonicScale, minorNative: JAZZ_MINOR_NATIVE.has(styleKey),
         chord, chordJazz, secondary, abs, join, iiV, turnaround, cadence, turnCell,
         CH, TONIC_KINDS, cells, okAfter, twinOf, absCell, withTwin, JBR, jbr
     };
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { makeStyleToolkit };
+    module.exports = { makeStyleToolkit, minorizeJazz, JAZZ_TONAL_STYLES, JAZZ_MINOR_NATIVE };
 }
