@@ -30,8 +30,8 @@
 //   env.state       mémoire entre deux mesures, modifiée en place : { africaVoice, africaLead }
 // buildAfricaPlan renvoie { piano, bass, drums, africa: true, tone } : les frappes « piano » portent e.inst = 'gtr' (guitare
 // électrique), 'organ' (orgue, e.reg = registration), 'epiano' (piano électrique doux de la rumba) ou 'horn' (section de cuivres,
-// e.parts = [{ iv, slot }], comme le Brass band). tone = son de l'ampli des guitares : 'rumba' (rond) pour la rumba et l'afrobeat,
-// 'afro' (clair et brillant) sinon.
+// e.parts = [{ iv, slot }], comme le Brass band). tone = son de l'ampli des guitares : 'rumba' (rond et doux) pour la rumba,
+// 'afround' (rond) pour l'afrobeat, 'afro' (clair et brillant) sinon.
 //   env.state.africaKeys   voicing du piano électrique (rumba, afrobeat ; mémoire d'une mesure à l'autre)
 // Hauteurs écrites comme partout : intervalle 0 = do3 réel en Ut (réel = 48 + intervalle + transOffset).
 
@@ -351,7 +351,7 @@ function buildAfricaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep,
     });
 
     // ---- guitare solo : échelle des notes de l'accord, départ près de la note de la mesure précédente ----
-    const LREG = { 'af-afrobeat': [55, 70], 'af-highlife': [59, 81], 'af-rumba': [60, 81], 'af-soukous': [69, 91], 'af-benga': [64, 86], 'af-mbaqanga': [64, 84] }[g];
+    const LREG = { 'af-afrobeat': [55, 70], 'af-highlife': [59, 81], 'af-rumba': [55, 74], 'af-soukous': [69, 91], 'af-benga': [64, 86], 'af-mbaqanga': [64, 84] }[g];
     const leadLo = LREG[0] - 48 - off, leadHi = LREG[1] - 48 - off;
     const leadCentre = Math.round((leadLo + leadHi) / 2) - 3;
     let anchor = env.state.africaLead;
@@ -380,7 +380,7 @@ function buildAfricaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep,
             const nextPos = k + 1 < pattern.length ? pattern[k + 1][0] : bpb;
             const dur = d || Math.max(0.12, Math.min(opts.maxDur || 1, (nextPos - pos) * (opts.legato || 0.9)));
             const accent = Number.isInteger(pos) ? 1 : (Math.abs(frac(pos) - 0.5) < eps ? 0.9 : 0.8);
-            gtr(pos, notes, dur, opts.vel * accent * (0.94 + 0.12 * rng()), opts.art, { roll: notes.length > 1 ? 0.008 : 0 });
+            gtr(pos, notes, dur, opts.vel * accent * (0.94 + 0.12 * rng()), opts.art, opts.soft ? { roll: notes.length > 1 ? 0.012 : 0, soft: true } : { roll: notes.length > 1 ? 0.008 : 0 });
         });
     };
     // la mesure suivante repart près de la note de départ de celle-ci (registre stable, voix conduites)
@@ -679,7 +679,8 @@ function buildAfricaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep,
         // mi-solo : notes détachées et claires (chaque note s'arrête avant la suivante) ; tierces et sixtes seulement sur les
         // appuis (premier et troisième temps), une seule note ailleurs
         const rumbaLead = leadPat.map(([pos, rk, d]) => [pos, (Array.isArray(rk) && !(Math.abs(pos) < eps || Math.abs(pos - 2) < eps)) ? rk[rk.length - 1] : rk, d]);
-        playLead(rumbaLead, { vel: 0.7, art: 'det', legato: 0.62, maxDur: 0.36 });
+        // dans le médium (moins aigu) et joué sans dureté
+        playLead(rumbaLead, { vel: 0.56, art: 'det', legato: 0.62, maxDur: 0.36, soft: true });
         // saxophones : nappe tenue au début de la phrase, réponse mélodique à la fin
         if (hornsOn) {
             if (i === 0 && ph.hornPad) segs.forEach((sg) => {
@@ -738,7 +739,7 @@ function buildAfricaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep,
     });
     out.sort((a, b) => a.pos - b.pos);
     drums.sort((a, b) => a.pos - b.pos);
-    return { piano: out, bass, drums, africa: true, tone: (g === 'af-rumba' || g === 'af-afrobeat') ? 'rumba' : 'afro' };
+    return { piano: out, bass, drums, africa: true, tone: g === 'af-rumba' ? 'rumba' : (g === 'af-afrobeat' ? 'afround' : 'afro') };
 }
 
 if (typeof module !== 'undefined' && module.exports) {

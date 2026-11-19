@@ -91,7 +91,7 @@ describe('buildAfricaPlan', () => {
         for (const g of A.AFRICA_GROOVES) for (let s = 1; s <= 30; s++) {
             const p = plan(g, { seed: s, i: s % 4 });
             assert.equal(p.africa, true);
-            assert.equal(p.tone, (g === 'af-rumba' || g === 'af-afrobeat') ? 'rumba' : 'afro');
+            assert.equal(p.tone, g === 'af-rumba' ? 'rumba' : (g === 'af-afrobeat' ? 'afround' : 'afro'));
             assert.ok(inst(p, 'gtr').length >= 4, `${g} guitare`);
             assert.ok(p.bass.length >= 3, `${g} basse`);
             assert.ok(p.drums.length >= 8, `${g} percussions`);
@@ -183,7 +183,7 @@ describe('buildAfricaPlan', () => {
                 assert.ok(e.intervals[0] + 48 <= 70, `riff trop aigu : ${e.intervals[0] + 48}`);
                 assert.ok(e.vel <= 0.7, 'riff en retrait');
             });
-            assert.equal(p.tone, 'rumba');
+            assert.equal(p.tone, 'afround');
         }
     });
     test('afrobeat : les cuivres jouent à l\'unisson et à l\'octave quand la phrase les appelle', () => {
@@ -269,6 +269,9 @@ describe('buildAfricaPlan', () => {
                 assert.equal(e.art, 'det');
                 assert.ok(e.dur <= 0.36 + 1e-9, `durée ${e.dur}`);
                 if (e.intervals.length > 1) assert.ok(e.pos === 0 || e.pos === 2, `double corde au temps ${e.pos}`);
+                assert.ok(e.soft, 'attaque adoucie');
+                assert.ok(e.vel <= 0.66, `guitare en retrait : ${e.vel}`);
+                e.intervals.forEach(x => assert.ok(x + 48 <= 74, `guitare trop aiguë : ${x + 48}`));
             });
         }
     });

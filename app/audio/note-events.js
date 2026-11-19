@@ -97,8 +97,10 @@ function rockNotes(env, e, time, beatSec) {
         base = { gain: Math.min(1.2, 0.3 + 0.8 * vel), duration: dur, attack: 0.003, release: 0.5 };
     } else if (art === 'det') {
         // note détachée (mi-solo de la rumba) : pleine et claire, la main gauche la relâche juste avant la suivante, sans résonance
-        // qui déborde (contrairement à 'arp')
-        base = { gain: Math.min(1.2, 0.3 + 0.82 * vel), duration: Math.min(dur, 0.42), attack: 0.003, release: 0.09 };
+        // qui déborde (contrairement à 'arp'). e.soft (rumba) : attaque adoucie (pulpe du doigt plutôt que médiator), moins de gain
+        base = e.soft
+            ? { gain: Math.min(1, 0.26 + 0.7 * vel), duration: Math.min(dur, 0.42), attack: 0.009, release: 0.1 }
+            : { gain: Math.min(1.2, 0.3 + 0.82 * vel), duration: Math.min(dur, 0.42), attack: 0.003, release: 0.09 };
     } else if (art === 'pluck') {
         // note pincée et aussitôt étouffée par la main gauche (guitares du benga, du mbaqanga, riff de l'afrobeat) : brève mais
         // pleine, sans le son sourd de la sourdine de paume

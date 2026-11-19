@@ -52,7 +52,7 @@ describe('ampli de guitare', () => {
         assert.ok(mid(9) > mid(1));
     });
     test('sons : propre, crunch, saturé, lourd, surf, afro, rumba ; le niveau de sortie est calé', () => {
-        assert.deepEqual(Object.keys(R.AMP_TONES).sort(), ['afro', 'clean', 'crunch', 'drive', 'heavy', 'rumba', 'surf']);
+        assert.deepEqual(Object.keys(R.AMP_TONES).sort(), ['afro', 'afround', 'clean', 'crunch', 'drive', 'heavy', 'rumba', 'surf']);
         Object.values(R.AMP_TONES).forEach(t => { assert.ok(t.level > 0 && t.level < 3); assert.ok(t.trim > 0); });
     });
     test('l\'entrée atteint la destination, le son est réglable, un nom inconnu donne le son propre', () => {
@@ -154,5 +154,7 @@ describe('piano électrique (rumba)', () => {
     test('son de guitare « rumba » : plus rond que « afro » (moins de présence et d\'aigus)', () => {
         const a = R.AMP_TONES.afro, r = R.AMP_TONES.rumba;
         assert.ok(r.bite < a.bite && r.air < a.air && r.body > 2.5);
+        const o = R.AMP_TONES.afround;
+        assert.ok(r.bite < o.bite && r.air < o.air && r.cab < o.cab, 'rumba plus douce que l\'afrobeat');
     });
 });

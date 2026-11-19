@@ -47,9 +47,11 @@ const AMP_TONES = {
     surf:   { dry: 1,    wet: 0,    pre: 1,    k: 1,  hp: 120, post: 7800, scoop: 0,  bite: 2.5, air: 5,   slap: 0.34, trim: 1,     level: 1.35 },
     // guitares des musiques africaines (orchestre Afrique) : son clair et brillant, médium un peu creusé, un soupçon d'écho
     afro:   { dry: 1,    wet: 0,    pre: 1,    k: 1,  hp: 120, post: 8000, scoop: -1, bite: 3,   air: 3.5, slap: 0.1,  trim: 1,     level: 2 },
-    // rumba congolaise et afrobeat : guitare ronde et naturelle (micro manche) : plus de corps dans le grave-médium, présence et aigus adoucis,
+    // afrobeat : guitare ronde et naturelle (micro manche) : plus de corps dans le grave-médium, présence et aigus adoucis,
     // un peu de chaleur vers 700 Hz, à peine d'écho
-    rumba:  { dry: 1,    wet: 0,    pre: 1,    k: 1,  hp: 90,  post: 7000, scoop: 1,  bite: 0.5, air: -2.5, slap: 0.05, trim: 1,    level: 2.2, body: 4.5, cab: 5200 }
+    afround: { dry: 1,   wet: 0,    pre: 1,    k: 1,  hp: 90,  post: 7000, scoop: 1,  bite: 0.5, air: -2.5, slap: 0.05, trim: 1,    level: 2.2, body: 4.5, cab: 5200 },
+    // rumba congolaise : même esprit, en plus doux (pas de présence ajoutée, aigus nettement tamisés, attaque du médiator adoucie)
+    rumba:  { dry: 1,    wet: 0,    pre: 1,    k: 1,  hp: 85,  post: 6000, scoop: 1.5, bite: -1.5, air: -5, slap: 0.04, trim: 1,   level: 2.4, body: 4.5, cab: 4300 }
 };
 
 // Construit la chaîne d'ampli ; tout le son de la guitare entre par `input` et sort vers `destination`.
