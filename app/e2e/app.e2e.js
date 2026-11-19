@@ -808,7 +808,8 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         assert.equal(await page.evaluate(() => app.jam.bpm), 132);
         assert.equal(await page.evaluate(() => app.jam.mainKey), 4);
         assert.equal(await page.evaluate(() => document.getElementById('band-btn-label').textContent), 'Orchestre Hard rock');
-        assert.equal(await page.evaluate(() => document.getElementById('band-style-select').value), 'hardrock');
+        assert.equal(await page.evaluate(() => document.getElementById('band-formation-select').value), 'pop');
+        assert.equal(await page.evaluate(() => document.getElementById('band-groove-select').value), 'r-hard');
         assert.deepEqual(await rows(), [true, true, true]);
         await page.evaluate(() => {
             app.jam.bpm = 240;
@@ -844,6 +845,55 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         // les curseurs règlent les bus
         await page.evaluate(() => { app.jam.chooseBandStyle('rockclassic'); app.jam.ensureBandAudio(); app.jam.setBandVolume('organ', 20); });
         assert.equal(await page.evaluate(() => Math.round(app.jam.bandVolumes.organ * 100)), 20);
+        await page.selectOption('#jam-style-select', 'swing');
+        noErrors();
+    });
+
+    test('Jam : pop-up Orchestre en deux listes — Formation et Rythme', async () => {
+        const st = () => page.evaluate(() => {
+            const gs = document.getElementById('band-groove-select');
+            return { band: app.jam.bandStyle, groove: app.jam.getEffectiveGroove(), bpm: app.jam.bpm, meter: app.jam.getMeterKey(),
+                formation: document.getElementById('band-formation-select').value, rythme: gs.value, disabled: gs.disabled,
+                options: [...gs.options].map(o => o.value), btn: document.getElementById('band-btn-label').textContent };
+        });
+        await page.selectOption('#jam-style-select', 'valsejazz');   // 3/4, 168, orchestre Jazz
+        await page.evaluate(() => app.jam.openBandModal());
+        let s = await st();
+        assert.equal(s.formation, 'swing');
+        assert.ok(s.disabled, 'Jazz : pas de rythme à choisir');
+        // Formation Classique : piano seul, rythme Auto ; le baroque est maintenant proposé
+        await page.selectOption('#band-formation-select', 'classic');
+        s = await st();
+        assert.deepEqual([s.band, s.groove, s.rythme, s.disabled, s.bpm, s.meter], ['classic', null, '', false, 168, '3/4']);
+        assert.deepEqual(s.options, ['', 'c-baroque']);
+        await page.selectOption('#band-groove-select', 'c-baroque');
+        s = await st();
+        assert.deepEqual([s.groove, s.bpm, s.meter], ['c-baroque', 168, '3/4'], 'le baroque ne touche ni au tempo ni à la mesure');
+        await page.selectOption('#band-groove-select', '');
+        assert.equal((await st()).groove, null, '« Auto » efface le rythme');
+        // Un rythme qui pose son tempo et sa mesure : Cuba, son montuno (4/4, 104)
+        await page.selectOption('#band-formation-select', 'cuba');
+        await page.selectOption('#band-groove-select', 'cu-son');
+        s = await st();
+        assert.deepEqual([s.band, s.groove, s.bpm, s.meter, s.btn], ['cuba', 'cu-son', 104, '4/4', 'Orchestre Son montuno']);
+        // Choisir de nouveau la même formation ne perd pas le rythme
+        await page.selectOption('#band-formation-select', 'cuba');
+        assert.equal((await st()).groove, 'cu-son');
+        // Balkans : sevdah et tsifteteli, autrefois réservés aux styles de grille
+        await page.selectOption('#band-formation-select', 'balkan');
+        s = await st();
+        assert.deepEqual(s.options, ['', 'bk-sevdah', 'bk-tsifte']);
+        await page.selectOption('#band-groove-select', 'bk-sevdah');
+        assert.equal((await st()).groove, 'bk-sevdah');
+        // Afrique : pas d'« Auto », le highlife est affiché
+        await page.selectOption('#band-formation-select', 'africa');
+        s = await st();
+        assert.deepEqual([s.band, s.rythme, s.options[0]], ['africa', 'af-highlife', 'af-afrobeat']);
+        // Un style de grille met les deux listes à jour
+        await page.selectOption('#jam-style-select', 'flamencosolea');
+        s = await st();
+        assert.deepEqual([s.formation, s.rythme], ['guitar', 'f-solea']);
+        await page.evaluate(() => app.jam.closeBandModal());
         await page.selectOption('#jam-style-select', 'swing');
         noErrors();
     });

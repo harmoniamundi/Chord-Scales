@@ -14,7 +14,7 @@
 // (synthèse des percussions, réverbération, échantillons) n'est pas comparé, seulement ce qui lui est demandé.
 //
 // Cas couverts : chaque style de grille (forme de référence avec deux graines, puis une proposition « Générer ») ;
-// chaque entrée du menu Orchestre et le bouton Arpèges, sur cinq grilles hôtes (4/4, 3/4, 6/8, 12/8, aksak 7/8).
+// chaque choix du pop-up Orchestre (BAND_MENU) et le bouton Arpèges, sur cinq grilles hôtes (4/4, 3/4, 6/8, 12/8, aksak 7/8).
 //
 // Lancer :                      npm run test:empreintes
 // Enregistrer les références :  npm run empreintes:maj   (seulement quand un changement de son est VOULU et écouté)
@@ -131,11 +131,7 @@ async function capturePage(spec) {
     styleSel.value = host;
     jam.changeStyle(host);
     if (spec.generer) jam.resetGrid();
-    if (spec.entry) {
-        const bandSel = document.getElementById('band-style-select');
-        if (bandSel) bandSel.value = spec.entry;
-        jam.chooseBandStyle(spec.entry);
-    }
+    if (spec.entry) jam.chooseBandStyle(spec.entry);   // même chemin que les listes Formation / Rythme du pop-up
     jam.loopEnabled = false;
     jam.metronomeEnabled = false;
     app.loadPiano();
@@ -148,7 +144,8 @@ async function capturePage(spec) {
     const visible = (id) => { const el = document.getElementById(id); return !!el && !el.classList.contains('hidden'); };
     const reglages = {
         tonalite: jam.mainKey, mode: jam.mainQuality, bpm: jam.bpm, mesure: jam.getMeterKey(),
-        orchestre: jam.bandStyle, rythme: jam.getEffectiveGroove(), menuOrchestre: jam._bandSelectValue(),
+        orchestre: jam.bandStyle, rythme: jam.getEffectiveGroove(),
+        listes: ['band-formation-select', 'band-groove-select'].map(id => { const el = document.getElementById(id); return el ? el.value : null; }),   // pop-up Orchestre : Formation, Rythme
         nom: label('band-btn-label'), swing: Math.round(jam.getBandSwing() * 1e4) / 1e4,
         densite: jam.bandDensity ? jam.bandDensity[jam.bandStyle] ?? null : null,
         curseurs: [label('band-vol-piano-label'), label('band-vol-bass-label'), label('band-vol-drums-label'), label('band-vol-organ-label')],
@@ -234,7 +231,7 @@ describe('empreintes sonores (golden master)', { skip: !pw && 'Playwright non in
         await page.waitForFunction(() => typeof app !== 'undefined' && app.jam);
         const res = await page.evaluate(() => ({
             styles: [...document.querySelectorAll('#jam-style-select option')].map(o => o.value).filter(v => v && v !== 'custom'),
-            bands: [...document.querySelectorAll('#band-style-select option')].map(o => o.value).filter(Boolean),
+            bands: BAND_MENU.map(e => e.value),   // choix du pop-up Orchestre (band/band-catalog.js)
         }));
         await ctx.close();
         return res;
@@ -335,6 +332,7 @@ describe('empreintes sonores (golden master)', { skip: !pw && 'Playwright non in
             if (JSON.stringify(a.erreurs) !== JSON.stringify(b.erreurs)) msgs.push(`erreurs JavaScript : ${JSON.stringify(b.erreurs || [])}`);
             if (msgs.length) diffs.push(`${c.name}\n    ` + msgs.join('\n    '));
         }
+        if (!FILTER) Object.keys(ref).filter(k => !results[k]).forEach(k => diffs.push(`${k} : cas des références qui n'existe plus (style ou choix d'orchestre retiré ?)`));
         console.log(`# ${todo.length} cas comparés (${secs} s), ${diffs.length} différent${diffs.length > 1 ? 's' : ''}`);
         assert.equal(diffs.length, 0, `\n${diffs.length} cas ne jouent plus comme les références :\n\n` + diffs.slice(0, 40).join('\n\n')
             + (diffs.length > 40 ? `\n\n… et ${diffs.length - 40} autres` : '')

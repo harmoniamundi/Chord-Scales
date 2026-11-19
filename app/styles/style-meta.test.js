@@ -275,9 +275,9 @@ describe('tonalité réelle d\'un style', () => {
     });
 });
 
-// Entrées du menu Orchestre : catalogue band/band-catalog.js (couples orchestre + rythme)
+// Entrées du pop-up Orchestre qui posent le tempo d'un style : catalogue band/band-catalog.js (couples orchestre + rythme)
 const BC = require('../band/band-catalog.js');
-const menuGrooves = (band) => Object.fromEntries(BC.BAND_MENU.filter(e => e.band === band && e.groove).map(e => [e.value, e.groove]));
+const menuGrooves = (band) => Object.fromEntries(BC.BAND_MENU.filter(e => e.band === band && e.groove && e.tempo).map(e => [e.value, e.groove]));
 const FLAMENCO_BAND_GROOVES = menuGrooves('guitar');
 const ROCK_BAND_GROOVES = menuGrooves('pop');
 

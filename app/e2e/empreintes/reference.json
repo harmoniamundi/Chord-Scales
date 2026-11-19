@@ -9,7 +9,10 @@
     "mesure": "7/8",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -64,7 +67,10 @@
     "mesure": "12/8",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -113,7 +119,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -154,7 +163,10 @@
     "mesure": "6/8",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -227,7 +239,10 @@
     "mesure": "3/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.639,
     "densite": null,
@@ -296,7 +311,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-afrobeat",
-    "menuOrchestre": "afrobeat",
+    "listes": [
+     "africa",
+     "af-afrobeat"
+    ],
     "nom": "Orchestre Afrobeat",
     "swing": 0.5,
     "densite": null,
@@ -352,7 +370,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-afrobeat",
-    "menuOrchestre": "afrobeat",
+    "listes": [
+     "africa",
+     "af-afrobeat"
+    ],
     "nom": "Orchestre Afrobeat",
     "swing": 0.5,
     "densite": null,
@@ -404,7 +425,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-afrobeat",
-    "menuOrchestre": "afrobeat",
+    "listes": [
+     "africa",
+     "af-afrobeat"
+    ],
     "nom": "Orchestre Afrobeat",
     "swing": 0.5,
     "densite": null,
@@ -448,7 +472,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-afrobeat",
-    "menuOrchestre": "afrobeat",
+    "listes": [
+     "africa",
+     "af-afrobeat"
+    ],
     "nom": "Orchestre Afrobeat",
     "swing": 0.5,
     "densite": null,
@@ -520,7 +547,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-afrobeat",
-    "menuOrchestre": "afrobeat",
+    "listes": [
+     "africa",
+     "af-afrobeat"
+    ],
     "nom": "Orchestre Afrobeat",
     "swing": 0.5,
     "densite": null,
@@ -584,6 +614,618 @@
     "45dc054df9468858"
    ]
   },
+  "orchestre:balkan-sevdah@balkan78": {
+   "reglages": {
+    "tonalite": 2,
+    "mode": "aeolian",
+    "bpm": 120,
+    "mesure": "7/8",
+    "orchestre": "balkan",
+    "rythme": "bk-sevdah",
+    "listes": [
+     "balkan",
+     "bk-sevdah"
+    ],
+    "nom": "Orchestre Balkans",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Accordéon",
+     "Basse",
+     "Percus.",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:minTriadx2 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 0:majTriadx1 5:majTriadx1 10:majTriadx1 4:m7b5x1 9:7b9x1 2:minTriadx2",
+   "grilleEmpreinte": "b19a84fcde76d864",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "e7ede06df196f3b9",
+    "adb0112815a4e32e",
+    "39fb4491691d9c21",
+    "8d595c312a77ea8d",
+    "172295f472af2d13",
+    "e9582ab88672438e",
+    "8ec8e74072b8c41d",
+    "b18a25241effac09",
+    "f209ceb50a625806",
+    "16f038828e2920cf",
+    "dcdb25db4d8a2bca",
+    "210e7e83ea54fa12",
+    "02c33dde29ce8fad",
+    "001578e6fc293cc8",
+    "1db9d3fa73f5a527",
+    "16ea30be786135b4"
+   ]
+  },
+  "orchestre:balkan-sevdah@blues128": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "mixolydian",
+    "bpm": 64,
+    "mesure": "12/8",
+    "orchestre": "balkan",
+    "rythme": "bk-sevdah",
+    "listes": [
+     "balkan",
+     "bk-sevdah"
+    ],
+    "nom": "Orchestre Balkans",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Accordéon",
+     "Basse",
+     "Percus.",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:7x2 0:7x2 5:7x2 0:7x2 7:7x1 5:7x1 0:7x1/7:7 0:7x1",
+   "grilleEmpreinte": "bd16204dffbf4ec8",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "1d45c3ced4eda090",
+    "4ef0d39f90bc6d56",
+    "51f56fd3612fa8bb",
+    "06ac5dd29bf52e32",
+    "22de61cb50106222",
+    "a81cb169d628c642",
+    "2e5b957445ef6fe3",
+    "985f22977bb93928",
+    "22f96b28df12f50d",
+    "064afb7e2b90fa87",
+    "151fd791bc177a9f",
+    "4b127a98048fa3fb"
+   ]
+  },
+  "orchestre:balkan-sevdah@ii-v-i": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 120,
+    "mesure": "4/4",
+    "orchestre": "balkan",
+    "rythme": "bk-sevdah",
+    "listes": [
+     "balkan",
+     "bk-sevdah"
+    ],
+    "nom": "Orchestre Balkans",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Accordéon",
+     "Basse",
+     "Percus.",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:m7x1 7:7x1 0:maj7x1 0:maj7x1",
+   "grilleEmpreinte": "7229f59c72c5c062",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "8e0847ab2d579362",
+    "74e3bba9b118e58d",
+    "a3a378101250cf28",
+    "56697702f2c2be24"
+   ]
+  },
+  "orchestre:balkan-sevdah@jig": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 116,
+    "mesure": "6/8",
+    "orchestre": "balkan",
+    "rythme": "bk-sevdah",
+    "listes": [
+     "balkan",
+     "bk-sevdah"
+    ],
+    "nom": "Orchestre Balkans",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Accordéon",
+     "Basse",
+     "Percus.",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 5:majTriadx1 0:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1",
+   "grilleEmpreinte": "d28cb691e2947aba",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "3f40c0b9f36757fd",
+    "6ed9c1754e88742c",
+    "ad3bb08bf61c1415",
+    "89ff98dad20a7198",
+    "73f90d4d396b288d",
+    "c13f06ea8614059f",
+    "29170dcb767e3f68",
+    "b27e747fcfecd280",
+    "6f41aa4eb9570be6",
+    "70921a36c2ccc734",
+    "a858192b081b7699",
+    "7e2738c97b7912d9",
+    "17a998044015863c",
+    "dce416b67e52d352",
+    "b29f2872ed493fa0",
+    "6d1501ee2e3251cc",
+    "c6ca33792bffb3cb",
+    "44b6d670fc353034",
+    "c4c737f454b117b2",
+    "855293dacb827d9c",
+    "f80345502eadf1ca",
+    "75a4de6fbb1df619",
+    "69b77af7baaf3b59",
+    "456096b430cb6c81",
+    "d2dd2ebd4b957c11",
+    "1683b156b7bcfc1a",
+    "ca44426e2a77a342",
+    "d091146f52829f79",
+    "3285ba952ed4e997",
+    "282904c58da0b213",
+    "7da31d9dd4a366fe",
+    "aecf36a475a9a9ad"
+   ]
+  },
+  "orchestre:balkan-sevdah@valsejazz": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 168,
+    "mesure": "3/4",
+    "orchestre": "balkan",
+    "rythme": "bk-sevdah",
+    "listes": [
+     "balkan",
+     "bk-sevdah"
+    ],
+    "nom": "Orchestre Balkans",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Accordéon",
+     "Basse",
+     "Percus.",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1 7:7x1 4:7x2 9:7x2 2:7x2 7:7x2 0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1/7:7 0:maj7x1",
+   "grilleEmpreinte": "d09d1a295f26dfd4",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "c44950d6ec0957f9",
+    "15db7ec81aed1352",
+    "bc5370b9e741fe5a",
+    "2abd425c735c410a",
+    "b5ede3070beedf0a",
+    "0dff01ae61cf4b9a",
+    "cab648bbdc17d272",
+    "2089277af30bc356",
+    "c94eed1ad2ba77f4",
+    "037fb2371e67a220",
+    "4a46a6a76754becc",
+    "9511ac39a7218b47",
+    "4a8bee555a59ed73",
+    "c4a61474f79c9f94",
+    "9a5737ec18031361",
+    "c9a7e43ebceda039",
+    "3477fae94282279e",
+    "0db4943b7f70b7d9",
+    "33b80b123da38214",
+    "8498a28349eb3dfe",
+    "a90284e3fb104d28",
+    "6bcb503a874f3de8",
+    "3ac3a6312406cda7",
+    "aedce800cb80dd15",
+    "9e4e029b337db29e",
+    "5e1ad0bfc95aaf8e",
+    "5386bab328f3078c",
+    "ed2a278dd6c32591",
+    "161b8e0b4d7b3365",
+    "8343710f72187d7c",
+    "365f559c57be481b",
+    "9bd19ed41565d828"
+   ]
+  },
+  "orchestre:balkan-tsifte@balkan78": {
+   "reglages": {
+    "tonalite": 2,
+    "mode": "aeolian",
+    "bpm": 120,
+    "mesure": "7/8",
+    "orchestre": "balkan",
+    "rythme": "bk-tsifte",
+    "listes": [
+     "balkan",
+     "bk-tsifte"
+    ],
+    "nom": "Orchestre Balkans",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Accordéon",
+     "Basse",
+     "Percus.",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:minTriadx2 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 0:majTriadx1 5:majTriadx1 10:majTriadx1 4:m7b5x1 9:7b9x1 2:minTriadx2",
+   "grilleEmpreinte": "b19a84fcde76d864",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "7f9f4a3cced24526",
+    "f0c5d9e65978df62",
+    "ca2086f68b3556ad",
+    "b2a3c60f19f41701",
+    "0d297929ab2c0058",
+    "857d3092f5775745",
+    "fbf76c847a6c4317",
+    "edf91a6e2e37bc18",
+    "31e18dd5782c968f",
+    "d53f573ae1ee60e3",
+    "c34691047928ab79",
+    "b77b9c0435125781",
+    "2bab4353904e9343",
+    "450ffff05c95f9ac",
+    "0ee5976843405b14",
+    "d89433a4316fb1d6"
+   ]
+  },
+  "orchestre:balkan-tsifte@blues128": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "mixolydian",
+    "bpm": 64,
+    "mesure": "12/8",
+    "orchestre": "balkan",
+    "rythme": "bk-tsifte",
+    "listes": [
+     "balkan",
+     "bk-tsifte"
+    ],
+    "nom": "Orchestre Balkans",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Accordéon",
+     "Basse",
+     "Percus.",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:7x2 0:7x2 5:7x2 0:7x2 7:7x1 5:7x1 0:7x1/7:7 0:7x1",
+   "grilleEmpreinte": "bd16204dffbf4ec8",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "6ddf3a136af304f3",
+    "8e5be2f9c6253bcd",
+    "79ce7e9f5b828848",
+    "49eb50dcd78ae470",
+    "f8a9b83bb526a4de",
+    "888f1a165010c47f",
+    "1b8c0c95ff5c27de",
+    "39bc25e78e5245cc",
+    "b77350eb8b6ad471",
+    "d57a0dcde34a6806",
+    "31cc305fd867226c",
+    "f3631c3f1e35de4d"
+   ]
+  },
+  "orchestre:balkan-tsifte@ii-v-i": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 120,
+    "mesure": "4/4",
+    "orchestre": "balkan",
+    "rythme": "bk-tsifte",
+    "listes": [
+     "balkan",
+     "bk-tsifte"
+    ],
+    "nom": "Orchestre Balkans",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Accordéon",
+     "Basse",
+     "Percus.",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:m7x1 7:7x1 0:maj7x1 0:maj7x1",
+   "grilleEmpreinte": "7229f59c72c5c062",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "ce9d8975f3fd4397",
+    "541edb10ee7981dc",
+    "2bc05538be64b55a",
+    "f19138f48d8b0ae3"
+   ]
+  },
+  "orchestre:balkan-tsifte@jig": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 116,
+    "mesure": "6/8",
+    "orchestre": "balkan",
+    "rythme": "bk-tsifte",
+    "listes": [
+     "balkan",
+     "bk-tsifte"
+    ],
+    "nom": "Orchestre Balkans",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Accordéon",
+     "Basse",
+     "Percus.",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 5:majTriadx1 0:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1",
+   "grilleEmpreinte": "d28cb691e2947aba",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "c152a89984490660",
+    "1813d8f30907deaa",
+    "f56e5a95e33c8012",
+    "e78b30349639e7e4",
+    "b54f0675768b3de4",
+    "d5949cddaf70f8a4",
+    "6d6ea3b0c53e640f",
+    "d9a5332f83cf4457",
+    "8179b23ff109a40d",
+    "aab7b65daabd5258",
+    "3779bc34f9150c4d",
+    "ef3d8dc52f9e114e",
+    "1bceff32b3e4716f",
+    "3e9716646b302230",
+    "7a06735cc82f66c4",
+    "6827ac98ecef5edb",
+    "48f37414721722cb",
+    "e92a4a4cd263cbbe",
+    "c87ab3ad3454efcc",
+    "bd7993548a3642ea",
+    "76ab6024c0c71502",
+    "e7b044c695bbf30e",
+    "481fca964d315f6b",
+    "8e218e38cc0b4094",
+    "0de636787d36b499",
+    "021bef141086cfbb",
+    "ce0aa17ee52c22fc",
+    "52f499e669fb1b5d",
+    "33af6b4093219949",
+    "2b4ddcba89dec4d0",
+    "61c33a6dc0aac1b1",
+    "937d6ca8b812cbec"
+   ]
+  },
+  "orchestre:balkan-tsifte@valsejazz": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 168,
+    "mesure": "3/4",
+    "orchestre": "balkan",
+    "rythme": "bk-tsifte",
+    "listes": [
+     "balkan",
+     "bk-tsifte"
+    ],
+    "nom": "Orchestre Balkans",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Accordéon",
+     "Basse",
+     "Percus.",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1 7:7x1 4:7x2 9:7x2 2:7x2 7:7x2 0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1/7:7 0:maj7x1",
+   "grilleEmpreinte": "d09d1a295f26dfd4",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "c1e3438229bda965",
+    "2ec47ec633826f6b",
+    "b6dd0be19cea84c6",
+    "897d1d52db15beeb",
+    "ea8061e519c4bae2",
+    "98f67de50145f9f0",
+    "c228b63c9a9610be",
+    "09fa94341d873b1b",
+    "440f728c69ab50f0",
+    "b867682e226504a5",
+    "85be319f99c58747",
+    "1b5dc135ad815f6b",
+    "e884f4a2f51eb336",
+    "6a0238b39a9d010a",
+    "43c2977e7d916557",
+    "99aafd6e46bd3d91",
+    "b7e0c88c942cd9dd",
+    "8640abc49fef6c1e",
+    "442b0484b466f82a",
+    "24d9de28eef9feba",
+    "3330a3d9b5ac5007",
+    "8d07892a227b599f",
+    "cd2300104c49c5ce",
+    "03013951b6e76365",
+    "d6e84085e75e5cb0",
+    "3f0e926557409eb2",
+    "3d35309d38fa8cd8",
+    "935b8953361b3505",
+    "2611858841100045",
+    "17c93cd50a58b53e",
+    "16ea33ec10c811e9",
+    "d3093a6303930f22"
+   ]
+  },
   "orchestre:balkan@balkan78": {
    "reglages": {
     "tonalite": 2,
@@ -592,7 +1234,10 @@
     "mesure": "7/8",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -647,7 +1292,10 @@
     "mesure": "12/8",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -698,7 +1346,10 @@
     "mesure": "4/4",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -741,7 +1392,10 @@
     "mesure": "6/8",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -812,7 +1466,10 @@
     "mesure": "3/4",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -883,7 +1540,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-benga",
-    "menuOrchestre": "benga",
+    "listes": [
+     "africa",
+     "af-benga"
+    ],
     "nom": "Orchestre Benga",
     "swing": 0.55,
     "densite": null,
@@ -939,7 +1599,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-benga",
-    "menuOrchestre": "benga",
+    "listes": [
+     "africa",
+     "af-benga"
+    ],
     "nom": "Orchestre Benga",
     "swing": 0.55,
     "densite": null,
@@ -991,7 +1654,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-benga",
-    "menuOrchestre": "benga",
+    "listes": [
+     "africa",
+     "af-benga"
+    ],
     "nom": "Orchestre Benga",
     "swing": 0.55,
     "densite": null,
@@ -1035,7 +1701,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-benga",
-    "menuOrchestre": "benga",
+    "listes": [
+     "africa",
+     "af-benga"
+    ],
     "nom": "Orchestre Benga",
     "swing": 0.55,
     "densite": null,
@@ -1107,7 +1776,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-benga",
-    "menuOrchestre": "benga",
+    "listes": [
+     "africa",
+     "af-benga"
+    ],
     "nom": "Orchestre Benga",
     "swing": 0.55,
     "densite": null,
@@ -1179,7 +1851,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-blues",
-    "menuOrchestre": "bluesrock",
+    "listes": [
+     "pop",
+     "r-blues"
+    ],
     "nom": "Orchestre Blues rock",
     "swing": 0.667,
     "densite": null,
@@ -1236,7 +1911,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-blues",
-    "menuOrchestre": "bluesrock",
+    "listes": [
+     "pop",
+     "r-blues"
+    ],
     "nom": "Orchestre Blues rock",
     "swing": 0.667,
     "densite": null,
@@ -1289,7 +1967,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-blues",
-    "menuOrchestre": "bluesrock",
+    "listes": [
+     "pop",
+     "r-blues"
+    ],
     "nom": "Orchestre Blues rock",
     "swing": 0.667,
     "densite": null,
@@ -1334,7 +2015,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-blues",
-    "menuOrchestre": "bluesrock",
+    "listes": [
+     "pop",
+     "r-blues"
+    ],
     "nom": "Orchestre Blues rock",
     "swing": 0.667,
     "densite": null,
@@ -1407,7 +2091,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-blues",
-    "menuOrchestre": "bluesrock",
+    "listes": [
+     "pop",
+     "r-blues"
+    ],
     "nom": "Orchestre Blues rock",
     "swing": 0.667,
     "densite": null,
@@ -1480,7 +2167,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-bolero",
-    "menuOrchestre": "bolerocubano",
+    "listes": [
+     "cuba",
+     "cu-bolero"
+    ],
     "nom": "Orchestre Bolero",
     "swing": 0.5,
     "densite": null,
@@ -1533,7 +2223,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-bolero",
-    "menuOrchestre": "bolerocubano",
+    "listes": [
+     "cuba",
+     "cu-bolero"
+    ],
     "nom": "Orchestre Bolero",
     "swing": 0.5,
     "densite": null,
@@ -1582,7 +2275,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-bolero",
-    "menuOrchestre": "bolerocubano",
+    "listes": [
+     "cuba",
+     "cu-bolero"
+    ],
     "nom": "Orchestre Bolero",
     "swing": 0.5,
     "densite": null,
@@ -1623,7 +2319,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-bolero",
-    "menuOrchestre": "bolerocubano",
+    "listes": [
+     "cuba",
+     "cu-bolero"
+    ],
     "nom": "Orchestre Bolero",
     "swing": 0.5,
     "densite": null,
@@ -1692,7 +2391,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-bolero",
-    "menuOrchestre": "bolerocubano",
+    "listes": [
+     "cuba",
+     "cu-bolero"
+    ],
     "nom": "Orchestre Bolero",
     "swing": 0.5,
     "densite": null,
@@ -1761,7 +2463,10 @@
     "mesure": "4/4",
     "orchestre": "latin",
     "rythme": "bossa",
-    "menuOrchestre": "bossa",
+    "listes": [
+     "latin",
+     "bossa"
+    ],
     "nom": "Orchestre Bossa nova",
     "swing": 0.5,
     "densite": null,
@@ -1814,7 +2519,10 @@
     "mesure": "4/4",
     "orchestre": "latin",
     "rythme": "bossa",
-    "menuOrchestre": "bossa",
+    "listes": [
+     "latin",
+     "bossa"
+    ],
     "nom": "Orchestre Bossa nova",
     "swing": 0.5,
     "densite": null,
@@ -1863,7 +2571,10 @@
     "mesure": "4/4",
     "orchestre": "latin",
     "rythme": "bossa",
-    "menuOrchestre": "bossa",
+    "listes": [
+     "latin",
+     "bossa"
+    ],
     "nom": "Orchestre Bossa nova",
     "swing": 0.5,
     "densite": null,
@@ -1904,7 +2615,10 @@
     "mesure": "4/4",
     "orchestre": "latin",
     "rythme": "bossa",
-    "menuOrchestre": "bossa",
+    "listes": [
+     "latin",
+     "bossa"
+    ],
     "nom": "Orchestre Bossa nova",
     "swing": 0.5,
     "densite": null,
@@ -1973,7 +2687,10 @@
     "mesure": "4/4",
     "orchestre": "latin",
     "rythme": "bossa",
-    "menuOrchestre": "bossa",
+    "listes": [
+     "latin",
+     "bossa"
+    ],
     "nom": "Orchestre Bossa nova",
     "swing": 0.5,
     "densite": null,
@@ -2034,6 +2751,312 @@
     "3a4f43dff53d4e8e"
    ]
   },
+  "orchestre:brass-chorale@balkan78": {
+   "reglages": {
+    "tonalite": 2,
+    "mode": "aeolian",
+    "bpm": 120,
+    "mesure": "7/8",
+    "orchestre": "brass",
+    "rythme": "b-chorale",
+    "listes": [
+     "brass",
+     "b-chorale"
+    ],
+    "nom": "Orchestre Brass",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Cuivres",
+     "Tubas",
+     "Percus.",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:minTriadx2 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 0:majTriadx1 5:majTriadx1 10:majTriadx1 4:m7b5x1 9:7b9x1 2:minTriadx2",
+   "grilleEmpreinte": "b19a84fcde76d864",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "45c59875b95ab0cf",
+    "045acfd3c5610de3",
+    "0a54dbc57b5fc6eb",
+    "3c1117a16144913a",
+    "a7bc602d498621b6",
+    "2cff343e8e18ab24",
+    "2298130f902c8b51",
+    "a8fe198db8db76fe",
+    "b44876ea0bc8438d",
+    "3906362cc25f31bd",
+    "3102b034fde4f0cc",
+    "be3daa23c4ccdaac",
+    "59aa5eae70960f16",
+    "f8e904fac3067d58",
+    "7e5dded0285c723b",
+    "08fc862149322f50"
+   ]
+  },
+  "orchestre:brass-chorale@blues128": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "mixolydian",
+    "bpm": 64,
+    "mesure": "12/8",
+    "orchestre": "brass",
+    "rythme": "b-chorale",
+    "listes": [
+     "brass",
+     "b-chorale"
+    ],
+    "nom": "Orchestre Brass",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Cuivres",
+     "Tubas",
+     "Percus.",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:7x2 0:7x2 5:7x2 0:7x2 7:7x1 5:7x1 0:7x1/7:7 0:7x1",
+   "grilleEmpreinte": "bd16204dffbf4ec8",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "0939b64711f55c90",
+    "cc18e7940c777857",
+    "8a721964605855a9",
+    "c04842ec838e9a28",
+    "07d00520caa5266b",
+    "e02bd2032461db45",
+    "1814923943aca646",
+    "37a4fb14ac00f60c",
+    "876f0c67d4a90e62",
+    "2a21649a340620dd",
+    "1a365ec24e8b1419",
+    "3af86782a4e410a7"
+   ]
+  },
+  "orchestre:brass-chorale@ii-v-i": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 120,
+    "mesure": "4/4",
+    "orchestre": "brass",
+    "rythme": "b-chorale",
+    "listes": [
+     "brass",
+     "b-chorale"
+    ],
+    "nom": "Orchestre Brass",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Cuivres",
+     "Tubas",
+     "Percus.",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:m7x1 7:7x1 0:maj7x1 0:maj7x1",
+   "grilleEmpreinte": "7229f59c72c5c062",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "fac53981f0a3c0e2",
+    "5c2939bccbdbf2e3",
+    "9389305b110b2125",
+    "401ced99c84ef3a9"
+   ]
+  },
+  "orchestre:brass-chorale@jig": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 116,
+    "mesure": "6/8",
+    "orchestre": "brass",
+    "rythme": "b-chorale",
+    "listes": [
+     "brass",
+     "b-chorale"
+    ],
+    "nom": "Orchestre Brass",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Cuivres",
+     "Tubas",
+     "Percus.",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 5:majTriadx1 0:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1",
+   "grilleEmpreinte": "d28cb691e2947aba",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "cc7f00bed3e6c46a",
+    "28520b835c87ec4d",
+    "1e7f9adaf6512966",
+    "67d36326c24a5e28",
+    "21da7006f98976c4",
+    "8a4f3bce8a00f303",
+    "4c92f6eeff69aeb2",
+    "a79dcf36ade26fdf",
+    "5ee970d411157338",
+    "045fd5ca64f2f399",
+    "f201006d516c7d8c",
+    "e545f666d9da7135",
+    "3a8c22437a15abbe",
+    "38cc29d8dbaa9e89",
+    "e324d69457d52a2f",
+    "5848f4487089fbd2",
+    "52098d078158db79",
+    "d0333f4c4301cb33",
+    "b139cd3f1e2074bf",
+    "2d74170613b51b59",
+    "f4cd4fed252002bf",
+    "7b1d618eee829390",
+    "c6a4293572ec33bb",
+    "5cdf0218fb033c86",
+    "6a5ef16d701f7bbd",
+    "0616263c8429ffd8",
+    "7254f38eea2fa5f6",
+    "dda0825f672fd7f8",
+    "e00b920de60ce5d4",
+    "95d2ea3c3c910106",
+    "74fe0d7e6bcfe618",
+    "2ab7d20095df9fa4"
+   ]
+  },
+  "orchestre:brass-chorale@valsejazz": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 168,
+    "mesure": "3/4",
+    "orchestre": "brass",
+    "rythme": "b-chorale",
+    "listes": [
+     "brass",
+     "b-chorale"
+    ],
+    "nom": "Orchestre Brass",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Cuivres",
+     "Tubas",
+     "Percus.",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1 7:7x1 4:7x2 9:7x2 2:7x2 7:7x2 0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1/7:7 0:maj7x1",
+   "grilleEmpreinte": "d09d1a295f26dfd4",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "e3cc485a16e407bc",
+    "496b82d1997193c6",
+    "7d641f49c5064909",
+    "bed1dca792467fac",
+    "561d18f28fd06865",
+    "1bb95d30b2ef8fcf",
+    "3ad28e70aaa1b35d",
+    "0885ea912ac78a41",
+    "53da12cd580b3eda",
+    "11909ff10494a8fb",
+    "fb94417d27bf022d",
+    "d1da43ee880da222",
+    "6f8c7d043987d987",
+    "70c743d01ee9ad24",
+    "719b73ac58995473",
+    "7eb18bb4e082c7f6",
+    "a1dfdc7b1db1eb00",
+    "ca4b1894c1b10a9e",
+    "3794625f65fb7a67",
+    "0c3b3ddea7ce5176",
+    "de48dcfa0311e30c",
+    "4f8505aac18e9d2f",
+    "df2d31e495ef5dce",
+    "9080d3763c026fd6",
+    "7b0b9f05c121db10",
+    "0f04dbd19beaf99e",
+    "e9ba05d4d29f535d",
+    "5b737b08aebd9904",
+    "72067f866733e219",
+    "1f7d6db4beed3ced",
+    "d6c9aedad1cf5cd8",
+    "6ecb77f784b2e484"
+   ]
+  },
   "orchestre:brass@balkan78": {
    "reglages": {
     "tonalite": 2,
@@ -2042,7 +3065,10 @@
     "mesure": "7/8",
     "orchestre": "brass",
     "rythme": null,
-    "menuOrchestre": "brass",
+    "listes": [
+     "brass",
+     ""
+    ],
     "nom": "Orchestre Brass",
     "swing": 0.5,
     "densite": 0.5,
@@ -2097,7 +3123,10 @@
     "mesure": "12/8",
     "orchestre": "brass",
     "rythme": null,
-    "menuOrchestre": "brass",
+    "listes": [
+     "brass",
+     ""
+    ],
     "nom": "Orchestre Brass",
     "swing": 0.5,
     "densite": 0.5,
@@ -2148,7 +3177,10 @@
     "mesure": "4/4",
     "orchestre": "brass",
     "rythme": null,
-    "menuOrchestre": "brass",
+    "listes": [
+     "brass",
+     ""
+    ],
     "nom": "Orchestre Brass",
     "swing": 0.5,
     "densite": 0.5,
@@ -2191,7 +3223,10 @@
     "mesure": "6/8",
     "orchestre": "brass",
     "rythme": null,
-    "menuOrchestre": "brass",
+    "listes": [
+     "brass",
+     ""
+    ],
     "nom": "Orchestre Brass",
     "swing": 0.5,
     "densite": 0.5,
@@ -2262,7 +3297,10 @@
     "mesure": "3/4",
     "orchestre": "brass",
     "rythme": null,
-    "menuOrchestre": "brass",
+    "listes": [
+     "brass",
+     ""
+    ],
     "nom": "Orchestre Brass",
     "swing": 0.5,
     "densite": 0.5,
@@ -2333,7 +3371,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-chacha",
-    "menuOrchestre": "chachacha",
+    "listes": [
+     "cuba",
+     "cu-chacha"
+    ],
     "nom": "Orchestre Cha-cha-chá",
     "swing": 0.5,
     "densite": null,
@@ -2386,7 +3427,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-chacha",
-    "menuOrchestre": "chachacha",
+    "listes": [
+     "cuba",
+     "cu-chacha"
+    ],
     "nom": "Orchestre Cha-cha-chá",
     "swing": 0.5,
     "densite": null,
@@ -2435,7 +3479,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-chacha",
-    "menuOrchestre": "chachacha",
+    "listes": [
+     "cuba",
+     "cu-chacha"
+    ],
     "nom": "Orchestre Cha-cha-chá",
     "swing": 0.5,
     "densite": null,
@@ -2476,7 +3523,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-chacha",
-    "menuOrchestre": "chachacha",
+    "listes": [
+     "cuba",
+     "cu-chacha"
+    ],
     "nom": "Orchestre Cha-cha-chá",
     "swing": 0.5,
     "densite": null,
@@ -2545,7 +3595,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-chacha",
-    "menuOrchestre": "chachacha",
+    "listes": [
+     "cuba",
+     "cu-chacha"
+    ],
     "nom": "Orchestre Cha-cha-chá",
     "swing": 0.5,
     "densite": null,
@@ -2606,6 +3659,312 @@
     "961ae84fa485b1d2"
    ]
   },
+  "orchestre:classic-baroque@balkan78": {
+   "reglages": {
+    "tonalite": 2,
+    "mode": "aeolian",
+    "bpm": 120,
+    "mesure": "7/8",
+    "orchestre": "classic",
+    "rythme": "c-baroque",
+    "listes": [
+     "classic",
+     "c-baroque"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:minTriadx2 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 0:majTriadx1 5:majTriadx1 10:majTriadx1 4:m7b5x1 9:7b9x1 2:minTriadx2",
+   "grilleEmpreinte": "b19a84fcde76d864",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "b11d656ab59ba8d0",
+    "24b3b409ffd8b57f",
+    "a7a9a43e7671eddf",
+    "ba4ec5ba6a9c7720",
+    "3ddb1974f0a257b5",
+    "3e92d8b887bb253c",
+    "7848f22b568db7f4",
+    "c09c3060f4491560",
+    "b1e0cf5420b4950d",
+    "c9a2914214e0cde0",
+    "946d3bad1ed2d931",
+    "fd8f468e7b40d260",
+    "3e110af5080eb1f4",
+    "7ba02edc0f127160",
+    "a72b85555f0a6d3f",
+    "ae1fe3f75e7244df"
+   ]
+  },
+  "orchestre:classic-baroque@blues128": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "mixolydian",
+    "bpm": 64,
+    "mesure": "12/8",
+    "orchestre": "classic",
+    "rythme": "c-baroque",
+    "listes": [
+     "classic",
+     "c-baroque"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:7x2 0:7x2 5:7x2 0:7x2 7:7x1 5:7x1 0:7x1/7:7 0:7x1",
+   "grilleEmpreinte": "bd16204dffbf4ec8",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "163e08f841603561",
+    "64a2f3d33a6dbcf3",
+    "6c3133c0c61b2365",
+    "bd0055b7d60d4b8e",
+    "83ab6d9f515f84cd",
+    "1353a2e79b33e730",
+    "90593f6b3efb4376",
+    "c9198f3ff97149f7",
+    "846aed9ab1d1b640",
+    "3853857d11a96706",
+    "72aea1e9914f3d98",
+    "8d1c9fdf47545f67"
+   ]
+  },
+  "orchestre:classic-baroque@ii-v-i": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 120,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-baroque",
+    "listes": [
+     "classic",
+     "c-baroque"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:m7x1 7:7x1 0:maj7x1 0:maj7x1",
+   "grilleEmpreinte": "7229f59c72c5c062",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "c364ca42e7d9af9f",
+    "63e0c90e7295d569",
+    "d0f8af317eaf8f87",
+    "5d91b38b84f0b830"
+   ]
+  },
+  "orchestre:classic-baroque@jig": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 116,
+    "mesure": "6/8",
+    "orchestre": "classic",
+    "rythme": "c-baroque",
+    "listes": [
+     "classic",
+     "c-baroque"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 5:majTriadx1 0:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1",
+   "grilleEmpreinte": "d28cb691e2947aba",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "c4d1b281e6db5ba5",
+    "9be9c27a1b73ebc1",
+    "71671d8d531575d1",
+    "52db848d82ea9af8",
+    "68ee6067d6a7355d",
+    "650ab2d32e5cea9e",
+    "3e8a734af8ab43c6",
+    "d187911cedfbc9e3",
+    "73e7ac7be0e7cc9d",
+    "2043a049ce46fb23",
+    "e380fa5d78eb0a9b",
+    "2c33aa80e3dc0c32",
+    "e1cba8ebba769c92",
+    "90813d9ae45c7d47",
+    "a6850e8eece9949f",
+    "32a34ccb72103195",
+    "bf9c1cfae3317613",
+    "fd6ed6926c24bb2a",
+    "f05ed0284987785c",
+    "c029a2a15f0af004",
+    "51d52a4802b5cb85",
+    "f37faa33aab80426",
+    "1583794d92cc411f",
+    "e248b1e8f5514661",
+    "f119ff4e470f2600",
+    "e5a16264c214699d",
+    "106b84671f388cd8",
+    "1640c8a37755f95f",
+    "86ba7228dc2e93fd",
+    "4a0f691eff1738ad",
+    "b141997cb410e90f",
+    "676ede24e1f5ba0e"
+   ]
+  },
+  "orchestre:classic-baroque@valsejazz": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 168,
+    "mesure": "3/4",
+    "orchestre": "classic",
+    "rythme": "c-baroque",
+    "listes": [
+     "classic",
+     "c-baroque"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1 7:7x1 4:7x2 9:7x2 2:7x2 7:7x2 0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1/7:7 0:maj7x1",
+   "grilleEmpreinte": "d09d1a295f26dfd4",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "732db4221eb392ef",
+    "31b5394c81b9a1e4",
+    "9e70b675f2fe04ee",
+    "7e5c71b9505f0fc3",
+    "154fe80e2aeb9712",
+    "463282d2bb5db27e",
+    "e5bdfe4fcbade96a",
+    "236df8ed23393ace",
+    "e9cb078a6c62f111",
+    "32c6e149099735bd",
+    "56d88271cff23daf",
+    "d94cbc4ea20dc906",
+    "90ba247fb16db3cb",
+    "475a20dbf5598cad",
+    "4de6c18b86829f2c",
+    "79bf75a5a4966155",
+    "46197dfbff2d2488",
+    "dbf22da2f8a01115",
+    "c01be333227a5d30",
+    "ff339d71b3da5af4",
+    "398ebbf1d502e7dc",
+    "973c9c1e20bdf112",
+    "b888956b2294b02a",
+    "356267c38bb1119b",
+    "89ee7cbe6e574ffc",
+    "9792ea7b5e7028be",
+    "e6a1e9e5c6f13e84",
+    "153daccf90ad05b4",
+    "7c096ecbff253e5e",
+    "5dabe664168fb7a8",
+    "8548f27c1c10dd25",
+    "6412004e348922b3"
+   ]
+  },
   "orchestre:classic@balkan78": {
    "reglages": {
     "tonalite": 2,
@@ -2614,7 +3973,10 @@
     "mesure": "7/8",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -2669,7 +4031,10 @@
     "mesure": "12/8",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -2720,7 +4085,10 @@
     "mesure": "4/4",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -2763,7 +4131,10 @@
     "mesure": "6/8",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -2834,7 +4205,10 @@
     "mesure": "3/4",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -2905,7 +4279,10 @@
     "mesure": "7/8",
     "orchestre": "cuba",
     "rythme": null,
-    "menuOrchestre": "cuba",
+    "listes": [
+     "cuba",
+     ""
+    ],
     "nom": "Orchestre Cuba",
     "swing": 0.5,
     "densite": null,
@@ -2958,7 +4335,10 @@
     "mesure": "12/8",
     "orchestre": "cuba",
     "rythme": null,
-    "menuOrchestre": "cuba",
+    "listes": [
+     "cuba",
+     ""
+    ],
     "nom": "Orchestre Cuba",
     "swing": 0.5,
     "densite": null,
@@ -3007,7 +4387,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": null,
-    "menuOrchestre": "cuba",
+    "listes": [
+     "cuba",
+     ""
+    ],
     "nom": "Orchestre Cuba",
     "swing": 0.5,
     "densite": null,
@@ -3048,7 +4431,10 @@
     "mesure": "6/8",
     "orchestre": "cuba",
     "rythme": null,
-    "menuOrchestre": "cuba",
+    "listes": [
+     "cuba",
+     ""
+    ],
     "nom": "Orchestre Cuba",
     "swing": 0.5,
     "densite": null,
@@ -3117,7 +4503,10 @@
     "mesure": "3/4",
     "orchestre": "cuba",
     "rythme": null,
-    "menuOrchestre": "cuba",
+    "listes": [
+     "cuba",
+     ""
+    ],
     "nom": "Orchestre Cuba",
     "swing": 0.5,
     "densite": null,
@@ -3186,7 +4575,10 @@
     "mesure": "7/8",
     "orchestre": "cumbia",
     "rythme": null,
-    "menuOrchestre": "cumbia",
+    "listes": [
+     "cumbia",
+     ""
+    ],
     "nom": "Orchestre Cumbia",
     "swing": 0.5,
     "densite": 0.5,
@@ -3241,7 +4633,10 @@
     "mesure": "12/8",
     "orchestre": "cumbia",
     "rythme": null,
-    "menuOrchestre": "cumbia",
+    "listes": [
+     "cumbia",
+     ""
+    ],
     "nom": "Orchestre Cumbia",
     "swing": 0.5,
     "densite": 0.5,
@@ -3292,7 +4687,10 @@
     "mesure": "4/4",
     "orchestre": "cumbia",
     "rythme": null,
-    "menuOrchestre": "cumbia",
+    "listes": [
+     "cumbia",
+     ""
+    ],
     "nom": "Orchestre Cumbia",
     "swing": 0.5,
     "densite": 0.5,
@@ -3335,7 +4733,10 @@
     "mesure": "6/8",
     "orchestre": "cumbia",
     "rythme": null,
-    "menuOrchestre": "cumbia",
+    "listes": [
+     "cumbia",
+     ""
+    ],
     "nom": "Orchestre Cumbia",
     "swing": 0.5,
     "densite": 0.5,
@@ -3406,7 +4807,10 @@
     "mesure": "3/4",
     "orchestre": "cumbia",
     "rythme": null,
-    "menuOrchestre": "cumbia",
+    "listes": [
+     "cumbia",
+     ""
+    ],
     "nom": "Orchestre Cumbia",
     "swing": 0.5,
     "densite": 0.5,
@@ -3477,7 +4881,10 @@
     "mesure": "2/4",
     "orchestre": "cuba",
     "rythme": "cu-danzon",
-    "menuOrchestre": "danzon",
+    "listes": [
+     "cuba",
+     "cu-danzon"
+    ],
     "nom": "Orchestre Danzón",
     "swing": 0.5,
     "densite": null,
@@ -3530,7 +4937,10 @@
     "mesure": "2/4",
     "orchestre": "cuba",
     "rythme": "cu-danzon",
-    "menuOrchestre": "danzon",
+    "listes": [
+     "cuba",
+     "cu-danzon"
+    ],
     "nom": "Orchestre Danzón",
     "swing": 0.5,
     "densite": null,
@@ -3579,7 +4989,10 @@
     "mesure": "2/4",
     "orchestre": "cuba",
     "rythme": "cu-danzon",
-    "menuOrchestre": "danzon",
+    "listes": [
+     "cuba",
+     "cu-danzon"
+    ],
     "nom": "Orchestre Danzón",
     "swing": 0.5,
     "densite": null,
@@ -3620,7 +5033,10 @@
     "mesure": "2/4",
     "orchestre": "cuba",
     "rythme": "cu-danzon",
-    "menuOrchestre": "danzon",
+    "listes": [
+     "cuba",
+     "cu-danzon"
+    ],
     "nom": "Orchestre Danzón",
     "swing": 0.5,
     "densite": null,
@@ -3689,7 +5105,10 @@
     "mesure": "2/4",
     "orchestre": "cuba",
     "rythme": "cu-danzon",
-    "menuOrchestre": "danzon",
+    "listes": [
+     "cuba",
+     "cu-danzon"
+    ],
     "nom": "Orchestre Danzón",
     "swing": 0.5,
     "densite": null,
@@ -3758,7 +5177,10 @@
     "mesure": "12/8",
     "orchestre": "guitar",
     "rythme": "f-bulerias",
-    "menuOrchestre": "flamencobulerias",
+    "listes": [
+     "guitar",
+     "f-bulerias"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -3811,7 +5233,10 @@
     "mesure": "12/8",
     "orchestre": "guitar",
     "rythme": "f-bulerias",
-    "menuOrchestre": "flamencobulerias",
+    "listes": [
+     "guitar",
+     "f-bulerias"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -3860,7 +5285,10 @@
     "mesure": "12/8",
     "orchestre": "guitar",
     "rythme": "f-bulerias",
-    "menuOrchestre": "flamencobulerias",
+    "listes": [
+     "guitar",
+     "f-bulerias"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -3901,7 +5329,10 @@
     "mesure": "12/8",
     "orchestre": "guitar",
     "rythme": "f-bulerias",
-    "menuOrchestre": "flamencobulerias",
+    "listes": [
+     "guitar",
+     "f-bulerias"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -3970,7 +5401,10 @@
     "mesure": "12/8",
     "orchestre": "guitar",
     "rythme": "f-bulerias",
-    "menuOrchestre": "flamencobulerias",
+    "listes": [
+     "guitar",
+     "f-bulerias"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -4039,7 +5473,10 @@
     "mesure": "12/8",
     "orchestre": "guitar",
     "rythme": "f-solea",
-    "menuOrchestre": "flamencosolea",
+    "listes": [
+     "guitar",
+     "f-solea"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -4092,7 +5529,10 @@
     "mesure": "12/8",
     "orchestre": "guitar",
     "rythme": "f-solea",
-    "menuOrchestre": "flamencosolea",
+    "listes": [
+     "guitar",
+     "f-solea"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -4141,7 +5581,10 @@
     "mesure": "12/8",
     "orchestre": "guitar",
     "rythme": "f-solea",
-    "menuOrchestre": "flamencosolea",
+    "listes": [
+     "guitar",
+     "f-solea"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -4182,7 +5625,10 @@
     "mesure": "12/8",
     "orchestre": "guitar",
     "rythme": "f-solea",
-    "menuOrchestre": "flamencosolea",
+    "listes": [
+     "guitar",
+     "f-solea"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -4251,7 +5697,10 @@
     "mesure": "12/8",
     "orchestre": "guitar",
     "rythme": "f-solea",
-    "menuOrchestre": "flamencosolea",
+    "listes": [
+     "guitar",
+     "f-solea"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -4320,7 +5769,10 @@
     "mesure": "4/4",
     "orchestre": "guitar",
     "rythme": "f-tangos",
-    "menuOrchestre": "flamencotangos",
+    "listes": [
+     "guitar",
+     "f-tangos"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -4373,7 +5825,10 @@
     "mesure": "4/4",
     "orchestre": "guitar",
     "rythme": "f-tangos",
-    "menuOrchestre": "flamencotangos",
+    "listes": [
+     "guitar",
+     "f-tangos"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -4422,7 +5877,10 @@
     "mesure": "4/4",
     "orchestre": "guitar",
     "rythme": "f-tangos",
-    "menuOrchestre": "flamencotangos",
+    "listes": [
+     "guitar",
+     "f-tangos"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -4463,7 +5921,10 @@
     "mesure": "4/4",
     "orchestre": "guitar",
     "rythme": "f-tangos",
-    "menuOrchestre": "flamencotangos",
+    "listes": [
+     "guitar",
+     "f-tangos"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -4532,7 +5993,10 @@
     "mesure": "4/4",
     "orchestre": "guitar",
     "rythme": "f-tangos",
-    "menuOrchestre": "flamencotangos",
+    "listes": [
+     "guitar",
+     "f-tangos"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -4601,7 +6065,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-guaguanco",
-    "menuOrchestre": "guaguanco",
+    "listes": [
+     "cuba",
+     "cu-guaguanco"
+    ],
     "nom": "Orchestre Rumba guaguancó",
     "swing": 0.5,
     "densite": null,
@@ -4654,7 +6121,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-guaguanco",
-    "menuOrchestre": "guaguanco",
+    "listes": [
+     "cuba",
+     "cu-guaguanco"
+    ],
     "nom": "Orchestre Rumba guaguancó",
     "swing": 0.5,
     "densite": null,
@@ -4703,7 +6173,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-guaguanco",
-    "menuOrchestre": "guaguanco",
+    "listes": [
+     "cuba",
+     "cu-guaguanco"
+    ],
     "nom": "Orchestre Rumba guaguancó",
     "swing": 0.5,
     "densite": null,
@@ -4744,7 +6217,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-guaguanco",
-    "menuOrchestre": "guaguanco",
+    "listes": [
+     "cuba",
+     "cu-guaguanco"
+    ],
     "nom": "Orchestre Rumba guaguancó",
     "swing": 0.5,
     "densite": null,
@@ -4813,7 +6289,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-guaguanco",
-    "menuOrchestre": "guaguanco",
+    "listes": [
+     "cuba",
+     "cu-guaguanco"
+    ],
     "nom": "Orchestre Rumba guaguancó",
     "swing": 0.5,
     "densite": null,
@@ -4882,7 +6361,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-guajira",
-    "menuOrchestre": "guajira",
+    "listes": [
+     "cuba",
+     "cu-guajira"
+    ],
     "nom": "Orchestre Guajira",
     "swing": 0.5,
     "densite": null,
@@ -4935,7 +6417,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-guajira",
-    "menuOrchestre": "guajira",
+    "listes": [
+     "cuba",
+     "cu-guajira"
+    ],
     "nom": "Orchestre Guajira",
     "swing": 0.5,
     "densite": null,
@@ -4984,7 +6469,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-guajira",
-    "menuOrchestre": "guajira",
+    "listes": [
+     "cuba",
+     "cu-guajira"
+    ],
     "nom": "Orchestre Guajira",
     "swing": 0.5,
     "densite": null,
@@ -5025,7 +6513,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-guajira",
-    "menuOrchestre": "guajira",
+    "listes": [
+     "cuba",
+     "cu-guajira"
+    ],
     "nom": "Orchestre Guajira",
     "swing": 0.5,
     "densite": null,
@@ -5094,7 +6585,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-guajira",
-    "menuOrchestre": "guajira",
+    "listes": [
+     "cuba",
+     "cu-guajira"
+    ],
     "nom": "Orchestre Guajira",
     "swing": 0.5,
     "densite": null,
@@ -5155,6 +6649,312 @@
     "78c60d00e8a7fb00"
    ]
   },
+  "orchestre:guitar-baroque@balkan78": {
+   "reglages": {
+    "tonalite": 2,
+    "mode": "aeolian",
+    "bpm": 120,
+    "mesure": "7/8",
+    "orchestre": "guitar",
+    "rythme": "c-baroque",
+    "listes": [
+     "guitar",
+     "c-baroque"
+    ],
+    "nom": "Orchestre Guitare",
+    "swing": 0.5,
+    "densite": 0.6,
+    "curseurs": [
+     "Guitare",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:minTriadx2 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 0:majTriadx1 5:majTriadx1 10:majTriadx1 4:m7b5x1 9:7b9x1 2:minTriadx2",
+   "grilleEmpreinte": "b19a84fcde76d864",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "04f82172dc78cb8c",
+    "86fc21f3aac3dcca",
+    "d8ac3cab63743be4",
+    "0aa239b791a07e00",
+    "680619215041fe5e",
+    "5d736e148318023e",
+    "6932a95ecc4a5fec",
+    "13fabddacd55da02",
+    "cad6508f712ba16b",
+    "ac30307d8392c06c",
+    "73306cdcd39c8ebc",
+    "9626d0b4315b7447",
+    "ba950db9d7234bb0",
+    "6d9141f0c362f34a",
+    "ca32986ffdc71517",
+    "e9231ae2f942ba23"
+   ]
+  },
+  "orchestre:guitar-baroque@blues128": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "mixolydian",
+    "bpm": 64,
+    "mesure": "12/8",
+    "orchestre": "guitar",
+    "rythme": "c-baroque",
+    "listes": [
+     "guitar",
+     "c-baroque"
+    ],
+    "nom": "Orchestre Guitare",
+    "swing": 0.5,
+    "densite": 0.6,
+    "curseurs": [
+     "Guitare",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:7x2 0:7x2 5:7x2 0:7x2 7:7x1 5:7x1 0:7x1/7:7 0:7x1",
+   "grilleEmpreinte": "bd16204dffbf4ec8",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "32c0963a423eaf3f",
+    "eaab66c7cbb4561c",
+    "8890a9cdfa02d469",
+    "37bcd1d5653d9a0e",
+    "70afc4ddbb009aa2",
+    "7de96db26054ec21",
+    "e79a609400496afb",
+    "a909c02f6f55e861",
+    "22c69dce384daaf9",
+    "fce897fe0dd4231a",
+    "14dd7d27c95d456c",
+    "8d40960d79298b68"
+   ]
+  },
+  "orchestre:guitar-baroque@ii-v-i": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 120,
+    "mesure": "4/4",
+    "orchestre": "guitar",
+    "rythme": "c-baroque",
+    "listes": [
+     "guitar",
+     "c-baroque"
+    ],
+    "nom": "Orchestre Guitare",
+    "swing": 0.5,
+    "densite": 0.6,
+    "curseurs": [
+     "Guitare",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:m7x1 7:7x1 0:maj7x1 0:maj7x1",
+   "grilleEmpreinte": "7229f59c72c5c062",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "9dffc66fc6f3f8bd",
+    "66619cbfa45884be",
+    "a18168af18295a54",
+    "5b876f5751fe8384"
+   ]
+  },
+  "orchestre:guitar-baroque@jig": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 116,
+    "mesure": "6/8",
+    "orchestre": "guitar",
+    "rythme": "c-baroque",
+    "listes": [
+     "guitar",
+     "c-baroque"
+    ],
+    "nom": "Orchestre Guitare",
+    "swing": 0.5,
+    "densite": 0.6,
+    "curseurs": [
+     "Guitare",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 5:majTriadx1 0:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1",
+   "grilleEmpreinte": "d28cb691e2947aba",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "ab2d82e53e9cd278",
+    "c69f7e8f5f21ef82",
+    "04ec464c82488e79",
+    "e9a496f1b9bc6b5a",
+    "b1b2db5c9f0728b8",
+    "eb39c6fe227d9c92",
+    "663e877da26a3289",
+    "2ea7a9321e71433a",
+    "04e5a752af90d09f",
+    "c96fcfd4e379bba1",
+    "313e36ead9f3cff2",
+    "01e8ec2f0cfaa1d4",
+    "afae8cdcc9c6198f",
+    "e24ae4d87eb746cc",
+    "1c6799dc0e6bfcc8",
+    "8017ee3509d6f62a",
+    "8a5c06f9b1a8b55b",
+    "e004ef8f88ccd7e1",
+    "faa76fecf4127412",
+    "e6ecf8e26f364ef3",
+    "6fc8788e9c9b8aec",
+    "f07312604c461c5f",
+    "8644af2bdffa0eae",
+    "8fabd37a813cbb65",
+    "27a24abe4dd81f74",
+    "b5102f677f5b09e7",
+    "81800a9161f24f87",
+    "ae7a5d628c7098e0",
+    "9ec4687954f71214",
+    "7b1956dee27e6929",
+    "f0a27fc6b9b43d87",
+    "762d34a4829f86b4"
+   ]
+  },
+  "orchestre:guitar-baroque@valsejazz": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 168,
+    "mesure": "3/4",
+    "orchestre": "guitar",
+    "rythme": "c-baroque",
+    "listes": [
+     "guitar",
+     "c-baroque"
+    ],
+    "nom": "Orchestre Guitare",
+    "swing": 0.5,
+    "densite": 0.6,
+    "curseurs": [
+     "Guitare",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1 7:7x1 4:7x2 9:7x2 2:7x2 7:7x2 0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1/7:7 0:maj7x1",
+   "grilleEmpreinte": "d09d1a295f26dfd4",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "dfd0e00a4928da8b",
+    "206254499060d1c8",
+    "40e9287f378d0e87",
+    "d26eec7c67a88872",
+    "b0d2af2a4c6738a4",
+    "1337e2caad4f9558",
+    "977d24cbe4412173",
+    "557dd670eec58728",
+    "079ddf96fb3ec088",
+    "4c3cbfdc1bd82a83",
+    "1aa2b4bb5a563fd3",
+    "68fb555dd61a87dc",
+    "5fe630ebc7466e88",
+    "43186202c3474d4b",
+    "57f63bf17882bc61",
+    "ec4056db02e422cb",
+    "300e58a57714ece1",
+    "13dea85f9d0c6b7b",
+    "1c5a70ba6b10df64",
+    "a282f0835e4800b7",
+    "b730e7e560cb7b8b",
+    "22707443de7e91bc",
+    "f225ceaae479f96e",
+    "6ccec297453d99cf",
+    "62431c5d3f1ce21d",
+    "94568bb5c3af670c",
+    "93e80ce4c03c4aa6",
+    "80378816a9a55e68",
+    "73346f7630b2be15",
+    "19bb39a7dfd5b635",
+    "2428d32578ed68f9",
+    "c1802f0cad7766d4"
+   ]
+  },
   "orchestre:guitar@balkan78": {
    "reglages": {
     "tonalite": 2,
@@ -5163,7 +6963,10 @@
     "mesure": "7/8",
     "orchestre": "guitar",
     "rythme": null,
-    "menuOrchestre": "guitar",
+    "listes": [
+     "guitar",
+     ""
+    ],
     "nom": "Orchestre Guitare",
     "swing": 0.5,
     "densite": 0.6,
@@ -5218,7 +7021,10 @@
     "mesure": "12/8",
     "orchestre": "guitar",
     "rythme": null,
-    "menuOrchestre": "guitar",
+    "listes": [
+     "guitar",
+     ""
+    ],
     "nom": "Orchestre Guitare",
     "swing": 0.5,
     "densite": 0.6,
@@ -5269,7 +7075,10 @@
     "mesure": "4/4",
     "orchestre": "guitar",
     "rythme": null,
-    "menuOrchestre": "guitar",
+    "listes": [
+     "guitar",
+     ""
+    ],
     "nom": "Orchestre Guitare",
     "swing": 0.5,
     "densite": 0.6,
@@ -5312,7 +7121,10 @@
     "mesure": "6/8",
     "orchestre": "guitar",
     "rythme": null,
-    "menuOrchestre": "guitar",
+    "listes": [
+     "guitar",
+     ""
+    ],
     "nom": "Orchestre Guitare",
     "swing": 0.5,
     "densite": 0.6,
@@ -5383,7 +7195,10 @@
     "mesure": "3/4",
     "orchestre": "guitar",
     "rythme": null,
-    "menuOrchestre": "guitar",
+    "listes": [
+     "guitar",
+     ""
+    ],
     "nom": "Orchestre Guitare",
     "swing": 0.5,
     "densite": 0.6,
@@ -5454,7 +7269,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-hard",
-    "menuOrchestre": "hardrock",
+    "listes": [
+     "pop",
+     "r-hard"
+    ],
     "nom": "Orchestre Hard rock",
     "swing": 0.5,
     "densite": null,
@@ -5511,7 +7329,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-hard",
-    "menuOrchestre": "hardrock",
+    "listes": [
+     "pop",
+     "r-hard"
+    ],
     "nom": "Orchestre Hard rock",
     "swing": 0.5,
     "densite": null,
@@ -5564,7 +7385,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-hard",
-    "menuOrchestre": "hardrock",
+    "listes": [
+     "pop",
+     "r-hard"
+    ],
     "nom": "Orchestre Hard rock",
     "swing": 0.5,
     "densite": null,
@@ -5609,7 +7433,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-hard",
-    "menuOrchestre": "hardrock",
+    "listes": [
+     "pop",
+     "r-hard"
+    ],
     "nom": "Orchestre Hard rock",
     "swing": 0.5,
     "densite": null,
@@ -5682,7 +7509,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-hard",
-    "menuOrchestre": "hardrock",
+    "listes": [
+     "pop",
+     "r-hard"
+    ],
     "nom": "Orchestre Hard rock",
     "swing": 0.5,
     "densite": null,
@@ -5755,7 +7585,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-highlife",
-    "menuOrchestre": "highlife",
+    "listes": [
+     "africa",
+     "af-highlife"
+    ],
     "nom": "Orchestre Highlife",
     "swing": 0.56,
     "densite": null,
@@ -5811,7 +7644,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-highlife",
-    "menuOrchestre": "highlife",
+    "listes": [
+     "africa",
+     "af-highlife"
+    ],
     "nom": "Orchestre Highlife",
     "swing": 0.56,
     "densite": null,
@@ -5863,7 +7699,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-highlife",
-    "menuOrchestre": "highlife",
+    "listes": [
+     "africa",
+     "af-highlife"
+    ],
     "nom": "Orchestre Highlife",
     "swing": 0.56,
     "densite": null,
@@ -5907,7 +7746,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-highlife",
-    "menuOrchestre": "highlife",
+    "listes": [
+     "africa",
+     "af-highlife"
+    ],
     "nom": "Orchestre Highlife",
     "swing": 0.56,
     "densite": null,
@@ -5979,7 +7821,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-highlife",
-    "menuOrchestre": "highlife",
+    "listes": [
+     "africa",
+     "af-highlife"
+    ],
     "nom": "Orchestre Highlife",
     "swing": 0.56,
     "densite": null,
@@ -6051,7 +7896,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-indie",
-    "menuOrchestre": "indierock",
+    "listes": [
+     "pop",
+     "r-indie"
+    ],
     "nom": "Orchestre Indie",
     "swing": 0.5,
     "densite": null,
@@ -6108,7 +7956,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-indie",
-    "menuOrchestre": "indierock",
+    "listes": [
+     "pop",
+     "r-indie"
+    ],
     "nom": "Orchestre Indie",
     "swing": 0.5,
     "densite": null,
@@ -6161,7 +8012,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-indie",
-    "menuOrchestre": "indierock",
+    "listes": [
+     "pop",
+     "r-indie"
+    ],
     "nom": "Orchestre Indie",
     "swing": 0.5,
     "densite": null,
@@ -6206,7 +8060,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-indie",
-    "menuOrchestre": "indierock",
+    "listes": [
+     "pop",
+     "r-indie"
+    ],
     "nom": "Orchestre Indie",
     "swing": 0.5,
     "densite": null,
@@ -6279,7 +8136,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-indie",
-    "menuOrchestre": "indierock",
+    "listes": [
+     "pop",
+     "r-indie"
+    ],
     "nom": "Orchestre Indie",
     "swing": 0.5,
     "densite": null,
@@ -6352,7 +8212,10 @@
     "mesure": "7/8",
     "orchestre": "latin",
     "rythme": null,
-    "menuOrchestre": "latin",
+    "listes": [
+     "latin",
+     ""
+    ],
     "nom": "Orchestre Brasil",
     "swing": 0.5,
     "densite": null,
@@ -6405,7 +8268,10 @@
     "mesure": "12/8",
     "orchestre": "latin",
     "rythme": null,
-    "menuOrchestre": "latin",
+    "listes": [
+     "latin",
+     ""
+    ],
     "nom": "Orchestre Brasil",
     "swing": 0.5,
     "densite": null,
@@ -6454,7 +8320,10 @@
     "mesure": "4/4",
     "orchestre": "latin",
     "rythme": null,
-    "menuOrchestre": "latin",
+    "listes": [
+     "latin",
+     ""
+    ],
     "nom": "Orchestre Brasil",
     "swing": 0.5,
     "densite": null,
@@ -6495,7 +8364,10 @@
     "mesure": "6/8",
     "orchestre": "latin",
     "rythme": null,
-    "menuOrchestre": "latin",
+    "listes": [
+     "latin",
+     ""
+    ],
     "nom": "Orchestre Brasil",
     "swing": 0.5,
     "densite": null,
@@ -6564,7 +8436,10 @@
     "mesure": "3/4",
     "orchestre": "latin",
     "rythme": null,
-    "menuOrchestre": "latin",
+    "listes": [
+     "latin",
+     ""
+    ],
     "nom": "Orchestre Brasil",
     "swing": 0.5,
     "densite": null,
@@ -6633,7 +8508,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-mbaqanga",
-    "menuOrchestre": "mbaqanga",
+    "listes": [
+     "africa",
+     "af-mbaqanga"
+    ],
     "nom": "Orchestre Mbaqanga",
     "swing": 0.5,
     "densite": null,
@@ -6689,7 +8567,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-mbaqanga",
-    "menuOrchestre": "mbaqanga",
+    "listes": [
+     "africa",
+     "af-mbaqanga"
+    ],
     "nom": "Orchestre Mbaqanga",
     "swing": 0.5,
     "densite": null,
@@ -6741,7 +8622,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-mbaqanga",
-    "menuOrchestre": "mbaqanga",
+    "listes": [
+     "africa",
+     "af-mbaqanga"
+    ],
     "nom": "Orchestre Mbaqanga",
     "swing": 0.5,
     "densite": null,
@@ -6785,7 +8669,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-mbaqanga",
-    "menuOrchestre": "mbaqanga",
+    "listes": [
+     "africa",
+     "af-mbaqanga"
+    ],
     "nom": "Orchestre Mbaqanga",
     "swing": 0.5,
     "densite": null,
@@ -6857,7 +8744,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-mbaqanga",
-    "menuOrchestre": "mbaqanga",
+    "listes": [
+     "africa",
+     "af-mbaqanga"
+    ],
     "nom": "Orchestre Mbaqanga",
     "swing": 0.5,
     "densite": null,
@@ -6929,7 +8819,10 @@
     "mesure": "7/8",
     "orchestre": "piazzolla",
     "rythme": "lyrique",
-    "menuOrchestre": "milongalyrique",
+    "listes": [
+     "piazzolla",
+     "lyrique"
+    ],
     "nom": "Orchestre Milonga lyrique",
     "swing": 0.5,
     "densite": 0.5,
@@ -6987,7 +8880,10 @@
     "mesure": "12/8",
     "orchestre": "piazzolla",
     "rythme": "lyrique",
-    "menuOrchestre": "milongalyrique",
+    "listes": [
+     "piazzolla",
+     "lyrique"
+    ],
     "nom": "Orchestre Milonga lyrique",
     "swing": 0.5,
     "densite": 0.5,
@@ -7041,7 +8937,10 @@
     "mesure": "4/4",
     "orchestre": "piazzolla",
     "rythme": "lyrique",
-    "menuOrchestre": "milongalyrique",
+    "listes": [
+     "piazzolla",
+     "lyrique"
+    ],
     "nom": "Orchestre Milonga lyrique",
     "swing": 0.5,
     "densite": 0.5,
@@ -7087,7 +8986,10 @@
     "mesure": "6/8",
     "orchestre": "piazzolla",
     "rythme": "lyrique",
-    "menuOrchestre": "milongalyrique",
+    "listes": [
+     "piazzolla",
+     "lyrique"
+    ],
     "nom": "Orchestre Milonga lyrique",
     "swing": 0.5,
     "densite": 0.5,
@@ -7161,7 +9063,10 @@
     "mesure": "3/4",
     "orchestre": "piazzolla",
     "rythme": "lyrique",
-    "menuOrchestre": "milongalyrique",
+    "listes": [
+     "piazzolla",
+     "lyrique"
+    ],
     "nom": "Orchestre Milonga lyrique",
     "swing": 0.5,
     "densite": 0.5,
@@ -7235,7 +9140,10 @@
     "mesure": "7/8",
     "orchestre": "piazzolla",
     "rythme": null,
-    "menuOrchestre": "piazzolla",
+    "listes": [
+     "piazzolla",
+     ""
+    ],
     "nom": "Orchestre Tango nuevo",
     "swing": 0.5,
     "densite": 0.5,
@@ -7293,7 +9201,10 @@
     "mesure": "12/8",
     "orchestre": "piazzolla",
     "rythme": null,
-    "menuOrchestre": "piazzolla",
+    "listes": [
+     "piazzolla",
+     ""
+    ],
     "nom": "Orchestre Tango nuevo",
     "swing": 0.5,
     "densite": 0.5,
@@ -7347,7 +9258,10 @@
     "mesure": "4/4",
     "orchestre": "piazzolla",
     "rythme": null,
-    "menuOrchestre": "piazzolla",
+    "listes": [
+     "piazzolla",
+     ""
+    ],
     "nom": "Orchestre Tango nuevo",
     "swing": 0.5,
     "densite": 0.5,
@@ -7393,7 +9307,10 @@
     "mesure": "6/8",
     "orchestre": "piazzolla",
     "rythme": null,
-    "menuOrchestre": "piazzolla",
+    "listes": [
+     "piazzolla",
+     ""
+    ],
     "nom": "Orchestre Tango nuevo",
     "swing": 0.5,
     "densite": 0.5,
@@ -7467,7 +9384,10 @@
     "mesure": "3/4",
     "orchestre": "piazzolla",
     "rythme": null,
-    "menuOrchestre": "piazzolla",
+    "listes": [
+     "piazzolla",
+     ""
+    ],
     "nom": "Orchestre Tango nuevo",
     "swing": 0.5,
     "densite": 0.5,
@@ -7541,7 +9461,10 @@
     "mesure": "7/8",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -7598,7 +9521,10 @@
     "mesure": "12/8",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -7651,7 +9577,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -7696,7 +9625,10 @@
     "mesure": "6/8",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -7769,7 +9701,10 @@
     "mesure": "3/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -7842,7 +9777,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-punk",
-    "menuOrchestre": "punk",
+    "listes": [
+     "pop",
+     "r-punk"
+    ],
     "nom": "Orchestre Punk",
     "swing": 0.5,
     "densite": null,
@@ -7899,7 +9837,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-punk",
-    "menuOrchestre": "punk",
+    "listes": [
+     "pop",
+     "r-punk"
+    ],
     "nom": "Orchestre Punk",
     "swing": 0.5,
     "densite": null,
@@ -7952,7 +9893,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-punk",
-    "menuOrchestre": "punk",
+    "listes": [
+     "pop",
+     "r-punk"
+    ],
     "nom": "Orchestre Punk",
     "swing": 0.5,
     "densite": null,
@@ -7997,7 +9941,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-punk",
-    "menuOrchestre": "punk",
+    "listes": [
+     "pop",
+     "r-punk"
+    ],
     "nom": "Orchestre Punk",
     "swing": 0.5,
     "densite": null,
@@ -8070,7 +10017,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-punk",
-    "menuOrchestre": "punk",
+    "listes": [
+     "pop",
+     "r-punk"
+    ],
     "nom": "Orchestre Punk",
     "swing": 0.5,
     "densite": null,
@@ -8143,7 +10093,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-ballad",
-    "menuOrchestre": "rockballad",
+    "listes": [
+     "pop",
+     "r-ballad"
+    ],
     "nom": "Orchestre Power ballad",
     "swing": 0.5,
     "densite": null,
@@ -8200,7 +10153,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-ballad",
-    "menuOrchestre": "rockballad",
+    "listes": [
+     "pop",
+     "r-ballad"
+    ],
     "nom": "Orchestre Power ballad",
     "swing": 0.5,
     "densite": null,
@@ -8253,7 +10209,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-ballad",
-    "menuOrchestre": "rockballad",
+    "listes": [
+     "pop",
+     "r-ballad"
+    ],
     "nom": "Orchestre Power ballad",
     "swing": 0.5,
     "densite": null,
@@ -8298,7 +10257,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-ballad",
-    "menuOrchestre": "rockballad",
+    "listes": [
+     "pop",
+     "r-ballad"
+    ],
     "nom": "Orchestre Power ballad",
     "swing": 0.5,
     "densite": null,
@@ -8371,7 +10333,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-ballad",
-    "menuOrchestre": "rockballad",
+    "listes": [
+     "pop",
+     "r-ballad"
+    ],
     "nom": "Orchestre Power ballad",
     "swing": 0.5,
     "densite": null,
@@ -8444,7 +10409,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-classic",
-    "menuOrchestre": "rockclassic",
+    "listes": [
+     "pop",
+     "r-classic"
+    ],
     "nom": "Orchestre Rock classique",
     "swing": 0.5,
     "densite": null,
@@ -8501,7 +10469,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-classic",
-    "menuOrchestre": "rockclassic",
+    "listes": [
+     "pop",
+     "r-classic"
+    ],
     "nom": "Orchestre Rock classique",
     "swing": 0.5,
     "densite": null,
@@ -8554,7 +10525,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-classic",
-    "menuOrchestre": "rockclassic",
+    "listes": [
+     "pop",
+     "r-classic"
+    ],
     "nom": "Orchestre Rock classique",
     "swing": 0.5,
     "densite": null,
@@ -8599,7 +10573,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-classic",
-    "menuOrchestre": "rockclassic",
+    "listes": [
+     "pop",
+     "r-classic"
+    ],
     "nom": "Orchestre Rock classique",
     "swing": 0.5,
     "densite": null,
@@ -8672,7 +10649,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-classic",
-    "menuOrchestre": "rockclassic",
+    "listes": [
+     "pop",
+     "r-classic"
+    ],
     "nom": "Orchestre Rock classique",
     "swing": 0.5,
     "densite": null,
@@ -8745,7 +10725,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-roll",
-    "menuOrchestre": "rockroll",
+    "listes": [
+     "pop",
+     "r-roll"
+    ],
     "nom": "Orchestre Rock'n'roll",
     "swing": 0.62,
     "densite": null,
@@ -8802,7 +10785,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-roll",
-    "menuOrchestre": "rockroll",
+    "listes": [
+     "pop",
+     "r-roll"
+    ],
     "nom": "Orchestre Rock'n'roll",
     "swing": 0.62,
     "densite": null,
@@ -8855,7 +10841,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-roll",
-    "menuOrchestre": "rockroll",
+    "listes": [
+     "pop",
+     "r-roll"
+    ],
     "nom": "Orchestre Rock'n'roll",
     "swing": 0.62,
     "densite": null,
@@ -8900,7 +10889,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-roll",
-    "menuOrchestre": "rockroll",
+    "listes": [
+     "pop",
+     "r-roll"
+    ],
     "nom": "Orchestre Rock'n'roll",
     "swing": 0.62,
     "densite": null,
@@ -8973,7 +10965,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-roll",
-    "menuOrchestre": "rockroll",
+    "listes": [
+     "pop",
+     "r-roll"
+    ],
     "nom": "Orchestre Rock'n'roll",
     "swing": 0.62,
     "densite": null,
@@ -9046,7 +11041,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-rumba",
-    "menuOrchestre": "rumbacongo",
+    "listes": [
+     "africa",
+     "af-rumba"
+    ],
     "nom": "Orchestre Rumba congolaise",
     "swing": 0.5,
     "densite": null,
@@ -9102,7 +11100,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-rumba",
-    "menuOrchestre": "rumbacongo",
+    "listes": [
+     "africa",
+     "af-rumba"
+    ],
     "nom": "Orchestre Rumba congolaise",
     "swing": 0.5,
     "densite": null,
@@ -9154,7 +11155,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-rumba",
-    "menuOrchestre": "rumbacongo",
+    "listes": [
+     "africa",
+     "af-rumba"
+    ],
     "nom": "Orchestre Rumba congolaise",
     "swing": 0.5,
     "densite": null,
@@ -9198,7 +11202,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-rumba",
-    "menuOrchestre": "rumbacongo",
+    "listes": [
+     "africa",
+     "af-rumba"
+    ],
     "nom": "Orchestre Rumba congolaise",
     "swing": 0.5,
     "densite": null,
@@ -9270,7 +11277,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-rumba",
-    "menuOrchestre": "rumbacongo",
+    "listes": [
+     "africa",
+     "af-rumba"
+    ],
     "nom": "Orchestre Rumba congolaise",
     "swing": 0.5,
     "densite": null,
@@ -9342,7 +11352,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "salsa",
-    "menuOrchestre": "salsa",
+    "listes": [
+     "cuba",
+     "salsa"
+    ],
     "nom": "Orchestre Salsa",
     "swing": 0.5,
     "densite": null,
@@ -9395,7 +11408,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "salsa",
-    "menuOrchestre": "salsa",
+    "listes": [
+     "cuba",
+     "salsa"
+    ],
     "nom": "Orchestre Salsa",
     "swing": 0.5,
     "densite": null,
@@ -9444,7 +11460,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "salsa",
-    "menuOrchestre": "salsa",
+    "listes": [
+     "cuba",
+     "salsa"
+    ],
     "nom": "Orchestre Salsa",
     "swing": 0.5,
     "densite": null,
@@ -9485,7 +11504,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "salsa",
-    "menuOrchestre": "salsa",
+    "listes": [
+     "cuba",
+     "salsa"
+    ],
     "nom": "Orchestre Salsa",
     "swing": 0.5,
     "densite": null,
@@ -9554,7 +11576,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "salsa",
-    "menuOrchestre": "salsa",
+    "listes": [
+     "cuba",
+     "salsa"
+    ],
     "nom": "Orchestre Salsa",
     "swing": 0.5,
     "densite": null,
@@ -9623,7 +11648,10 @@
     "mesure": "2/4",
     "orchestre": "latin",
     "rythme": "samba",
-    "menuOrchestre": "samba",
+    "listes": [
+     "latin",
+     "samba"
+    ],
     "nom": "Orchestre Samba",
     "swing": 0.5,
     "densite": null,
@@ -9676,7 +11704,10 @@
     "mesure": "2/4",
     "orchestre": "latin",
     "rythme": "samba",
-    "menuOrchestre": "samba",
+    "listes": [
+     "latin",
+     "samba"
+    ],
     "nom": "Orchestre Samba",
     "swing": 0.5,
     "densite": null,
@@ -9725,7 +11756,10 @@
     "mesure": "2/4",
     "orchestre": "latin",
     "rythme": "samba",
-    "menuOrchestre": "samba",
+    "listes": [
+     "latin",
+     "samba"
+    ],
     "nom": "Orchestre Samba",
     "swing": 0.5,
     "densite": null,
@@ -9766,7 +11800,10 @@
     "mesure": "2/4",
     "orchestre": "latin",
     "rythme": "samba",
-    "menuOrchestre": "samba",
+    "listes": [
+     "latin",
+     "samba"
+    ],
     "nom": "Orchestre Samba",
     "swing": 0.5,
     "densite": null,
@@ -9835,7 +11872,10 @@
     "mesure": "2/4",
     "orchestre": "latin",
     "rythme": "samba",
-    "menuOrchestre": "samba",
+    "listes": [
+     "latin",
+     "samba"
+    ],
     "nom": "Orchestre Samba",
     "swing": 0.5,
     "densite": null,
@@ -9904,7 +11944,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-son",
-    "menuOrchestre": "sonmontuno",
+    "listes": [
+     "cuba",
+     "cu-son"
+    ],
     "nom": "Orchestre Son montuno",
     "swing": 0.5,
     "densite": null,
@@ -9957,7 +12000,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-son",
-    "menuOrchestre": "sonmontuno",
+    "listes": [
+     "cuba",
+     "cu-son"
+    ],
     "nom": "Orchestre Son montuno",
     "swing": 0.5,
     "densite": null,
@@ -10006,7 +12052,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-son",
-    "menuOrchestre": "sonmontuno",
+    "listes": [
+     "cuba",
+     "cu-son"
+    ],
     "nom": "Orchestre Son montuno",
     "swing": 0.5,
     "densite": null,
@@ -10047,7 +12096,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-son",
-    "menuOrchestre": "sonmontuno",
+    "listes": [
+     "cuba",
+     "cu-son"
+    ],
     "nom": "Orchestre Son montuno",
     "swing": 0.5,
     "densite": null,
@@ -10116,7 +12168,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-son",
-    "menuOrchestre": "sonmontuno",
+    "listes": [
+     "cuba",
+     "cu-son"
+    ],
     "nom": "Orchestre Son montuno",
     "swing": 0.5,
     "densite": null,
@@ -10185,7 +12240,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-soukous",
-    "menuOrchestre": "soukous",
+    "listes": [
+     "africa",
+     "af-soukous"
+    ],
     "nom": "Orchestre Soukous",
     "swing": 0.5,
     "densite": null,
@@ -10241,7 +12299,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-soukous",
-    "menuOrchestre": "soukous",
+    "listes": [
+     "africa",
+     "af-soukous"
+    ],
     "nom": "Orchestre Soukous",
     "swing": 0.5,
     "densite": null,
@@ -10293,7 +12354,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-soukous",
-    "menuOrchestre": "soukous",
+    "listes": [
+     "africa",
+     "af-soukous"
+    ],
     "nom": "Orchestre Soukous",
     "swing": 0.5,
     "densite": null,
@@ -10337,7 +12401,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-soukous",
-    "menuOrchestre": "soukous",
+    "listes": [
+     "africa",
+     "af-soukous"
+    ],
     "nom": "Orchestre Soukous",
     "swing": 0.5,
     "densite": null,
@@ -10409,7 +12476,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-soukous",
-    "menuOrchestre": "soukous",
+    "listes": [
+     "africa",
+     "af-soukous"
+    ],
     "nom": "Orchestre Soukous",
     "swing": 0.5,
     "densite": null,
@@ -10481,7 +12551,10 @@
     "mesure": "7/8",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -10534,7 +12607,10 @@
     "mesure": "12/8",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -10583,7 +12659,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -10624,7 +12703,10 @@
     "mesure": "6/8",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -10693,7 +12775,10 @@
     "mesure": "3/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.639,
     "densite": null,
@@ -10762,7 +12847,10 @@
     "mesure": "6/8",
     "orchestre": "cuba",
     "rythme": "afro",
-    "menuOrchestre": "cuba",
+    "listes": [
+     "cuba",
+     ""
+    ],
     "nom": "Orchestre Cuba",
     "swing": 0.5,
     "densite": null,
@@ -10815,7 +12903,10 @@
     "mesure": "6/8",
     "orchestre": "cuba",
     "rythme": "afro",
-    "menuOrchestre": "cuba",
+    "listes": [
+     "cuba",
+     ""
+    ],
     "nom": "Orchestre Cuba",
     "swing": 0.5,
     "densite": null,
@@ -10868,7 +12959,10 @@
     "mesure": "6/8",
     "orchestre": "cuba",
     "rythme": "afro",
-    "menuOrchestre": "cuba",
+    "listes": [
+     "cuba",
+     ""
+    ],
     "nom": "Orchestre Cuba",
     "swing": 0.5,
     "densite": null,
@@ -10921,7 +13015,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-afrobeat",
-    "menuOrchestre": "afrobeat",
+    "listes": [
+     "africa",
+     "af-afrobeat"
+    ],
     "nom": "Orchestre Afrobeat",
     "swing": 0.5,
     "densite": null,
@@ -10977,7 +13074,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-afrobeat",
-    "menuOrchestre": "afrobeat",
+    "listes": [
+     "africa",
+     "af-afrobeat"
+    ],
     "nom": "Orchestre Afrobeat",
     "swing": 0.5,
     "densite": null,
@@ -11033,7 +13133,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-afrobeat",
-    "menuOrchestre": "afrobeat",
+    "listes": [
+     "africa",
+     "af-afrobeat"
+    ],
     "nom": "Orchestre Afrobeat",
     "swing": 0.5,
     "densite": null,
@@ -11089,7 +13192,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -11134,7 +13240,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -11179,7 +13288,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -11224,7 +13336,10 @@
     "mesure": "2/4",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -11295,7 +13410,10 @@
     "mesure": "2/4",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -11366,7 +13484,10 @@
     "mesure": "2/4",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -11437,7 +13558,10 @@
     "mesure": "11/8",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -11492,7 +13616,10 @@
     "mesure": "11/8",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -11547,7 +13674,10 @@
     "mesure": "11/8",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -11602,7 +13732,10 @@
     "mesure": "5/8",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -11657,7 +13790,10 @@
     "mesure": "5/8",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -11712,7 +13848,10 @@
     "mesure": "5/8",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -11767,7 +13906,10 @@
     "mesure": "7/8",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -11822,7 +13964,10 @@
     "mesure": "7/8",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -11877,7 +14022,10 @@
     "mesure": "7/8",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -11932,7 +14080,10 @@
     "mesure": "7/8b",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -11987,7 +14138,10 @@
     "mesure": "7/8b",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -12042,7 +14196,10 @@
     "mesure": "7/8b",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -12097,7 +14254,10 @@
     "mesure": "9/8",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -12152,7 +14312,10 @@
     "mesure": "9/8",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -12207,7 +14370,10 @@
     "mesure": "9/8",
     "orchestre": "balkan",
     "rythme": null,
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     ""
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -12262,7 +14428,10 @@
     "mesure": "4/4",
     "orchestre": "balkan",
     "rythme": "bk-sevdah",
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     "bk-sevdah"
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -12317,7 +14486,10 @@
     "mesure": "4/4",
     "orchestre": "balkan",
     "rythme": "bk-sevdah",
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     "bk-sevdah"
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -12372,7 +14544,10 @@
     "mesure": "4/4",
     "orchestre": "balkan",
     "rythme": "bk-sevdah",
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     "bk-sevdah"
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -12427,7 +14602,10 @@
     "mesure": "4/4",
     "orchestre": "balkan",
     "rythme": "bk-tsifte",
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     "bk-tsifte"
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -12482,7 +14660,10 @@
     "mesure": "4/4",
     "orchestre": "balkan",
     "rythme": "bk-tsifte",
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     "bk-tsifte"
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -12537,7 +14718,10 @@
     "mesure": "4/4",
     "orchestre": "balkan",
     "rythme": "bk-tsifte",
-    "menuOrchestre": "balkan",
+    "listes": [
+     "balkan",
+     "bk-tsifte"
+    ],
     "nom": "Orchestre Balkans",
     "swing": 0.5,
     "densite": 0.5,
@@ -12592,7 +14776,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -12661,7 +14848,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -12730,7 +14920,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -12799,7 +14992,10 @@
     "mesure": "12/8",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -12868,7 +15064,10 @@
     "mesure": "12/8",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -12937,7 +15136,10 @@
     "mesure": "12/8",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -13006,7 +15208,10 @@
     "mesure": "6/8",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -13061,7 +15266,10 @@
     "mesure": "6/8",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -13116,7 +15324,10 @@
     "mesure": "6/8",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -13171,7 +15382,10 @@
     "mesure": "4/4",
     "orchestre": "classic",
     "rythme": "c-baroque",
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     "c-baroque"
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -13226,7 +15440,10 @@
     "mesure": "4/4",
     "orchestre": "classic",
     "rythme": "c-baroque",
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     "c-baroque"
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -13281,7 +15498,10 @@
     "mesure": "4/4",
     "orchestre": "classic",
     "rythme": "c-baroque",
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     "c-baroque"
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -13336,7 +15556,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.607,
     "densite": null,
@@ -13405,7 +15628,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.607,
     "densite": null,
@@ -13474,7 +15700,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.607,
     "densite": null,
@@ -13543,7 +15772,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-benga",
-    "menuOrchestre": "benga",
+    "listes": [
+     "africa",
+     "af-benga"
+    ],
     "nom": "Orchestre Benga",
     "swing": 0.55,
     "densite": null,
@@ -13599,7 +15831,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-benga",
-    "menuOrchestre": "benga",
+    "listes": [
+     "africa",
+     "af-benga"
+    ],
     "nom": "Orchestre Benga",
     "swing": 0.55,
     "densite": null,
@@ -13655,7 +15890,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-benga",
-    "menuOrchestre": "benga",
+    "listes": [
+     "africa",
+     "af-benga"
+    ],
     "nom": "Orchestre Benga",
     "swing": 0.55,
     "densite": null,
@@ -13711,7 +15949,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -13760,7 +16001,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -13809,7 +16053,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -13858,7 +16105,10 @@
     "mesure": "12/8",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -13907,7 +16157,10 @@
     "mesure": "12/8",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -13956,7 +16209,10 @@
     "mesure": "12/8",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -14005,7 +16261,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-blues",
-    "menuOrchestre": "bluesrock",
+    "listes": [
+     "pop",
+     "r-blues"
+    ],
     "nom": "Orchestre Blues rock",
     "swing": 0.667,
     "densite": null,
@@ -14058,7 +16317,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-blues",
-    "menuOrchestre": "bluesrock",
+    "listes": [
+     "pop",
+     "r-blues"
+    ],
     "nom": "Orchestre Blues rock",
     "swing": 0.667,
     "densite": null,
@@ -14111,7 +16373,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-blues",
-    "menuOrchestre": "bluesrock",
+    "listes": [
+     "pop",
+     "r-blues"
+    ],
     "nom": "Orchestre Blues rock",
     "swing": 0.667,
     "densite": null,
@@ -14164,7 +16429,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-bolero",
-    "menuOrchestre": "bolerocubano",
+    "listes": [
+     "cuba",
+     "cu-bolero"
+    ],
     "nom": "Orchestre Bolero",
     "swing": 0.5,
     "densite": null,
@@ -14217,7 +16485,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-bolero",
-    "menuOrchestre": "bolerocubano",
+    "listes": [
+     "cuba",
+     "cu-bolero"
+    ],
     "nom": "Orchestre Bolero",
     "swing": 0.5,
     "densite": null,
@@ -14270,7 +16541,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-bolero",
-    "menuOrchestre": "bolerocubano",
+    "listes": [
+     "cuba",
+     "cu-bolero"
+    ],
     "nom": "Orchestre Bolero",
     "swing": 0.5,
     "densite": null,
@@ -14323,7 +16597,10 @@
     "mesure": "4/4",
     "orchestre": "latin",
     "rythme": "bossa",
-    "menuOrchestre": "bossa",
+    "listes": [
+     "latin",
+     "bossa"
+    ],
     "nom": "Orchestre Bossa nova",
     "swing": 0.5,
     "densite": null,
@@ -14392,7 +16669,10 @@
     "mesure": "4/4",
     "orchestre": "latin",
     "rythme": "bossa",
-    "menuOrchestre": "bossa",
+    "listes": [
+     "latin",
+     "bossa"
+    ],
     "nom": "Orchestre Bossa nova",
     "swing": 0.5,
     "densite": null,
@@ -14461,7 +16741,10 @@
     "mesure": "4/4",
     "orchestre": "latin",
     "rythme": "bossa",
-    "menuOrchestre": "bossa",
+    "listes": [
+     "latin",
+     "bossa"
+    ],
     "nom": "Orchestre Bossa nova",
     "swing": 0.5,
     "densite": null,
@@ -14530,7 +16813,10 @@
     "mesure": "3/4",
     "orchestre": "brass",
     "rythme": "b-chorale",
-    "menuOrchestre": "brass",
+    "listes": [
+     "brass",
+     "b-chorale"
+    ],
     "nom": "Orchestre Brass",
     "swing": 0.5,
     "densite": 0.5,
@@ -14585,7 +16871,10 @@
     "mesure": "3/4",
     "orchestre": "brass",
     "rythme": "b-chorale",
-    "menuOrchestre": "brass",
+    "listes": [
+     "brass",
+     "b-chorale"
+    ],
     "nom": "Orchestre Brass",
     "swing": 0.5,
     "densite": 0.5,
@@ -14640,7 +16929,10 @@
     "mesure": "3/4",
     "orchestre": "brass",
     "rythme": "b-chorale",
-    "menuOrchestre": "brass",
+    "listes": [
+     "brass",
+     "b-chorale"
+    ],
     "nom": "Orchestre Brass",
     "swing": 0.5,
     "densite": 0.5,
@@ -14695,7 +16987,10 @@
     "mesure": "4/4",
     "orchestre": "brass",
     "rythme": "b-chorale",
-    "menuOrchestre": "brass",
+    "listes": [
+     "brass",
+     "b-chorale"
+    ],
     "nom": "Orchestre Brass",
     "swing": 0.5,
     "densite": 0.5,
@@ -14750,7 +17045,10 @@
     "mesure": "4/4",
     "orchestre": "brass",
     "rythme": "b-chorale",
-    "menuOrchestre": "brass",
+    "listes": [
+     "brass",
+     "b-chorale"
+    ],
     "nom": "Orchestre Brass",
     "swing": 0.5,
     "densite": 0.5,
@@ -14805,7 +17103,10 @@
     "mesure": "4/4",
     "orchestre": "brass",
     "rythme": "b-chorale",
-    "menuOrchestre": "brass",
+    "listes": [
+     "brass",
+     "b-chorale"
+    ],
     "nom": "Orchestre Brass",
     "swing": 0.5,
     "densite": 0.5,
@@ -14860,7 +17161,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-chacha",
-    "menuOrchestre": "chachacha",
+    "listes": [
+     "cuba",
+     "cu-chacha"
+    ],
     "nom": "Orchestre Cha-cha-chá",
     "swing": 0.5,
     "densite": null,
@@ -14913,7 +17217,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-chacha",
-    "menuOrchestre": "chachacha",
+    "listes": [
+     "cuba",
+     "cu-chacha"
+    ],
     "nom": "Orchestre Cha-cha-chá",
     "swing": 0.5,
     "densite": null,
@@ -14966,7 +17273,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-chacha",
-    "menuOrchestre": "chachacha",
+    "listes": [
+     "cuba",
+     "cu-chacha"
+    ],
     "nom": "Orchestre Cha-cha-chá",
     "swing": 0.5,
     "densite": null,
@@ -15019,7 +17329,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -15076,7 +17389,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -15133,7 +17449,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -15190,7 +17509,10 @@
     "mesure": "4/4",
     "orchestre": "cumbia",
     "rythme": null,
-    "menuOrchestre": "cumbia",
+    "listes": [
+     "cumbia",
+     ""
+    ],
     "nom": "Orchestre Cumbia",
     "swing": 0.5,
     "densite": 0.5,
@@ -15245,7 +17567,10 @@
     "mesure": "4/4",
     "orchestre": "cumbia",
     "rythme": null,
-    "menuOrchestre": "cumbia",
+    "listes": [
+     "cumbia",
+     ""
+    ],
     "nom": "Orchestre Cumbia",
     "swing": 0.5,
     "densite": 0.5,
@@ -15300,7 +17625,10 @@
     "mesure": "4/4",
     "orchestre": "cumbia",
     "rythme": null,
-    "menuOrchestre": "cumbia",
+    "listes": [
+     "cumbia",
+     ""
+    ],
     "nom": "Orchestre Cumbia",
     "swing": 0.5,
     "densite": 0.5,
@@ -15355,7 +17683,10 @@
     "mesure": "2/4",
     "orchestre": "cuba",
     "rythme": "cu-danzon",
-    "menuOrchestre": "danzon",
+    "listes": [
+     "cuba",
+     "cu-danzon"
+    ],
     "nom": "Orchestre Danzón",
     "swing": 0.5,
     "densite": null,
@@ -15424,7 +17755,10 @@
     "mesure": "2/4",
     "orchestre": "cuba",
     "rythme": "cu-danzon",
-    "menuOrchestre": "danzon",
+    "listes": [
+     "cuba",
+     "cu-danzon"
+    ],
     "nom": "Orchestre Danzón",
     "swing": 0.5,
     "densite": null,
@@ -15493,7 +17827,10 @@
     "mesure": "2/4",
     "orchestre": "cuba",
     "rythme": "cu-danzon",
-    "menuOrchestre": "danzon",
+    "listes": [
+     "cuba",
+     "cu-danzon"
+    ],
     "nom": "Orchestre Danzón",
     "swing": 0.5,
     "densite": null,
@@ -15562,7 +17899,10 @@
     "mesure": "2/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.627,
     "densite": null,
@@ -15631,7 +17971,10 @@
     "mesure": "2/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.627,
     "densite": null,
@@ -15700,7 +18043,10 @@
     "mesure": "2/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.627,
     "densite": null,
@@ -15769,7 +18115,10 @@
     "mesure": "12/8",
     "orchestre": "guitar",
     "rythme": "f-bulerias",
-    "menuOrchestre": "flamencobulerias",
+    "listes": [
+     "guitar",
+     "f-bulerias"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -15822,7 +18171,10 @@
     "mesure": "12/8",
     "orchestre": "guitar",
     "rythme": "f-bulerias",
-    "menuOrchestre": "flamencobulerias",
+    "listes": [
+     "guitar",
+     "f-bulerias"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -15875,7 +18227,10 @@
     "mesure": "12/8",
     "orchestre": "guitar",
     "rythme": "f-bulerias",
-    "menuOrchestre": "flamencobulerias",
+    "listes": [
+     "guitar",
+     "f-bulerias"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -15928,7 +18283,10 @@
     "mesure": "12/8",
     "orchestre": "guitar",
     "rythme": "f-solea",
-    "menuOrchestre": "flamencosolea",
+    "listes": [
+     "guitar",
+     "f-solea"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -15981,7 +18339,10 @@
     "mesure": "12/8",
     "orchestre": "guitar",
     "rythme": "f-solea",
-    "menuOrchestre": "flamencosolea",
+    "listes": [
+     "guitar",
+     "f-solea"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -16034,7 +18395,10 @@
     "mesure": "12/8",
     "orchestre": "guitar",
     "rythme": "f-solea",
-    "menuOrchestre": "flamencosolea",
+    "listes": [
+     "guitar",
+     "f-solea"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -16087,7 +18451,10 @@
     "mesure": "4/4",
     "orchestre": "guitar",
     "rythme": "f-tangos",
-    "menuOrchestre": "flamencotangos",
+    "listes": [
+     "guitar",
+     "f-tangos"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -16140,7 +18507,10 @@
     "mesure": "4/4",
     "orchestre": "guitar",
     "rythme": "f-tangos",
-    "menuOrchestre": "flamencotangos",
+    "listes": [
+     "guitar",
+     "f-tangos"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -16193,7 +18563,10 @@
     "mesure": "4/4",
     "orchestre": "guitar",
     "rythme": "f-tangos",
-    "menuOrchestre": "flamencotangos",
+    "listes": [
+     "guitar",
+     "f-tangos"
+    ],
     "nom": "Orchestre Flamenco",
     "swing": 0.5,
     "densite": 0.6,
@@ -16246,7 +18619,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -16303,7 +18679,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -16360,7 +18739,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -16417,7 +18799,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -16474,7 +18859,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -16531,7 +18919,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -16588,7 +18979,10 @@
     "mesure": "12/8",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -16645,7 +19039,10 @@
     "mesure": "12/8",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -16702,7 +19099,10 @@
     "mesure": "12/8",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -16759,7 +19159,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-guaguanco",
-    "menuOrchestre": "guaguanco",
+    "listes": [
+     "cuba",
+     "cu-guaguanco"
+    ],
     "nom": "Orchestre Rumba guaguancó",
     "swing": 0.5,
     "densite": null,
@@ -16812,7 +19215,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-guaguanco",
-    "menuOrchestre": "guaguanco",
+    "listes": [
+     "cuba",
+     "cu-guaguanco"
+    ],
     "nom": "Orchestre Rumba guaguancó",
     "swing": 0.5,
     "densite": null,
@@ -16865,7 +19271,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-guaguanco",
-    "menuOrchestre": "guaguanco",
+    "listes": [
+     "cuba",
+     "cu-guaguanco"
+    ],
     "nom": "Orchestre Rumba guaguancó",
     "swing": 0.5,
     "densite": null,
@@ -16918,7 +19327,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-guajira",
-    "menuOrchestre": "guajira",
+    "listes": [
+     "cuba",
+     "cu-guajira"
+    ],
     "nom": "Orchestre Guajira",
     "swing": 0.5,
     "densite": null,
@@ -16971,7 +19383,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-guajira",
-    "menuOrchestre": "guajira",
+    "listes": [
+     "cuba",
+     "cu-guajira"
+    ],
     "nom": "Orchestre Guajira",
     "swing": 0.5,
     "densite": null,
@@ -17024,7 +19439,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-guajira",
-    "menuOrchestre": "guajira",
+    "listes": [
+     "cuba",
+     "cu-guajira"
+    ],
     "nom": "Orchestre Guajira",
     "swing": 0.5,
     "densite": null,
@@ -17077,7 +19495,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.647,
     "densite": null,
@@ -17130,7 +19551,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.647,
     "densite": null,
@@ -17183,7 +19607,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.647,
     "densite": null,
@@ -17236,7 +19663,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-hard",
-    "menuOrchestre": "hardrock",
+    "listes": [
+     "pop",
+     "r-hard"
+    ],
     "nom": "Orchestre Hard rock",
     "swing": 0.5,
     "densite": null,
@@ -17293,7 +19723,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-hard",
-    "menuOrchestre": "hardrock",
+    "listes": [
+     "pop",
+     "r-hard"
+    ],
     "nom": "Orchestre Hard rock",
     "swing": 0.5,
     "densite": null,
@@ -17350,7 +19783,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-hard",
-    "menuOrchestre": "hardrock",
+    "listes": [
+     "pop",
+     "r-hard"
+    ],
     "nom": "Orchestre Hard rock",
     "swing": 0.5,
     "densite": null,
@@ -17407,7 +19843,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-highlife",
-    "menuOrchestre": "highlife",
+    "listes": [
+     "africa",
+     "af-highlife"
+    ],
     "nom": "Orchestre Highlife",
     "swing": 0.56,
     "densite": null,
@@ -17463,7 +19902,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-highlife",
-    "menuOrchestre": "highlife",
+    "listes": [
+     "africa",
+     "af-highlife"
+    ],
     "nom": "Orchestre Highlife",
     "swing": 0.56,
     "densite": null,
@@ -17519,7 +19961,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-highlife",
-    "menuOrchestre": "highlife",
+    "listes": [
+     "africa",
+     "af-highlife"
+    ],
     "nom": "Orchestre Highlife",
     "swing": 0.56,
     "densite": null,
@@ -17575,7 +20020,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.637,
     "densite": null,
@@ -17636,7 +20084,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.637,
     "densite": null,
@@ -17697,7 +20148,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.637,
     "densite": null,
@@ -17758,7 +20212,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -17799,7 +20256,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -17840,7 +20300,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -17881,7 +20344,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-indie",
-    "menuOrchestre": "indierock",
+    "listes": [
+     "pop",
+     "r-indie"
+    ],
     "nom": "Orchestre Indie",
     "swing": 0.5,
     "densite": null,
@@ -17938,7 +20404,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-indie",
-    "menuOrchestre": "indierock",
+    "listes": [
+     "pop",
+     "r-indie"
+    ],
     "nom": "Orchestre Indie",
     "swing": 0.5,
     "densite": null,
@@ -17995,7 +20464,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-indie",
-    "menuOrchestre": "indierock",
+    "listes": [
+     "pop",
+     "r-indie"
+    ],
     "nom": "Orchestre Indie",
     "swing": 0.5,
     "densite": null,
@@ -18052,7 +20524,10 @@
     "mesure": "6/8",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -18125,7 +20600,10 @@
     "mesure": "6/8",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -18198,7 +20676,10 @@
     "mesure": "6/8",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -18271,7 +20752,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -18328,7 +20812,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -18385,7 +20872,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -18442,7 +20932,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-mbaqanga",
-    "menuOrchestre": "mbaqanga",
+    "listes": [
+     "africa",
+     "af-mbaqanga"
+    ],
     "nom": "Orchestre Mbaqanga",
     "swing": 0.5,
     "densite": null,
@@ -18498,7 +20991,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-mbaqanga",
-    "menuOrchestre": "mbaqanga",
+    "listes": [
+     "africa",
+     "af-mbaqanga"
+    ],
     "nom": "Orchestre Mbaqanga",
     "swing": 0.5,
     "densite": null,
@@ -18554,7 +21050,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-mbaqanga",
-    "menuOrchestre": "mbaqanga",
+    "listes": [
+     "africa",
+     "af-mbaqanga"
+    ],
     "nom": "Orchestre Mbaqanga",
     "swing": 0.5,
     "densite": null,
@@ -18610,7 +21109,10 @@
     "mesure": "3/4",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -18681,7 +21183,10 @@
     "mesure": "3/4",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -18752,7 +21257,10 @@
     "mesure": "3/4",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -18823,7 +21331,10 @@
     "mesure": "4/4",
     "orchestre": "piazzolla",
     "rythme": "lyrique",
-    "menuOrchestre": "milongalyrique",
+    "listes": [
+     "piazzolla",
+     "lyrique"
+    ],
     "nom": "Orchestre Milonga lyrique",
     "swing": 0.5,
     "densite": 0.5,
@@ -18897,7 +21408,10 @@
     "mesure": "4/4",
     "orchestre": "piazzolla",
     "rythme": "lyrique",
-    "menuOrchestre": "milongalyrique",
+    "listes": [
+     "piazzolla",
+     "lyrique"
+    ],
     "nom": "Orchestre Milonga lyrique",
     "swing": 0.5,
     "densite": 0.5,
@@ -18971,7 +21485,10 @@
     "mesure": "4/4",
     "orchestre": "piazzolla",
     "rythme": "lyrique",
-    "menuOrchestre": "milongalyrique",
+    "listes": [
+     "piazzolla",
+     "lyrique"
+    ],
     "nom": "Orchestre Milonga lyrique",
     "swing": 0.5,
     "densite": 0.5,
@@ -19045,7 +21562,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -19098,7 +21618,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -19151,7 +21674,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -19204,7 +21730,10 @@
     "mesure": "4/4",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -19259,7 +21788,10 @@
     "mesure": "4/4",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -19314,7 +21846,10 @@
     "mesure": "4/4",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -19369,7 +21904,10 @@
     "mesure": "4/4",
     "orchestre": "piazzolla",
     "rythme": null,
-    "menuOrchestre": "piazzolla",
+    "listes": [
+     "piazzolla",
+     ""
+    ],
     "nom": "Orchestre Tango nuevo",
     "swing": 0.5,
     "densite": 0.5,
@@ -19427,7 +21965,10 @@
     "mesure": "4/4",
     "orchestre": "piazzolla",
     "rythme": null,
-    "menuOrchestre": "piazzolla",
+    "listes": [
+     "piazzolla",
+     ""
+    ],
     "nom": "Orchestre Tango nuevo",
     "swing": 0.5,
     "densite": 0.5,
@@ -19485,7 +22026,10 @@
     "mesure": "4/4",
     "orchestre": "piazzolla",
     "rythme": null,
-    "menuOrchestre": "piazzolla",
+    "listes": [
+     "piazzolla",
+     ""
+    ],
     "nom": "Orchestre Tango nuevo",
     "swing": 0.5,
     "densite": 0.5,
@@ -19543,7 +22087,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -19600,7 +22147,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -19657,7 +22207,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -19714,7 +22267,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-punk",
-    "menuOrchestre": "punk",
+    "listes": [
+     "pop",
+     "r-punk"
+    ],
     "nom": "Orchestre Punk",
     "swing": 0.5,
     "densite": null,
@@ -19771,7 +22327,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-punk",
-    "menuOrchestre": "punk",
+    "listes": [
+     "pop",
+     "r-punk"
+    ],
     "nom": "Orchestre Punk",
     "swing": 0.5,
     "densite": null,
@@ -19828,7 +22387,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-punk",
-    "menuOrchestre": "punk",
+    "listes": [
+     "pop",
+     "r-punk"
+    ],
     "nom": "Orchestre Punk",
     "swing": 0.5,
     "densite": null,
@@ -19885,7 +22447,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-ballad",
-    "menuOrchestre": "rockballad",
+    "listes": [
+     "pop",
+     "r-ballad"
+    ],
     "nom": "Orchestre Power ballad",
     "swing": 0.5,
     "densite": null,
@@ -19942,7 +22507,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-ballad",
-    "menuOrchestre": "rockballad",
+    "listes": [
+     "pop",
+     "r-ballad"
+    ],
     "nom": "Orchestre Power ballad",
     "swing": 0.5,
     "densite": null,
@@ -19999,7 +22567,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-ballad",
-    "menuOrchestre": "rockballad",
+    "listes": [
+     "pop",
+     "r-ballad"
+    ],
     "nom": "Orchestre Power ballad",
     "swing": 0.5,
     "densite": null,
@@ -20056,7 +22627,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-classic",
-    "menuOrchestre": "rockclassic",
+    "listes": [
+     "pop",
+     "r-classic"
+    ],
     "nom": "Orchestre Rock classique",
     "swing": 0.5,
     "densite": null,
@@ -20113,7 +22687,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-classic",
-    "menuOrchestre": "rockclassic",
+    "listes": [
+     "pop",
+     "r-classic"
+    ],
     "nom": "Orchestre Rock classique",
     "swing": 0.5,
     "densite": null,
@@ -20170,7 +22747,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-classic",
-    "menuOrchestre": "rockclassic",
+    "listes": [
+     "pop",
+     "r-classic"
+    ],
     "nom": "Orchestre Rock classique",
     "swing": 0.5,
     "densite": null,
@@ -20227,7 +22807,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-roll",
-    "menuOrchestre": "rockroll",
+    "listes": [
+     "pop",
+     "r-roll"
+    ],
     "nom": "Orchestre Rock'n'roll",
     "swing": 0.62,
     "densite": null,
@@ -20280,7 +22863,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-roll",
-    "menuOrchestre": "rockroll",
+    "listes": [
+     "pop",
+     "r-roll"
+    ],
     "nom": "Orchestre Rock'n'roll",
     "swing": 0.62,
     "densite": null,
@@ -20333,7 +22919,10 @@
     "mesure": "4/4",
     "orchestre": "pop",
     "rythme": "r-roll",
-    "menuOrchestre": "rockroll",
+    "listes": [
+     "pop",
+     "r-roll"
+    ],
     "nom": "Orchestre Rock'n'roll",
     "swing": 0.62,
     "densite": null,
@@ -20386,7 +22975,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-rumba",
-    "menuOrchestre": "rumbacongo",
+    "listes": [
+     "africa",
+     "af-rumba"
+    ],
     "nom": "Orchestre Rumba congolaise",
     "swing": 0.5,
     "densite": null,
@@ -20442,7 +23034,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-rumba",
-    "menuOrchestre": "rumbacongo",
+    "listes": [
+     "africa",
+     "af-rumba"
+    ],
     "nom": "Orchestre Rumba congolaise",
     "swing": 0.5,
     "densite": null,
@@ -20498,7 +23093,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-rumba",
-    "menuOrchestre": "rumbacongo",
+    "listes": [
+     "africa",
+     "af-rumba"
+    ],
     "nom": "Orchestre Rumba congolaise",
     "swing": 0.5,
     "densite": null,
@@ -20554,7 +23152,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "salsa",
-    "menuOrchestre": "salsa",
+    "listes": [
+     "cuba",
+     "salsa"
+    ],
     "nom": "Orchestre Salsa",
     "swing": 0.5,
     "densite": null,
@@ -20607,7 +23208,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "salsa",
-    "menuOrchestre": "salsa",
+    "listes": [
+     "cuba",
+     "salsa"
+    ],
     "nom": "Orchestre Salsa",
     "swing": 0.5,
     "densite": null,
@@ -20660,7 +23264,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "salsa",
-    "menuOrchestre": "salsa",
+    "listes": [
+     "cuba",
+     "salsa"
+    ],
     "nom": "Orchestre Salsa",
     "swing": 0.5,
     "densite": null,
@@ -20713,7 +23320,10 @@
     "mesure": "2/4",
     "orchestre": "latin",
     "rythme": "samba",
-    "menuOrchestre": "samba",
+    "listes": [
+     "latin",
+     "samba"
+    ],
     "nom": "Orchestre Samba",
     "swing": 0.5,
     "densite": null,
@@ -20782,7 +23392,10 @@
     "mesure": "2/4",
     "orchestre": "latin",
     "rythme": "samba",
-    "menuOrchestre": "samba",
+    "listes": [
+     "latin",
+     "samba"
+    ],
     "nom": "Orchestre Samba",
     "swing": 0.5,
     "densite": null,
@@ -20851,7 +23464,10 @@
     "mesure": "2/4",
     "orchestre": "latin",
     "rythme": "samba",
-    "menuOrchestre": "samba",
+    "listes": [
+     "latin",
+     "samba"
+    ],
     "nom": "Orchestre Samba",
     "swing": 0.5,
     "densite": null,
@@ -20920,7 +23536,10 @@
     "mesure": "9/8",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -20977,7 +23596,10 @@
     "mesure": "9/8",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -21034,7 +23656,10 @@
     "mesure": "9/8",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -21091,7 +23716,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-son",
-    "menuOrchestre": "sonmontuno",
+    "listes": [
+     "cuba",
+     "cu-son"
+    ],
     "nom": "Orchestre Son montuno",
     "swing": 0.5,
     "densite": null,
@@ -21144,7 +23772,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-son",
-    "menuOrchestre": "sonmontuno",
+    "listes": [
+     "cuba",
+     "cu-son"
+    ],
     "nom": "Orchestre Son montuno",
     "swing": 0.5,
     "densite": null,
@@ -21197,7 +23828,10 @@
     "mesure": "4/4",
     "orchestre": "cuba",
     "rythme": "cu-son",
-    "menuOrchestre": "sonmontuno",
+    "listes": [
+     "cuba",
+     "cu-son"
+    ],
     "nom": "Orchestre Son montuno",
     "swing": 0.5,
     "densite": null,
@@ -21250,7 +23884,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-soukous",
-    "menuOrchestre": "soukous",
+    "listes": [
+     "africa",
+     "af-soukous"
+    ],
     "nom": "Orchestre Soukous",
     "swing": 0.5,
     "densite": null,
@@ -21306,7 +23943,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-soukous",
-    "menuOrchestre": "soukous",
+    "listes": [
+     "africa",
+     "af-soukous"
+    ],
     "nom": "Orchestre Soukous",
     "swing": 0.5,
     "densite": null,
@@ -21362,7 +24002,10 @@
     "mesure": "4/4",
     "orchestre": "africa",
     "rythme": "af-soukous",
-    "menuOrchestre": "soukous",
+    "listes": [
+     "africa",
+     "af-soukous"
+    ],
     "nom": "Orchestre Soukous",
     "swing": 0.5,
     "densite": null,
@@ -21418,7 +24061,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -21487,7 +24133,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -21556,7 +24205,10 @@
     "mesure": "4/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.667,
     "densite": null,
@@ -21625,7 +24277,10 @@
     "mesure": "2/4",
     "orchestre": "piazzolla",
     "rythme": "lyrique",
-    "menuOrchestre": "milongalyrique",
+    "listes": [
+     "piazzolla",
+     "lyrique"
+    ],
     "nom": "Orchestre Milonga lyrique",
     "swing": 0.5,
     "densite": 0.5,
@@ -21699,7 +24354,10 @@
     "mesure": "2/4",
     "orchestre": "piazzolla",
     "rythme": "lyrique",
-    "menuOrchestre": "milongalyrique",
+    "listes": [
+     "piazzolla",
+     "lyrique"
+    ],
     "nom": "Orchestre Milonga lyrique",
     "swing": 0.5,
     "densite": 0.5,
@@ -21773,7 +24431,10 @@
     "mesure": "2/4",
     "orchestre": "piazzolla",
     "rythme": "lyrique",
-    "menuOrchestre": "milongalyrique",
+    "listes": [
+     "piazzolla",
+     "lyrique"
+    ],
     "nom": "Orchestre Milonga lyrique",
     "swing": 0.5,
     "densite": 0.5,
@@ -21847,7 +24508,10 @@
     "mesure": "6/8",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -21902,7 +24566,10 @@
     "mesure": "6/8",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -21957,7 +24624,10 @@
     "mesure": "6/8",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -22012,7 +24682,10 @@
     "mesure": "4/4",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -22067,7 +24740,10 @@
     "mesure": "4/4",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -22122,7 +24798,10 @@
     "mesure": "4/4",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -22177,7 +24856,10 @@
     "mesure": "3/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -22234,7 +24916,10 @@
     "mesure": "3/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -22291,7 +24976,10 @@
     "mesure": "3/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -22348,7 +25036,10 @@
     "mesure": "3/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.639,
     "densite": null,
@@ -22417,7 +25108,10 @@
     "mesure": "3/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.639,
     "densite": null,
@@ -22486,7 +25180,10 @@
     "mesure": "3/4",
     "orchestre": "swing",
     "rythme": null,
-    "menuOrchestre": "swing",
+    "listes": [
+     "swing",
+     ""
+    ],
     "nom": "Orchestre Jazz",
     "swing": 0.639,
     "densite": null,
@@ -22555,7 +25252,10 @@
     "mesure": "3/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -22628,7 +25328,10 @@
     "mesure": "3/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -22701,7 +25404,10 @@
     "mesure": "3/4",
     "orchestre": "pop",
     "rythme": null,
-    "menuOrchestre": "pop",
+    "listes": [
+     "pop",
+     ""
+    ],
     "nom": "Orchestre Pop-Rock",
     "swing": 0.5,
     "densite": null,
@@ -22774,7 +25480,10 @@
     "mesure": "3/4",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -22845,7 +25554,10 @@
     "mesure": "3/4",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,
@@ -22916,7 +25628,10 @@
     "mesure": "3/4",
     "orchestre": "classic",
     "rythme": null,
-    "menuOrchestre": "classic",
+    "listes": [
+     "classic",
+     ""
+    ],
     "nom": "Orchestre Classique",
     "swing": 0.5,
     "densite": 0.5,

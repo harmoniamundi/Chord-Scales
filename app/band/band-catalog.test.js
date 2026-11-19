@@ -38,11 +38,55 @@ describe('band-catalog : catalogue des orchestres', () => {
         assert.equal(C.bandEffectiveGroove('zzz', 'bossa'), null);
     });
 
-    test('le menu Orchestre d\'index.html est exactement BAND_MENU (valeurs, libellés, ordre)', () => {
-        const m = HTML.match(/<select id="band-style-select"[\s\S]*?<\/select>/);
-        assert.ok(m, 'menu band-style-select introuvable');
+    test('pop-up Orchestre d\'index.html : liste Formation = BAND_FORMATION_ORDER (valeurs, libellés), liste Rythme présente', () => {
+        const m = HTML.match(/<select id="band-formation-select"[\s\S]*?<\/select>/);
+        assert.ok(m, 'liste band-formation-select introuvable');
         const opts = [...m[0].matchAll(/<option value="([^"]*)"[^>]*>([^<]*)<\/option>/g)].map(x => ({ value: x[1], label: unesc(x[2]).trim() }));
-        assert.deepEqual(opts, C.BAND_MENU.map(e => ({ value: e.value, label: e.label })));
+        assert.deepEqual(opts, C.BAND_FORMATION_ORDER.map(b => ({ value: b, label: C.BAND_FORMATION_LABELS[b] })));
+        assert.deepEqual(C.BAND_FORMATION_ORDER.slice().sort(), Object.keys(C.BAND_FORMATIONS).sort());
+        assert.match(HTML, /<select id="band-groove-select" onchange="app\.jam\.chooseBandGroove\(this\.value\)"/);
+        assert.match(HTML, /<select id="band-formation-select" onchange="app\.jam\.chooseBandFormation\(this\.value\)"/);
+        assert.ok(!/band-style-select/.test(HTML), 'ancien menu à une seule liste encore présent');
+    });
+
+    test('bandGrooveSelect : liste Rythme de chaque formation', () => {
+        const opt = (b, g) => C.bandGrooveSelect(b, g);
+        assert.deepEqual(opt('swing', null), { options: [{ value: '', label: 'Swing' }], value: '', disabled: true });
+        assert.equal(opt('cumbia', null).disabled, true);
+        const pop = opt('pop', 'r-punk');
+        assert.equal(pop.value, 'r-punk');
+        assert.deepEqual(pop.options.map(o => o.value), [''].concat(C.BAND_FORMATIONS.pop.grooves));
+        assert.equal(pop.disabled, false);
+        // rythmes autrefois accessibles seulement par un style de grille
+        assert.deepEqual(opt('classic', 'c-baroque').options.map(o => o.value), ['', 'c-baroque']);
+        assert.equal(opt('classic', 'c-baroque').value, 'c-baroque');
+        assert.ok(opt('guitar', null).options.some(o => o.value === 'c-baroque'));
+        assert.deepEqual(opt('brass', null).options.map(o => o.value), ['', 'b-chorale']);
+        assert.deepEqual(opt('balkan', 'bk-tsifte').options.map(o => o.value), ['', 'bk-sevdah', 'bk-tsifte']);
+        assert.deepEqual(opt('piazzolla', 'lyrique').options.map(o => o.value), ['', 'lyrique']);
+        // Afrique : pas de « Auto », le highlife est montré sans rythme imposé
+        assert.equal(opt('africa', null).options[0].value, 'af-afrobeat');
+        assert.equal(opt('africa', null).value, 'af-highlife');
+        assert.equal(opt('africa', 'af-benga').value, 'af-benga');
+        // rythme actif sans libellé : « Auto » (Cuba joue déjà l'afro-cubain par défaut ; anciens rythmes de Brasil)
+        assert.equal(opt('cuba', 'afro').value, '');
+        assert.ok(!opt('cuba', null).options.some(o => o.value === 'afro'));
+        assert.equal(opt('latin', 'tango').value, '');
+        // formation inconnue : Jazz
+        assert.equal(opt('zzz', null).options[0].label, 'Swing');
+        // chaque option de rythme correspond à un choix du pop-up (et donc à la règle de tempo de chooseBandStyle)
+        C.BAND_FORMATION_ORDER.forEach(b => opt(b, null).options.filter(o => o.value).forEach(o => assert.ok(C.bandEntryFor(b, o.value), `${b} ${o.value}`)));
+    });
+
+    test('nouvelles entrées (baroque, choral, sevdah, tsifteteli) : rythme imposé sans tempo', () => {
+        ['classic-baroque', 'guitar-baroque', 'brass-chorale', 'balkan-sevdah', 'balkan-tsifte'].forEach(v => {
+            const e = C.bandMenuEntry(v);
+            assert.ok(e && e.groove, v);
+            assert.ok(!e.tempo, v);
+            assert.equal(C.bandEntryFor(e.band, e.groove), e, v);
+        });
+        assert.equal(C.bandEntryFor('cuba', 'afro'), null);
+        assert.equal(C.bandEntryFor('pop', null), null);
     });
 
     test('entrées : formation existante, rythme joué par cette formation, entrée seule = formation', () => {
@@ -50,6 +94,7 @@ describe('band-catalog : catalogue des orchestres', () => {
             assert.ok(C.BAND_FORMATIONS[e.band], e.value);
             if (e.groove) assert.ok(C.BAND_FORMATIONS[e.band].grooves.includes(e.groove), e.value);
             else { assert.equal(e.value, e.band); assert.ok(!e.tempo, e.value); }
+            assert.ok(e.label, e.value);
         });
         const vals = C.BAND_MENU.map(e => e.value);
         assert.equal(new Set(vals).size, vals.length, 'valeurs en double');
@@ -66,7 +111,7 @@ describe('band-catalog : catalogue des orchestres', () => {
         assert.equal(C.bandMenuEntry('milongalyrique').tempo, undefined);   // la milonga ne touche ni au tempo ni à la mesure
     });
 
-    test('bandMenuValue : valeur affichée par le menu', () => {
+    test('bandMenuValue : choix du pop-up qui correspond à la formation et au rythme actifs', () => {
         assert.equal(C.bandMenuValue('piazzolla', 'lyrique'), 'milongalyrique');
         assert.equal(C.bandMenuValue('piazzolla', null), 'piazzolla');
         assert.equal(C.bandMenuValue('latin', 'bossa'), 'bossa');
@@ -74,11 +119,12 @@ describe('band-catalog : catalogue des orchestres', () => {
         assert.equal(C.bandMenuValue('cuba', 'cu-son'), 'sonmontuno');
         assert.equal(C.bandMenuValue('cuba', 'afro'), 'cuba');
         assert.equal(C.bandMenuValue('guitar', 'f-tangos'), 'flamencotangos');
-        assert.equal(C.bandMenuValue('guitar', 'c-baroque'), 'guitar');
+        assert.equal(C.bandMenuValue('guitar', 'c-baroque'), 'guitar-baroque');
         assert.equal(C.bandMenuValue('pop', 'r-punk'), 'punk');
         assert.equal(C.bandMenuValue('africa', null), 'highlife');
         assert.equal(C.bandMenuValue('africa', 'af-benga'), 'benga');
-        assert.equal(C.bandMenuValue('balkan', 'bk-sevdah'), 'balkan');
+        assert.equal(C.bandMenuValue('balkan', 'bk-sevdah'), 'balkan-sevdah');
+        assert.equal(C.bandMenuValue('brass', 'b-chorale'), 'brass-chorale');
         assert.equal(C.bandMenuValue('swing', null), 'swing');
     });
 

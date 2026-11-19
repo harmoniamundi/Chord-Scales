@@ -1523,9 +1523,7 @@
                     const hasBand = o.style !== undefined || o.groove !== undefined || o.densities !== undefined || o.swing !== undefined;
                     if (hasBand) this._bandGroove = IMPORT_GROOVES.includes(o.groove) ? o.groove : null;
                     if (o.style !== undefined) {
-                        const styleSel = document.getElementById('band-style-select');
-                        if (styleSel) styleSel.value = o.style;
-                        this.setBandStyle(o.style);
+                        this.setBandStyle(o.style); // met aussi à jour les listes Formation / Rythme
                     }
                     if (o.volumes) {
                         Object.keys(o.volumes).forEach(k => this.setBandVolume(k, Math.round(o.volumes[k] * 100)));
@@ -2227,8 +2225,7 @@
                     if (el.parentElement) el.parentElement.classList.toggle('opacity-40', off);
                 });
 
-                const styleSelect = document.getElementById('band-style-select');
-                if (styleSelect) styleSelect.value = this._bandSelectValue();
+                this._syncBandSelects();
 
                 document.getElementById('band-vol-piano').value = Math.round(this.bandVolumes.piano * 100);
                 document.getElementById('band-vol-bass').value = Math.round(this.bandVolumes.bass * 100);
@@ -2398,8 +2395,35 @@
                 }
             }
 
-            // Valeur du menu « Style » de la fenêtre Orchestre pour l'orchestre et le rythme actifs
-            _bandSelectValue() { return bandMenuValue(this.bandStyle, this.getEffectiveGroove()); }
+            // Liste « Formation » du pop-up : même règle qu'un choix de formation seule dans l'ancien menu (chooseBandStyle).
+            // Choisir de nouveau la formation active ne change rien (le rythme reste).
+            chooseBandFormation(v) {
+                if (bandFormation(v) === this.bandStyle && !this._arpPrevStyle) { this._syncBandSelects(); return; }
+                this.chooseBandStyle(v);
+            }
+
+            // Liste « Rythme » : '' = Auto (la formation choisit, le rythme imposé est effacé) ; sinon le couple formation + rythme
+            // du catalogue (BAND_MENU), avec sa règle de tempo.
+            chooseBandGroove(g) {
+                const band = this.bandStyle;
+                const entry = g ? bandEntryFor(band, g) : null;
+                if (entry) { this.chooseBandStyle(entry.value); return; }
+                this._bandGroove = null;
+                this.setBandStyle(band);
+            }
+
+            // Listes Formation / Rythme du pop-up, d'après l'orchestre et le rythme actifs (band/band-catalog.js).
+            _syncBandSelects() {
+                const fs = document.getElementById('band-formation-select');
+                if (fs) fs.value = this.bandStyle;
+                const gs = document.getElementById('band-groove-select');
+                if (!gs) return;
+                const st = bandGrooveSelect(this.bandStyle, this.getEffectiveGroove());
+                gs.replaceChildren(...st.options.map(o => { const op = document.createElement('option'); op.value = o.value; op.textContent = o.label; return op; }));
+                gs.value = st.value;
+                gs.disabled = st.disabled;
+                gs.style.opacity = st.disabled ? '0.4' : '';   // formation sans rythme à choisir (Jazz, Cumbia)
+            }
 
             setBandStyle(style) {
                 this._arpPrevStyle = null; // un choix explicite de style met fin au mode « arpèges » transitoire
@@ -9708,45 +9732,26 @@
             </div>
 
             <div id="band-orchestra-options" class="space-y-3">
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Style</span>
-                    <select id="band-style-select" onchange="app.jam.chooseBandStyle(this.value)" class="w-full bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-1.5 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
+                <div class="flex items-center gap-2" title="Les musiciens : changer de formation garde la grille, le tempo et la mesure">
+                    <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Formation</span>
+                    <select id="band-formation-select" onchange="app.jam.chooseBandFormation(this.value)" aria-label="Formation" class="w-full bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-1.5 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
                         <option value="swing">Jazz</option>
                         <option value="pop">Pop-Rock</option>
-                        <option value="rockroll">Rock : rock'n'roll années 50</option>
-                        <option value="rockclassic">Rock : classique (années 70)</option>
-                        <option value="hardrock">Rock : hard rock</option>
-                        <option value="punk">Rock : punk / pop punk</option>
-                        <option value="rockballad">Rock : power ballad</option>
-                        <option value="bluesrock">Rock : blues rock (shuffle)</option>
-                        <option value="indierock">Rock : indie / britpop</option>
                         <option value="latin">Brasil</option>
-                        <option value="bossa">Brasil : bossa nova</option>
-                        <option value="samba">Brasil : samba (2/4)</option>
                         <option value="cuba">Cuba</option>
-                        <option value="salsa">Cuba : salsa (4/4)</option>
-                        <option value="sonmontuno">Cuba : son montuno (4/4)</option>
-                        <option value="chachacha">Cuba : cha-cha-chá (4/4)</option>
-                        <option value="bolerocubano">Cuba : bolero (4/4)</option>
-                        <option value="guajira">Cuba : guajira (4/4)</option>
-                        <option value="danzon">Cuba : danzón (2/4)</option>
-                        <option value="guaguanco">Cuba : rumba guaguancó (4/4)</option>
-                        <option value="classic">Classique</option>
+                        <option value="classic">Classique (piano)</option>
                         <option value="guitar">Guitare</option>
-                        <option value="flamencosolea">Flamenco : soleá (12 temps)</option>
-                        <option value="flamencobulerias">Flamenco : bulerías (12 temps)</option>
-                        <option value="flamencotangos">Flamenco : rumba / tangos (4/4)</option>
                         <option value="brass">Brass band</option>
                         <option value="balkan">Balkans</option>
                         <option value="cumbia">Cumbia</option>
-                        <option value="afrobeat">Afrique : afrobeat</option>
-                        <option value="highlife">Afrique : highlife</option>
-                        <option value="rumbacongo">Afrique : rumba congolaise</option>
-                        <option value="soukous">Afrique : soukous / sebene</option>
-                        <option value="benga">Afrique : benga</option>
-                        <option value="mbaqanga">Afrique : mbaqanga</option>
-                        <option value="piazzolla">Tango nuevo (quinteto)</option>
-                        <option value="milongalyrique">Milonga lyrique (quinteto)</option>
+                        <option value="africa">Afrique</option>
+                        <option value="piazzolla">Quinteto de tango</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-2" title="La façon de jouer de cette formation. Certains rythmes posent leur tempo et leur mesure habituels (rock, Brasil, Cuba, flamenco, Afrique) ; « Auto » laisse la formation choisir">
+                    <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Rythme</span>
+                    <select id="band-groove-select" onchange="app.jam.chooseBandGroove(this.value)" aria-label="Rythme" class="w-full bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-1.5 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
+                        <option value="">Swing</option>
                     </select>
                 </div>
 

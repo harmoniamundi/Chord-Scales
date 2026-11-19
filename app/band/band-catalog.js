@@ -6,7 +6,8 @@
 // Trois notions :
 //   · formation  : l'orchestre (Jazz, Pop-Rock, Brasil, Cuba…) = la valeur de bandStyle dans le moteur ;
 //   · rythme     : une façon de jouer imposée à une formation (bossa, salsa, soleá, punk, highlife…) = _bandGroove ;
-//   · entrée     : une ligne du menu Orchestre ; soit une formation seule, soit un couple formation + rythme.
+//   · entrée     : un choix possible dans le pop-up Orchestre ; soit une formation seule, soit un couple formation + rythme.
+// Le pop-up Orchestre présente deux listes : « Formation » (BAND_FORMATION_ORDER) et « Rythme » (bandGrooveSelect).
 // Chargé par index.html via <script src="app/band/band-catalog.js"> (après rock-plan, africa-plan et afrocuban-plan)
 // et testé par band/band-catalog.test.js.
 
@@ -46,9 +47,38 @@ const BAND_GROOVE_NAMES = {
     africa: Object.assign({}, ...BC_AFRICA.AFRICA_GROOVES.map(g => ({ [g]: BC_AFRICA.AFRICA_NAMES[g] })))
 };
 
-// Entrées du menu Orchestre, dans l'ordre du menu (index.html, <select id="band-style-select">, vérifié par le test).
+// Liste « Formation » du pop-up Orchestre : ordre et libellés.
+const BAND_FORMATION_ORDER = ['swing', 'pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'cumbia', 'africa', 'piazzolla'];
+const BAND_FORMATION_LABELS = { swing: 'Jazz', pop: 'Pop-Rock', latin: 'Brasil', cuba: 'Cuba', classic: 'Classique (piano)', guitar: 'Guitare',
+    brass: 'Brass band', balkan: 'Balkans', cumbia: 'Cumbia', africa: 'Afrique', piazzolla: 'Quinteto de tango' };
+
+// Liste « Rythme » : ce que joue la formation sans rythme imposé (première ligne, valeur ''). null : pas de choix « Auto »
+// (l'orchestre Afrique joue alors le highlife, montré comme tel). Formation sans rythme : la liste est grisée.
+const BAND_AUTO_LABELS = { swing: 'Swing', pop: 'Pop-Rock (couches selon la phrase)', latin: 'Auto : bossa ou samba selon le tempo',
+    cuba: 'Afro-cubain (clave, montuno)', classic: 'Piano classique', guitar: 'Guitare classique (arpèges)',
+    brass: 'Auto : marche, fanfare ou choral', balkan: 'Auto : danse (selon la mesure)', cumbia: 'Cumbia', africa: null, piazzolla: 'Tango nuevo' };
+
+// Libellés des rythmes dans la liste « Rythme ». Un rythme sans libellé n'y figure pas : 'afro' (c'est déjà le jeu par défaut
+// de Cuba), 'tango' et 'piazzolla' (anciens rythmes de l'orchestre Brasil, gardés pour relire les anciens fichiers).
+const BAND_GROOVE_LABELS = {
+    'r-roll': "Rock'n'roll années 50", 'r-classic': 'Rock classique (années 70)', 'r-hard': 'Hard rock', 'r-punk': 'Punk / pop punk',
+    'r-ballad': 'Power ballad', 'r-blues': 'Blues rock (shuffle)', 'r-indie': 'Indie / britpop',
+    bossa: 'Bossa nova', samba: 'Samba (2/4)',
+    salsa: 'Salsa (4/4)', 'cu-son': 'Son montuno (4/4)', 'cu-chacha': 'Cha-cha-chá (4/4)', 'cu-bolero': 'Bolero (4/4)', 'cu-guajira': 'Guajira (4/4)',
+    'cu-danzon': 'Danzón (2/4)', 'cu-guaguanco': 'Rumba guaguancó (4/4)',
+    'c-baroque': 'Baroque',
+    'f-solea': 'Flamenco : soleá (12 temps)', 'f-bulerias': 'Flamenco : bulerías (12 temps)', 'f-tangos': 'Flamenco : rumba / tangos (4/4)',
+    'b-chorale': 'Choral (hymne, cantique)',
+    'bk-sevdah': 'Sevdah, ballade lente', 'bk-tsifte': 'Tsifteteli / čoček',
+    'af-afrobeat': 'Afrobeat', 'af-highlife': 'Highlife', 'af-rumba': 'Rumba congolaise', 'af-soukous': 'Soukous / sebene', 'af-benga': 'Benga', 'af-mbaqanga': 'Mbaqanga',
+    lyrique: 'Milonga lyrique'
+};
+
+// Choix possibles du pop-up Orchestre (valeurs reçues par chooseBandStyle ; ancien menu à une seule liste, dans son ordre).
 // band + groove : couple orchestre + rythme ; sans groove : la formation seule.
 // tempo : choisir l'entrée pose la signature et le tempo habituels du style du même nom, sauf si ce même couple est déjà actif.
+// Les dernières entrées (baroque, choral, sevdah, tsifteteli) n'étaient accessibles que par un style de grille : elles imposent
+// le rythme sans toucher au tempo ni à la mesure (leur jeu s'adapte à toutes les signatures).
 const BAND_MENU = [
     { value: 'swing',            label: 'Jazz', band: 'swing' },
     { value: 'pop',              label: 'Pop-Rock', band: 'pop' },
@@ -85,7 +115,12 @@ const BAND_MENU = [
     { value: 'benga',            label: 'Afrique : benga', band: 'africa', groove: 'af-benga', tempo: true },
     { value: 'mbaqanga',         label: 'Afrique : mbaqanga', band: 'africa', groove: 'af-mbaqanga', tempo: true },
     { value: 'piazzolla',        label: 'Tango nuevo (quinteto)', band: 'piazzolla' },
-    { value: 'milongalyrique',   label: 'Milonga lyrique (quinteto)', band: 'piazzolla', groove: 'lyrique' }   // sans tempo (comportement d'origine)
+    { value: 'milongalyrique',   label: 'Milonga lyrique (quinteto)', band: 'piazzolla', groove: 'lyrique' },  // sans tempo (comportement d'origine)
+    { value: 'classic-baroque',  label: 'Classique : baroque', band: 'classic', groove: 'c-baroque' },
+    { value: 'guitar-baroque',   label: 'Guitare : baroque', band: 'guitar', groove: 'c-baroque' },
+    { value: 'brass-chorale',    label: 'Brass band : choral', band: 'brass', groove: 'b-chorale' },
+    { value: 'balkan-sevdah',    label: 'Balkans : sevdah', band: 'balkan', groove: 'bk-sevdah' },
+    { value: 'balkan-tsifte',    label: 'Balkans : tsifteteli', band: 'balkan', groove: 'bk-tsifte' }
 ];
 
 const bcOwn = (obj, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(obj, k);
@@ -102,7 +137,7 @@ function bandEffectiveGroove(band, groove) {
 // Entrée du menu Orchestre pour une valeur, ou null.
 function bandMenuEntry(value) { return BAND_MENU.find(e => e.value === value) || null; }
 
-// Valeur du menu Orchestre pour la formation et le rythme actifs (groove = rythme effectif).
+// Choix du pop-up (BAND_MENU) qui correspond à la formation et au rythme actifs (groove = rythme effectif).
 // L'orchestre Afrique sans rythme affiche « Afrique : highlife ».
 function bandMenuValue(band, groove) {
     const g = band === 'africa' ? africaGroove(groove) : groove;
@@ -130,6 +165,21 @@ function bandGrooveAfterPlainChoice(groove, value) {
     return groove;
 }
 
+// Entrée du pop-up pour un couple formation + rythme, ou null.
+function bandEntryFor(band, groove) { return (groove && BAND_MENU.find(e => e.band === band && e.groove === groove)) || null; }
+
+// Liste « Rythme » d'une formation : { options: [{ value, label }], value, disabled }.
+// groove = rythme effectif (getEffectiveGroove). Un rythme actif sans libellé (afro, anciens tango / piazzolla) s'affiche « Auto ».
+function bandGrooveSelect(band, groove) {
+    const b = bandFormation(band);
+    const grooves = BAND_FORMATIONS[b].grooves.filter(g => bcOwn(BAND_GROOVE_LABELS, g) && bandEntryFor(b, g));
+    const auto = BAND_AUTO_LABELS[b];
+    const options = (auto ? [{ value: '', label: auto }] : []).concat(grooves.map(g => ({ value: g, label: BAND_GROOVE_LABELS[g] })));
+    const shown = b === 'africa' ? africaGroove(groove) : groove;
+    const value = options.some(o => o.value === shown) && shown ? shown : (auto ? '' : options[0].value);
+    return { options, value, disabled: grooves.length === 0 };
+}
+
 // Tous les rythmes connus (pour l'import d'un fichier de grille).
 function bandAllGrooves() {
     const seen = [];
@@ -138,6 +188,7 @@ function bandAllGrooves() {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { BAND_FORMATIONS, BAND_GROOVE_NAMES, BAND_MENU, bandFormation, bandEffectiveGroove, bandMenuEntry,
+    module.exports = { BAND_FORMATIONS, BAND_GROOVE_NAMES, BAND_FORMATION_ORDER, BAND_FORMATION_LABELS, BAND_AUTO_LABELS, BAND_GROOVE_LABELS,
+        BAND_MENU, bandFormation, bandEffectiveGroove, bandMenuEntry, bandEntryFor, bandGrooveSelect,
         bandMenuValue, bandDisplayName, bandGrooveAfterPlainChoice, bandAllGrooves };
 }
