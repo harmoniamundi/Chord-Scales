@@ -91,7 +91,7 @@ describe('buildAfricaPlan', () => {
         for (const g of A.AFRICA_GROOVES) for (let s = 1; s <= 30; s++) {
             const p = plan(g, { seed: s, i: s % 4 });
             assert.equal(p.africa, true);
-            assert.equal(p.tone, g === 'af-rumba' ? 'rumba' : 'afro');
+            assert.equal(p.tone, (g === 'af-rumba' || g === 'af-afrobeat') ? 'rumba' : 'afro');
             assert.ok(inst(p, 'gtr').length >= 4, `${g} guitare`);
             assert.ok(p.bass.length >= 3, `${g} basse`);
             assert.ok(p.drums.length >= 8, `${g} percussions`);
@@ -169,12 +169,22 @@ describe('buildAfricaPlan', () => {
             });
         }
     });
-    test('afrobeat : charleston, bâtons (clave), shekere ; guitare étouffée en doubles croches', () => {
-        const p = plan('af-afrobeat', { seed: 7 });
-        const d = new Set(p.drums.map(e => e.drum));
-        ['hat', 'clave', 'shaker', 'kick', 'snare'].forEach(k => assert.ok(d.has(k), k));
-        assert.ok(inst(p, 'gtr').some(e => e.art === 'mute'));
-        assert.ok(inst(p, 'gtr').some(e => e.art === 'pluck' && e.intervals.length === 1));
+    test('afrobeat : charleston, bâtons (clave), shekere, tom basse ; piano électrique et riff de guitare détaché dans le médium', () => {
+        for (let s = 1; s <= 20; s++) {
+            const p = plan('af-afrobeat', { seed: s });
+            const d = new Set(p.drums.map(e => e.drum));
+            ['hat', 'clave', 'shaker', 'kick', 'snare', 'tom3'].forEach(k => assert.ok(d.has(k), k));
+            assert.ok(inst(p, 'epiano').length >= 3, 'piano électrique');
+            const g = inst(p, 'gtr');
+            assert.ok(g.length >= 4);
+            g.forEach(e => {
+                assert.equal(e.art, 'det');
+                assert.equal(e.intervals.length, 1);
+                assert.ok(e.intervals[0] + 48 <= 70, `riff trop aigu : ${e.intervals[0] + 48}`);
+                assert.ok(e.vel <= 0.7, 'riff en retrait');
+            });
+            assert.equal(p.tone, 'rumba');
+        }
     });
     test('afrobeat : les cuivres jouent à l\'unisson et à l\'octave quand la phrase les appelle', () => {
         const p = plan('af-afrobeat', { seed: 7, step: Dm7, ph: mkPhrase(7, 'af-afrobeat', { horns: true }) });
@@ -249,7 +259,7 @@ describe('buildAfricaPlan', () => {
                 assert.ok(e.pos + e.dur <= 4, 'reste dans la mesure');
             });
         }
-        for (const g of A.AFRICA_GROOVES.filter(x => x !== 'af-rumba')) assert.equal(inst(plan(g, { seed: 2 }), 'epiano').length, 0, g);
+        for (const g of A.AFRICA_GROOVES.filter(x => x !== 'af-rumba' && x !== 'af-afrobeat')) assert.equal(inst(plan(g, { seed: 2 }), 'epiano').length, 0, g);
     });
     test('rumba : mi-solo en notes détachées, doubles cordes seulement sur les temps 1 et 3', () => {
         for (let s = 1; s <= 30; s++) {

@@ -2501,9 +2501,10 @@
                     const row = document.getElementById('band-row-rk-' + k);
                     if (row) row.classList.toggle('hidden', !(this.bandStyle === 'pop' || (africa && k !== 'strings')));
                 });
-                // rumba congolaise : le curseur de l'orgue règle le piano électrique
+                // rumba congolaise : le curseur de l'orgue règle le piano électrique ; afrobeat : l'orgue et le piano électrique
                 const eo = document.getElementById('band-vol-organ-label');
-                if (eo) eo.textContent = (africa && africaGroove(this.getEffectiveGroove('africa')) === 'af-rumba') ? 'Piano élec.' : 'Orgue';
+                const ag = africa ? africaGroove(this.getEffectiveGroove('africa')) : null;
+                if (eo) eo.textContent = ag === 'af-rumba' ? 'Piano élec.' : (ag === 'af-afrobeat' ? 'Claviers' : 'Orgue');
             }
 
             // Nom de l'orchestre Rock actif (rythme rock imposé par le style ou le menu), ou null pour le Pop-Rock ordinaire.
