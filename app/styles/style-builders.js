@@ -1456,8 +1456,8 @@ function buildStyleTemplate(styleKey, ctx) {
     const t = makeStyleToolkit({ ...ctx, styleKey });
     const builder = STYLE_BUILDERS[styleKey];
     let template = builder ? builder(t) : [t.chord('I', 4, 'A', 'A1', 'tonic')];
-    // Jazz tonal en mode mineur : la grille majeure est transposée dans la tonalité mineure (fonctions conservées, dominantes gardées)
-    if (t.minorKey && !t.minorNative) template = minorizeJazz(template, t.keyRoot, t.minorTonicScale);
+    // Jazz tonal ou style classique en degrés, en mode mineur : la grille majeure est transposée dans la tonalité mineure (fonctions conservées, dominantes gardées)
+    if (t.minorKey && !t.minorNative) template = minorizeJazz(template, t.keyRoot, t.minorTonicScale, { classic: t.classicTonal });
     // Styles à ponts modulants : tout bloc sans tonalité explicite est dans la tonalité d'origine (kc = 0).
     if (template.some(x => Number.isInteger(x.kc))) template.forEach(x => { if (!Number.isInteger(x.kc)) x.kc = 0; });
     // Styles classiques et traditionnels : triades, sauf les dominantes

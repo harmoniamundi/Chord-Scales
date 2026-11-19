@@ -11,7 +11,7 @@
 
 // Sous Node, la théorie se charge ; en navigateur ce sont des globaux (theory.js).
 const GEN_THEORY = (typeof scalesDb !== 'undefined')
-    ? { scalesDb, lookupChord, chordInfo, chordTypes, triadizeItem, TRIAD_STYLES }
+    ? { scalesDb, lookupChord, chordInfo, chordTypes, triadizeItem, TRIAD_STYLES, scaleFits }
     : require('../theory.js');
 
 // Générateur pseudo-aléatoire déterministe (PCG-like), seedé par le compteur de
@@ -478,7 +478,11 @@ function simplifyBrass(S) {
 // Styles classiques et traditionnels (Chanson, Baroque, Mozart, Menuet) : triades, seules les dominantes gardent leur septième.
 // Les réharmonisations du bouton « Générer » (ii-V, substitutions, couleurs) sont ramenées à ce vocabulaire.
 function isTriadStyle(styleKey) { return GEN_THEORY.TRIAD_STYLES.includes(styleKey); }
-function simplifyTriads(S) { S.forEach(sl => GEN_THEORY.triadizeItem(sl)); }
+// Les dominantes colorées du jazz (9, altérée, ♭9, ♯5) redeviennent des septièmes de dominante simples.
+function simplifyTriads(S) {
+    const dom = (ch) => { if (['9', '7alt', '7b9', '7sharp5'].includes(ch.c)) { ch.c = '7'; if (!GEN_THEORY.scaleFits(ch.s, '7')) ch.s = 'mixolydian'; } };
+    S.forEach(sl => { GEN_THEORY.triadizeItem(sl); dom(sl); if (sl.split) dom(sl.split); });
+}
 
 function rememberGenerated(recent, styleKey, generated) {
     const keys = [];
@@ -627,7 +631,9 @@ function createStyleVariation(ctx, template, styleKey, keyRoot) {
         } else if (styleKey === 'baroque' || styleKey === 'mozart' || styleKey === 'trad') {
             if (styleKey === 'mozart') {
                 const x = out.find(z => z.r === (keyRoot + 5) % 12 && z.function === 'predominant');
-                if (x) { x.r = (keyRoot + 2) % 12; x.c = 'm7'; x.s = 'dorian'; }
+                // en mineur, le ii est demi-diminué (ii°)
+                const minorTpl = template.some(z => z.function === 'tonic' && z.r === keyRoot % 12 && ['minTriad', 'm7', 'm9'].includes(z.c));
+                if (x) { x.r = (keyRoot + 2) % 12; x.c = minorTpl ? 'm7b5' : 'm7'; x.s = minorTpl ? 'locrianSharp2' : 'dorian'; }
             } else {
                 const x = out.find(z => z.function === 'dominant');
                 if (x) x.c = phase % 2 ? '7' : (styleKey === 'trad' ? 'maj7' : '7');

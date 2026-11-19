@@ -164,8 +164,17 @@ describe('mode choisi', () => {
     test('un style en absolu ignore le mode', () => {
         assert.deepEqual(build('bossa', 0, null, 'dorian'), build('bossa', 0, null, 'ionian'));
     });
-    test('les propositions renouvelées des styles classiques en degrés restent sur la forme de référence en mode non majeur', () => {
-        assert.deepEqual(build('baroque', 0, seeded(3), 'aeolian'), build('baroque', 0, null, 'aeolian'));
+    test('styles classiques en degrés (baroque, Mozart, trad) en mode mineur : tonique mineure, V7 avec sensible, ii°, ♭VI', () => {
+        for (const s of ['baroque', 'mozart', 'trad']) for (const q of ['dorian', 'aeolian']) for (let seed = 0; seed <= 8; seed++) {
+            const t = build(s, 0, seed ? seeded(seed) : null, q);
+            assert.equal(t[0].c, 'minTriad', `${s} ${q}`);
+            const V = t.filter(x => x.r === 7);
+            assert.ok(V.length && V.every(x => x.c === '7'), `${s} ${q} : V7 (sensible)`);
+            t.filter(x => x.r === 2 && x.function !== 'secondaryDominant').forEach(x => assert.equal(x.c, 'dimTriad', `${s} : ii°`));
+            assert.ok(!t.some(x => x.r === 9 && x.c === 'minTriad'), `${s} : pas de vi mineur en mineur`);
+            t.forEach(x => assert.ok(T.scaleFits(x.s, x.c), `${s} ${x.c} ${x.s}`));
+        }
+        assert.deepEqual(build('mozart', 0, null, 'lydian'), build('mozart', 0, null, 'ionian'));
     });
 });
 

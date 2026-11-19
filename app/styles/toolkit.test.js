@@ -26,11 +26,12 @@ describe('accords diatoniques (chord, chordJazz)', () => {
         assert.equal(kit({ keyRoot: undefined }).keyRoot, 0);
         assert.equal(kit({ keyRoot: 'x' }).chord('I').r, 0);
     });
-    test('mode choisi (dorien) : les degrés d\'un style classique suivent le mode', () => {
+    test('style classique en dorien : pas de rotation, tonalité mineure signalée', () => {
         const t = kit({ mainQuality: 'dorian', styleKey: 'baroque' });
-        assert.equal(t.rotation, 1);
-        assert.equal(t.chord('I').c, 'm7');
-        assert.equal(t.chord('I').r, 0);
+        assert.equal(t.rotation, 0);
+        assert.equal(t.minorKey, true);
+        assert.equal(t.classicTonal, true);
+        assert.equal(t.chord('V').c, '7');
     });
     test('jazz tonal en dorien : pas de rotation, tonalité mineure signalée', () => {
         const t = kit({ mainQuality: 'dorian', styleKey: 'swing' });
@@ -54,10 +55,10 @@ describe('choix aléatoires (pick, libOK)', () => {
         const t = kit({ R: () => 0.99 });
         assert.equal(t.pick(['a', 'b', 'c']), 'c');
     });
-    test('style classique en degrés + mode non majeur : bibliothèques désactivées (première option)', () => {
-        const t = kit({ R: () => 0.99, mainQuality: 'dorian', styleKey: 'baroque' });
-        assert.equal(t.libOK, false);
-        assert.equal(t.pick(['a', 'b', 'c']), 'a');
+    test('style classique en mode mineur : bibliothèques actives', () => {
+        const t = kit({ R: () => 0.99, mainQuality: 'aeolian', styleKey: 'trad' });
+        assert.equal(t.libOK, true);
+        assert.equal(t.pick(['a', 'b', 'c']), 'c');
     });
     test('jazz tonal en mode mineur : bibliothèques actives', () => {
         const t = kit({ R: () => 0.99, mainQuality: 'dorian', styleKey: 'swing' });
@@ -137,5 +138,13 @@ describe('minorizeJazz', () => {
         const out = minorizeJazz([K.chord('I'), a, K.chord('V')], 0);
         assert.equal(out[1].split, undefined);
         assert.equal(out[1].c, 'm7');
+    });
+});
+
+describe('minorizeJazz, version classique', () => {
+    const K = makeStyleToolkit({ keyRoot: 0, mainQuality: 'ionian', styleKey: 'mozart', R: null, findChordObj });
+    test('V7 du mineur harmonique (sans neuvième ajoutée), ii demi-diminué, vi → ♭VI', () => {
+        const out = minorizeJazz([K.chord('I'), K.chord('vi'), K.chord('ii'), K.chord('V')], 0, 'aeolian', { classic: true });
+        assert.deepEqual(out.map(x => [x.r, x.c, x.s]), [[0, 'm7', 'aeolian'], [8, 'maj7', 'lydian'], [2, 'm7b5', 'locrianSharp2'], [7, '7', 'phrygianDominant']]);
     });
 });

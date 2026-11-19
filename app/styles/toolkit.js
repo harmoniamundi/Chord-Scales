@@ -10,6 +10,9 @@
 
 // Styles de jazz tonal : tonalité majeure ou mineure selon le mode choisi, jamais un mode d'église (voir makeStyleToolkit).
 const JAZZ_TONAL_STYLES = new Set(['ii-v-i', 'anatole', 'bebop', 'swing', 'ballad', 'ballad128', 'hardbop', 'dixieland']);
+// Styles classiques écrits en degrés : même principe (majeur ou mineur), mais mineur « classique » : sensible (V et V7 du
+// mineur harmonique), ii°, ♭III, iv, ♭VI, sans les couleurs du jazz (pas de neuvième mineure ajoutée).
+const CLASSIC_TONAL_STYLES = new Set(['baroque', 'mozart', 'trad']);
 // Styles qui écrivent eux-mêmes leur version mineure (minorizeJazz ne leur est pas appliqué)
 const JAZZ_MINOR_NATIVE = new Set(['hardbop', 'dixieland']);
 const MINOR_QUALITIES = new Set(['dorian', 'phrygian', 'aeolian', 'locrian']);
@@ -23,7 +26,8 @@ const MINOR_QUALITIES = new Set(['dorian', 'phrygian', 'aeolian', 'locrian']);
 const TK_MAJ = ['majTriad', 'maj7', 'maj9', '6', 'maj7sharp11', 'maj7sharp5'];
 const TK_MIN = ['minTriad', 'm7', 'm9', 'm11', 'mmaj7'];
 const TK_DOM = ['7', '9', '7alt', '7b9', '7sharp5', '7sus4'];
-function minorizeJazz(items, keyRoot, tonicScale = 'dorian') {
+function minorizeJazz(items, keyRoot, tonicScale = 'dorian', opts = {}) {
+    const classic = !!opts.classic;
     const out = items.map(x => { const y = { ...x }; if (x.split) y.split = { ...x.split }; return y; });
     const slots = [];
     out.forEach(it => { slots.push({ h: it, it, half: false }); if (it.split) slots.push({ h: it.split, it, half: true }); });
@@ -39,6 +43,7 @@ function minorizeJazz(items, keyRoot, tonicScale = 'dorian') {
             const resolves = nx.o === (o + 5) % 12;
             const delta = (resolves && nr) ? nr.delta : 0;
             const targetMinor = (resolves && nr) ? isMinorish(nr.c) : o === 7;
+            if (targetMinor && classic && c0 === '7') return { delta, c: '7', s: 'phrygianDominant', targetMinor };   // V7 du mineur harmonique
             if (targetMinor && (c0 === '7' || c0 === '9')) return { delta, c: '7b9', s: 'phrygianDominant', targetMinor };
             return { delta, c: c0, s: s0, targetMinor };
         }
@@ -98,11 +103,12 @@ function makeStyleToolkit(ctx) {
     // mode mineur (dorien, phrygien, éolien, locrien) → tonalité mineure du jazz (i, iiø, V7(b9/alt), ♭III, iv, ♭VI),
     // obtenue par minorizeJazz après construction, ou écrite directement par le style (hard bop, dixieland).
     const jazzTonal = JAZZ_TONAL_STYLES.has(styleKey);
-    const minorKey = jazzTonal && MINOR_QUALITIES.has(mainQuality);
-    const minorTonicScale = (mainQuality === 'aeolian') ? 'aeolian' : 'dorian';
-    const rotation = jazzTonal ? 0 : (QUALITY_ROTATION[mainQuality] ?? 0);
-    // Les styles écrits en degrés (baroque, Mozart, trad) suivent le mode choisi ; leurs bibliothèques de cellules supposent une
-    // tonalité majeure. Les styles écrits en absolu (bossa, modal, blues…) ignorent le mode : bibliothèques toujours actives.
+    const classicTonal = CLASSIC_TONAL_STYLES.has(styleKey);
+    const minorKey = (jazzTonal || classicTonal) && MINOR_QUALITIES.has(mainQuality);
+    const minorTonicScale = classicTonal ? 'aeolian' : ((mainQuality === 'aeolian') ? 'aeolian' : 'dorian');
+    const rotation = (jazzTonal || classicTonal) ? 0 : (QUALITY_ROTATION[mainQuality] ?? 0);
+    // Un style en degrés qui tournerait dans les modes désactive ses bibliothèques (elles supposent une tonalité majeure) ;
+    // les styles tonals (jazz, classiques) et les styles écrits en absolu (bossa, modal, blues…) les gardent toujours actives.
     const libOK = !ROTATION_STYLES.has(styleKey) || rotation === 0;
     const diatonicChord = (degree, measures=1, tonicScale='ionian') => {
         const i = DEGREE_INDEX[degree];
@@ -201,12 +207,12 @@ function makeStyleToolkit(ctx) {
 
 
     return {
-        styleKey, keyRoot, rotation, libOK, R, pick, jazzTonal, minorKey, minorTonicScale, minorNative: JAZZ_MINOR_NATIVE.has(styleKey),
+        styleKey, keyRoot, rotation, libOK, R, pick, jazzTonal, minorKey, minorTonicScale, classicTonal, minorNative: JAZZ_MINOR_NATIVE.has(styleKey),
         chord, chordJazz, secondary, abs, join, iiV, turnaround, cadence, turnCell,
         CH, TONIC_KINDS, cells, okAfter, twinOf, absCell, withTwin, JBR, jbr
     };
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { makeStyleToolkit, minorizeJazz, JAZZ_TONAL_STYLES, JAZZ_MINOR_NATIVE };
+    module.exports = { makeStyleToolkit, minorizeJazz, JAZZ_TONAL_STYLES, CLASSIC_TONAL_STYLES, JAZZ_MINOR_NATIVE };
 }
