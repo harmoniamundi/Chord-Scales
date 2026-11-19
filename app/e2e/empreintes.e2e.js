@@ -13,7 +13,8 @@
 // les instruments sont des faux qui enregistrent ce qu'on leur demande. Rien n'est entendu : le rendu sonore
 // (synthèse des percussions, réverbération, échantillons) n'est pas comparé, seulement ce qui lui est demandé.
 //
-// Cas couverts : chaque style de grille (forme de référence avec deux graines, puis une proposition « Générer ») ;
+// Cas couverts : chaque style de grille (forme de référence avec deux graines, puis une proposition « Générer ») ; des changements
+// de timbre (listes Harmonie / Basse) ;
 // chaque choix du pop-up Orchestre (BAND_MENU) et le bouton Arpèges, sur cinq grilles hôtes (4/4, 3/4, 6/8, 12/8, aksak 7/8).
 //
 // Lancer :                      npm run test:empreintes
@@ -132,6 +133,7 @@ async function capturePage(spec) {
     jam.changeStyle(host);
     if (spec.generer) jam.resetGrid();
     if (spec.entry) jam.chooseBandStyle(spec.entry);   // même chemin que les listes Formation / Rythme du pop-up
+    if (spec.inst) jam.chooseBandInstrument(spec.inst[0], spec.inst[1]);   // listes Harmonie / Basse du pop-up
     jam.loopEnabled = false;
     jam.metronomeEnabled = false;
     app.loadPiano();
@@ -150,7 +152,8 @@ async function capturePage(spec) {
         densite: jam.bandDensity ? jam.bandDensity[jam.bandStyle] ?? null : null,
         curseurs: [label('band-vol-piano-label'), label('band-vol-bass-label'), label('band-vol-drums-label'), label('band-vol-organ-label')],
         lignes: ['band-row-pz-bandoneon', 'band-row-pz-violin', 'band-row-pz-guitar', 'band-row-rk-rguitar', 'band-row-rk-organ', 'band-row-rk-strings', 'band-row-density'].filter(visible),
-        volumes: jam.bandVolumes
+        volumes: jam.bandVolumes,
+        ...(Object.keys(jam.bandInstruments || {}).length ? { instruments: jam.bandInstruments } : {})   // seulement si un timbre est choisi
     };
     const grilleTexte = jam.grid.map(s => `${s.rootIndex}:${s.chordId}x${s.measures}` + (s.split ? `/${s.split.rootIndex}:${s.split.chordId}` : '')).join(' ');
 
@@ -264,6 +267,12 @@ describe('empreintes sonores (golden master)', { skip: !pw && 'Playwright non in
             cases.push({ name: `style:${s}#graine2`, style: s, seed: 2 });
             cases.push({ name: `style:${s}#generer`, style: s, seed: 1, generer: true });
         });
+        // Timbre d'un pupitre changé (listes Harmonie / Basse) : chaque instrument au moins une fois, sur un style de chaque formation
+        [['swing', 'harmony', 'organ'], ['swing', 'bass', 'electric'], ['bossa', 'harmony', 'piano'], ['salsa', 'harmony', 'epiano'],
+         ['sonmontuno', 'harmony', 'accordion'], ['baroque', 'harmony', 'egtr'], ['flamencosolea', 'harmony', 'piano'], ['balkan', 'harmony', 'guitar'],
+         ['cumbia', 'harmony', 'organ'], ['pop', 'bass', 'upright'], ['brasshymn', 'bass', 'electric'], ['tango', 'bass', 'tuba'],
+         ['afrobeat', 'bass', 'upright'], ['rockroll', 'bass', 'electric']].forEach(([s, role, inst]) =>
+            cases.push({ name: `instrument:${role}=${inst}@${s}`, style: s, inst: [role, inst], seed: 4 }));
         HOSTS.forEach(h => {
             bands.forEach(b => cases.push({ name: `orchestre:${b}@${h}`, host: h, entry: b, seed: 3 }));
             cases.push({ name: `arpeges@${h}`, host: h, arp: true, seed: 3 });

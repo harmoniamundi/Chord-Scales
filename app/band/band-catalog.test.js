@@ -154,4 +154,56 @@ describe('band-catalog : catalogue des orchestres', () => {
         assert.deepEqual(all.slice().sort(), IMPORT_GROOVES.slice().sort());
         Object.values(M.STYLE_BAND).forEach(b => assert.ok(C.BAND_FORMATIONS[b], b));
     });
+
+    test('instruments : pupitre d\'origine de chaque formation, null quand il n\'est pas réglable', () => {
+        const N = (b, g, r) => C.bandNativeInstrument(b, g, r);
+        assert.deepEqual(C.BAND_FORMATION_ORDER.map(b => N(b, null, 'harmony')),
+            ['piano', 'piano', 'guitar', 'piano', 'piano', 'guitar', null, 'accordion', 'accordion', null, null]);
+        assert.deepEqual(C.BAND_FORMATION_ORDER.map(b => N(b, null, 'bass')),
+            ['upright', 'electric', 'upright', 'upright', null, null, 'tuba', 'upright', 'electric', 'electric', 'upright']);
+        assert.equal(N('cuba', 'cu-son', 'harmony'), 'guitar');      // tres
+        assert.equal(N('cuba', 'cu-chacha', 'harmony'), 'piano');
+        assert.equal(N('pop', 'r-roll', 'bass'), 'upright');        // rock'n'roll : la contrebasse mène
+        assert.equal(N('swing', null, 'drums'), null);
+    });
+
+    test('instruments : choix enregistré, Auto quand il est inconnu ou égal à l\'instrument d\'origine', () => {
+        const ch = { swing: { harmony: 'organ', bass: 'piano' }, latin: { harmony: 'guitar' }, brass: { harmony: 'piano', bass: 'electric' } };
+        assert.equal(C.bandInstrumentChoice(ch, 'swing', null, 'harmony'), 'organ');
+        assert.equal(C.bandInstrumentChoice(ch, 'swing', null, 'bass'), '');        // « piano » n'est pas une basse
+        assert.equal(C.bandInstrumentChoice(ch, 'latin', null, 'harmony'), '');     // guitare = instrument d'origine
+        assert.equal(C.bandInstrumentChoice(ch, 'brass', null, 'harmony'), '');     // section : pas réglable
+        assert.equal(C.bandInstrumentChoice(ch, 'brass', null, 'bass'), 'electric');
+        assert.equal(C.bandInstrumentChoice(ch, 'pop', null, 'harmony'), '');
+        assert.equal(C.bandInstrumentChoice(null, 'pop', null, 'harmony'), '');
+        // le choix est propre à chaque formation
+        assert.equal(C.bandInstrumentChoice({ swing: { harmony: 'organ' } }, 'balkan', null, 'harmony'), '');
+    });
+
+    test('instruments : listes du pop-up', () => {
+        const h = C.bandInstrumentSelect({ swing: { harmony: 'epiano' } }, 'swing', null, 'harmony');
+        assert.equal(h.options[0].label, 'Auto : piano');
+        assert.equal(h.value, 'epiano');
+        assert.ok(!h.options.some(o => o.value === 'piano'), 'l\'instrument d\'origine est le choix Auto');
+        assert.equal(h.disabled, false);
+        assert.deepEqual(C.bandInstrumentSelect({}, 'brass', null, 'harmony'), { options: [{ value: '', label: '—' }], value: '', disabled: true });
+        assert.equal(C.bandInstrumentSelect({}, 'guitar', null, 'bass').disabled, true);
+        assert.deepEqual(C.bandInstrumentSelect({}, 'piazzolla', null, 'bass').options.map(o => o.value), ['', 'electric', 'tuba']);
+    });
+
+    test('instruments : bandSetInstrument ne modifie pas l\'original ; Auto retire l\'entrée', () => {
+        const a = { swing: { harmony: 'organ' } };
+        const b = C.bandSetInstrument(a, 'swing', 'bass', 'electric');
+        assert.deepEqual(a, { swing: { harmony: 'organ' } });
+        assert.deepEqual(b, { swing: { harmony: 'organ', bass: 'electric' } });
+        assert.deepEqual(C.bandSetInstrument(b, 'swing', 'harmony', ''), { swing: { bass: 'electric' } });
+        assert.deepEqual(C.bandSetInstrument({ swing: { bass: 'electric' } }, 'swing', 'bass', ''), {});
+        assert.deepEqual(C.bandSetInstrument({}, 'swing', 'bass', 'violon'), {});
+    });
+
+    test('instruments : relecture d\'un fichier (formations et instruments connus seulement)', () => {
+        assert.deepEqual(C.bandSanitizeInstruments({ swing: { harmony: 'organ', bass: 'tuba', drums: 'x' }, zzz: { harmony: 'piano' }, pop: { harmony: 'violon' }, latin: 'piano' }),
+            { swing: { harmony: 'organ', bass: 'tuba' } });
+        [null, undefined, 'x', [], 3].forEach(v => assert.deepEqual(C.bandSanitizeInstruments(v), {}));
+    });
 });

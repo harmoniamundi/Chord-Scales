@@ -898,6 +898,58 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         noErrors();
     });
 
+    test('Jam : pop-up Orchestre — instruments des pupitres Harmonie et Basse (timbre seulement), enregistrés avec la grille', async () => {
+        const st = () => page.evaluate(() => {
+            const sel = (id) => { const s = document.getElementById(id); return { value: s.value, disabled: s.disabled, first: s.options[0].textContent, n: s.options.length }; };
+            return { h: sel('band-inst-harmony'), b: sel('band-inst-bass'),
+                labels: ['band-vol-piano-label', 'band-vol-bass-label'].map(id => document.getElementById(id).textContent), choices: JSON.parse(JSON.stringify(app.jam.bandInstruments)) };
+        });
+        await page.selectOption('#jam-style-select', 'swing');
+        await page.evaluate(() => { app.jam.bandInstruments = {}; app.jam.openBandModal(); });
+        let s = await st();
+        assert.deepEqual([s.h.value, s.h.first, s.b.value, s.b.first], ['', 'Auto : piano', '', 'Auto : contrebasse']);
+        // Jazz : orgue à l'harmonie, basse électrique ; le curseur prend le nom de l'instrument
+        await page.selectOption('#band-inst-harmony', 'organ');
+        await page.selectOption('#band-inst-bass', 'electric');
+        s = await st();
+        assert.deepEqual(s.choices, { swing: { harmony: 'organ', bass: 'electric' } });
+        assert.deepEqual(s.labels, ['Orgue', 'Basse']);
+        // Les frappes d'harmonie vont à l'orgue (synthétisé), pas au piano
+        const played = await page.evaluate(() => {
+            app.jam.ensureBandAudio();
+            const org = app.jam._harmonyInst('organ');
+            let n = 0; const orig = org.play; org.play = function () { n++; return orig.apply(this, arguments); };
+            app.jam.playPianoHit({ pos: 0, dur: 1, vel: 0.7, rootIndex: 0, intervals: [0, 4, 7, 11] }, app.audioCtx.currentTime + 0.05, 0.5);
+            org.play = orig; return n;
+        });
+        assert.ok(played >= 3, `notes jouées par l'orgue : ${played}`);
+        // Le choix est propre à chaque formation : les Balkans gardent leur accordéon
+        await page.selectOption('#band-formation-select', 'balkan');
+        s = await st();
+        assert.deepEqual([s.h.value, s.h.first, s.labels[0]], ['', 'Auto : accordéon', 'Accordéon']);
+        // Sections : pupitre Harmonie non réglable (Brass band) ; formations sans basse (Guitare)
+        await page.selectOption('#band-formation-select', 'brass');
+        s = await st();
+        assert.deepEqual([s.h.disabled, s.h.first, s.b.disabled, s.b.first], [true, '—', false, 'Auto : tuba']);
+        await page.selectOption('#band-formation-select', 'guitar');
+        assert.equal((await st()).b.disabled, true);
+        // Retour au Jazz : le choix est toujours là ; enregistré avec la grille et relu
+        await page.selectOption('#band-formation-select', 'swing');
+        s = await st();
+        assert.deepEqual([s.h.value, s.b.value], ['organ', 'electric']);
+        const saved = await page.evaluate(() => app.jam.collectSettings().orchestration.instruments);
+        assert.deepEqual(saved, { swing: { harmony: 'organ', bass: 'electric' } });
+        await page.selectOption('#band-inst-harmony', '');
+        await page.selectOption('#band-inst-bass', '');
+        assert.deepEqual((await st()).choices, {});
+        assert.deepEqual((await st()).labels, ['Piano', 'Basse']);
+        await page.evaluate((ins) => app.jam.applyImportedSettings({ orchestration: { style: 'swing', instruments: ins } }), saved);
+        s = await st();
+        assert.deepEqual([s.h.value, s.b.value, s.labels[0]], ['organ', 'electric', 'Orgue']);
+        await page.evaluate(() => { app.jam.chooseBandInstrument('harmony', ''); app.jam.chooseBandInstrument('bass', ''); app.jam.closeBandModal(); });
+        noErrors();
+    });
+
     test('Jam : mode édition, sélection d\'une plage et lecture de cette plage', async () => {
         await page.selectOption('#jam-style-select', 'blues');
         await page.evaluate(() => {

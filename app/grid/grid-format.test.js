@@ -704,3 +704,20 @@ describe('annotations : blocs d\'accords jouables et cadres de dessin', () => {
         assert.equal(F.sanitizeNoteHtml(once), once);
     });
 });
+
+describe('import / export : instruments choisis (pupitres Harmonie et Basse)', () => {
+    test('relus et nettoyés à l\'import ; absents = Auto', () => {
+        const s = F.sanitizeImportedSettings({ orchestration: { style: 'swing', instruments: { swing: { harmony: 'organ', bass: 'zzz' }, balkan: { harmony: 'guitar' } } } });
+        assert.deepEqual(s.orchestration.instruments, { swing: { harmony: 'organ' }, balkan: { harmony: 'guitar' } });
+        assert.equal(F.sanitizeImportedSettings({ orchestration: { style: 'swing' } }).orchestration.instruments, undefined);
+        assert.equal(F.sanitizeImportedSettings({ orchestration: { style: 'swing', instruments: 'piano' } }).orchestration.instruments, undefined);
+    });
+    test('export : les instruments partent avec l\'orchestre, pas avec le mixage seul', () => {
+        const s = { orchestration: { style: 'swing', instruments: { swing: { harmony: 'organ' } }, volumes: { piano: 0.5 } } };
+        const full = F.filterSettingsForExport(s, F.exportOptionsFor('full'));
+        const mixOnly = F.filterSettingsForExport(s, F.exportOptionsFor('custom', { mix: true }));
+        assert.equal(mixOnly.orchestration.instruments, undefined);
+        assert.deepEqual(mixOnly.orchestration.volumes, { piano: 0.5 });
+        assert.deepEqual(full.orchestration.instruments, { swing: { harmony: 'organ' } });
+    });
+});

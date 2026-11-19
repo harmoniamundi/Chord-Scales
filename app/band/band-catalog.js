@@ -19,6 +19,9 @@ const BC_AFRICA = typeof AFRICA_GROOVES !== 'undefined' ? { AFRICA_GROOVES, AFRI
 if (typeof africaGroove === 'undefined' && typeof require === 'function') {
     var { africaGroove } = require('./africa-plan.js');
 }
+if (typeof afroUsesGuitar === 'undefined' && typeof require === 'function') {
+    var { afroUsesGuitar } = require('./afrocuban-plan.js');
+}
 
 // Formations : nom affiché sur le bouton (« Orchestre … ») sans rythme, et rythmes imposés qu'elles savent jouer.
 // L'ordre des clés est celui de l'ancienne liste de setBandStyle. Un rythme absent de la liste d'une formation est ignoré
@@ -180,6 +183,80 @@ function bandGrooveSelect(band, groove) {
     return { options, value, disabled: grooves.length === 0 };
 }
 
+// ===== Instruments : changer le timbre d'un pupitre =====
+// Deux pupitres réglables dans le pop-up Orchestre : « Harmonie » (l'instrument du premier curseur de volume) et « Basse ».
+// Seul le timbre change : la formation écrit les mêmes notes (voicings, rythme, durées), un autre instrument les joue.
+// '' = Auto : l'instrument d'origine de la formation, son strictement inchangé.
+const BAND_INSTRUMENTS = {
+    harmony: { piano: 'Piano', epiano: 'Piano électrique', organ: 'Orgue', guitar: 'Guitare nylon', egtr: 'Guitare électrique', accordion: 'Accordéon' },
+    bass: { upright: 'Contrebasse', electric: 'Basse électrique', tuba: 'Tuba' }
+};
+
+// Instrument d'origine de chaque pupitre, ou null quand le pupitre n'est pas réglable : sections de plusieurs instruments
+// (Brass band, quinteto de tango, Afrique : cuivres et guitares) pour l'harmonie, formations sans basse (Classique, Guitare).
+function bandNativeInstrument(band, groove, role) {
+    const b = bandFormation(band);
+    if (role === 'harmony') {
+        if (b === 'swing' || b === 'pop' || b === 'classic') return 'piano';
+        if (b === 'latin' || b === 'guitar') return 'guitar';
+        if (b === 'cuba') return afroUsesGuitar(groove) ? 'guitar' : 'piano';
+        if (b === 'balkan' || b === 'cumbia') return 'accordion';
+        return null;
+    }
+    if (role === 'bass') {
+        if (b === 'classic' || b === 'guitar') return null;
+        if (b === 'brass') return 'tuba';
+        if (b === 'pop') return groove === 'r-roll' ? 'upright' : 'electric';   // rock'n'roll des années 50 : la contrebasse mène
+        if (b === 'cumbia' || b === 'africa') return 'electric';
+        return 'upright';
+    }
+    return null;
+}
+
+// Choix enregistré pour une formation et un pupitre ('' = Auto). choices = { swing: { harmony: 'organ', bass: '' }, … }.
+// Un choix inconnu, ou égal à l'instrument d'origine, vaut Auto.
+function bandInstrumentChoice(choices, band, groove, role) {
+    const b = bandFormation(band);
+    const native = bandNativeInstrument(b, groove, role);
+    if (!native) return '';
+    const c = choices && choices[b] && choices[b][role];
+    return (typeof c === 'string' && bcOwn(BAND_INSTRUMENTS[role], c) && c !== native) ? c : '';
+}
+
+// Liste d'un pupitre dans le pop-up : { options: [{ value, label }], value, disabled }.
+function bandInstrumentSelect(choices, band, groove, role) {
+    const native = bandNativeInstrument(band, groove, role);
+    if (!native) return { options: [{ value: '', label: '—' }], value: '', disabled: true };
+    const names = BAND_INSTRUMENTS[role];
+    const options = [{ value: '', label: 'Auto : ' + names[native].toLowerCase() }]
+        .concat(Object.keys(names).filter(k => k !== native).map(k => ({ value: k, label: names[k] })));
+    return { options, value: bandInstrumentChoice(choices, band, groove, role), disabled: false };
+}
+
+// Nouveau tableau de choix après un choix dans le pop-up (l'original n'est pas modifié ; Auto retire l'entrée).
+function bandSetInstrument(choices, band, role, value) {
+    const b = bandFormation(band);
+    const out = {};
+    Object.keys(choices || {}).forEach(k => { out[k] = Object.assign({}, choices[k]); });
+    const cur = Object.assign({}, out[b]);
+    if (value && bcOwn(BAND_INSTRUMENTS[role] || {}, value)) cur[role] = value; else delete cur[role];
+    if (Object.keys(cur).length) out[b] = cur; else delete out[b];
+    return out;
+}
+
+// Choix relus d'un fichier : formations et instruments connus seulement.
+function bandSanitizeInstruments(raw) {
+    const out = {};
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+    Object.keys(raw).forEach(b => {
+        if (!bcOwn(BAND_FORMATIONS, b) || !raw[b] || typeof raw[b] !== 'object') return;
+        const cur = {};
+        ['harmony', 'bass'].forEach(r => { const v = raw[b][r]; if (typeof v === 'string' && bcOwn(BAND_INSTRUMENTS[r], v)) cur[r] = v; });
+        if (Object.keys(cur).length) out[b] = cur;
+    });
+    return out;
+}
+
 // Tous les rythmes connus (pour l'import d'un fichier de grille).
 function bandAllGrooves() {
     const seen = [];
@@ -190,5 +267,6 @@ function bandAllGrooves() {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { BAND_FORMATIONS, BAND_GROOVE_NAMES, BAND_FORMATION_ORDER, BAND_FORMATION_LABELS, BAND_AUTO_LABELS, BAND_GROOVE_LABELS,
         BAND_MENU, bandFormation, bandEffectiveGroove, bandMenuEntry, bandEntryFor, bandGrooveSelect,
+        BAND_INSTRUMENTS, bandNativeInstrument, bandInstrumentChoice, bandInstrumentSelect, bandSetInstrument, bandSanitizeInstruments,
         bandMenuValue, bandDisplayName, bandGrooveAfterPlainChoice, bandAllGrooves };
 }

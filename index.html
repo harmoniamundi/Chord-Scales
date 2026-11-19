@@ -598,6 +598,7 @@
                 this.bandVolumes = { piano: 0.5, bass: 0.85, drums: 0.25, bandoneon: 0.7, violin: 0.6, guitar: 0.5, rguitar: 0.6, organ: 0.35, strings: 0.4 }; // bandoneon, violin, guitar : style Tango nuevo ; rguitar, organ, strings : couches du Pop-Rock et des styles Rock
                 this.bandReverb = 0.25;
                 this.bandDensity = { ...BAND_DENSITY_DEFAULTS }; // densité de notes par orchestre (0 à 1), réglée par le curseur « Densité » du pop-up Orchestre ; enregistrée avec la grille
+                this.bandInstruments = {}; // timbre choisi par pupitre et par orchestre ({ swing: { harmony: 'organ' } }) ; absent = Auto (band/band-catalog.js)
                 this.bandSwingSettings = {}; // swing choisi (0.5 à 0.75), par orchestre ; absent = « Auto » (valeur par défaut du style : Jazz = triolet qui se resserre avec le tempo, les autres = croches droites 50 %)
                 this._degreeTriads = (() => { try { return localStorage.getItem('csm-degree-triads') === '1'; } catch (e) { return false; } })(); // degrés de l'éditeur : triades ou septièmes
                 this.bandMaster = 1; // position du curseur Master (0-1) : 100 % par défaut à l'ouverture, hors sauvegardes / export / import ; le métronome a son propre volume
@@ -1058,6 +1059,7 @@
                         reverb: this.bandReverb,
                         densities: { ...this.bandDensity },
                         swing: this._swingSettingFor(this._arpPrevStyle || this.bandStyle) ?? undefined, // réglage du style enregistré ; absent = « Auto »
+                        instruments: Object.keys(this.bandInstruments).length ? JSON.parse(JSON.stringify(this.bandInstruments)) : undefined, // timbres choisis ; absent = Auto partout
                         groove: this.getEffectiveGroove(this._arpPrevStyle || this.bandStyle) || undefined // rythme imposé (samba, tango, piazzolla, afro…) valable pour l'orchestre actuel ; absent = choix automatique
                     }
                 };
@@ -1520,8 +1522,9 @@
                 const o = st.orchestration;
                 if (o) {
                     // Un fichier exporté sans l'orchestre (seulement les volumes) laisse le rythme, les densités et le swing en place.
-                    const hasBand = o.style !== undefined || o.groove !== undefined || o.densities !== undefined || o.swing !== undefined;
+                    const hasBand = o.style !== undefined || o.groove !== undefined || o.densities !== undefined || o.swing !== undefined || o.instruments !== undefined;
                     if (hasBand) this._bandGroove = IMPORT_GROOVES.includes(o.groove) ? o.groove : null;
+                    if (hasBand) this.bandInstruments = bandSanitizeInstruments(o.instruments);   // absent = Auto partout
                     if (o.style !== undefined) {
                         this.setBandStyle(o.style); // met aussi à jour les listes Formation / Rythme
                     }
@@ -2423,6 +2426,15 @@
                 gs.value = st.value;
                 gs.disabled = st.disabled;
                 gs.style.opacity = st.disabled ? '0.4' : '';   // formation sans rythme à choisir (Jazz, Cumbia)
+                ['harmony', 'bass'].forEach(role => {
+                    const sel = document.getElementById('band-inst-' + role);
+                    if (!sel) return;
+                    const s = bandInstrumentSelect(this.bandInstruments, this.bandStyle, this.getEffectiveGroove(), role);
+                    sel.replaceChildren(...s.options.map(o => { const op = document.createElement('option'); op.value = o.value; op.textContent = o.label; return op; }));
+                    sel.value = s.value;
+                    sel.disabled = s.disabled;
+                    sel.style.opacity = s.disabled ? '0.4' : '';
+                });
             }
 
             setBandStyle(style) {
@@ -2469,6 +2481,10 @@
                 const eo = document.getElementById('band-vol-organ-label');
                 const ag = africa ? africaGroove(this.getEffectiveGroove('africa')) : null;
                 if (eo) eo.textContent = ag === 'af-rumba' ? 'Piano élec.' : (ag === 'af-afrobeat' ? 'Claviers' : 'Orgue');
+                // Instrument choisi dans le pop-up : le curseur porte son nom
+                const hk = this._instChoice('harmony'), bk = this._instChoice('bass');
+                if (el && hk) el.textContent = ({ piano: 'Piano', epiano: 'Piano élec.', organ: 'Orgue', guitar: 'Guitare', egtr: 'Guit. élec.', accordion: 'Accordéon' })[hk];
+                if (eb && bk) eb.textContent = ({ upright: 'Contreb.', electric: 'Basse', tuba: 'Tuba' })[bk];
             }
 
             // L'orchestre Cuba joue-t-il sa partie d'accords à la guitare (tres) ? Son, bolero, guajira, guaguancó.
@@ -2713,6 +2729,97 @@
                 if (this.bandStyle === 'pop' || this.bandStyle === 'cumbia' || this.bandStyle === 'africa') this.loadBassPop();   // basse électrique (doigts)
                 if (this.bandStyle === 'pop' || this.bandStyle === 'africa') this.loadRock();   // guitare électrique, orgue, cordes
                 if (this.bandStyle === 'latin' || this.bandStyle === 'guitar' || this._cubaGuitar()) this.loadGuitarLatin();
+                // Instruments choisis dans le pop-up (pupitres Harmonie et Basse) : chargés à la demande
+                const hk = this._instChoice('harmony'), bk = this._instChoice('bass');
+                if (hk) this._harmonyInst(hk);
+                if (bk === 'upright') this.loadBass();
+                if (bk === 'electric') this.loadBassPop();
+                if (bk === 'tuba') this.loadBrass();
+            }
+
+            // ===== Timbre des pupitres (pop-up Orchestre : listes Harmonie et Basse) =====
+            // Seul l'instrument change : la formation écrit les mêmes notes. '' = Auto (instrument d'origine, chemin inchangé).
+            // Le mode Arpèges joue toujours au piano.
+            _instChoice(role) {
+                if (this._arpPrevStyle) return '';
+                return bandInstrumentChoice(this.bandInstruments, this.bandStyle, this.getEffectiveGroove(), role);
+            }
+
+            // Instrument de remplacement de l'harmonie, branché sur le bus du premier curseur (bandGains.piano) ; null tant qu'il
+            // n'est pas chargé (l'instrument d'origine joue alors).
+            _harmonyInst(kind) {
+                const ctx = this.app.audioCtx;
+                if (!ctx || !this.bandGains.piano) return null;
+                const H = this._harmInsts || (this._harmInsts = {});
+                if (kind === 'piano') { this.loadBandPiano(); return this.bandPianoInstrument || null; }
+                if (kind === 'guitar') { this.loadGuitarLatin(); return this.guitarInstrument || null; }
+                if (kind === 'accordion') { this.loadAccordion(); return this.accordionInstrument || null; }
+                // Les sons synthétisés et la guitare électrique passent par leur propre bus (ampli, Leslie…), puis un gain
+                // d'équilibre vers le bus du premier curseur. Mesuré hors ligne sur un même accord (Cmaj7, rendu de 3 s) : sans
+                // correction l'orgue sort ~7 dB, le piano électrique ~9 dB et la guitare électrique ~3 dB au-dessus du piano.
+                const trim = (v) => { const g = ctx.createGain(); g.gain.value = v; g.connect(this.bandGains.piano); return g; };
+                if (kind === 'organ') {
+                    if (!H.organ) H.organ = createOrganInstrument(ctx, createOrganBus(ctx, trim(0.4), { tier: this.perfTier }), { tier: this.perfTier, registration: 'jazz' });
+                    return H.organ;
+                }
+                if (kind === 'epiano') {
+                    if (!H.epiano) H.epiano = createEPianoInstrument(ctx, createEPianoBus(ctx, trim(0.4), { tier: this.perfTier }), { tier: this.perfTier });
+                    return H.epiano;
+                }
+                if (kind === 'egtr') {
+                    if (!H.egtr && !H._egtrLoading) {
+                        H._egtrLoading = true;
+                        const amp = createGuitarAmp(ctx, trim(0.7), { tier: this.perfTier, tone: 'clean' });
+                        Soundfont.instrument(ctx, 'electric_guitar_clean', { soundfont: 'MusyngKite', destination: amp.input })
+                            .then(instr => { H.egtr = instr; })
+                            .catch(() => { setTimeout(() => { H._egtrLoading = false; }, 5000); });
+                    }
+                    return H.egtr || null;
+                }
+                return null;
+            }
+
+            // Joue une frappe d'harmonie sur l'instrument choisi, avec les notes écrites pour l'instrument d'origine (from :
+            // 'piano', 'guitar', 'cguitar', 'accordion'). Renvoie false si rien n'est choisi ou si l'instrument n'est pas prêt.
+            _harmonySwap(e, time, beatSec, from) {
+                const kind = this._instChoice('harmony');
+                if (!kind || !this.app.audioCtx) return false;
+                const inst = this._harmonyInst(kind);
+                if (!inst) return false;
+                const env = this._noteEnv();
+                const notes = from === 'guitar' ? guitarNotes(env, e, time, beatSec)
+                    : from === 'cguitar' ? classicalGuitarNotes(env, e, time, beatSec)
+                    : from === 'accordion' ? accordionNotes(env, e, time, beatSec)
+                    : pianoNotes({ ...env, viaBus: true, outGain: 1 }, e, time, beatSec);
+                // L'accordéon double chaque note sur deux anches désaccordées (−9 et +9 cents, effet musette) : sur un autre
+                // instrument on n'en garde qu'une, recentrée, un peu plus forte (sinon chaque note serait « flammée »).
+                if (from === 'accordion') {
+                    const one = notes.slice(0, notes.length / 2);
+                    one.forEach(n => { n.opts.cents = (n.opts.cents || 0) + 9; n.opts.gain *= 1.4; });
+                    this._playNotes(inst, one);
+                    return true;
+                }
+                this._playNotes(inst, notes);
+                return true;
+            }
+
+            // Une note de basse sur l'instrument choisi (upright : contrebasse, electric : basse électrique, tuba).
+            _playBassAs(kind, e, time, beatSec) {
+                const dur = Math.max(0.1, e.dur * beatSec);
+                const vel = e.vel * (0.94 + Math.random() * 0.12);
+                if (kind === 'tuba' && this.brassInst && this.brassInst.tuba) { this.playTubaAbs(e.abs, time, dur, vel, e.art); return; }
+                const inst = (kind === 'electric' && this.bassInstrumentPop) ? this.bassInstrumentPop : this.bassInstrument;
+                if (!inst) return;
+                this._playNotes(inst, [bassNote(this._noteEnv(), e.abs, time, dur, vel, !!e.wide, e.gainMul || 1)]);
+            }
+
+            // Choix dans les listes Harmonie / Basse du pop-up Orchestre (role : 'harmony' | 'bass' ; '' = Auto)
+            chooseBandInstrument(role, value) {
+                if (role !== 'harmony' && role !== 'bass') return;
+                this.bandInstruments = bandSetInstrument(this.bandInstruments, this._arpPrevStyle || this.bandStyle, role, value);
+                this.ensureBandAudio();
+                this.updateBandInstrumentLabel();
+                this._syncBandSelects();
             }
 
             // Piano de l'orchestre. soundfont-player n'honore l'option « destination » qu'à la création de l'instrument (pas
@@ -3096,6 +3203,7 @@
             // --- Piano ---
 
             playPianoHit(e, time, beatSec) {
+                if (this._harmonySwap(e, time, beatSec, 'piano')) return;   // autre instrument choisi pour l'harmonie
                 // Piano de l'orchestre (branché sur le bus : volume du piano, réverbération et Master s'appliquent). Tant qu'il
                 // n'est pas chargé, le piano partagé prend le relais, avec volume et Master appliqués directement au gain.
                 const inst = this.bandPianoInstrument || this.app.pianoInstrument;
@@ -3331,6 +3439,7 @@
 
             // Une frappe de la guitare seule (pouce, doigts, accord roulé) sur les cordes de nylon. Sans guitare chargée, le piano prend le relais.
             playClassicalGuitarHit(e, time, beatSec) {
+                if (this._harmonySwap(e, time, beatSec, 'cguitar')) return;
                 const inst = this.guitarInstrument;
                 if (!inst || !this.app.audioCtx) { this.playPianoHit(e, time, beatSec); return; }
                 // Le volume est réglé par le bus (bandGains.piano) : pas de second facteur de volume ici.
@@ -3340,6 +3449,7 @@
             // Jeu d'une frappe de guitare : notes de l'accord « grattées » (coup descendant du grave à l'aigu, coup
             // montant de l'aigu au grave), voix extrêmes un peu en avant. Sans guitare chargée, le piano prend le relais.
             playGuitarHit(e, time, beatSec) {
+                if (this._harmonySwap(e, time, beatSec, 'guitar')) return;
                 const inst = this.guitarInstrument;
                 if (!inst || !this.app.audioCtx) { this.playPianoHit(e, time, beatSec); return; }
                 // Le volume est réglé par le bus (bandGains.piano) : pas de second facteur de volume ici.
@@ -3648,6 +3758,7 @@
             // Chaque note est jouée par deux jeux d'anches légèrement désaccordés (effet « musette »), avec un très léger décalage.
             playAccordionHit(e, time, beatSec) {
                 if (e.art === 'orn' && this.perfTier >= 2) return;   // niveau « Minimal » : on laisse tomber les petites notes d'ornement
+                if (this._harmonySwap(e, time, beatSec, 'accordion')) return;
                 const inst = this.accordionInstrument;
                 if (!inst || !this.app.audioCtx) { this.playPianoHit(e, time, beatSec); return; }
                 this._playNotes(inst, accordionNotes(this._noteEnv(), e, time, beatSec));
@@ -3803,7 +3914,8 @@
                 // Léger jitter d'humanisation (±6 ms), jamais dans le passé
                 const at = (e) => Math.max(now, now + (e.pos - win.s) * beatSec + (e.lay || 0) + (Math.random() - 0.5) * 0.012);
                 plan.drums.filter(inBeat).forEach(e => this.playBandDrum(e, at(e)));
-                plan.bass.filter(inBeat).forEach(e => plan.piazzolla ? this.playPiazzollaBass(e, at(e), beatSec) : plan.brass ? this.playTubaAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), e.art) : this.playBassAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), !!e.wide, !!plan.upright, e.gainMul || 1));
+                const bassAs = this._instChoice('bass');   // autre instrument choisi pour la basse ('' : chemin d'origine)
+                plan.bass.filter(inBeat).forEach(e => bassAs ? this._playBassAs(bassAs, e, at(e), beatSec) : plan.piazzolla ? this.playPiazzollaBass(e, at(e), beatSec) : plan.brass ? this.playTubaAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), e.art) : this.playBassAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), !!e.wide, !!plan.upright, e.gainMul || 1));
                 plan.piano.filter(inBeat).forEach(e => plan.africa ? this.playAfricaHit(e, at(e), beatSec) : plan.rock ? this.playRockHit(e, at(e), beatSec) : plan.classicalGuitar ? this.playClassicalGuitarHit(e, at(e), beatSec) : plan.piazzolla ? this.playPiazzollaHit(e, at(e), beatSec) : plan.brass ? this.playBrassHit(e, at(e), beatSec) : (plan.accordion ? this.playAccordionHit(e, at(e), beatSec) : (plan.guitar ? this.playGuitarHit(e, at(e), beatSec) : this.playPianoHit(e, at(e), beatSec))));
             }
 
@@ -9752,6 +9864,18 @@
                     <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Rythme</span>
                     <select id="band-groove-select" onchange="app.jam.chooseBandGroove(this.value)" aria-label="Rythme" class="w-full bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-1.5 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
                         <option value="">Swing</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-2" title="Instrument qui joue les accords de la formation (premier curseur de volume). Seul le timbre change : les notes restent celles de la formation. Non réglable pour les sections (Brass band, quinteto, Afrique).">
+                    <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Harmonie</span>
+                    <select id="band-inst-harmony" onchange="app.jam.chooseBandInstrument('harmony', this.value)" aria-label="Instrument de l'harmonie" class="w-full bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-1.5 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
+                        <option value="">Auto : piano</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-2" title="Instrument qui joue la ligne de basse. Seul le timbre change : les notes restent celles de la formation.">
+                    <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Basse</span>
+                    <select id="band-inst-bass" onchange="app.jam.chooseBandInstrument('bass', this.value)" aria-label="Instrument de la basse" class="w-full bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-1.5 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
+                        <option value="">Auto : contrebasse</option>
                     </select>
                 </div>
 

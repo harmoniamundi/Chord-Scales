@@ -14,6 +14,7 @@ const GF_STAFF = (typeof parseStaff !== 'undefined')
 const GF_CHORDS = (typeof chordsCanon !== 'undefined') ? { chordsCanon } : require('../ui/chord-notes.js');
 // Cadres de dessin libre (ui/draw-notes.js) : « data-draw » est relu (traits compris) et réécrit sous sa forme canonique.
 const GF_DRAW = (typeof drawCanon !== 'undefined') ? { drawCanon } : require('../ui/draw-notes.js');
+const GF_BAND = (typeof bandSanitizeInstruments !== 'undefined') ? { bandSanitizeInstruments } : require('../band/band-catalog.js');
 
 // Repères de partie proposés par le menu « Partie » ; les lettres A–Z restent acceptées (anciennes grilles, parties auto)
 const PART_LABELS = ['in', 'A', 'B', 'C', 'D', 'E', 'F', 'G', "A'", "B'", "C'", "D'", "E'", "F'", "G'", 'out'];
@@ -401,6 +402,8 @@ function sanitizeImportedSettings(data) {
         if (Object.keys(dens).length) orch.densities = dens; // absent = valeurs par défaut
         const sw = Number(o.swing);
         if (o.swing !== null && o.swing !== undefined && o.swing !== '' && Number.isFinite(sw)) orch.swing = Math.max(0.5, Math.min(0.75, sw)); // absent = « Auto »
+        const ins = GF_BAND.bandSanitizeInstruments(o.instruments);   // timbres choisis par pupitre (band/band-catalog.js)
+        if (Object.keys(ins).length) orch.instruments = ins;          // absent = Auto partout
         out.orchestration = orch;
     }
     return out;
@@ -468,7 +471,7 @@ function filterSettingsForExport(settings, opts) {
     const so = s.orchestration;
     if (so && typeof so === 'object' && (o.orchestra || o.mix)) {
         const orch = {};
-        if (o.orchestra) ['mode', 'style', 'densities', 'swing', 'groove'].forEach(k => { if (so[k] !== undefined) orch[k] = so[k]; });
+        if (o.orchestra) ['mode', 'style', 'densities', 'swing', 'groove', 'instruments'].forEach(k => { if (so[k] !== undefined) orch[k] = so[k]; });
         if (o.mix) ['volumes', 'reverb'].forEach(k => { if (so[k] !== undefined) orch[k] = so[k]; });
         out.orchestration = orch;
     }
