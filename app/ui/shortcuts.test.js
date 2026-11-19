@@ -7,8 +7,12 @@ global.localStorage = { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v
 const K = require('./shortcuts.js');
 const E = require('./staff-editor.js');
 
+// Disposition du clavier remise à zéro (repli QWERTY) : sinon le résultat dépendrait de la langue du système, car
+// shortcuts.js devine l'AZERTY d'après navigator.language (Node 21+ le fournit : « fr-FR » sur un Mac en français).
+const kbNoLayout = () => Object.keys(K.KB_LAYOUT).forEach(k => delete K.KB_LAYOUT[k]);
+
 describe('raccourcis : combinaisons', () => {
-    beforeEach(() => K.kbReset());
+    beforeEach(() => { K.kbReset(); kbNoLayout(); });
     it('normalise lettres, Maj, ⌘ / Ctrl, ⌥ et touches spéciales', () => {
         assert.equal(K.kbCombo({ key: 'N' }), 'n');
         assert.equal(K.kbCombo({ key: 'N', shiftKey: true }), 'Shift+n');
@@ -27,7 +31,7 @@ describe('raccourcis : combinaisons', () => {
 });
 
 describe('raccourcis : personnalisation', () => {
-    beforeEach(() => K.kbReset());
+    beforeEach(() => { K.kbReset(); kbNoLayout(); });
     it('change une touche et la retire de l\'action qui l\'avait', () => {
         const r = K.kbSet('input', 'r');
         assert.equal(r.ok, true);
