@@ -162,7 +162,14 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
     test('Entraînement : onglet Harmonisation entre Portée et Intervalles — accords de chaque degré, 7es / Triades, clic = accord joué', async () => {
         const order = await page.evaluate(() => [...document.querySelectorAll('[id^="vmode-"]')].map(b => b.id));
         assert.deepEqual(order, ['vmode-staff', 'vmode-harmony', 'vmode-intervals', 'vmode-notes', 'vmode-map']);
+        // Le choix « 7es / Triades » n'apparaît que dans Harmonisation et Carte (syncHarmonyDegreeMode). Le test précédent finit sur
+        // Carte : on part donc d'un onglet connu (Portée) pour vérifier qu'il est masqué ailleurs, puis visible dans Carte.
+        await page.click('#vmode-staff');
         assert.ok(await page.locator('#harmony-degree-mode.hidden').count() === 1, 'le réglage 7es / Triades est masqué hors de l\'onglet');
+        await page.click('#vmode-map');
+        assert.equal(await page.locator('#harmony-degree-mode.hidden').count(), 0, 'le réglage 7es / Triades est aussi proposé dans Carte');
+        await page.click('#vmode-intervals');
+        assert.ok(await page.locator('#harmony-degree-mode.hidden').count() === 1, 'masqué de nouveau dans Intervalles');
         // Do majeur 7 : sa gamme ionienne = Δ −7 −7 Δ 7 −7 ø ; chaque carte a ses accords
         await page.evaluate(() => { app.selectedRootIndex = 0; app.selectedChordId = 'maj7'; app.renderChordPicker(); app.update(); });
         await page.click('#vmode-harmony');
