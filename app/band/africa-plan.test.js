@@ -91,7 +91,7 @@ describe('buildAfricaPlan', () => {
         for (const g of A.AFRICA_GROOVES) for (let s = 1; s <= 30; s++) {
             const p = plan(g, { seed: s, i: s % 4 });
             assert.equal(p.africa, true);
-            assert.equal(p.tone, 'afro');
+            assert.equal(p.tone, g === 'af-rumba' ? 'rumba' : 'afro');
             assert.ok(inst(p, 'gtr').length >= 4, `${g} guitare`);
             assert.ok(p.bass.length >= 3, `${g} basse`);
             assert.ok(p.drums.length >= 8, `${g} percussions`);
@@ -99,7 +99,7 @@ describe('buildAfricaPlan', () => {
                 assert.ok(e.pos >= 0 && e.pos < 4, `${g} position ${e.pos}`);
                 assert.ok(Number.isFinite(e.vel) && e.vel > 0 && e.vel <= 1, `${g} vélocité`);
             }
-            p.piano.forEach(e => assert.ok(['gtr', 'organ', 'horn'].includes(e.inst), e.inst));
+            p.piano.forEach(e => assert.ok(['gtr', 'organ', 'horn', 'epiano'].includes(e.inst), e.inst));
             p.piano.forEach(e => { assert.ok(Array.isArray(e.intervals) && e.intervals.length > 0); assert.ok(e.dur > 0); });
         }
     });
@@ -236,6 +236,41 @@ describe('buildAfricaPlan', () => {
         const p = plan('af-mbaqanga', { seed: 2, ph: mkPhrase(2, 'af-mbaqanga', { organ: true, intensity: 0.8 }) });
         const o = inst(p, 'organ');
         assert.deepEqual(o.map(e => e.pos), [0.5, 1.5, 2.5, 3.5]);
+    });
+    test('rumba : piano électrique doux sur les notes de l\'accord, sous la guitare ; aucun autre style n\'en a', () => {
+        for (let s = 1; s <= 30; s++) {
+            const p = plan('af-rumba', { seed: s, step: Dm7 });
+            const k = inst(p, 'epiano');
+            assert.ok(k.length >= 2, `${s} piano électrique`);
+            const ok = new Set([2, 5, 9, 0]);
+            k.forEach(e => {
+                assert.ok(e.intervals.length === 3);
+                e.intervals.forEach(x => { assert.ok(ok.has(pc(x)), `${x}`); assert.ok(x + 48 >= 52 && x + 48 <= 67, `${x + 48}`); });
+                assert.ok(e.pos + e.dur <= 4, 'reste dans la mesure');
+            });
+        }
+        for (const g of A.AFRICA_GROOVES.filter(x => x !== 'af-rumba')) assert.equal(inst(plan(g, { seed: 2 }), 'epiano').length, 0, g);
+    });
+    test('rumba : mi-solo en notes détachées, doubles cordes seulement sur les temps 1 et 3', () => {
+        for (let s = 1; s <= 30; s++) {
+            const g = inst(plan('af-rumba', { seed: s }), 'gtr');
+            assert.ok(g.length >= 4);
+            g.forEach(e => {
+                assert.equal(e.art, 'det');
+                assert.ok(e.dur <= 0.36 + 1e-9, `durée ${e.dur}`);
+                if (e.intervals.length > 1) assert.ok(e.pos === 0 || e.pos === 2, `double corde au temps ${e.pos}`);
+            });
+        }
+    });
+    test('rumba : la basse est plus en avant et le tom basse joue', () => {
+        let lifted = 0, n = 0;
+        for (let s = 1; s <= 30; s++) {
+            const ph = mkPhrase(s, 'af-rumba');
+            const p = plan('af-rumba', { seed: s, ph, i: 1 });
+            assert.ok(p.drums.filter(e => e.drum === 'tom3').length >= 2, `${s} tom basse`);
+            p.bass.forEach(b => { n++; if (b.vel >= 0.7) lifted++; });
+        }
+        assert.ok(lifted / n > 0.6, `basse : ${lifted}/${n}`);
     });
     test('mémoire : le voicing et la note de départ de la guitare solo passent d\'une mesure à la suivante', () => {
         const env = mkEnv('af-rumba');

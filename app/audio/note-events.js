@@ -86,12 +86,19 @@ function rockNotes(env, e, time, beatSec) {
         base = { gain: Math.min(1, 0.4 + 0.6 * vel), duration: dur, attack: e.att !== undefined ? e.att : 0.006, release: art === 'swell' ? 0.3 : 0.09 };
     } else if (e.inst === 'strings') {
         base = { gain: Math.min(1, 0.4 + 0.6 * vel), duration: dur, attack: e.att !== undefined ? e.att : 0.3, release: 0.55 };
+    } else if (e.inst === 'epiano') {
+        // piano électrique doux (rumba congolaise) : l'attaque et l'extinction sont dans l'instrument ; relâchement de pédale court
+        base = { gain: Math.min(1, 0.3 + 0.6 * vel), duration: dur, attack: 0.004, release: 0.28 };
     } else if (art === 'mute') {
         base = { gain: Math.min(1.2, 0.34 + 0.8 * vel), duration: Math.min(dur, 0.16), attack: 0.002, release: 0.05 };
     } else if (art === 'dead') {
         base = { gain: Math.min(1.2, 0.18 + 0.45 * vel), duration: 0.05, attack: 0.002, release: 0.03 };
     } else if (art === 'arp') {
         base = { gain: Math.min(1.2, 0.3 + 0.8 * vel), duration: dur, attack: 0.003, release: 0.5 };
+    } else if (art === 'det') {
+        // note détachée (mi-solo de la rumba) : pleine et claire, la main gauche la relâche juste avant la suivante, sans résonance
+        // qui déborde (contrairement à 'arp')
+        base = { gain: Math.min(1.2, 0.3 + 0.82 * vel), duration: Math.min(dur, 0.42), attack: 0.003, release: 0.09 };
     } else if (art === 'pluck') {
         // note pincée et aussitôt étouffée par la main gauche (guitares du benga, du mbaqanga, riff de l'afrobeat) : brève mais
         // pleine, sans le son sourd de la sourdine de paume

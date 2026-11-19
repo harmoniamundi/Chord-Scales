@@ -2,7 +2,9 @@
 //   · ampli de guitare électrique (propre, crunch, saturé, lourd, surf) : le même échantillon de guitare passe dans une chaîne
 //     préampli → saturation → haut-parleur, avec écho « slapback » pour le surf ;
 //   · orgue à tirettes (type Hammond) : synthèse additive, percussion, claquement de touche, cabine Leslie (lente / rapide) ;
-//   · ensemble de cordes (type « string machine » des années 70) : scies désaccordées, attaque lente, chœur d'ensemble.
+//   · ensemble de cordes (type « string machine » des années 70) : scies désaccordées, attaque lente, chœur d'ensemble ;
+//   · piano électrique doux (type Rhodes, rumba congolaise) : synthèse FM simple, tremolo léger.
+
 // Les trois « instruments » ont la même interface que ceux de soundfont-player : play(note, quand, options) → { stop(quand) },
 // avec les options déjà utilisées par l'appli (duration, gain, attack, release, cents).
 // Chaque fabrique reçoit un contexte audio et une destination ; `tier` (0 complet, 1 allégé, 2 minimal) allège la synthèse.
@@ -44,7 +46,10 @@ const AMP_TONES = {
     heavy:  { dry: 0,    wet: 1,    pre: 12,   k: 9,  hp: 260, post: 4300, scoop: -4, bite: 4,   air: -3,  slap: 0,    trim: 0.072, level: 0.6 },
     surf:   { dry: 1,    wet: 0,    pre: 1,    k: 1,  hp: 120, post: 7800, scoop: 0,  bite: 2.5, air: 5,   slap: 0.34, trim: 1,     level: 1.35 },
     // guitares des musiques africaines (orchestre Afrique) : son clair et brillant, médium un peu creusé, un soupçon d'écho
-    afro:   { dry: 1,    wet: 0,    pre: 1,    k: 1,  hp: 120, post: 8000, scoop: -1, bite: 3,   air: 3.5, slap: 0.1,  trim: 1,     level: 2 }
+    afro:   { dry: 1,    wet: 0,    pre: 1,    k: 1,  hp: 120, post: 8000, scoop: -1, bite: 3,   air: 3.5, slap: 0.1,  trim: 1,     level: 2 },
+    // rumba congolaise : guitare ronde et naturelle (micro manche) : plus de corps dans le grave-médium, présence et aigus adoucis,
+    // un peu de chaleur vers 700 Hz, à peine d'écho
+    rumba:  { dry: 1,    wet: 0,    pre: 1,    k: 1,  hp: 90,  post: 7000, scoop: 1,  bite: 0.5, air: -2.5, slap: 0.05, trim: 1,    level: 2.2, body: 4.5, cab: 5200 }
 };
 
 // Construit la chaîne d'ampli ; tout le son de la guitare entre par `input` et sort vers `destination`.
@@ -104,6 +109,7 @@ function createGuitarAmp(ctx, destination, opts = {}) {
             dry.gain.value = t.dry; pre.gain.value = t.pre; wet.gain.value = t.wet * t.trim;
             tight.frequency.value = t.hp; postLP.frequency.value = t.post;
             mid.gain.value = t.scoop; bite.gain.value = t.bite; air.gain.value = t.air;
+            body.gain.value = t.body !== undefined ? t.body : 2.5; cabLP.frequency.value = t.cab !== undefined ? t.cab : 6200;
             if (slap) slap.gain.value = t.slap;
             out.gain.value = t.level;
         }
@@ -343,8 +349,94 @@ function createStringsInstrument(ctx, bus, opts = {}) {
     };
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Piano électrique doux (type Rhodes)
+// ---------------------------------------------------------------------------------------------------------------------
+
+// Bus : graves nettoyés, aigus adoucis (le son reste feutré), léger tremolo lent (coupé au niveau minimal).
+function createEPianoBus(ctx, destination, opts = {}) {
+    const tier = opts.tier || 0;
+    const input = ctx.createGain();
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 80; hp.Q.value = 0.7;
+    const warm = ctx.createBiquadFilter(); warm.type = 'peaking'; warm.frequency.value = 320; warm.gain.value = 2; warm.Q.value = 0.8;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3800; lp.Q.value = 0.5;
+    const trem = ctx.createGain(); trem.gain.value = 1;
+    const out = ctx.createGain(); out.gain.value = 1;
+    const nodes = [input, hp, warm, lp, trem, out];
+    input.connect(hp); hp.connect(warm); warm.connect(lp); lp.connect(trem); trem.connect(out); out.connect(destination);
+    if (tier < 2) {
+        const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 4.2;
+        const lg = ctx.createGain(); lg.gain.value = 0.07;
+        trem.gain.value = 0.93;
+        lfo.connect(lg); lg.connect(trem.gain); lfo.start(0);
+        nodes.push(lfo, lg);
+    }
+    return { input, nodes };
+}
+
+// Instrument : par note, une porteuse sinusoïdale modulée en fréquence (rapport 1) dont l'indice retombe vite (attaque un peu
+// « cloche » qui s'arrondit), plus le petit tintement de la lame (rapport 7, très bref, discret pour rester doux). Le son s'éteint
+// lentement comme un vrai piano électrique (plus vite dans l'aigu). Au niveau minimal : la porteuse seule.
+function createEPianoInstrument(ctx, bus, opts = {}) {
+    const tier = opts.tier || 0;
+    return {
+        bus,
+        play(note, when, o = {}) {
+            const midi = rsNoteToMidi(note);
+            if (midi === null) return { stop() {} };
+            const f0 = rsMidiToFreq(midi) * Math.pow(2, (o.cents || 0) / 1200);
+            const t0 = Math.max(when || 0, ctx.currentTime || 0);
+            const dur = Math.max(0.08, o.duration === undefined ? 1 : o.duration);
+            const g0 = o.gain === undefined ? 0.5 : o.gain;
+            const peak = Math.max(0.0002, g0 * 0.075);
+            const att = Math.max(0.002, o.attack === undefined ? 0.004 : o.attack);
+            const rel = Math.max(0.05, o.release === undefined ? 0.3 : o.release);
+            const end = t0 + dur;
+            const tau = Math.max(0.35, 1.6 - (midi - 48) * 0.035);        // extinction naturelle, plus rapide dans l'aigu
+            const out = ctx.createGain();
+            out.gain.setValueAtTime(0.0001, t0);
+            out.gain.linearRampToValueAtTime(peak, t0 + att);
+            out.gain.setTargetAtTime(peak * 0.25, t0 + att, tau);
+            out.gain.setTargetAtTime(0.0001, end, rel / 3);
+            out.connect(bus.input);
+            const srcs = [];
+            const car = ctx.createOscillator(); car.type = 'sine'; car.frequency.value = f0;
+            car.connect(out);
+            car.start(t0); car.stop(end + rel + 0.1);
+            srcs.push(car);
+            if (tier < 2) {
+                const mod = ctx.createOscillator(); mod.type = 'sine'; mod.frequency.value = f0;
+                const idx = ctx.createGain();
+                const depth = f0 * (0.35 + 0.9 * Math.min(1, g0));             // plus on joue fort, plus l'attaque est brillante
+                idx.gain.setValueAtTime(depth, t0);
+                idx.gain.setTargetAtTime(f0 * 0.08, t0 + 0.005, 0.18);
+                mod.connect(idx); idx.connect(car.frequency);
+                mod.start(t0); mod.stop(end + rel + 0.1);
+                srcs.push(mod);
+            }
+            if (tier < 1 && f0 * 7 < 9000) {
+                const tine = ctx.createOscillator(); tine.type = 'sine'; tine.frequency.value = f0 * 7;
+                const tg = ctx.createGain();
+                tg.gain.setValueAtTime(0.0001, t0);
+                tg.gain.linearRampToValueAtTime(peak * 0.18 * Math.min(1, g0 + 0.2), t0 + 0.002);
+                tg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09);
+                tine.connect(tg); tg.connect(bus.input);
+                tine.start(t0); tine.stop(t0 + 0.12);
+                srcs.push(tine);
+            }
+            return {
+                stop(when2) {
+                    const t = Math.max(when2 || 0, ctx.currentTime || 0);
+                    try { out.gain.cancelScheduledValues(t); out.gain.setTargetAtTime(0.0001, t, 0.03); } catch (e) {}
+                    srcs.forEach(s => { try { s.stop(t + 0.2); } catch (e) {} });
+                }
+            };
+        }
+    };
+}
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { rsNoteToMidi, rsMidiToFreq, makeAmpCurve, AMP_TONES, createGuitarAmp,
         ORGAN_DRAWBAR_RATIOS, ORGAN_REGISTRATIONS, createOrganBus, createOrganInstrument,
-        createStringsBus, createStringsInstrument };
+        createStringsBus, createStringsInstrument, createEPianoBus, createEPianoInstrument };
 }

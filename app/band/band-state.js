@@ -14,7 +14,7 @@ function bandVoiceState() {
         _brassVoice: null, _brassPrevKey: null, _brassLines: null,
         _balkanVoice: null, _balkanMel: null,
         _cumbiaVoice: null, _cumbiaMel: null,
-        _africaVoice: null, _africaLead: null,   // voicing de la guitare rythmique et note de départ de la guitare solo (band/africa-plan.js)
+        _africaVoice: null, _africaLead: null, _africaKeys: null,   // voicing de la guitare rythmique et note de départ de la guitare solo (band/africa-plan.js)
         _pzState: null,
         _gtrVoice: null,
         _rockStrV: null, _rockPad: null, _rockGtrHold: null,   // cordes, nappes et accord de guitare tenu du Pop-Rock / Rock (band/rock-plan.js)

@@ -51,8 +51,8 @@ describe('ampli de guitare', () => {
         const mid = (k) => Math.abs(R.makeAmpCurve(k)[600]);
         assert.ok(mid(9) > mid(1));
     });
-    test('cinq sons : propre, crunch, saturé, lourd, surf ; le niveau de sortie est calé', () => {
-        assert.deepEqual(Object.keys(R.AMP_TONES).sort(), ['afro', 'clean', 'crunch', 'drive', 'heavy', 'surf']);
+    test('sons : propre, crunch, saturé, lourd, surf, afro, rumba ; le niveau de sortie est calé', () => {
+        assert.deepEqual(Object.keys(R.AMP_TONES).sort(), ['afro', 'clean', 'crunch', 'drive', 'heavy', 'rumba', 'surf']);
         Object.values(R.AMP_TONES).forEach(t => { assert.ok(t.level > 0 && t.level < 3); assert.ok(t.trim > 0); });
     });
     test('l\'entrée atteint la destination, le son est réglable, un nom inconnu donne le son propre', () => {
@@ -125,5 +125,34 @@ describe('cordes (string machine)', () => {
     test('note invalide : ne plante pas', () => {
         const ctx = fakeCtx(); const st = R.createStringsInstrument(ctx, R.createStringsBus(ctx, sink(ctx)));
         assert.doesNotThrow(() => st.play('', 0, {}).stop());
+    });
+});
+
+describe('piano électrique (rumba)', () => {
+    test('bus et note : la note atteint la destination, s\'arrête après sa durée', () => {
+        const ctx = fakeCtx(); const dest = sink(ctx);
+        const bus = R.createEPianoBus(ctx, dest, { tier: 0 });
+        const ep = R.createEPianoInstrument(ctx, bus, { tier: 0 });
+        const before = ctx.nodes.length;
+        const h = ep.play('C4', 0.5, { duration: 1, gain: 0.6 });
+        const oscs = ctx.nodes.slice(before).filter(n => n.kind === 'Oscillator');
+        assert.equal(oscs.length, 3);   // porteuse, modulateur, lame
+        oscs.forEach(o => { assert.ok(o.started >= 0.5); assert.ok(o.stopped > 0.5); });
+        assert.ok(reaches(bus.input, dest));
+        h.stop(0.8);
+    });
+    test('niveau minimal : la porteuse seule, pas de tremolo', () => {
+        const ctx = fakeCtx(); const dest = sink(ctx);
+        const bus = R.createEPianoBus(ctx, dest, { tier: 2 });
+        assert.equal(bus.nodes.filter(n => n.kind === 'Oscillator').length, 0);
+        const ep = R.createEPianoInstrument(ctx, bus, { tier: 2 });
+        const before = ctx.nodes.length;
+        ep.play('A3', 0, { duration: 0.5 });
+        assert.equal(ctx.nodes.slice(before).filter(n => n.kind === 'Oscillator').length, 1);
+        assert.deepEqual(ep.play('xyz', 0).stop(), undefined);
+    });
+    test('son de guitare « rumba » : plus rond que « afro » (moins de présence et d\'aigus)', () => {
+        const a = R.AMP_TONES.afro, r = R.AMP_TONES.rumba;
+        assert.ok(r.bite < a.bite && r.air < a.air && r.body > 2.5);
     });
 });
