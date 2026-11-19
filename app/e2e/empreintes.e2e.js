@@ -94,11 +94,14 @@ const FAKE_VEXFLOW = `
 
 // Exécuté dans la page : prépare le cas, simule la lecture complète de la grille, renvoie l'empreinte.
 async function capturePage(spec) {
+    const EMP_RATE = 44100;
     const jam = app.jam;
     const settle = async () => { for (let k = 0; k < 4; k++) await new Promise(r => setTimeout(r, 0)); };
 
     // Horloge audio figée : un AudioContext suspendu (rien n'est calculé, currentTime ne bouge pas), présenté comme « en marche ».
-    const ctx = new AudioContext();
+    // Fréquence d'échantillonnage imposée : le bruit blanc des percussions et de la réverbération tire un nombre au hasard par
+    // échantillon ; à 48 kHz (Mac) au lieu de 44,1 kHz, toute la suite du hasard serait décalée et rien ne correspondrait.
+    const ctx = new AudioContext({ sampleRate: EMP_RATE });
     try { await ctx.suspend(); } catch (e) {}
     Object.defineProperty(ctx, 'currentTime', { get: () => 0 });   // toujours 0 : l'instant de départ ne dépend pas de la vitesse de la machine
     Object.defineProperty(ctx, 'state', { get: () => 'running' });
