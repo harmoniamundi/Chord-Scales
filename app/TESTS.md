@@ -10,8 +10,20 @@ Les commandes se lancent depuis le dossier `app/` (`cd app`).
 | `npm run test:e2e` | l'appli complète dans un vrai navigateur (`e2e/app.e2e.js`) : chargement, Entraînement, portée, tous les styles de la Jam, lecture/arrêt, changement d'orchestre, plage sélectionnée ; et les portées des annotations (`e2e/annotations.e2e.js`) | `npm install` puis `npx playwright install chromium` |
 
 | `npm run test:offline` | le mode hors ligne dans un vrai navigateur (`e2e/offline.e2e.js`) : visite en ligne, réseau coupé, rechargement, 13 instruments décodés, portée et police, aucune requête externe | `npm install` puis `npx playwright install chromium` |
+| `npm run test:empreintes` | les **empreintes sonores** (`e2e/empreintes.e2e.js`) : l'appli joue-t-elle exactement comme dans les références (`e2e/empreintes/reference.json`) ? Voir la section ci-dessous. Environ 5 minutes | `npm install` puis `npx playwright install chromium` |
 
 Si Playwright n'est pas installé, les tests du navigateur sont simplement ignorés.
+
+### Empreintes sonores (`npm run test:empreintes`)
+Filet de sécurité avant une réorganisation du code des styles et des orchestres : on vérifie que **rien ne change dans ce qui est joué**.
+
+- **Ce qui est comparé** : pour chaque style de grille (forme de référence avec deux graines de hasard, puis une proposition « Générer ») et pour chaque entrée du menu Orchestre et le bouton Arpèges sur cinq grilles hôtes (4/4, 3/4, 6/8, 12/8, 7/8), soit 395 cas : les réglages posés (tonalité, mode, tempo, mesure, orchestre, rythme, swing, densité, nom, curseurs), la grille générée, et mesure par mesure tout ce que l'orchestre joue (plan de la mesure, frappes envoyées aux instruments avec instant / force / durée, notes données à chaque instrument).
+- **Comment** : lecture simulée dans Chromium, hasard à graine fixe, horloge audio figée, faux instruments qui enregistrent. Un écart de 0,0001 sur le niveau d'une note suffit à faire échouer le test.
+- **Ce qui n'est pas comparé** : le rendu sonore lui-même (synthèse des percussions, réverbération, échantillons) ; seulement ce qui lui est demandé. Le changement d'orchestre *en cours de lecture* n'est pas couvert.
+- **Quand le test échoue**, il indique le cas, le réglage qui a changé (« bpm 132 → 133 »), la grille avant / après, ou la première mesure où le jeu diffère. Pour voir le détail : lancer `EMPREINTES_DETAIL=avant npm run test:empreintes` sur l'ancienne version, `EMPREINTES_DETAIL=apres npm run test:empreintes` sur la nouvelle, puis comparer les deux dossiers (un fichier JSON lisible par cas).
+- **Changement voulu** (un style qui change exprès d'orchestre, par exemple) : écouter avant / après, puis `npm run empreintes:maj` pour enregistrer les nouvelles références (avec `EMPREINTES_CAS=nom` pour ne mettre à jour que les cas dont le nom contient ce texte). Le fichier `reference.json` modifié se relit dans le commit : seuls les cas attendus doivent avoir bougé.
+- **Options** : `EMPREINTES_CAS=bossa` (ne lance que ces cas), `EMPREINTES_PARALLELE=6` (pages ouvertes en même temps), `CHROMIUM_PATH=…` (navigateur déjà installé).
+- Un style ou une entrée d'orchestre ajoutés plus tard sont détectés automatiquement (« cas nouveau, absent des références ») : les enregistrer avec `npm run empreintes:maj`.
 
 ### Ce que `tools/project-check.test.js` empêche
 - un `<script src>` qui pointe vers un fichier absent, ou un module oublié dans `index.html` ;

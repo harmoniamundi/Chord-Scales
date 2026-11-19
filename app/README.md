@@ -112,6 +112,7 @@ Exemples :
 | `npm test` | Tous les tests unitaires (plus de 1 700) + cohérence du projet. Quelques secondes. |
 | `npm run test:e2e` | L'appli entière dans un navigateur : chargement, Entraînement, portée, tous les styles de la Jam, lecture/arrêt, changement d'orchestre, plage sélectionnée ; et (`e2e/annotations.e2e.js`) les blocs des annotations : police, création de cadres (double-clic), mode édition (crayon) et blocs figés en lecture, zoom (aussi en édition), blocs indépendants qui se recouvrent, cadre visible / caché, repères et aimant, sélection multiple (rectangle, Maj / ⌘ / Ctrl, ⌘A), déplacement de groupe, copier-coller entre zones, migration des anciennes annotations, portée (cadre resserré, crayon, point, redimensionnement) ; le faux plein écran de la zone d'annotation et celui de la grille. |
 | `npm run test:offline` | Le mode hors ligne pour de vrai : visite en ligne, puis réseau coupé ; la page se recharge, les 13 instruments se décodent, la portée et la police s'affichent, aucune requête ne part vers un autre site. |
+| `npm run test:empreintes` | Empreintes sonores : chaque style, chaque entrée du menu Orchestre et les Arpèges (395 cas) doivent jouer **exactement** comme dans `e2e/empreintes/reference.json` (réglages, grille, et chaque note de chaque mesure). À lancer avant et après toute réorganisation des styles ou des orchestres. Environ 5 minutes ; détails dans `TESTS.md`. |
 
 Installation du test navigateur (une fois) : `npm install` puis `npx playwright install chromium`. Sans cela, ses scénarios sont simplement ignorés.
 
