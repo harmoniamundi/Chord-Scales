@@ -275,12 +275,18 @@ describe('tonalité réelle d\'un style', () => {
     });
 });
 
+// Entrées du menu Orchestre : catalogue band/band-catalog.js (couples orchestre + rythme)
+const BC = require('../band/band-catalog.js');
+const menuGrooves = (band) => Object.fromEntries(BC.BAND_MENU.filter(e => e.band === band && e.groove).map(e => [e.value, e.groove]));
+const FLAMENCO_BAND_GROOVES = menuGrooves('guitar');
+const ROCK_BAND_GROOVES = menuGrooves('pop');
+
 describe('menu Orchestre : entrées Flamenco', () => {
     test('chaque palo du menu a le rythme, la signature et l\'orchestre Guitare du style de grille du même nom', () => {
-        const keys = Object.keys(M.FLAMENCO_BAND_GROOVES);
+        const keys = Object.keys(FLAMENCO_BAND_GROOVES);
         assert.deepEqual(keys.sort(), ['flamencobulerias', 'flamencosolea', 'flamencotangos']);
         keys.forEach(k => {
-            assert.equal(M.FLAMENCO_BAND_GROOVES[k], M.STYLE_GROOVE[k], k);
+            assert.equal(FLAMENCO_BAND_GROOVES[k], M.STYLE_GROOVE[k], k);
             assert.equal(M.bandStyleFor(k), 'guitar', k);
             assert.ok(M.tempoMeterFor(k), k);
         });
@@ -291,21 +297,21 @@ describe('menu Orchestre : entrées Flamenco', () => {
 
 describe('menu Orchestre : entrées Rock', () => {
     test('chaque entrée a le rythme, l\'orchestre Pop-Rock et un tempo en 4/4 du style de grille du même nom', () => {
-        const keys = Object.keys(M.ROCK_BAND_GROOVES);
+        const keys = Object.keys(ROCK_BAND_GROOVES);
         assert.deepEqual(keys.sort(), ['bluesrock', 'hardrock', 'indierock', 'punk', 'rockballad', 'rockclassic', 'rockroll']);
         keys.forEach(k => {
-            assert.equal(M.ROCK_BAND_GROOVES[k], M.STYLE_GROOVE[k], k);
+            assert.equal(ROCK_BAND_GROOVES[k], M.STYLE_GROOVE[k], k);
             assert.equal(M.bandStyleFor(k), 'pop', k);
             assert.equal(M.tempoMeterFor(k).meter, '4/4', k);
         });
     });
     test('le rythme de chaque style est un rythme connu de rock-plan.js', () => {
         const R = require('../band/rock-plan.js');
-        Object.values(M.ROCK_BAND_GROOVES).forEach(g => assert.ok(R.ROCK_GROOVES.includes(g), g));
-        assert.deepEqual(Object.values(M.ROCK_BAND_GROOVES).sort(), R.ROCK_GROOVES.slice().sort());
+        Object.values(ROCK_BAND_GROOVES).forEach(g => assert.ok(R.ROCK_GROOVES.includes(g), g));
+        assert.deepEqual(Object.values(ROCK_BAND_GROOVES).sort(), R.ROCK_GROOVES.slice().sort());
     });
     test('le tempo de référence de chaque style est celui de son rythme', () => {
         const R = require('../band/rock-plan.js');
-        Object.entries(M.ROCK_BAND_GROOVES).forEach(([k, g]) => assert.equal(M.tempoMeterFor(k).bpm, R.ROCK[g].tempo, k));
+        Object.entries(ROCK_BAND_GROOVES).forEach(([k, g]) => assert.equal(M.tempoMeterFor(k).bpm, R.ROCK[g].tempo, k));
     });
 });

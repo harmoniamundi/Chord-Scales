@@ -33,9 +33,19 @@ function topLevelDecls(code) {
     const indent = first ? first.match(/^ */)[0].length : 0;
     const pad = ' '.repeat(indent);
     const decls = [];
+    let inRequireGuard = false;
     for (const l of lines) {
+        // « if (typeof x === 'undefined' && typeof require === 'function') { var { x } = require(...) } » : un var est global
+        // même dans un bloc ; il entre en conflit avec un const / let / class du même nom déclaré par un autre script.
+        if (inRequireGuard) {
+            const g = /^\s+var\s*\{([^}]*)\}/.exec(l) || /^\s+var\s+(\w+)/.exec(l);
+            if (g) g[1].split(',').forEach(p => { const n = p.split(':').pop().split('=')[0].trim(); if (n) decls.push({ name: n, kind: 'var' }); });
+            if (l.startsWith(pad + '}')) inRequireGuard = false;
+            continue;
+        }
         if (!l.startsWith(pad) || l.slice(pad.length).startsWith(' ')) continue;
         const rest = l.slice(pad.length);
+        if (/^if\s*\(typeof\b.*\brequire\b.*\{\s*$/.test(rest)) { inRequireGuard = true; continue; }
         let m = /^(const|let|var)\s*\{([^}]*)\}/.exec(rest);
         if (m) { m[2].split(',').forEach(p => { const n = p.split(':').pop().split('=')[0].trim(); if (n) decls.push({ name: n, kind: m[1] }); }); continue; }
         m = /^(const|let|var)\s+(\w+)/.exec(rest) || /^(class|function)\s+(\w+)/.exec(rest) || /^async\s+(function)\s+(\w+)/.exec(rest);

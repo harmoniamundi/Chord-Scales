@@ -49,7 +49,8 @@ const STYLE_BAND = {
     afrobeat: 'africa', highlife: 'africa', rumbacongo: 'africa', soukous: 'africa', benga: 'africa', mbaqanga: 'africa'
 };
 
-// Rythme imposé à l'orchestre Latin par certains styles (sinon le moteur choisit bossa / samba selon le tempo).
+// Rythme imposé par certains styles à l'orchestre proposé (sinon chaque orchestre a son jeu par défaut). Les rythmes que sait
+// jouer chaque orchestre sont dans band/band-catalog.js (BAND_FORMATIONS).
 const STYLE_GROOVE = { baroque: 'c-baroque', bossa: 'bossa', samba: 'samba', tango: 'lyrique', piazzolla: 'piazzolla', milongalyrique: 'lyrique', afro68: 'afro', salsa: 'salsa', brasshymn: 'b-chorale', brasscantique: 'b-chorale',
     flamencosolea: 'f-solea', flamencobulerias: 'f-bulerias', flamencotangos: 'f-tangos',
     balkansevdah: 'bk-sevdah', balkantsifte: 'bk-tsifte',
@@ -57,22 +58,8 @@ const STYLE_GROOVE = { baroque: 'c-baroque', bossa: 'bossa', samba: 'samba', tan
     sonmontuno: 'cu-son', chachacha: 'cu-chacha', bolerocubano: 'cu-bolero', guajira: 'cu-guajira', danzon: 'cu-danzon', guaguanco: 'cu-guaguanco',
     afrobeat: 'af-afrobeat', highlife: 'af-highlife', rumbacongo: 'af-rumba', soukous: 'af-soukous', benga: 'af-benga', mbaqanga: 'af-mbaqanga' };
 
-// Entrées « Flamenco » du menu Orchestre : orchestre Guitare + rythme du palo (même rythme que le style de grille du même nom).
-const FLAMENCO_BAND_GROOVES = { flamencosolea: 'f-solea', flamencobulerias: 'f-bulerias', flamencotangos: 'f-tangos' };
-
-// Entrées « Rock » du menu Orchestre : orchestre Pop-Rock + rythme rock choisi (même rythme que le style de grille du même nom).
-const ROCK_BAND_GROOVES = { rockroll: 'r-roll', rockclassic: 'r-classic', hardrock: 'r-hard', punk: 'r-punk', rockballad: 'r-ballad', bluesrock: 'r-blues', indierock: 'r-indie' };
-
-// Entrées latines du menu Orchestre : bossa nova et samba (orchestre Brasil) et salsa (orchestre Cuba), avec le même
-// rythme que le style de grille du même nom — utilisables sur n'importe quelle grille, comme les entrées Flamenco et Rock.
-const LATIN_BAND_GROOVES = { bossa: { band: 'latin', groove: 'bossa' }, samba: { band: 'latin', groove: 'samba' }, salsa: { band: 'cuba', groove: 'salsa' },
-    // styles afro-cubains (orchestre Cuba, band/afrocuban-plan.js)
-    sonmontuno: { band: 'cuba', groove: 'cu-son' }, chachacha: { band: 'cuba', groove: 'cu-chacha' }, bolerocubano: { band: 'cuba', groove: 'cu-bolero' },
-    guajira: { band: 'cuba', groove: 'cu-guajira' }, danzon: { band: 'cuba', groove: 'cu-danzon' }, guaguanco: { band: 'cuba', groove: 'cu-guaguanco' } };
-
-// Entrées « Afrique » du menu Orchestre : orchestre Afrique + rythme choisi (même rythme que le style de grille du même nom),
-// utilisables sur n'importe quelle grille, comme les entrées Flamenco, Rock et latines.
-const AFRICA_BAND_GROOVES = { afrobeat: 'af-afrobeat', highlife: 'af-highlife', rumbacongo: 'af-rumba', soukous: 'af-soukous', benga: 'af-benga', mbaqanga: 'af-mbaqanga' };
+// Les entrées du menu Orchestre (couples orchestre + rythme : Rock, Flamenco, Brasil, Cuba, Afrique) sont décrites dans
+// band/band-catalog.js (BAND_MENU).
 
 // Tempo (noires par minute ; pulsations ♩. en mesure composée) et signature proposés pour chaque style.
 // Valeurs modifiables ensuite avec le curseur de tempo et le sélecteur « Mesure ».
@@ -354,7 +341,7 @@ function styleTonality(styleKey, generated) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { STYLE_SCALE_PROFILE, STYLE_BAND, STYLE_GROOVE, FLAMENCO_BAND_GROOVES, ROCK_BAND_GROOVES, LATIN_BAND_GROOVES, AFRICA_BAND_GROOVES, STYLE_TEMPO_METER, STYLES_FOLLOWING_KEY,
+    module.exports = { STYLE_SCALE_PROFILE, STYLE_BAND, STYLE_GROOVE, STYLE_TEMPO_METER, STYLES_FOLLOWING_KEY,
         bandStyleFor, grooveHintFor, tempoMeterFor, styleModulations, modReading, annotateModulations,
         styleScaleFor, applyStyleScaleProfile, styleTonality };
 }
