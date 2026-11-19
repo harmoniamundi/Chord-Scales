@@ -32,6 +32,12 @@ if (typeof buildFlamencoPlan === 'undefined' && typeof require === 'function') {
     var { buildFlamencoPlan, flamencoPhraseExtras } = require('./flamenco-plan.js');
 }
 
+// Jeu baroque (band/guitar-baroque-plan.js) : quand le style de grille Baroque impose son rythme (« c-baroque »), la phrase porte
+// `ph.gtrBaroque` et la mesure est écrite comme un prélude pour luth (basse au pouce, doubles-croches continues aux doigts).
+if (typeof buildGuitarBaroquePlan === 'undefined' && typeof require === 'function') {
+    var { buildGuitarBaroquePlan, guitarBaroqueExtras } = require('./guitar-baroque-plan.js');
+}
+
 const GTR_BASE = 48;                      // hauteur réelle (MIDI) de la note écrite 0 sans transposition (octave de lecture 3 : do3)
 const GTR_BASS_LO = 40, GTR_BASS_HI = 55; // registre des basses : mi2 à sol3
 const GTR_UP_LO = 52, GTR_UP_HI = 79;     // registre des cordes aiguës : mi3 à sol5
@@ -270,6 +276,8 @@ function gtrApproachMidi(env, cur, nextCs, rng) {
 // ---------------------------------------------------------------------------------------------
 function guitarPhraseExtras(ctx, rng, prev, index) {
     const base = guitarClassicalExtras(ctx, rng, prev, index);
+    // Style de grille Baroque (ctx.groove = 'c-baroque') : champs du prélude baroque en plus
+    if (ctx && ctx.groove === 'c-baroque') return Object.assign(base, guitarBaroqueExtras(ctx, rng, prev));
     // Rythme flamenco imposé par le style de grille (ctx.groove = 'f-solea', 'f-bulerias' ou 'f-tangos') : champs du toque flamenco en plus
     return ctx && ctx.groove ? Object.assign(base, flamencoPhraseExtras(ctx, rng, prev, index)) : base;
 }
@@ -306,6 +314,7 @@ const GTR_VEL = { B: 0.72, b: 0.58, f: 0.52, C: 0.72, c: 0.54, u: 0.46, P: 0.7, 
 
 function buildGuitarPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
     if (ph.flamenco) return buildFlamencoPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
+    if (ph.gtrBaroque) return buildGuitarBaroquePlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn);
     const rng = ph.rng;
     const I = ph.intensity;
     const off = env.transOffset;
@@ -431,7 +440,7 @@ function buildGuitarPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep,
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         guitarPhraseExtras, buildGuitarPlan,
-        gtrBassMidi, gtrAltBassMidi, gtrUpperMidi, gtrVoice, gtrCellFor, gtrMutate, gtrThin, gtrDensify,
+        gtrBassMidi, gtrAltBassMidi, gtrUpperMidi, gtrVoice, gtrUpNote, gtrApproachMidi, gtrCellFor, gtrMutate, gtrThin, gtrDensify,
         GTR_BIN, GTR_TERN, GTR_BASE, GTR_BASS_LO, GTR_BASS_HI, GTR_UP_LO, GTR_UP_HI
     };
 }

@@ -520,6 +520,7 @@
     <script src="app/band/swing-plan.js"></script>
     <script src="app/band/classic-plan.js"></script>
     <script src="app/band/flamenco-plan.js"></script>
+    <script src="app/band/guitar-baroque-plan.js"></script>
     <script src="app/band/guitar-plan.js"></script>
     <script src="app/band/phrase-plan.js"></script>
     <script src="app/band/band-state.js"></script>
@@ -2217,7 +2218,7 @@
                 // En « Classique » (piano seul) et en « Guitare » (guitare seule) : la basse et la batterie de l'orchestre ne servent pas.
                 // Exception : en Flamenco (orchestre Guitare + rythme d'un palo) le curseur « Percus. » règle cajón, palmas et pitos.
                 const solo = this.bandStyle === 'classic' || this.bandStyle === 'guitar';
-                const flamPerc = this.bandStyle === 'guitar' && !!this.getEffectiveGroove('guitar');
+                const flamPerc = this.bandStyle === 'guitar' && !!this._flamencoGroove();
                 [['band-vol-bass', solo], ['band-vol-drums', solo && !flamPerc]].forEach(([id, off]) => {
                     const el = document.getElementById(id);
                     if (!el) return;
@@ -2361,8 +2362,14 @@
             // (samba, tango, Piazzolla, afro, brass chorale…) : il ne vaut que pour l'orchestre auquel il appartient, sinon il
             // « fuit » (ex. : rythme afro d'un style Afro-cubain qui ferait sonner Cuba sous l'orchestre Brasil).
             getEffectiveGroove(style) {
-                const ok = { latin: ['bossa', 'samba', 'tango', 'piazzolla'], cuba: ['afro', 'salsa'].concat(AFRO_GROOVES), brass: ['b-chorale'], balkan: ['bk-sevdah', 'bk-tsifte'], piazzolla: ['lyrique'], guitar: ['f-solea', 'f-bulerias', 'f-tangos'], classic: ['c-baroque'], pop: ROCK_GROOVES, africa: AFRICA_GROOVES }[style || this.bandStyle];
+                const ok = { latin: ['bossa', 'samba', 'tango', 'piazzolla'], cuba: ['afro', 'salsa'].concat(AFRO_GROOVES), brass: ['b-chorale'], balkan: ['bk-sevdah', 'bk-tsifte'], piazzolla: ['lyrique'], guitar: ['f-solea', 'f-bulerias', 'f-tangos', 'c-baroque'], classic: ['c-baroque'], pop: ROCK_GROOVES, africa: AFRICA_GROOVES }[style || this.bandStyle];
                 return (this._bandGroove && ok && ok.includes(this._bandGroove)) ? this._bandGroove : null;
+            }
+
+            // Palo flamenco imposé à l'orchestre Guitare (soleá, bulerías, tangos) ; null pour la guitare seule ou le jeu baroque
+            _flamencoGroove() {
+                const g = this.getEffectiveGroove('guitar');
+                return (g && g.startsWith('f-')) ? g : null;
             }
 
             // Choix dans le menu Orchestre : « Milonga lyrique » = quinteto piazzolla + écriture lyrique
@@ -2426,7 +2433,7 @@
                 } else {
                     // Un autre choix (y compris « Brasil », « Cuba » ou « Guitare » seuls) ne garde ni le rythme lyrique, ni celui
                     // d'un palo ou d'un style rock, ni la bossa / samba / salsa / les rythmes cubains choisis dans ce menu
-                    if (this._bandGroove === 'lyrique' || ['bossa', 'samba', 'salsa'].includes(this._bandGroove) || (this._bandGroove || '').startsWith('f-') || (this._bandGroove || '').startsWith('r-') || (this._bandGroove || '').startsWith('c-') || (this._bandGroove || '').startsWith('cu-') || (this._bandGroove || '').startsWith('af-')) this._bandGroove = null;
+                    if (this._bandGroove === 'lyrique' || ['bossa', 'samba', 'salsa'].includes(this._bandGroove) || (this._bandGroove || '').startsWith('f-') || (this._bandGroove || '').startsWith('r-') || ((this._bandGroove || '').startsWith('c-') && !(this._bandGroove === 'c-baroque' && (v === 'guitar' || v === 'classic'))) || (this._bandGroove || '').startsWith('cu-') || (this._bandGroove || '').startsWith('af-')) this._bandGroove = null;
                     this.setBandStyle(v);
                 }
             }
@@ -2489,7 +2496,7 @@
                 const eb = document.getElementById('band-vol-bass-label');
                 if (eb) eb.textContent = brass ? 'Tubas' : (pz ? 'Contreb.' : 'Basse');
                 const ed = document.getElementById('band-vol-drums-label');
-                if (ed) ed.textContent = (brass || balkan || pz || (this.bandStyle === 'guitar' && !!this.getEffectiveGroove('guitar')) || (this.bandStyle === 'latin' && this.getEffectiveGroove('latin') === 'samba')) ? 'Percus.' : 'Batterie';
+                if (ed) ed.textContent = (brass || balkan || pz || (this.bandStyle === 'guitar' && !!this._flamencoGroove()) || (this.bandStyle === 'latin' && this.getEffectiveGroove('latin') === 'samba')) ? 'Percus.' : 'Batterie';
                 // curseurs propres au Tango nuevo (bandonéon, violon, guitare électrique)
                 ['bandoneon', 'violin', 'guitar'].forEach(k => {
                     const row = document.getElementById('band-row-pz-' + k);
@@ -2528,7 +2535,7 @@
             updateBandButtonLabel() {
                 const label = document.getElementById('band-btn-label');
                 if (!label) return;
-                const names = { swing: 'Jazz', pop: this._rockBandName() || 'Pop-Rock', latin: ({ bossa: 'Bossa nova', samba: 'Samba' })[this.getEffectiveGroove('latin')] || 'Brasil', cuba: this._cubaBandName(), classic: 'Classique', guitar: (this.getEffectiveGroove('guitar') ? 'Flamenco' : 'Guitare'), brass: 'Brass', balkan: 'Balkans', cumbia: 'Cumbia', africa: AFRICA_NAMES[africaGroove(this.getEffectiveGroove('africa'))], piazzolla: (this.getEffectiveGroove() === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
+                const names = { swing: 'Jazz', pop: this._rockBandName() || 'Pop-Rock', latin: ({ bossa: 'Bossa nova', samba: 'Samba' })[this.getEffectiveGroove('latin')] || 'Brasil', cuba: this._cubaBandName(), classic: 'Classique', guitar: (this._flamencoGroove() ? 'Flamenco' : 'Guitare'), brass: 'Brass', balkan: 'Balkans', cumbia: 'Cumbia', africa: AFRICA_NAMES[africaGroove(this.getEffectiveGroove('africa'))], piazzolla: (this.getEffectiveGroove() === 'lyrique' ? 'Milonga lyrique' : 'Tango nuevo') };
                 label.textContent = 'Orchestre ' + (names[this.bandStyle] || 'Jazz');
             }
 
@@ -2676,7 +2683,7 @@
             // et les orchestres à ligne mélodique (Classique, Piazzolla, Balkans, Cumbia, Brass) ; pas pendant le bouton « Arpèges ».
             isBandDensityAvailable() {
                 if (this._arpPrevStyle) return false;
-                if (this.bandStyle === 'guitar') return !this.getEffectiveGroove('guitar');
+                if (this.bandStyle === 'guitar') return !this._flamencoGroove();
                 if (this.bandStyle in BAND_DENSITY_DEFAULTS) return true;
                 return false;
             }
@@ -2926,7 +2933,7 @@
                 const solo = this.bandStyle === 'guitar';
                 // Guitare flamenca (style de grille Flamenco) : son plus sec, plus clair et plus incisif que le nylon classique
                 // (moins de grave, plus de mordant dans le médium-aigu et d'air), comme une guitare de cante.
-                const flam = solo && !!this.getEffectiveGroove('guitar');
+                const flam = solo && !!this._flamencoGroove();
                 // Orchestre Cuba (son, guajira, guaguancó) : la guitare imite le tres, plus clair et plus mordant ; bolero : nylon chaleureux
                 const cg = this.bandStyle === 'cuba' ? this.getEffectiveGroove('cuba') : null;
                 const tres = cg === 'cu-son' || cg === 'cu-guajira' || cg === 'cu-guaguanco';
@@ -3276,7 +3283,8 @@
                 const phraseIndex = Math.floor(m / L);
                 const i = m % L;
                 if (!this._bandPhrase || this._bandPhrase.index !== phraseIndex || this._bandPhrase.style !== style || !!this._bandPhrase.cuba !== cuba
-                    || (style === 'classic' && !!this._bandPhrase.baroque !== (this.getEffectiveGroove() === 'c-baroque'))) {
+                    || (style === 'classic' && !!this._bandPhrase.baroque !== (this.getEffectiveGroove() === 'c-baroque'))
+                    || (style === 'guitar' && !!this._bandPhrase.gtrBaroque !== (this.getEffectiveGroove() === 'c-baroque'))) {
                     this._bandPhrase = this.buildBandPhrase(phraseIndex, style);
                     this._bandPhrase.cuba = cuba;
                 }
