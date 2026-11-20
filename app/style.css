@@ -409,7 +409,7 @@
         #jam-chord-sequence-display .jam-cell-top > span:last-child { min-width: 0; }
         #jam-chord-sequence-display .jam-add-cell { align-self: stretch; min-height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 1.5px dashed #2f6f57; background: rgba(16,185,129,.06); color: #34d399; font-size: 24px; line-height: 1; cursor: pointer; user-select: none; transition: background .12s, border-color .12s; }
         #jam-chord-sequence-display .jam-add-cell:hover { background: rgba(16,185,129,.16); border-color: #34d399; }
-        :root { --cs-build: '2026-11-20-a'; } /* numéro de version lu par la page */
+        :root { --cs-build: '2026-11-20-b'; } /* numéro de version lu par la page */
         .jm-pop { position: fixed; z-index: 2000; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); color: #e2e8f0; padding: 10px 12px 12px; font-size: 12px; }
         .jm-pop.jm-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; max-height: 62vh; }
         /* Pop-up « Orchestre » : fenêtre flottante à gauche de l'écran, sans voile, déplaçable par sa barre de titre */
@@ -470,6 +470,46 @@
         #saved-grids-modal #saved-grids-backup-info.sg-warn { color: #fbbf24; }
         #saved-grids-modal .sg-backup-btns { display: flex; gap: 6px; }
         #saved-grids-modal .sg-backup-btns .sg-btn { flex: 1; }
+        /* Synchronisation (fichier ou GitHub) */
+        #saved-grids-modal { overflow-y: auto; overscroll-behavior: contain; }
+        #saved-grids-modal .sg-sync { border-top: 1px solid #333333; padding-top: 8px; }
+        #saved-grids-modal .sg-sync > summary { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; cursor: pointer; list-style: none; }
+        #saved-grids-modal .sg-sync > summary::-webkit-details-marker { display: none; }
+        #saved-grids-modal .sg-sync > summary .sg-backup-title::before { content: '▸ '; display: inline-block; transition: transform .12s; }
+        #saved-grids-modal .sg-sync[open] > summary .sg-backup-title::before { content: '▾ '; }
+        #saved-grids-modal .sg-sync > summary .sg-backup-title { cursor: pointer; }
+        #saved-grids-sync-status { font-size: 10px; color: #64748b; text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #saved-grids-sync-status[data-state="ok"] { color: #34d399; }
+        #saved-grids-sync-status[data-state="error"] { color: #fb7185; }
+        #saved-grids-sync-status[data-state="offline"], #saved-grids-sync-status[data-state="pending"], #saved-grids-sync-status[data-state="busy"] { color: #fbbf24; }
+        #saved-grids-modal .sg-sync-body { display: flex; flex-direction: column; gap: 10px; padding-top: 8px; }
+        #saved-grids-modal .sg-sync-block { display: flex; flex-direction: column; gap: 5px; }
+        #saved-grids-modal .sg-sync-h { font-size: 11px; font-weight: 700; color: #cbd5e1; }
+        #saved-grids-modal .sg-sync-h span { font-weight: 400; color: #64748b; margin-left: 4px; }
+        #saved-grids-modal .sg-sync-info { font-size: 11px; color: #94a3b8; line-height: 1.35; }
+        #saved-grids-modal .sg-sync-info:empty { display: none; }
+        #sync-gh-state[data-state="error"] { color: #fb7185; }
+        #sync-gh-state[data-state="ok"] { color: #34d399; }
+        #saved-grids-modal .sg-sync-where { font-size: 11px; color: #e2e8f0; font-family: ui-monospace, Menlo, monospace; overflow-wrap: anywhere; }
+        #saved-grids-modal .sg-sync-alert { font-size: 11px; line-height: 1.35; color: #fde68a; background: rgba(251,191,36,.1); border: 1px solid rgba(251,191,36,.35); border-radius: 6px; padding: 6px 8px; }
+        #saved-grids-modal .sg-sync-form { display: flex; flex-direction: column; gap: 5px; }
+        #saved-grids-modal .sg-sync-form.hidden { display: none; }
+        #saved-grids-modal .sg-sync-form input { background: #1a1a1a; border: 1px solid #333333; border-radius: 6px; color: #e2e8f0; font-size: 12px; padding: 5px 7px; outline: none; }
+        #saved-grids-modal .sg-sync-form input:focus { border-color: #10b981; }
+        #saved-grids-modal .sg-btn-go { background: #047857; }
+        #saved-grids-modal .sg-btn-go:hover { background: #059669; }
+        #saved-grids-modal .sg-btn-hot { background: #047857; box-shadow: 0 0 0 2px rgba(52,211,153,.45); }
+        #saved-grids-modal .sg-help { font-size: 11px; color: #94a3b8; line-height: 1.4; }
+        #saved-grids-modal .sg-help summary { cursor: pointer; color: #34d399; width: max-content; }
+        #saved-grids-modal .sg-help ol { margin: 4px 0 4px 16px; padding: 0; list-style: decimal; display: flex; flex-direction: column; gap: 3px; }
+        #saved-grids-modal .sg-help a { color: #93c5fd; text-decoration: underline; }
+        #saved-grids-modal .sg-help b { color: #e2e8f0; }
+        @media (pointer: coarse) { #saved-grids-modal input[type="text"], #saved-grids-modal input[type="password"], #saved-grids-modal input[type="search"] { font-size: 16px; } } /* iOS : pas de zoom à la saisie */
+        .sg-dot { width: 7px; height: 7px; border-radius: 50%; background: #64748b; flex: none; }
+        .sg-dot.hidden { display: none; }
+        .sg-dot[data-state="ok"] { background: #34d399; }
+        .sg-dot[data-state="busy"], .sg-dot[data-state="pending"], .sg-dot[data-state="offline"] { background: #fbbf24; }
+        .sg-dot[data-state="error"] { background: #fb7185; }
         #band-modal { position: fixed; z-index: 1900; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow-y: auto; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
         #band-modal.hidden { display: none; }
         /* Pop-up « Exporter » : grille (.json) ou son (.wav) ; il couvre l'écran pendant l'enregistrement du son */

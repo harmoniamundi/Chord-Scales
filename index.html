@@ -313,7 +313,7 @@
                     <div class="jr-full relative flex-1 min-w-0" id="jam-saved-grids-wrapper">
                         <button type="button" onclick="app.jam.toggleSavedGridsMenu()" class="w-full flex items-center justify-between text-xs bg-[#1a1a1a] border border-[#333333] rounded px-2 py-1 text-slate-300">
                             <span id="jam-saved-grids-label" class="truncate">Sauvegardes</span>
-                            <span class="text-slate-500">▾</span>
+                            <span class="flex items-center gap-1.5"><span id="jam-saved-grids-sync-dot" class="sg-dot hidden" aria-hidden="true"></span><span class="text-slate-500">▾</span></span>
                         </button>
                     </div>
                     <button onclick="app.jam.exportGrid()" title="Exporter la grille en cours (fichier .json) ou son son (fichier .wav)" class="jr-half text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2.5 py-1 rounded transition whitespace-nowrap">Exporter</button>
@@ -533,6 +533,7 @@
     <script src="app/ui/draw-notes.js"></script>
     <script src="app/grid/grid-format.js"></script>
     <script src="app/grid/saved-library.js"></script>
+    <script src="app/grid/saved-sync.js"></script>
     <script src="app/grid/generation.js"></script>
     <script src="app/grid/harmony.js"></script>
     <script src="app/grid/edit-ops.js"></script>
@@ -1041,15 +1042,30 @@
             }
 
             // Écrit les sauvegardes (et, si donnée, la liste des dossiers). Renvoie false si le navigateur refuse.
-            _writeSavedLibrary(saved, folders) {
+            // Chaque changement est noté pour la synchronisation (date de la grille, suppressions, dossiers) : voir grid/saved-sync.js.
+            // opts.track === false : écriture du résultat d'une synchronisation (opts.meta), qui ne compte pas comme un changement.
+            _writeSavedLibrary(saved, folders, opts) {
+                const o = opts || {};
                 try {
-                    localStorage.setItem('jamSavedGrids', JSON.stringify(saved));
-                    if (folders) localStorage.setItem('jamSavedGridFolders', JSON.stringify(slFolderList(saved, folders)));
-                    return true;
+                    const nextFolders = folders || this.getSavedFolders();
+                    let toStore = saved, meta = o.meta || this.getSyncMeta();
+                    if (o.track !== false) {
+                        const t = svsTrack(this.getSavedGrids(), this.getSavedFolders(), saved, nextFolders, meta, Date.now());
+                        toStore = t.saved; meta = t.meta;
+                    }
+                    localStorage.setItem('jamSavedGrids', JSON.stringify(toStore));
+                    localStorage.setItem('jamSavedGridFolders', JSON.stringify(slFolderList(toStore, nextFolders)));
+                    localStorage.setItem('jamSyncMeta', JSON.stringify(meta));
                 } catch (e) {
                     alert("Impossible d'enregistrer les sauvegardes (stockage du navigateur plein ou refusé).");
                     return false;
                 }
+                if (o.track !== false) this._syncSoon();
+                return true;
+            }
+
+            getSyncMeta() {
+                try { return svsCleanMeta(JSON.parse(localStorage.getItem('jamSyncMeta'))); } catch (e) { return svsCleanMeta(null); }
             }
 
             // Paramètres de jam communs à la sauvegarde et à l'export :
@@ -1670,6 +1686,8 @@
                     ev.preventDefault();
                 });
                 window.addEventListener('resize', () => { if (!el.classList.contains('hidden')) this._placeSavedGridsPopup(); });
+                // une section dépliée (Synchronisation, aide) agrandit la fenêtre : on la remonte pour qu'elle reste dans l'écran
+                el.addEventListener('toggle', () => { if (!el.classList.contains('hidden')) this._placeSavedGridsPopup(); }, true);
                 // Un clic en dehors de la fenêtre la ferme (le bouton « Sauvegardes » l'ouvre / la ferme lui-même)
                 document.addEventListener('pointerdown', (ev) => {
                     if (el.classList.contains('hidden')) return;
@@ -1765,6 +1783,9 @@
                 const clr = document.getElementById('saved-grids-search-clear');
                 if (clr) clr.classList.toggle('hidden', !q);
                 this._renderBackupInfo();
+                this._renderSyncUI();
+                const modal = document.getElementById('saved-grids-modal');
+                if (modal && !modal.classList.contains('hidden')) this._placeSavedGridsPopup();
             }
 
             // Un seul écouteur pour toute la liste (clics, glisser-déposer d'une grille sur un dossier).
@@ -1918,7 +1939,7 @@
                 const saved = this.getSavedGrids();
                 if (!Object.keys(saved).length) { alert('Aucune grille sauvegardée : rien à exporter.'); return; }
                 const now = new Date();
-                const data = slBuildBackup(saved, this.getSavedFolders(), now.toISOString());
+                const data = svsSnapshot(saved, this.getSavedFolders(), this.getSyncMeta(), now.toISOString()); // sert aussi de fichier de synchronisation
                 this._downloadBlob(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }), slBackupFileName(now));
                 try { localStorage.setItem('jamBackupLastAt', String(now.getTime())); } catch (e) {}
                 this._renderBackupInfo();
@@ -1952,6 +1973,257 @@
                 this.renderSavedGridsMenu();
                 this.refreshSaveButton();
                 alert('Copie de sécurité restaurée : ' + slMergeSummary(r));
+            }
+
+            // ===== Synchronisation des sauvegardes entre appareils (grid/saved-sync.js) =====
+            // Facultative : sans réglage, rien ne change. Deux façons :
+            //  - « avec un fichier » : on lit le fichier partagé (iCloud Drive…), on fusionne, puis on le réenregistre ;
+            //  - « automatique avec GitHub » : un fichier d'un dépôt privé, lu et écrit par l'appli (jeton propre à chaque appareil).
+
+            _syncLocalState() {
+                return { saved: this.getSavedGrids(), folders: this.getSavedFolders(), meta: this.getSyncMeta() };
+            }
+
+            _syncDeps() {
+                return { sanitizeGrid: (g) => this.sanitizeImportedGrid(g), sanitizeSettings: (st) => this.sanitizeImportedSettings(st), now: Date.now(),
+                    message: `Chord Scales : synchronisation des sauvegardes (${this._deviceLabel()})` };
+            }
+
+            _deviceLabel() {
+                const ua = navigator.userAgent || '';
+                if (/iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'iPad';
+                if (/iPhone/.test(ua)) return 'iPhone';
+                if (/Android/.test(ua)) return 'Android';
+                if (/Mac/.test(ua)) return 'Mac';
+                if (/Windows/.test(ua)) return 'Windows';
+                if (/Linux/.test(ua)) return 'Linux';
+                return 'appareil';
+            }
+
+            // Applique sur cet appareil le résultat d'une fusion. La grille affichée suit si elle a changé ailleurs et n'a pas
+            // de modification en cours ici ; sinon elle reste telle quelle et la disquette passe au bleu.
+            _applySyncResult(r) {
+                const name = this.loadedGridName;
+                const wasClean = !!(name && this._savedSigs && this._savedSigs[name] === this._stateSignature());
+                if (!this._writeSavedLibrary(r.saved, r.folders, { track: false, meta: r.meta })) return;
+                this._syncNote = '';
+                if (name && (r.received || []).includes(name)) {
+                    if (wasClean && !this.isPlaying) {
+                        this.loadSavedGrid(name);
+                        this._syncNote = `« ${name} » a été mise à jour depuis un autre appareil.`;
+                    } else {
+                        if (this._savedSigs) delete this._savedSigs[name];
+                        this._syncNote = `« ${name} » a été modifiée sur un autre appareil. La version affichée ici n'est pas celle-là : rechargez la grille depuis la liste, ou sauvegardez pour garder celle-ci.`;
+                    }
+                } else if (name && (r.removed || []).includes(name)) {
+                    if (this._savedSigs) delete this._savedSigs[name];
+                    this._syncNote = `« ${name} » a été supprimée sur un autre appareil (la grille reste affichée ; sauvegardez-la pour la garder).`;
+                }
+                this.renderSavedGridsMenu();
+                this.refreshSaveButton();
+            }
+
+            // --- Automatique avec GitHub ---
+            getGithubSync() {
+                try { return ghsCleanConfig(JSON.parse(localStorage.getItem('jamSyncGithub'))); } catch (e) { return null; }
+            }
+
+            syncStart() {
+                if (this._syncStarted) return;
+                this._syncStarted = true;
+                const again = () => { if (document.visibilityState === 'visible' && Date.now() - (this._syncLastTry || 0) > 15000) this._syncSoon(200); };
+                document.addEventListener('visibilitychange', again);
+                window.addEventListener('focus', again);
+                window.addEventListener('online', () => this._syncSoon(500));
+                setInterval(() => { if (document.visibilityState === 'visible' && !this.isPlaying) this._syncSoon(0); }, 120000);
+                this._renderSyncUI();
+                this._syncSoon(800);
+            }
+
+            _syncSoon(delay) {
+                if (!this.getGithubSync()) return;
+                clearTimeout(this._syncT);
+                this._syncT = setTimeout(() => this.syncNow(), delay === undefined ? 1500 : delay);
+                if (!this._syncBusy && (!this._syncState || this._syncState.state === 'ok')) this._setSyncStatus('pending');
+            }
+
+            async syncNow() {
+                const cfg = this.getGithubSync();
+                if (!cfg) return null;
+                if (this._syncBusy) { this._syncAgain = true; return null; }
+                this._syncBusy = true;
+                this._syncLastTry = Date.now();
+                this._setSyncStatus('busy');
+                let result = null;
+                try {
+                    for (let i = 0; i < 3 && !result; i++) {
+                        const before = JSON.stringify(this._syncLocalState());
+                        const r = await ghsSyncCycle(cfg, JSON.parse(before), (u, o) => fetch(u, o), this._syncDeps());
+                        // une sauvegarde faite ici pendant l'échange : on recommence pour ne rien perdre
+                        if (JSON.stringify(this._syncLocalState()) !== before) continue;
+                        if (r.localChanged) this._applySyncResult(r);
+                        result = r;
+                    }
+                    if (result) this._setSyncStatus('ok', result);
+                    else this._syncAgain = true;
+                } catch (e) {
+                    this._setSyncStatus(e && e.kind === 'network' ? 'offline' : 'error', null, e);
+                } finally {
+                    this._syncBusy = false;
+                    if (this._syncAgain) { this._syncAgain = false; this._syncSoon(300); }
+                }
+                return result;
+            }
+
+            _setSyncStatus(state, r, err) {
+                const prev = this._syncState || {};
+                this._syncState = { state, at: state === 'ok' ? Date.now() : prev.at, summary: r ? svsSummary(r) : prev.summary, error: err ? ghsErrorText(err) : '' };
+                this._renderSyncUI();
+            }
+
+            _syncStatusText() {
+                const cfg = this.getGithubSync();
+                if (!cfg) return '';
+                const st = this._syncState || { state: 'pending' };
+                const hour = (t) => new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                if (st.state === 'busy') return 'Synchronisation…';
+                if (st.state === 'offline') return 'Hors ligne : reprendra au retour du réseau';
+                if (st.state === 'error') return 'Erreur : ' + st.error;
+                if (st.state === 'ok') return `Synchronisé à ${hour(st.at)}` + (st.summary && st.summary !== 'rien de nouveau' ? ` — ${st.summary}` : '');
+                return 'En attente de synchronisation…';
+            }
+
+            _renderSyncUI() {
+                const cfg = this.getGithubSync();
+                const st = (this._syncState && this._syncState.state) || 'pending';
+                const dot = document.getElementById('jam-saved-grids-sync-dot');
+                if (dot) {
+                    dot.classList.toggle('hidden', !cfg);
+                    dot.dataset.state = st;
+                    dot.title = cfg ? this._syncStatusText() : '';
+                }
+                const status = document.getElementById('saved-grids-sync-status');
+                if (status) {
+                    status.textContent = cfg ? this._syncStatusText() : (this._fileSync ? 'Fichier' : 'Désactivée');
+                    status.dataset.state = cfg ? st : '';
+                }
+                const on = document.getElementById('sync-gh-on'), off = document.getElementById('sync-gh-off');
+                if (on) on.classList.toggle('hidden', !cfg);
+                if (off) off.classList.toggle('hidden', !!cfg);
+                const where = document.getElementById('sync-gh-where');
+                if (where && cfg) where.textContent = `${cfg.repo} · ${cfg.path}`;
+                const ghState = document.getElementById('sync-gh-state');
+                if (ghState) { ghState.textContent = cfg ? this._syncStatusText() : ''; ghState.dataset.state = st; }
+                const note = document.getElementById('saved-grids-sync-note');
+                if (note) { note.textContent = this._syncNote || ''; note.classList.toggle('hidden', !this._syncNote); }
+                const fileInfo = document.getElementById('saved-grids-sync-file-info');
+                if (fileInfo) fileInfo.textContent = (this._fileSync && this._fileSync.text) || '';
+                const save = document.getElementById('sync-file-save');
+                if (save) save.classList.toggle('sg-btn-hot', !!(this._fileSync && this._fileSync.needsSave));
+                // le contenu a pu grandir (formulaire, message) : la fenêtre reste dans l'écran
+                const modal = document.getElementById('saved-grids-modal');
+                if (modal && !modal.classList.contains('hidden') && !this._sgPlacing) {
+                    this._sgPlacing = true;
+                    try { this._placeSavedGridsPopup(); } finally { this._sgPlacing = false; }
+                }
+            }
+
+            async enableGithubSync() {
+                const val = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
+                const raw = { repo: val('sync-gh-repo'), path: val('sync-gh-path'), token: val('sync-gh-token') };
+                const fromCode = svsParseConfigCode(raw.token) || svsParseConfigCode(raw.repo);
+                const cfg = fromCode || ghsCleanConfig(raw);
+                if (!cfg) {
+                    if (!ghsParseRepo(raw.repo)) alert('Dépôt : indiquez « utilisateur/dépôt » (par exemple « harmoniamundi/chord-scales-donnees »).');
+                    else if (!ghsCleanPath(raw.path)) alert('Nom de fichier invalide.');
+                    else alert('Jeton : collez le jeton d\'accès GitHub (il commence par « github_pat_ »), ou un code de configuration copié sur un autre appareil.');
+                    return;
+                }
+                try { localStorage.setItem('jamSyncGithub', JSON.stringify(cfg)); } catch (e) { alert('Impossible d\'enregistrer le réglage.'); return; }
+                this._syncState = null;
+                const r = await this.syncNow();
+                if (!r) {
+                    const msg = (this._syncState && this._syncState.error) || 'échec';
+                    try { localStorage.removeItem('jamSyncGithub'); } catch (e) {}
+                    this._syncState = null;
+                    this._renderSyncUI();
+                    alert('La synchronisation n\'a pas pu être activée : ' + msg + '.');
+                    return;
+                }
+                const tok = document.getElementById('sync-gh-token');
+                if (tok) tok.value = '';
+                alert('Synchronisation activée sur cet appareil.\n' + (r.created ? 'Le fichier a été créé dans le dépôt.' : 'Résultat : ' + svsSummary(r) + '.'));
+            }
+
+            disableGithubSync() {
+                if (!confirm('Arrêter la synchronisation automatique sur cet appareil ?\nLes grilles restent ici et dans le dépôt ; le jeton est effacé de cet appareil.')) return;
+                try { localStorage.removeItem('jamSyncGithub'); } catch (e) {}
+                clearTimeout(this._syncT);
+                this._syncState = null;
+                this._renderSyncUI();
+            }
+
+            // Code à coller sur un autre appareil (contient le jeton).
+            copySyncCode() {
+                const code = svsConfigCode(this.getGithubSync());
+                if (!code) return;
+                const fallback = () => prompt('Copiez ce code, puis collez-le dans le champ « Jeton » de l\'autre appareil (il contient le jeton : ne le partagez pas) :', code);
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(code).then(() => alert('Code copié. Sur l\'autre appareil : Sauvegardes › Synchronisation › collez-le dans le champ « Jeton », puis « Activer ».\nCe code contient le jeton : ne le partagez pas.'), fallback);
+                } else fallback();
+            }
+
+            // --- Avec un fichier (iCloud Drive, Dropbox, clé USB…) : 1. lire et fusionner, 2. réenregistrer ---
+            syncFilePick() {
+                const input = document.getElementById('jam-sync-file');
+                if (input) input.click();
+            }
+
+            onSyncFile(input) {
+                const file = input.files && input.files[0];
+                input.value = '';
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onerror = () => alert('Impossible de lire ce fichier.');
+                reader.onload = () => {
+                    let doc;
+                    try { doc = JSON.parse(reader.result); } catch (e) { alert("Ce fichier n'est pas un JSON valide."); return; }
+                    if (!slIsBackup(doc)) { alert("Ce fichier n'est pas un fichier de synchronisation (ou de copie de sécurité) de Chord Scales."); return; }
+                    const deps = this._syncDeps();
+                    const r = svsMerge(this._syncLocalState(), doc, deps.sanitizeGrid, deps.sanitizeSettings, deps.now);
+                    if (r.localChanged) this._applySyncResult(r);
+                    try { localStorage.setItem('jamSyncFileName', file.name); } catch (e) {}
+                    this._fileSync = {
+                        needsSave: r.remoteChanged,
+                        text: `« ${file.name} » lu : ${svsSummary(r)}. ` + (r.remoteChanged
+                            ? 'Enregistrez maintenant le fichier (bouton 2) à la place de l\'ancien, pour y reporter les changements de cet appareil.'
+                            : 'Le fichier était déjà à jour.')
+                    };
+                    this._renderSyncUI();
+                };
+                reader.readAsText(file);
+            }
+
+            syncFileSave() {
+                const st = this._syncLocalState();
+                const doc = svsSnapshot(st.saved, st.folders, st.meta, new Date().toISOString());
+                let name = SVS_DEFAULT_FILE;
+                try { name = localStorage.getItem('jamSyncFileName') || SVS_DEFAULT_FILE; } catch (e) {}
+                const blob = new Blob([JSON.stringify(doc, null, 1)], { type: 'application/json' });
+                const done = () => {
+                    this._fileSync = { needsSave: false, text: `« ${name} » enregistré. Sur un autre appareil : 1. Lire le fichier, puis 2. Enregistrer s'il le demande.` };
+                    this._renderSyncUI();
+                };
+                // iPhone / iPad : feuille de partage, puis « Enregistrer dans Fichiers » (choisir le même dossier iCloud et remplacer)
+                const touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+                let file = null;
+                try { file = new File([blob], name, { type: 'application/json' }); } catch (e) {}
+                if (touch && file && navigator.canShare && navigator.canShare({ files: [file] })) {
+                    navigator.share({ files: [file] }).then(done, (e) => { if (!e || e.name !== 'AbortError') { this._downloadBlob(blob, name); done(); } });
+                    return;
+                }
+                this._downloadBlob(blob, name);
+                done();
             }
 
             // Rappel discret sous la liste : date de la dernière copie de sécurité exportée depuis ce navigateur.
@@ -2020,8 +2292,7 @@
                         if (k === old) out[name] = saved[old];
                         else if (k !== name) out[k] = saved[k];
                     });
-                    try { localStorage.setItem('jamSavedGrids', JSON.stringify(out)); }
-                    catch (e) { alert('Impossible de renommer la sauvegarde.'); revert(); return; }
+                    if (!this._writeSavedLibrary(out)) { revert(); return; }
                     if (this._savedSigs && old in this._savedSigs) { this._savedSigs[name] = this._savedSigs[old]; delete this._savedSigs[old]; }
                     this.loadedGridName = name;
                 } else {
@@ -2064,7 +2335,7 @@
                 if (!confirm(`Supprimer la grille « ${name} » ?`)) return;
                 const saved = this.getSavedGrids();
                 delete saved[name];
-                localStorage.setItem('jamSavedGrids', JSON.stringify(saved));
+                if (!this._writeSavedLibrary(saved)) return;
                 if (this._savedSigs) delete this._savedSigs[name];
                 this.renderSavedGridsMenu();
                 this.refreshSaveButton();
@@ -9099,6 +9370,7 @@
                     }
                     this.initUI();
                     this.update();
+                    this.jam.syncStart(); // synchronisation des sauvegardes, si elle est activée sur cet appareil
                 };
                 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', restoreSession, { once: true });
                 else setTimeout(restoreSession, 0);
@@ -10156,6 +10428,50 @@
                     <input type="file" id="jam-backup-file" accept=".json,application/json" class="hidden" onchange="app.jam.importBackupFile(this)">
                 </div>
             </div>
+            <details class="sg-sync" id="saved-grids-sync">
+                <summary><span class="sg-backup-title">Synchronisation</span><span id="saved-grids-sync-status"></span></summary>
+                <div class="sg-sync-body">
+                    <div id="saved-grids-sync-note" class="sg-sync-alert hidden"></div>
+                    <div class="sg-sync-block">
+                        <div class="sg-sync-h">Avec un fichier <span>iCloud Drive, Dropbox, clé USB…</span></div>
+                        <div class="sg-backup-btns">
+                            <button type="button" class="sg-btn" onclick="app.jam.syncFilePick()" title="Lire le fichier de synchronisation et fusionner : la version la plus récente de chaque grille l'emporte, les suppressions sont reportées">1. Lire le fichier…</button>
+                            <button type="button" id="sync-file-save" class="sg-btn" onclick="app.jam.syncFileSave()" title="Enregistrer le fichier de synchronisation, à la place de l'ancien (la première fois : pour le créer)">2. Enregistrer</button>
+                            <input type="file" id="jam-sync-file" accept=".json,application/json" class="hidden" onchange="app.jam.onSyncFile(this)">
+                        </div>
+                        <div id="saved-grids-sync-file-info" class="sg-sync-info"></div>
+                    </div>
+                    <div class="sg-sync-block">
+                        <div class="sg-sync-h">Automatique avec GitHub <span>dépôt privé</span></div>
+                        <div id="sync-gh-off" class="sg-sync-form">
+                            <input type="text" id="sync-gh-repo" placeholder="utilisateur/dépôt" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Dépôt GitHub">
+                            <input type="text" id="sync-gh-path" placeholder="chord-scales-sauvegardes.json" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Fichier dans le dépôt">
+                            <input type="password" id="sync-gh-token" placeholder="Jeton (github_pat_…) ou code de configuration" autocomplete="off" aria-label="Jeton d'accès ou code de configuration">
+                            <button type="button" class="sg-btn sg-btn-go" onclick="app.jam.enableGithubSync()">Activer sur cet appareil</button>
+                            <details class="sg-help">
+                                <summary>Comment faire ?</summary>
+                                <ol>
+                                    <li>Sur github.com, créez un <b>dépôt privé</b> vide (par exemple « chord-scales-donnees »).</li>
+                                    <li>Créez un jeton : <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Settings › Developer settings › Fine-grained tokens › Generate new token</a>.</li>
+                                    <li><i>Repository access</i> : <b>Only select repositories</b> › ce dépôt. <i>Permissions</i> › <i>Contents</i> : <b>Read and write</b>. Durée au choix (à l'échéance, il faudra un nouveau jeton).</li>
+                                    <li>Collez le dépôt et le jeton ici, puis « Activer ». Le fichier est créé s'il n'existe pas.</li>
+                                    <li>Sur vos autres appareils : « Copier le code » ici, puis collez ce code dans le champ « Jeton » là-bas (dans la webapp elle-même, pas dans Safari).</li>
+                                </ol>
+                                <p>Le jeton reste dans ce navigateur et ne donne accès qu'à ce dépôt. La synchronisation se fait à l'ouverture, à chaque sauvegarde et au retour dans l'appli.</p>
+                            </details>
+                        </div>
+                        <div id="sync-gh-on" class="hidden">
+                            <div id="sync-gh-where" class="sg-sync-where"></div>
+                            <div id="sync-gh-state" class="sg-sync-info"></div>
+                            <div class="sg-backup-btns">
+                                <button type="button" class="sg-btn" onclick="app.jam.syncNow()">Synchroniser</button>
+                                <button type="button" class="sg-btn" onclick="app.jam.copySyncCode()" title="Copier un code pour activer la synchronisation sur un autre appareil (contient le jeton)">Copier le code</button>
+                                <button type="button" class="sg-btn" onclick="app.jam.disableGithubSync()">Désactiver</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </details>
         </div>
     </div>
     <div id="harmony-modal" class="hidden" role="dialog" aria-label="Harmonisation">
@@ -10413,7 +10729,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-20-a';
+        var BUILD = '2026-11-20-b';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }
@@ -10431,6 +10747,7 @@
                 'app/ui/chord-picker.js': typeof chordPickerHtml === 'function' && typeof chordPickerBuild === 'function' && typeof chordPickerParseRoot === 'function',
                 'app/ui/shortcuts.js': typeof Shortcuts === 'object' && typeof Shortcuts.kbSet === 'function' && typeof Shortcuts.kbActionFor === 'function',
                 'app/ui/staff-notes.js': typeof SN_MINOR_KEY_NAMES !== 'undefined' && typeof splitStaffClips === 'function' && typeof parseBlockAt === 'function' && typeof staffMakeTuplet === 'function' && typeof staffSetPickup === 'function' && typeof setStaffSwing === 'function' && typeof staffInsertEvents === 'function' && typeof staffToggleTies === 'function' && typeof shiftEvents === 'function',
+                'app/grid/saved-sync.js': typeof svsMerge === 'function' && typeof ghsSyncCycle === 'function',
                 'app/grid/saved-library.js': typeof slBuildView === 'function' && typeof slMergeBackup === 'function' && typeof slHighlight === 'function',
                 'app/grid/grid-format.js': typeof NOTE_FONTS !== 'undefined' && !!NOTE_FONTS.menlo && typeof sanitizeNoteHtml === 'function' && sanitizeNoteHtml('<div class="annot-frame" data-frame="200" data-at="5,5" data-border="0">x</div>', 300).indexOf('data-border') >= 0,
                 'app/ui/staff-editor.js': typeof nseKeyValue === 'function' && typeof nseToolState === 'function' && typeof nseBlocksToClipText === 'function' && typeof NoteStaffView === 'function' && typeof NoteStaffView.prototype.setBorder === 'function' && typeof NoteStaffView.prototype._setTuplet === 'function' && typeof nseSwingOptions === 'function' && typeof NoteStaffView.prototype._toggleTie === 'function' && typeof NoteStaffView.prototype._startMarquee === 'function',

@@ -1118,6 +1118,81 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         noErrors();
     });
 
+    test('Jam : synchronisation des sauvegardes avec GitHub (simulé) et avec un fichier', async () => {
+        const TOKEN = 'github_pat_' + 'E'.repeat(40);
+        const gh = { file: null, sha: null, n: 0 };
+        await page.route('https://api.github.com/**', (route) => {
+            const req = route.request(), url = req.url();
+            const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,PUT,OPTIONS' };
+            if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+            const j = (st, b) => route.fulfill({ status: st, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify(b) });
+            if (req.headers().authorization !== `Bearer ${TOKEN}`) return j(401, {});
+            if (url === 'https://api.github.com/repos/moi/donnees') return j(200, {});
+            if (req.method() === 'GET') return gh.file ? j(200, { type: 'file', sha: gh.sha, encoding: 'base64', content: Buffer.from(gh.file).toString('base64') }) : j(404, {});
+            const b = JSON.parse(req.postData());
+            if ((b.sha || null) !== gh.sha) return j(409, {});
+            gh.file = Buffer.from(b.content, 'base64').toString('utf8'); gh.sha = 's' + (++gh.n);
+            return j(200, { content: { sha: gh.sha } });
+        });
+        const keep = await page.evaluate(() => ['jamSavedGrids', 'jamSavedGridFolders', 'jamSyncMeta', 'jamSyncGithub'].map(k => localStorage.getItem(k)));
+        const names = () => page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('jamSavedGrids') || '{}')).sort());
+        await page.evaluate(() => {
+            localStorage.setItem('jamSavedGrids', JSON.stringify({ Estate: { grid: [{ rootIndex: 1, chordId: 'maj7', measures: 1 }], settings: { key: 1 }, folder: 'Bossa' } }));
+            localStorage.removeItem('jamSyncMeta'); localStorage.removeItem('jamSyncGithub');
+            app.jam.openSavedGridsMenu();
+            document.getElementById('saved-grids-sync').open = true;
+        });
+        const dialogs = [];
+        const onDialog = (d) => { dialogs.push(d.message()); d.accept(); };
+        page.on('dialog', onDialog);
+        // activation : le fichier est créé dans le dépôt
+        await page.fill('#sync-gh-repo', 'moi/donnees');
+        await page.fill('#sync-gh-token', TOKEN);
+        await page.click('#sync-gh-off .sg-btn-go');
+        await page.waitForFunction(() => !!app.jam.getGithubSync() && !app.jam._syncBusy);
+        assert.deepEqual(JSON.parse(gh.file).grids.map(g => g.name), ['Estate']);
+        assert.equal(await page.evaluate(() => document.getElementById('sync-gh-off').offsetParent === null), true, 'formulaire masqué une fois activé');
+        // un autre appareil ajoute « Solar » et supprime « Estate » : reçu à la synchronisation suivante
+        const other = JSON.parse(gh.file);
+        other.grids = [{ name: 'Solar', grid: [{ rootIndex: 2, chordId: 'maj7', measures: 1 }], settings: { key: 2 }, savedAt: Date.now() + 1000 }];
+        other.deleted = { Estate: Date.now() + 1000 };
+        gh.file = JSON.stringify(other); gh.sha = 'autre';
+        await page.evaluate(() => app.jam.syncNow());
+        assert.deepEqual(await names(), ['Solar']);
+        // un changement ici part tout seul (après un court délai)
+        await page.evaluate(() => app.jam.moveSavedGrid('Solar', 'Jazz'));
+        await page.waitForFunction(() => app.jam._syncState && app.jam._syncState.state === 'ok' && !app.jam._syncBusy, null, { timeout: 8000 });
+        await page.waitForTimeout(2200);
+        assert.equal(JSON.parse(gh.file).grids[0].folder, 'Jazz');
+        // jeton refusé : réglage non gardé
+        await page.evaluate(() => { localStorage.removeItem('jamSyncGithub'); app.jam._renderSyncUI(); });
+        await page.fill('#sync-gh-repo', 'moi/donnees');
+        await page.fill('#sync-gh-token', 'github_pat_' + 'X'.repeat(40));
+        await page.click('#sync-gh-off .sg-btn-go');
+        await page.waitForFunction(() => !app.jam._syncBusy);
+        await page.waitForTimeout(200);
+        assert.equal(await page.evaluate(() => !!app.jam.getGithubSync()), false);
+        assert.match(dialogs[dialogs.length - 1], /jeton refusé/);
+        // avec un fichier : lire (fusion) puis enregistrer
+        const tmp = require('node:path').join(require('node:os').tmpdir(), 'cs-synchro-e2e.json');
+        require('node:fs').writeFileSync(tmp, gh.file.replace('"Solar"', '"Blues"'));
+        await page.setInputFiles('#jam-sync-file', tmp);
+        await page.waitForFunction(() => /lu :/.test(document.getElementById('saved-grids-sync-file-info').textContent));
+        assert.deepEqual(await names(), ['Blues', 'Solar']);
+        const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#sync-file-save')]);
+        assert.equal(dl.suggestedFilename(), 'cs-synchro-e2e.json');
+        page.off('dialog', onDialog);
+        await page.unroute('https://api.github.com/**');
+        await page.evaluate((k) => {
+            ['jamSavedGrids', 'jamSavedGridFolders', 'jamSyncMeta', 'jamSyncGithub'].forEach((key, i) => { if (k[i] === null) localStorage.removeItem(key); else localStorage.setItem(key, k[i]); });
+            app.jam._fileSync = null; app.jam._syncState = null; app.jam._renderSyncUI();
+            document.getElementById('saved-grids-sync').open = false;
+            app.jam.closeSavedGridsMenu();
+            app.jam.loadedGridName = null; app.jam.updateLoadedGridNameDisplay();
+        }, keep);
+        noErrors();
+    });
+
     test('Jam : disquette à côté du titre (visible avec un titre, bleue si modifié, sauvegarde au clic)', async () => {
         const btn = () => page.evaluate(() => {
             const b = document.getElementById('jam-save-grid-btn');

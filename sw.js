@@ -70,6 +70,7 @@ const SHELL_FILES = [
     'app/ui/draw-notes.js',
     'app/grid/grid-format.js',
     'app/grid/saved-library.js',
+    'app/grid/saved-sync.js',
     'app/grid/generation.js',
     'app/grid/harmony.js',
     'app/grid/edit-ops.js',
