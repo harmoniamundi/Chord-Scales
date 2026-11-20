@@ -1020,6 +1020,21 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         noErrors();
     });
 
+    test('Jam : un nom libre de partie (« Pont ») s\'affiche en entier dans son cadre, au-dessus de la ligne', async () => {
+        await page.selectOption('#jam-style-select', 'swing');
+        const box = await page.evaluate(() => {
+            app.jam.grid[2].partStart = 'Pont';
+            app.jam.renderSequenceUI();
+            const bn = document.querySelector('#jam-chord-sequence-display .jam-part-banner');
+            const r = bn.getBoundingClientRect();
+            return { text: bn.textContent, h: r.height };
+        });
+        assert.equal(box.text, 'Pont');
+        assert.ok(box.h >= 18, `cadre écrasé : ${box.h} px de haut`);
+        await page.selectOption('#jam-style-select', 'swing');
+        noErrors();
+    });
+
     test('Jam : mode édition, sélection d\'une plage et lecture de cette plage', async () => {
         await page.selectOption('#jam-style-select', 'blues');
         await page.evaluate(() => {

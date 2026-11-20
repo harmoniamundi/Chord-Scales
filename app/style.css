@@ -852,6 +852,7 @@
     border: 2px solid #e5e7eb; border-radius: 2px; color: #e5e7eb;
     font-family: "Kalam", cursive; font-weight: 700; font-size: 15px; line-height: 1.35; user-select: none;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    flex: none;   /* la grille est une colonne flexible : sans ça, le cadre (overflow caché) était écrasé à quelques pixels */
 }
 #jam-chord-sequence-display .jam-wrapper.jam-has-parts .jam-part-banner { margin-left: 4px; }
 /* Menu « Partie » : noms libres déjà utilisés, puis champ de saisie */
