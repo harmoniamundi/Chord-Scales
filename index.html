@@ -2891,10 +2891,12 @@
                 this._syncBandSelects();
             }
 
+            // Export : l'orchestre choisi dans la liste, seul, dans un fichier à son nom ; sans choix, tous dans « mes-orchestres.json »
             exportBandPresets() {
-                const list = this.getBandPresets();
-                if (!Object.keys(list).length) { alert("Aucun orchestre personnalisé à exporter : enregistrez-en un avec « ＋ »."); return; }
-                this._downloadBlob(new Blob([JSON.stringify(bandPresetsFile(list), null, 1)], { type: 'application/json' }), 'mes-orchestres.json');
+                const sel = document.getElementById('band-preset-select');
+                const out = bandPresetsExport(this.getBandPresets(), (sel && sel.value) || this._bandPresetName || '');
+                if (!out) { alert("Aucun orchestre personnalisé à exporter : enregistrez-en un avec « ＋ Enregistrer »."); return; }
+                this._downloadBlob(new Blob([JSON.stringify(out.file, null, 1)], { type: 'application/json' }), out.fileName);
             }
 
             importBandPresets(input) {
@@ -10060,7 +10062,7 @@
                         <div class="flex flex-wrap items-center gap-1.5">
                             <button type="button" onclick="app.jam.saveBandPreset()" title="Enregistrer l'orchestre actuel sous un nom" aria-label="Enregistrer l'orchestre" class="bg-[#3a3a3c] hover:bg-[#48484a] text-slate-200 rounded-md transition text-xs px-2 py-1 border border-[#4a4a4c]">＋ Enregistrer</button>
                             <button type="button" id="band-preset-delete" onclick="app.jam.deleteBandPreset()" title="Supprimer l'orchestre choisi" aria-label="Supprimer l'orchestre" class="bg-[#3a3a3c] hover:bg-[#48484a] text-slate-200 rounded-md transition text-xs px-2 py-1 border border-[#4a4a4c]">Supprimer</button>
-                            <button type="button" onclick="app.jam.exportBandPresets()" title="Exporter mes orchestres dans un fichier (mes-orchestres.json)" aria-label="Exporter mes orchestres" class="bg-[#3a3a3c] hover:bg-[#48484a] text-slate-200 rounded-md transition text-xs px-2 py-1 border border-[#4a4a4c]">Exporter</button>
+                            <button type="button" onclick="app.jam.exportBandPresets()" title="Exporter l'orchestre choisi dans un fichier à son nom (sans orchestre choisi : tous, dans mes-orchestres.json)" aria-label="Exporter mes orchestres" class="bg-[#3a3a3c] hover:bg-[#48484a] text-slate-200 rounded-md transition text-xs px-2 py-1 border border-[#4a4a4c]">Exporter</button>
                             <button type="button" onclick="document.getElementById('band-preset-file').click()" title="Importer des orchestres depuis un fichier" aria-label="Importer des orchestres" class="bg-[#3a3a3c] hover:bg-[#48484a] text-slate-200 rounded-md transition text-xs px-2 py-1 border border-[#4a4a4c]">Importer</button>
                             <input type="file" id="band-preset-file" accept=".json,application/json" class="hidden" onchange="app.jam.importBandPresets(this)">
                         </div>

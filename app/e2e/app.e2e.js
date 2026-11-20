@@ -645,11 +645,13 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
             app.jam.playBassAbs = (...a) => { window.__bass.push(a[0]); return rb(...a); };
         });
         await page.click('#jam-play-btn');
-        await waitFor(() => window.__drums.length >= 80, null, 20000);
+        // On écoute jusqu'à avoir entendu les accords en contretemps (pas seulement 80 frappes) : sur une machine chargée,
+        // les premières mesures peuvent être des mesures de mélodie, où l'accordéon laisse peu de place aux accords.
+        await waitFor(() => window.__drums.length >= 80 && window.__acc.includes('pah'), null, 20000).catch(() => {});
         await page.click('#jam-play-btn');
         const heard = await page.evaluate(() => ({ drums: [...new Set(window.__drums)].sort(), acc: [...new Set(window.__acc)].sort(), bass: window.__bass.length }));
         for (const d of ['guacd', 'guacu', 'llam', 'llamo', 'tamb', 'palo']) assert.ok(heard.drums.includes(d), `${d} jamais joué : ${heard.drums.join(' ')}`);
-        assert.ok(heard.acc.includes('pah'), 'accords en contretemps');
+        assert.ok(heard.acc.includes('pah'), 'accords en contretemps (entendu : ' + heard.acc.join(' ') + ')');
         assert.ok(heard.bass > 4, 'la basse joue');
         // toutes les signatures se lancent sans erreur
         for (const sig of ['2/4', '3/4', '6/8', '9/8', '12/8', '4/4']) {
@@ -1001,6 +1003,13 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         assert.deepEqual(s.names, ['Mon son', 'Mon son (2)', 'Fanfare']);
         // Supprimer l'orchestre chargé
         await page.selectOption('#band-preset-select', 'Fanfare');
+        // Export de l'orchestre choisi : fichier à son nom, avec lui seul
+        const dl = page.waitForEvent('download');
+        await page.click('button[aria-label="Exporter mes orchestres"]');
+        const download = await dl;
+        assert.equal(download.suggestedFilename(), 'Fanfare.json');
+        const content = JSON.parse(require('node:fs').readFileSync(await download.path(), 'utf8'));
+        assert.deepEqual(Object.keys(content.orchestres), ['Fanfare']);
         assert.deepEqual([(await st()).band, (await st()).groove], ['brass', 'b-chorale']);
         page.once('dialog', d => d.accept());
         await page.click('#band-preset-delete');

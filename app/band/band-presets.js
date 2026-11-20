@@ -102,6 +102,18 @@ function bandPresetsFile(list) {
     return { type: BP_FILE_TYPE, version: 1, orchestres: bandPresetsSanitize(list) };
 }
 
+// Export : l'orchestre choisi seul, dans un fichier à son nom ; sans orchestre choisi, toute la liste dans « mes-orchestres.json ».
+// Renvoie { file, fileName } ou null s'il n'y a rien à exporter.
+function bandPresetsExport(list, chosen) {
+    const all = bandPresetsSanitize(list);
+    if (!Object.keys(all).length) return null;
+    if (typeof chosen === 'string' && bpOwn(all, chosen)) {
+        const fileName = (chosen.replace(/[\\/:*?"<>|]+/g, '_').replace(/^[.\s]+/, '').trim() || 'orchestre') + '.json';
+        return { file: bandPresetsFile({ [chosen]: all[chosen] }), fileName };
+    }
+    return { file: bandPresetsFile(all), fileName: 'mes-orchestres.json' };
+}
+
 // Orchestres d'un fichier importé ; null si le fichier n'en contient pas.
 function bandPresetsFromFile(data) {
     if (!data || typeof data !== 'object' || data.type !== BP_FILE_TYPE) return null;
@@ -111,5 +123,5 @@ function bandPresetsFromFile(data) {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { BP_STORAGE_KEY, BP_FILE_TYPE, BP_MAX, BP_NAME_MAX, BP_VOLUME_KEYS, bandPresetName, bandPresetFrom, bandPresetSanitize,
-        bandPresetsSanitize, bandPresetSame, bandPresetsMerge, bandPresetsFile, bandPresetsFromFile };
+        bandPresetsSanitize, bandPresetSame, bandPresetsMerge, bandPresetsFile, bandPresetsExport, bandPresetsFromFile };
 }

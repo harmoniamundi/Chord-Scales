@@ -69,4 +69,19 @@ describe('band-presets : orchestres personnalisés', () => {
         assert.equal(P.bandPresetsFromFile({ type: P.BP_FILE_TYPE, orchestres: {} }), null);
         assert.equal(P.bandPresetsFromFile(null), null);
     });
+
+    test('bandPresetsExport : l\'orchestre choisi seul, à son nom ; sinon toute la liste', () => {
+        const list = { 'Trio / orgue': { band: 'swing' }, Fanfare: { band: 'brass' } };
+        const one = P.bandPresetsExport(list, 'Fanfare');
+        assert.equal(one.fileName, 'Fanfare.json');
+        assert.deepEqual(Object.keys(one.file.orchestres), ['Fanfare']);
+        assert.deepEqual(P.bandPresetsFromFile(JSON.parse(JSON.stringify(one.file))), { Fanfare: { band: 'brass' } });
+        assert.equal(P.bandPresetsExport(list, 'Trio / orgue').fileName, 'Trio _ orgue.json');
+        const all = P.bandPresetsExport(list, '');
+        assert.equal(all.fileName, 'mes-orchestres.json');
+        assert.deepEqual(Object.keys(all.file.orchestres), ['Trio / orgue', 'Fanfare']);
+        assert.equal(P.bandPresetsExport(list, 'zzz').fileName, 'mes-orchestres.json');
+        assert.equal(P.bandPresetsExport({}, 'Fanfare'), null);
+    });
 });
+
