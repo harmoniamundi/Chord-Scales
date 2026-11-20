@@ -960,6 +960,8 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         await page.evaluate(() => localStorage.removeItem(BP_STORAGE_KEY));
         await page.selectOption('#jam-style-select', 'swing');   // 4/4, 140
         await page.evaluate(() => app.jam.openBandModal());
+        assert.equal(await page.evaluate(() => document.getElementById('band-presets').open), false, 'sous-menu replié par défaut');
+        await page.click('#band-presets > summary');
         let s = await st();
         assert.deepEqual([s.names, s.del], [[], true]);
         // Un son : Cuba, son montuno (pose 4/4 et 104), orgue à l'harmonie, piano à 30 %
@@ -971,6 +973,7 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         await page.click('button[aria-label="Enregistrer l\'orchestre"]');
         s = await st();
         assert.deepEqual([s.names, s.sel, s.btn, s.del], [['Mon son'], 'Mon son', 'Orchestre Mon son', false]);
+        assert.equal(await page.evaluate(() => document.getElementById('band-preset-summary').textContent), ' · Mon son');
         // Un style de grille le remplace (choix fait) ; tempo et mesure du style
         await page.selectOption('#jam-style-select', 'valsejazz');
         s = await st();
