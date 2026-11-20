@@ -525,6 +525,7 @@
     <script src="app/band/phrase-plan.js"></script>
     <script src="app/band/band-state.js"></script>
     <script src="app/band/band-catalog.js"></script>
+    <script src="app/band/band-presets.js"></script>
     <script src="app/grid/play-order.js"></script>
     <script src="app/ui/shortcuts.js"></script>
     <script src="app/ui/staff-notes.js"></script>
@@ -994,6 +995,7 @@
                     this.loadStyle(styleKey);
                     const tm = this._tempoMeterFor(styleKey); // tempo et signature rythmique adaptés au style
                     if (tm) { this.setTimeSignature(tm.meter); this.setBpm(tm.bpm); }
+                    this._bandPresetName = null; // le style de grille reprend son orchestre (et quitte l'orchestre personnalisé)
                     this._bandGroove = this._grooveHintFor(styleKey); // rythme imposé à l'orchestre Latin (samba, tango, Piazzolla)
                     const band = this._bandStyleFor(styleKey); // orchestration adaptée au style
                     if (band) {
@@ -1525,6 +1527,7 @@
                     const hasBand = o.style !== undefined || o.groove !== undefined || o.densities !== undefined || o.swing !== undefined || o.instruments !== undefined;
                     if (hasBand) this._bandGroove = IMPORT_GROOVES.includes(o.groove) ? o.groove : null;
                     if (hasBand) this.bandInstruments = bandSanitizeInstruments(o.instruments);   // absent = Auto partout
+                    if (hasBand) this._bandPresetName = null;
                     if (o.style !== undefined) {
                         this.setBandStyle(o.style); // met aussi à jour les listes Formation / Rythme
                     }
@@ -2379,6 +2382,7 @@
             // (un compás de soleá ou de bulerías se compte sur 12 temps : 12/8).
             // Formation seule (Jazz, Brasil, Cuba, Guitare…) : voir bandGrooveAfterPlainChoice pour les rythmes effacés ou gardés.
             chooseBandStyle(v) {
+                this._bandPresetName = null;   // un autre choix d'orchestre quitte l'orchestre personnalisé chargé
                 const entry = bandMenuEntry(v);
                 if (entry && entry.groove) {
                     if (entry.tempo) {
@@ -2408,6 +2412,7 @@
             // Liste « Rythme » : '' = Auto (la formation choisit, le rythme imposé est effacé) ; sinon le couple formation + rythme
             // du catalogue (BAND_MENU), avec sa règle de tempo.
             chooseBandGroove(g) {
+                this._bandPresetName = null;
                 const band = this.bandStyle;
                 const entry = g ? bandEntryFor(band, g) : null;
                 if (entry) { this.chooseBandStyle(entry.value); return; }
@@ -2426,6 +2431,16 @@
                 gs.value = st.value;
                 gs.disabled = st.disabled;
                 gs.style.opacity = st.disabled ? '0.4' : '';   // formation sans rythme à choisir (Jazz, Cumbia)
+                const ps = document.getElementById('band-preset-select');
+                if (ps) {
+                    const names = Object.keys(this.getBandPresets());
+                    const head = document.createElement('option');
+                    head.value = ''; head.textContent = names.length ? '— Choisir un orchestre —' : '— Aucun (＋ pour enregistrer) —';
+                    ps.replaceChildren(head, ...names.map(n => { const op = document.createElement('option'); op.value = n; op.textContent = n; return op; }));
+                    ps.value = this._bandPresetName && names.includes(this._bandPresetName) ? this._bandPresetName : '';
+                }
+                const del = document.getElementById('band-preset-delete');
+                if (del) { del.disabled = !(this._bandPresetName && ps && ps.value); del.style.opacity = del.disabled ? '0.4' : ''; }
                 ['harmony', 'bass'].forEach(role => {
                     const sel = document.getElementById('band-inst-' + role);
                     if (!sel) return;
@@ -2494,7 +2509,7 @@
             updateBandButtonLabel() {
                 const label = document.getElementById('band-btn-label');
                 if (!label) return;
-                label.textContent = 'Orchestre ' + bandDisplayName(this.bandStyle, this.getEffectiveGroove()); // noms : band/band-catalog.js
+                label.textContent = 'Orchestre ' + (this._bandPresetName || bandDisplayName(this.bandStyle, this.getEffectiveGroove())); // noms : band/band-catalog.js ; orchestre personnalisé : son nom
             }
 
             setBandVolume(instrument, val) {
@@ -2813,9 +2828,96 @@
                 this._playNotes(inst, [bassNote(this._noteEnv(), e.abs, time, dur, vel, !!e.wide, e.gainMul || 1)]);
             }
 
+            // ===== Mes orchestres (band/band-presets.js) =====
+            // Un orchestre personnalisé garde le son : formation, rythme, instruments, volumes, réverbération, swing, densité.
+            // _bandPresetName : nom de l'orchestre chargé, tant qu'on n'a pas changé de formation, de rythme, d'instrument ou de style.
+            getBandPresets() {
+                try { return bandPresetsSanitize(JSON.parse(localStorage.getItem(BP_STORAGE_KEY))); } catch (e) { return {}; }
+            }
+
+            _storeBandPresets(list) {
+                try { localStorage.setItem(BP_STORAGE_KEY, JSON.stringify(list)); return true; }
+                catch (e) { alert("Impossible d'enregistrer les orchestres dans ce navigateur."); return false; }
+            }
+
+            _bandPresetState() {
+                const band = this._arpPrevStyle || this.bandStyle;
+                return { band, groove: this.getEffectiveGroove(band), instruments: this.bandInstruments, volumes: this.bandVolumes,
+                    reverb: this.bandReverb, swing: this._swingSettingFor(band), density: band in BAND_DENSITY_DEFAULTS ? this.bandDensity[band] : undefined };
+            }
+
+            saveBandPreset() {
+                const list = this.getBandPresets();
+                const suggestion = this._bandPresetName || bandDisplayName(this._arpPrevStyle || this.bandStyle, this.getEffectiveGroove(this._arpPrevStyle || this.bandStyle));
+                const name = bandPresetName(prompt("Nom de l'orchestre (formation, rythme, instruments, volumes, swing et densité) :", suggestion));
+                if (!name) return;
+                if (list[name] && !confirm(`Un orchestre « ${name} » existe déjà : le remplacer ?`)) return;
+                if (!list[name] && Object.keys(list).length >= BP_MAX) { alert(`${BP_MAX} orchestres au plus : supprimez-en un d'abord.`); return; }
+                list[name] = bandPresetFrom(this._bandPresetState());
+                if (!this._storeBandPresets(list)) return;
+                this._bandPresetName = name;
+                this.updateBandButtonLabel();
+                this._syncBandSelects();
+            }
+
+            // Charge un orchestre personnalisé : son seulement (le tempo, la mesure et la grille ne bougent pas).
+            loadBandPreset(name) {
+                const p = name ? this.getBandPresets()[name] : null;
+                if (!p) { this._syncBandSelects(); return; }
+                this._bandGroove = p.groove || null;
+                this.bandInstruments = bandSetInstrument(bandSetInstrument(this.bandInstruments, p.band, 'harmony', (p.instruments || {}).harmony || ''),
+                    p.band, 'bass', (p.instruments || {}).bass || '');
+                this.setBandStyle(p.band);
+                if (p.band in BAND_SWING_DEFAULTS) this.setBandSwing(p.swing !== undefined ? p.swing : null);
+                if (p.band in BAND_DENSITY_DEFAULTS) this.setBandDensity(Math.round((p.density !== undefined ? p.density : BAND_DENSITY_DEFAULTS[p.band]) * 100));
+                Object.keys(p.volumes || {}).forEach(k => this.setBandVolume(k, Math.round(p.volumes[k] * 100)));
+                if (p.reverb !== undefined) this.setBandReverb(Math.round(p.reverb * 100));
+                this.ensureBandAudio();
+                this._bandPresetName = name;
+                this.updateBandModalUI();
+                this.updateBandButtonLabel();
+            }
+
+            deleteBandPreset() {
+                const sel = document.getElementById('band-preset-select');
+                const name = (sel && sel.value) || this._bandPresetName;
+                const list = this.getBandPresets();
+                if (!name || !list[name] || !confirm(`Supprimer l'orchestre « ${name} » ?`)) return;
+                delete list[name];
+                if (!this._storeBandPresets(list)) return;
+                if (this._bandPresetName === name) { this._bandPresetName = null; this.updateBandButtonLabel(); }
+                this._syncBandSelects();
+            }
+
+            exportBandPresets() {
+                const list = this.getBandPresets();
+                if (!Object.keys(list).length) { alert("Aucun orchestre personnalisé à exporter : enregistrez-en un avec « ＋ »."); return; }
+                this._downloadBlob(new Blob([JSON.stringify(bandPresetsFile(list), null, 1)], { type: 'application/json' }), 'mes-orchestres.json');
+            }
+
+            importBandPresets(input) {
+                const file = input.files && input.files[0];
+                input.value = '';
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onerror = () => alert('Impossible de lire ce fichier.');
+                reader.onload = () => {
+                    let data;
+                    try { data = JSON.parse(reader.result); } catch (e) { alert("Ce fichier n'est pas un JSON valide."); return; }
+                    const incoming = bandPresetsFromFile(data);
+                    if (!incoming) { alert("Ce fichier ne contient pas d'orchestres personnalisés (fichier « mes-orchestres.json » exporté par l'application)."); return; }
+                    const r = bandPresetsMerge(this.getBandPresets(), incoming);
+                    if (!this._storeBandPresets(r.list)) return;
+                    this._syncBandSelects();
+                    alert(r.added.length ? `${r.added.length} orchestre${r.added.length > 1 ? 's' : ''} importé${r.added.length > 1 ? 's' : ''} : ${r.added.join(', ')}.` : 'Ces orchestres étaient déjà là : rien à importer.');
+                };
+                reader.readAsText(file);
+            }
+
             // Choix dans les listes Harmonie / Basse du pop-up Orchestre (role : 'harmony' | 'bass' ; '' = Auto)
             chooseBandInstrument(role, value) {
                 if (role !== 'harmony' && role !== 'bass') return;
+                this._bandPresetName = null;
                 this.bandInstruments = bandSetInstrument(this.bandInstruments, this._arpPrevStyle || this.bandStyle, role, value);
                 this.ensureBandAudio();
                 this.updateBandInstrumentLabel();
@@ -9844,6 +9946,19 @@
             </div>
 
             <div id="band-orchestra-options" class="space-y-3">
+                <div class="flex items-center gap-2" title="Orchestres personnalisés : formation, rythme, instruments, volumes, réverbération, swing et densité, gardés dans ce navigateur. Ni tempo ni mesure. Choisir ensuite un style de grille reprend l'orchestre du style.">
+                    <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Mes orch.</span>
+                    <select id="band-preset-select" onchange="app.jam.loadBandPreset(this.value)" aria-label="Mes orchestres" class="w-full bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-1.5 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
+                        <option value="">—</option>
+                    </select>
+                </div>
+                <div class="flex flex-wrap items-center gap-1.5" style="margin-left: 4.5rem; margin-top: 0.4rem;">
+                    <button type="button" onclick="app.jam.saveBandPreset()" title="Enregistrer l'orchestre actuel sous un nom" aria-label="Enregistrer l'orchestre" class="bg-[#3a3a3c] hover:bg-[#48484a] text-slate-200 rounded-md transition text-xs px-2 py-1 border border-[#4a4a4c] disabled:opacity-40">＋ Enregistrer</button>
+                    <button type="button" id="band-preset-delete" onclick="app.jam.deleteBandPreset()" title="Supprimer l'orchestre choisi" aria-label="Supprimer l'orchestre" class="bg-[#3a3a3c] hover:bg-[#48484a] text-slate-200 rounded-md transition text-xs px-2 py-1 border border-[#4a4a4c] disabled:opacity-40">Supprimer</button>
+                    <button type="button" onclick="app.jam.exportBandPresets()" title="Exporter mes orchestres dans un fichier (mes-orchestres.json)" aria-label="Exporter mes orchestres" class="bg-[#3a3a3c] hover:bg-[#48484a] text-slate-200 rounded-md transition text-xs px-2 py-1 border border-[#4a4a4c] disabled:opacity-40">Exporter</button>
+                    <button type="button" onclick="document.getElementById('band-preset-file').click()" title="Importer des orchestres depuis un fichier" aria-label="Importer des orchestres" class="bg-[#3a3a3c] hover:bg-[#48484a] text-slate-200 rounded-md transition text-xs px-2 py-1 border border-[#4a4a4c] disabled:opacity-40">Importer</button>
+                    <input type="file" id="band-preset-file" accept=".json,application/json" class="hidden" onchange="app.jam.importBandPresets(this)">
+                </div>
                 <div class="flex items-center gap-2" title="Les musiciens : changer de formation garde la grille, le tempo et la mesure">
                     <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Formation</span>
                     <select id="band-formation-select" onchange="app.jam.chooseBandFormation(this.value)" aria-label="Formation" class="w-full bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-1.5 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">

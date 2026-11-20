@@ -950,6 +950,64 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         noErrors();
     });
 
+    test('Jam : Mes orchestres — enregistrer, recharger (son seulement), le style le remplace, exporter, importer, supprimer', async () => {
+        const st = () => page.evaluate(() => ({ band: app.jam.bandStyle, groove: app.jam.getEffectiveGroove(), bpm: app.jam.bpm, meter: app.jam.getMeterKey(),
+            harm: document.getElementById('band-inst-harmony').value, piano: Math.round(app.jam.bandVolumes.piano * 100),
+            btn: document.getElementById('band-btn-label').textContent, sel: document.getElementById('band-preset-select').value,
+            names: [...document.getElementById('band-preset-select').options].map(o => o.value).filter(Boolean),
+            del: document.getElementById('band-preset-delete').disabled }));
+        const answer = (text) => page.once('dialog', d => d.accept(text));
+        await page.evaluate(() => localStorage.removeItem(BP_STORAGE_KEY));
+        await page.selectOption('#jam-style-select', 'swing');   // 4/4, 140
+        await page.evaluate(() => app.jam.openBandModal());
+        let s = await st();
+        assert.deepEqual([s.names, s.del], [[], true]);
+        // Un son : Cuba, son montuno (pose 4/4 et 104), orgue à l'harmonie, piano à 30 %
+        await page.selectOption('#band-formation-select', 'cuba');
+        await page.selectOption('#band-groove-select', 'cu-son');
+        await page.selectOption('#band-inst-harmony', 'organ');
+        await page.evaluate(() => app.jam.setBandVolume('piano', 30));
+        answer('Mon   son ');
+        await page.click('button[aria-label="Enregistrer l\'orchestre"]');
+        s = await st();
+        assert.deepEqual([s.names, s.sel, s.btn, s.del], [['Mon son'], 'Mon son', 'Orchestre Mon son', false]);
+        // Un style de grille le remplace (choix fait) ; tempo et mesure du style
+        await page.selectOption('#jam-style-select', 'valsejazz');
+        s = await st();
+        assert.deepEqual([s.band, s.groove, s.sel, s.btn, s.bpm, s.meter], ['swing', null, '', 'Orchestre Jazz', 168, '3/4']);
+        // Recharger : le son revient, le tempo et la mesure de la grille ne bougent pas
+        await page.evaluate(() => app.jam.setBandVolume('piano', 80));
+        await page.selectOption('#band-preset-select', 'Mon son');
+        s = await st();
+        assert.deepEqual([s.band, s.groove, s.harm, s.piano, s.bpm, s.meter, s.btn], ['cuba', 'cu-son', 'organ', 30, 168, '3/4', 'Orchestre Mon son']);
+        // Un autre choix de formation quitte l'orchestre personnalisé (le nom disparaît du bouton)
+        await page.selectOption('#band-formation-select', 'pop');
+        s = await st();
+        assert.deepEqual([s.sel, s.btn], ['', 'Orchestre Pop-Rock']);
+        // Export : un fichier d'orchestres ; import du même fichier : rien de neuf ; un nom déjà pris avec un autre son : renommé
+        const file = await page.evaluate(() => bandPresetsFile(app.jam.getBandPresets()));
+        assert.deepEqual(Object.keys(file.orchestres), ['Mon son']);
+        const imp = async (data) => { const d = new Promise(r => page.once('dialog', x => { r(x.message()); x.accept(); }));
+            await page.setInputFiles('#band-preset-file', { name: 'mes-orchestres.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(data)) }); return d; };
+        assert.match(await imp(file), /déjà là/);
+        file.orchestres['Mon son'].band = 'balkan';
+        file.orchestres['Fanfare'] = { band: 'brass', groove: 'b-chorale' };
+        assert.match(await imp(file), /2 orchestres importés : Mon son \(2\), Fanfare/);
+        assert.match(await imp({ grid: [] }), /ne contient pas d'orchestres/);
+        s = await st();
+        assert.deepEqual(s.names, ['Mon son', 'Mon son (2)', 'Fanfare']);
+        // Supprimer l'orchestre chargé
+        await page.selectOption('#band-preset-select', 'Fanfare');
+        assert.deepEqual([(await st()).band, (await st()).groove], ['brass', 'b-chorale']);
+        page.once('dialog', d => d.accept());
+        await page.click('#band-preset-delete');
+        s = await st();
+        assert.deepEqual([s.names, s.sel, s.btn], [['Mon son', 'Mon son (2)'], '', 'Orchestre Brass']);
+        await page.evaluate(() => { localStorage.removeItem(BP_STORAGE_KEY); app.jam.bandInstruments = {}; app.jam.setBandVolume('piano', 50); app.jam.closeBandModal(); });
+        await page.selectOption('#jam-style-select', 'swing');
+        noErrors();
+    });
+
     test('Jam : mode édition, sélection d\'une plage et lecture de cette plage', async () => {
         await page.selectOption('#jam-style-select', 'blues');
         await page.evaluate(() => {

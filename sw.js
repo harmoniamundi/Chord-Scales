@@ -62,6 +62,7 @@ const SHELL_FILES = [
     'app/band/phrase-plan.js',
     'app/band/band-state.js',
     'app/band/band-catalog.js',
+    'app/band/band-presets.js',
     'app/grid/play-order.js',
     'app/ui/shortcuts.js',
     'app/ui/staff-notes.js',
