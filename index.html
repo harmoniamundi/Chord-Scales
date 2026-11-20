@@ -532,6 +532,7 @@
     <script src="app/ui/chord-notes.js"></script>
     <script src="app/ui/draw-notes.js"></script>
     <script src="app/grid/grid-format.js"></script>
+    <script src="app/grid/saved-library.js"></script>
     <script src="app/grid/generation.js"></script>
     <script src="app/grid/harmony.js"></script>
     <script src="app/grid/edit-ops.js"></script>
@@ -1033,6 +1034,24 @@
                 }
             }
 
+            // Dossiers des sauvegardes (liste de noms, pour garder aussi les dossiers vides) : localStorage « jamSavedGridFolders ».
+            getSavedFolders() {
+                try { const f = JSON.parse(localStorage.getItem('jamSavedGridFolders')); return Array.isArray(f) ? f : []; }
+                catch (e) { return []; }
+            }
+
+            // Écrit les sauvegardes (et, si donnée, la liste des dossiers). Renvoie false si le navigateur refuse.
+            _writeSavedLibrary(saved, folders) {
+                try {
+                    localStorage.setItem('jamSavedGrids', JSON.stringify(saved));
+                    if (folders) localStorage.setItem('jamSavedGridFolders', JSON.stringify(slFolderList(saved, folders)));
+                    return true;
+                } catch (e) {
+                    alert("Impossible d'enregistrer les sauvegardes (stockage du navigateur plein ou refusé).");
+                    return false;
+                }
+            }
+
             // Paramètres de jam communs à la sauvegarde et à l'export :
             // tonalité, qualité, BPM, orchestration (mode, style, volumes, reverb). Le Master n'en fait pas partie (réglage de session).
             collectSettings() {
@@ -1071,14 +1090,15 @@
 
             saveGrid() {
                 if (this.grid.length === 0) return;
-                const name = prompt('Nom de la grille à sauvegarder :', '');
+                const raw = prompt('Nom de la grille à sauvegarder :', '');
+                const name = raw ? raw.trim() : '';
                 if (!name) return;
                 const saved = this.getSavedGrids();
-                saved[name] = {
-                    grid: JSON.parse(JSON.stringify(this.grid)),
-                    settings: this.collectSettings()
-                };
-                localStorage.setItem('jamSavedGrids', JSON.stringify(saved));
+                if (saved[name] && !confirm(`Une grille « ${name} » existe déjà dans les sauvegardes : la remplacer ?`)) return;
+                // une nouvelle sauvegarde se range dans le dossier de la grille chargée (une variante reste à côté de l'original)
+                const from = saved[name] || (this.loadedGridName && saved[this.loadedGridName]) || null;
+                saved[name] = slMakeEntry(from, JSON.parse(JSON.stringify(this.grid)), this.collectSettings(), Date.now());
+                if (!this._writeSavedLibrary(saved)) return;
                 this.loadedGridName = name;
                 this._markSaved(name);
                 this.renderSavedGridsMenu();
@@ -1123,9 +1143,8 @@
                 const saved = this.getSavedGrids();
                 if (saved[name] && !(this._savedSigs && name in this._savedSigs) &&
                     !confirm(`Une grille « ${name} » existe déjà dans les sauvegardes : la remplacer ?`)) return;
-                saved[name] = { grid: JSON.parse(JSON.stringify(this.grid)), settings: this.collectSettings() };
-                try { localStorage.setItem('jamSavedGrids', JSON.stringify(saved)); }
-                catch (e) { alert("Impossible d'enregistrer la grille."); return; }
+                saved[name] = slMakeEntry(saved[name], JSON.parse(JSON.stringify(this.grid)), this.collectSettings(), Date.now()); // garde son dossier
+                if (!this._writeSavedLibrary(saved)) return;
                 this._markSaved(name);
                 this.renderSavedGridsMenu();
                 this.refreshSaveButton();
@@ -1143,12 +1162,8 @@
                 const saved = this.getSavedGrids();
                 if (!name || !saved[name]) { this.saveGrid(); return; }
                 if (this.grid.length === 0) return;
-                saved[name] = {
-                    grid: JSON.parse(JSON.stringify(this.grid)),
-                    settings: this.collectSettings()
-                };
-                try { localStorage.setItem('jamSavedGrids', JSON.stringify(saved)); }
-                catch (e) { alert("Impossible d'enregistrer la grille."); return; }
+                saved[name] = slMakeEntry(saved[name], JSON.parse(JSON.stringify(this.grid)), this.collectSettings(), Date.now()); // garde son dossier
+                if (!this._writeSavedLibrary(saved)) return;
                 this._markSaved(name);
                 this.renderSavedGridsMenu();
                 this.refreshSaveButton();
@@ -1555,6 +1570,7 @@
                     let data;
                     try { data = JSON.parse(reader.result); }
                     catch (e) { alert("Ce fichier n'est pas un JSON valide."); return; }
+                    if (slIsBackup(data)) { this.importBackupData(data); return; } // copie de sécurité de toutes les sauvegardes
 
                     const rawGrid = Array.isArray(data) ? data : (data && data.grid);
                     const grid = this.sanitizeImportedGrid(rawGrid);
@@ -1568,9 +1584,8 @@
                     const saved = this.getSavedGrids();
                     let finalName = name, n = 2;
                     while (saved[finalName]) finalName = `${name} (${n++})`;
-                    saved[finalName] = { grid, settings: this.sanitizeImportedSettings(data) };
-                    try { localStorage.setItem('jamSavedGrids', JSON.stringify(saved)); }
-                    catch (e) { alert("Impossible d'enregistrer la grille importée."); return; }
+                    saved[finalName] = { grid, settings: this.sanitizeImportedSettings(data), savedAt: Date.now() };
+                    if (!this._writeSavedLibrary(saved)) return;
 
                     this.loadSavedGrid(finalName);
                     this.renderSavedGridsMenu();
@@ -1593,6 +1608,9 @@
                 this.renderSavedGridsMenu();
                 el.classList.remove('hidden');
                 this._placeSavedGridsPopup();
+                // ordinateur : on peut taper tout de suite pour filtrer (au doigt, pas de clavier qui surgit)
+                const search = document.getElementById('saved-grids-search');
+                if (search && !(window.matchMedia && window.matchMedia('(pointer: coarse)').matches)) { try { search.focus({ preventScroll: true }); } catch (e) {} }
             }
 
             closeSavedGridsMenu() {
@@ -1680,30 +1698,272 @@
                 }
             }
 
+            // Liste des sauvegardes : actions d'enregistrement, puis grilles sans dossier et dossiers (repliables), filtrés par la
+            // recherche. Tout passe par des attributs data-sg-* et un seul écouteur (les noms ne sont jamais mis dans du code).
             renderSavedGridsMenu() {
                 const dropdown = document.getElementById('jam-saved-grids-dropdown');
                 if (!dropdown) return;
+                this._bindSavedGridsList(dropdown);
+                const saved = this.getSavedGrids();
+                const folders = this.getSavedFolders();
+                const q = this._sgQuery || '';
+                let collapsed = [];
+                try { collapsed = JSON.parse(localStorage.getItem('jamSavedFoldersCollapsed')) || []; } catch (e) {}
+                const view = slBuildView(saved, folders, q, collapsed);
+                const E = slEscape;
+                const current = this.loadedGridName;
                 let actions = '';
-                if (this.loadedGridName && this.getSavedGrids()[this.loadedGridName]) {
-                    const label = this.loadedGridName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                    actions += `<div class="flex items-center gap-2 px-2 py-1.5 text-xs text-emerald-400 font-semibold hover:bg-[#252525] cursor-pointer" onclick="app.jam.runSavedGridsAction('update')"><span class="truncate">Sauvegarder « ${label} »</span></div>`;
+                if (current && saved[current]) {
+                    actions += `<div class="sg-action" data-sg-act="update"><span class="truncate">Sauvegarder « ${E(current)} »</span></div>`;
                 }
-                actions += `<div class="flex items-center gap-2 px-2 py-1.5 text-xs text-emerald-400 font-semibold hover:bg-[#252525] cursor-pointer" onclick="app.jam.runSavedGridsAction('save')">＋ Sauvegarder sous…</div>`;
-                const separator = '<div style="border-top:1px solid #333333;margin:2px 0"></div>';
-                const names = Object.keys(this.getSavedGrids());
-                let list;
-                if (names.length === 0) {
-                    list = '<div class="px-2 py-1.5 text-xs text-slate-500">Aucune grille sauvegardée</div>';
+                actions += '<div class="sg-action" data-sg-act="save">＋ Sauvegarder sous…</div>';
+                const allFolders = slFolderList(saved, folders);
+                const folderIcon = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
+                const row = (name) => {
+                    const folder = slFolderOf(saved[name]);
+                    const inFolderHit = view.searching && folder; // en recherche, rappel discret du dossier
+                    let html = `<div class="sg-row${name === current ? ' is-current' : ''}" draggable="true" data-sg-act="load" data-sg-name="${E(name)}" title="Charger « ${E(name)} »">
+                        <span class="sg-name">${slHighlight(name, q)}</span>
+                        <span class="sg-tools">
+                            <button type="button" class="sg-ico" data-sg-act="move" data-sg-name="${E(name)}" title="Ranger dans un dossier" aria-label="Ranger dans un dossier">${folderIcon}</button>
+                            <button type="button" class="sg-ico sg-del" data-sg-act="delete" data-sg-name="${E(name)}" title="Supprimer" aria-label="Supprimer">×</button>
+                        </span>
+                    </div>`;
+                    if (this._sgMoveFor === name) {
+                        const chip = (f, label) => `<button type="button" class="sg-chip${slNormalize(f) === slNormalize(folder) ? ' is-on' : ''}" data-sg-act="move-to" data-sg-name="${E(name)}" data-sg-folder="${E(f)}">${label}</button>`;
+                        html += `<div class="sg-move">${chip('', 'Sans dossier')}${allFolders.map(f => chip(f, E(f))).join('')}<button type="button" class="sg-chip sg-chip-new" data-sg-act="new-folder" data-sg-name="${E(name)}">＋ Nouveau dossier…</button></div>`;
+                    }
+                    return html;
+                };
+                let list = '';
+                if (view.total === 0 && allFolders.length === 0) {
+                    list = '<div class="sg-empty">Aucune grille sauvegardée</div>';
+                } else if (view.searching && view.shown === 0 && view.folders.length === 0) {
+                    list = `<div class="sg-empty">Aucune grille ne correspond à « ${E(q)} »</div>`;
                 } else {
-                    list = names.map(n => {
-                        const safe = n.replace(/"/g, '&quot;');
-                        return `<div class="flex items-center justify-between gap-1 px-2 py-1.5 text-xs text-slate-300 hover:bg-[#252525] cursor-pointer" onclick="app.jam.loadSavedGrid('${safe.replace(/'/g, "\\'")}')">
-                            <span class="truncate">${safe}</span>
-                            <span onclick="event.stopPropagation(); app.jam.deleteSavedGrid('${safe.replace(/'/g, "\\'")}')" title="Supprimer" class="text-slate-500 hover:text-rose-400 font-bold px-1">×</span>
+                    if (view.loose.length || (!view.searching && view.folders.length)) {
+                        if (view.folders.length) list += '<div class="sg-folder sg-folder-none" data-sg-drop=""><span class="sg-fname">Sans dossier</span></div>';
+                        list += view.loose.map(row).join('');
+                    }
+                    view.folders.forEach(f => {
+                        list += `<div class="sg-folder${f.open ? ' is-open' : ''}" data-sg-act="toggle-folder" data-sg-folder="${E(f.name)}" data-sg-drop="${E(f.name)}">
+                            <span class="sg-caret">▸</span>${folderIcon}<span class="sg-fname">${slHighlight(f.name, q)}</span><span class="sg-count">${f.count}</span>
+                            <span class="sg-tools">
+                                <button type="button" class="sg-ico" data-sg-act="rename-folder" data-sg-folder="${E(f.name)}" title="Renommer le dossier" aria-label="Renommer le dossier">✎</button>
+                                <button type="button" class="sg-ico sg-del" data-sg-act="delete-folder" data-sg-folder="${E(f.name)}" title="Supprimer le dossier (les grilles sont gardées)" aria-label="Supprimer le dossier">×</button>
+                            </span>
                         </div>`;
-                    }).join('');
+                        if (f.open) list += f.grids.length ? `<div class="sg-in" data-sg-drop="${E(f.name)}">${f.grids.map(row).join('')}</div>` : `<div class="sg-in" data-sg-drop="${E(f.name)}"><div class="sg-empty sg-empty-in">Dossier vide — y ranger une grille avec son bouton dossier ou en la glissant ici</div></div>`;
+                    });
                 }
-                dropdown.innerHTML = actions + separator + list;
+                dropdown.innerHTML = `<div class="sg-actions">${actions}</div>` + list;
+                const search = document.getElementById('saved-grids-search');
+                if (search) {
+                    if (search.value !== q) search.value = q;
+                    search.placeholder = view.total ? `Rechercher parmi ${view.total} grille${view.total > 1 ? 's' : ''}…` : 'Rechercher…';
+                }
+                const clr = document.getElementById('saved-grids-search-clear');
+                if (clr) clr.classList.toggle('hidden', !q);
+                this._renderBackupInfo();
+            }
+
+            // Un seul écouteur pour toute la liste (clics, glisser-déposer d'une grille sur un dossier).
+            _bindSavedGridsList(dropdown) {
+                if (dropdown._sgBound) return;
+                dropdown._sgBound = true;
+                dropdown.addEventListener('click', (ev) => {
+                    const el = ev.target.closest && ev.target.closest('[data-sg-act]');
+                    if (!el || !dropdown.contains(el)) return;
+                    ev.stopPropagation();
+                    const act = el.dataset.sgAct, name = el.dataset.sgName, folder = el.dataset.sgFolder;
+                    if (act === 'load') { this._sgMoveFor = null; this.loadSavedGrid(name); }
+                    else if (act === 'delete') this.deleteSavedGrid(name);
+                    else if (act === 'update' || act === 'save') this.runSavedGridsAction(act);
+                    else if (act === 'move') { this._sgMoveFor = this._sgMoveFor === name ? null : name; this.renderSavedGridsMenu(); }
+                    else if (act === 'move-to') { this._sgMoveFor = null; this.moveSavedGrid(name, folder); }
+                    else if (act === 'new-folder') this.newSavedFolder(name);
+                    else if (act === 'toggle-folder') this.toggleSavedFolder(folder);
+                    else if (act === 'rename-folder') this.renameSavedFolder(folder);
+                    else if (act === 'delete-folder') this.deleteSavedFolder(folder);
+                });
+                // Glisser une grille sur un dossier (ou sur « Sans dossier ») pour l'y ranger (souris ; au doigt : bouton dossier)
+                let dragName = null;
+                const target = (ev) => ev.target.closest && ev.target.closest('[data-sg-drop]');
+                dropdown.addEventListener('dragstart', (ev) => {
+                    const r = ev.target.closest && ev.target.closest('.sg-row');
+                    if (!r) return;
+                    dragName = r.dataset.sgName;
+                    try { ev.dataTransfer.setData('text/plain', dragName); ev.dataTransfer.effectAllowed = 'move'; } catch (e) {}
+                    r.classList.add('is-dragging');
+                });
+                dropdown.addEventListener('dragend', () => {
+                    dragName = null;
+                    dropdown.querySelectorAll('.is-dragging, .is-drop').forEach(n => n.classList.remove('is-dragging', 'is-drop'));
+                });
+                dropdown.addEventListener('dragover', (ev) => {
+                    const t = target(ev);
+                    if (!t || dragName === null) return;
+                    ev.preventDefault();
+                    dropdown.querySelectorAll('.is-drop').forEach(n => { if (n !== t) n.classList.remove('is-drop'); });
+                    t.classList.add('is-drop');
+                });
+                dropdown.addEventListener('dragleave', (ev) => {
+                    const t = target(ev);
+                    if (t && !t.contains(ev.relatedTarget)) t.classList.remove('is-drop');
+                });
+                dropdown.addEventListener('drop', (ev) => {
+                    const t = target(ev);
+                    if (!t || dragName === null) return;
+                    ev.preventDefault();
+                    const name = dragName;
+                    dragName = null;
+                    this.moveSavedGrid(name, t.dataset.sgDrop || '');
+                });
+            }
+
+            // Recherche filtrante (nom de la grille ou de son dossier, sans tenir compte des accents ni de la casse)
+            onSavedGridsSearch(value) {
+                this._sgQuery = value || '';
+                this._sgMoveFor = null;
+                this.renderSavedGridsMenu();
+            }
+
+            onSavedGridsSearchKey(ev) {
+                if (ev.key === 'Escape') {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    if (this._sgQuery) this.onSavedGridsSearch('');
+                    else this.closeSavedGridsMenu();
+                } else if (ev.key === 'Enter') {
+                    // Entrée : charge la première grille trouvée
+                    ev.preventDefault();
+                    const first = document.querySelector('#jam-saved-grids-dropdown .sg-row');
+                    if (first) this.loadSavedGrid(first.dataset.sgName);
+                }
+            }
+
+            clearSavedGridsSearch() {
+                this.onSavedGridsSearch('');
+                const s = document.getElementById('saved-grids-search');
+                if (s) s.focus();
+            }
+
+            moveSavedGrid(name, folder) {
+                const saved = this.getSavedGrids();
+                if (!name || !saved[name]) return;
+                const list = slFolderList(saved, this.getSavedFolders());
+                const dest = slResolveFolder(folder, list);
+                if (slNormalize(slFolderOf(saved[name])) === slNormalize(dest)) { this.renderSavedGridsMenu(); return; }
+                saved[name] = slWithFolder(saved[name], dest);
+                if (dest) this._setFolderCollapsed(dest, false); // on voit la grille arriver dans son dossier
+                if (this._writeSavedLibrary(saved, list)) this.renderSavedGridsMenu();
+            }
+
+            // Nouveau dossier ; si une grille est donnée, elle y est rangée tout de suite.
+            newSavedFolder(gridName) {
+                const raw = prompt('Nom du nouveau dossier :', '');
+                const name = slCleanFolderName(raw || '');
+                if (!name) return;
+                const saved = this.getSavedGrids();
+                const list = slFolderList(saved, this.getSavedFolders());
+                const dest = slResolveFolder(name, list);
+                if (!list.includes(dest)) list.push(dest);
+                if (gridName && saved[gridName]) saved[gridName] = slWithFolder(saved[gridName], dest);
+                this._sgMoveFor = null;
+                this._setFolderCollapsed(dest, false);
+                if (this._writeSavedLibrary(saved, list)) this.renderSavedGridsMenu();
+            }
+
+            renameSavedFolder(folder) {
+                const raw = prompt('Nouveau nom du dossier :', folder);
+                const name = slCleanFolderName(raw || '');
+                if (!name || name === folder) return;
+                const saved = this.getSavedGrids();
+                const others = slFolderList(saved, this.getSavedFolders()).filter(f => slNormalize(f) !== slNormalize(folder));
+                if (others.some(f => slNormalize(f) === slNormalize(name)) &&
+                    !confirm(`Un dossier « ${slResolveFolder(name, others)} » existe déjà : y réunir les grilles des deux dossiers ?`)) return;
+                const r = slRenameFolder(saved, this.getSavedFolders(), folder, name);
+                if (this._writeSavedLibrary(r.saved, r.folders)) this.renderSavedGridsMenu();
+            }
+
+            deleteSavedFolder(folder) {
+                const saved = this.getSavedGrids();
+                const n = Object.keys(saved).filter(k => slNormalize(slFolderOf(saved[k])) === slNormalize(folder)).length;
+                const msg = n ? `Supprimer le dossier « ${folder} » ?\nSes ${n} grille${n > 1 ? 's' : ''} ${n > 1 ? 'sont gardées et reviennent' : 'est gardée et revient'} dans « Sans dossier ».`
+                    : `Supprimer le dossier vide « ${folder} » ?`;
+                if (!confirm(msg)) return;
+                const r = slDeleteFolder(saved, this.getSavedFolders(), folder);
+                if (this._writeSavedLibrary(r.saved, r.folders)) this.renderSavedGridsMenu();
+            }
+
+            toggleSavedFolder(folder) {
+                let c = [];
+                try { c = JSON.parse(localStorage.getItem('jamSavedFoldersCollapsed')) || []; } catch (e) {}
+                const closed = c.some(f => slNormalize(f) === slNormalize(folder));
+                if (this._sgQuery) return; // en recherche, les dossiers trouvés restent ouverts
+                this._setFolderCollapsed(folder, !closed);
+                this.renderSavedGridsMenu();
+            }
+
+            _setFolderCollapsed(folder, on) {
+                let c = [];
+                try { c = JSON.parse(localStorage.getItem('jamSavedFoldersCollapsed')) || []; } catch (e) {}
+                c = c.filter(f => slNormalize(f) !== slNormalize(folder));
+                if (on) c.push(folder);
+                try { localStorage.setItem('jamSavedFoldersCollapsed', JSON.stringify(c)); } catch (e) {}
+            }
+
+            // --- Copie de sécurité : toutes les sauvegardes (avec leurs dossiers) dans un seul fichier .json ---
+            exportAllSavedGrids() {
+                const saved = this.getSavedGrids();
+                if (!Object.keys(saved).length) { alert('Aucune grille sauvegardée : rien à exporter.'); return; }
+                const now = new Date();
+                const data = slBuildBackup(saved, this.getSavedFolders(), now.toISOString());
+                this._downloadBlob(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }), slBackupFileName(now));
+                try { localStorage.setItem('jamBackupLastAt', String(now.getTime())); } catch (e) {}
+                this._renderBackupInfo();
+            }
+
+            importBackupFile(input) {
+                const file = input.files && input.files[0];
+                input.value = '';
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onerror = () => alert('Impossible de lire ce fichier.');
+                reader.onload = () => {
+                    let data;
+                    try { data = JSON.parse(reader.result); }
+                    catch (e) { alert("Ce fichier n'est pas un JSON valide."); return; }
+                    if (slIsBackup(data)) this.importBackupData(data);
+                    else if (data && (Array.isArray(data) || Array.isArray(data.grid))) {
+                        alert('Ce fichier contient une seule grille, pas une copie de sécurité : utilisez le bouton « Importer ».');
+                    } else alert("Ce fichier n'est pas une copie de sécurité des sauvegardes de Chord Scales.");
+                };
+                reader.readAsText(file);
+            }
+
+            // Ajoute les grilles de la copie aux sauvegardes, sans rien écraser (voir slMergeBackup).
+            importBackupData(data) {
+                const n = data.grids.length;
+                if (!confirm(`Restaurer la copie de sécurité (${n} grille${n > 1 ? 's' : ''}) ?\nLes grilles sont ajoutées aux sauvegardes actuelles, rien n'est écrasé : une grille déjà présente est ignorée, une grille différente portant le même nom est ajoutée sous un autre nom.`)) return;
+                const r = slMergeBackup(this.getSavedGrids(), this.getSavedFolders(), data, (g) => this.sanitizeImportedGrid(g), (st) => this.sanitizeImportedSettings(st));
+                if (!this._writeSavedLibrary(r.saved, r.folders)) return;
+                this._sgQuery = '';
+                this.renderSavedGridsMenu();
+                this.refreshSaveButton();
+                alert('Copie de sécurité restaurée : ' + slMergeSummary(r));
+            }
+
+            // Rappel discret sous la liste : date de la dernière copie de sécurité exportée depuis ce navigateur.
+            _renderBackupInfo() {
+                const el = document.getElementById('saved-grids-backup-info');
+                if (!el) return;
+                let t = NaN;
+                try { t = Number(localStorage.getItem('jamBackupLastAt')); } catch (e) {}
+                const has = Object.keys(this.getSavedGrids()).length > 0;
+                if (t > 0) el.textContent = 'Dernière copie : ' + new Date(t).toLocaleDateString('fr-FR');
+                else el.textContent = has ? 'Aucune copie de sécurité exportée' : '';
+                el.classList.toggle('sg-warn', has && !(t > 0));
             }
 
             loadSavedGrid(name) { this.withUndo(() => this._loadSavedGrid(name)); }
@@ -9867,7 +10127,7 @@
     </script>
     <div id="jam-print-area"></div>
 
-    <!-- Pop-up « Orchestre » : style (Jazz / Pop-Rock / Brasil / Classique), volume général de l'orchestre (Master), volumes des instruments, volume du métronome -->
+    <!-- Pop-up « Sauvegardes » : enregistrer, rechercher, ranger en dossiers, copie de sécurité de toutes les grilles -->
     <div id="saved-grids-modal" class="hidden" role="dialog" aria-label="Sauvegardes">
         <div class="bg-[#222222] border border-[#3a3a3c] rounded-xl w-full p-3 space-y-2">
             <div id="saved-grids-modal-head" class="flex items-center justify-between jm-head" title="Glisser pour déplacer">
@@ -9876,7 +10136,26 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
-            <div id="jam-saved-grids-dropdown" class="bg-[#1a1a1a] border border-[#333333] rounded overflow-y-auto" style="max-height:min(60vh,360px)"></div>
+            <div class="sg-searchbar">
+                <div class="sg-search">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+                    <input type="search" id="saved-grids-search" autocomplete="off" spellcheck="false" placeholder="Rechercher…" aria-label="Rechercher une grille sauvegardée" oninput="app.jam.onSavedGridsSearch(this.value)" onkeydown="app.jam.onSavedGridsSearchKey(event)">
+                    <button type="button" id="saved-grids-search-clear" class="hidden" onclick="app.jam.clearSavedGridsSearch()" title="Effacer la recherche" aria-label="Effacer la recherche">×</button>
+                </div>
+                <button type="button" class="sg-btn" onclick="app.jam.newSavedFolder()" title="Créer un dossier pour ranger les grilles">＋ Dossier</button>
+            </div>
+            <div id="jam-saved-grids-dropdown" class="bg-[#1a1a1a] border border-[#333333] rounded overflow-y-auto" style="max-height:min(60vh,400px)"></div>
+            <div class="sg-backup">
+                <div class="sg-backup-head">
+                    <span class="sg-backup-title" title="Toutes les grilles sauvegardées dans ce navigateur, avec leurs dossiers, dans un seul fichier : à garder en lieu sûr pour ne rien perdre si le cache du navigateur est vidé">Copie de sécurité</span>
+                    <span id="saved-grids-backup-info"></span>
+                </div>
+                <div class="sg-backup-btns">
+                    <button type="button" class="sg-btn" onclick="app.jam.exportAllSavedGrids()" title="Enregistrer toutes les grilles sauvegardées (et leurs dossiers) dans un seul fichier .json">Tout exporter</button>
+                    <button type="button" class="sg-btn" onclick="document.getElementById('jam-backup-file').click()" title="Ajouter aux sauvegardes les grilles d'une copie de sécurité (rien n'est écrasé)">Restaurer…</button>
+                    <input type="file" id="jam-backup-file" accept=".json,application/json" class="hidden" onchange="app.jam.importBackupFile(this)">
+                </div>
+            </div>
         </div>
     </div>
     <div id="harmony-modal" class="hidden" role="dialog" aria-label="Harmonisation">
@@ -10134,7 +10413,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-18-c';
+        var BUILD = '2026-11-20-a';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }
@@ -10152,6 +10431,7 @@
                 'app/ui/chord-picker.js': typeof chordPickerHtml === 'function' && typeof chordPickerBuild === 'function' && typeof chordPickerParseRoot === 'function',
                 'app/ui/shortcuts.js': typeof Shortcuts === 'object' && typeof Shortcuts.kbSet === 'function' && typeof Shortcuts.kbActionFor === 'function',
                 'app/ui/staff-notes.js': typeof SN_MINOR_KEY_NAMES !== 'undefined' && typeof splitStaffClips === 'function' && typeof parseBlockAt === 'function' && typeof staffMakeTuplet === 'function' && typeof staffSetPickup === 'function' && typeof setStaffSwing === 'function' && typeof staffInsertEvents === 'function' && typeof staffToggleTies === 'function' && typeof shiftEvents === 'function',
+                'app/grid/saved-library.js': typeof slBuildView === 'function' && typeof slMergeBackup === 'function' && typeof slHighlight === 'function',
                 'app/grid/grid-format.js': typeof NOTE_FONTS !== 'undefined' && !!NOTE_FONTS.menlo && typeof sanitizeNoteHtml === 'function' && sanitizeNoteHtml('<div class="annot-frame" data-frame="200" data-at="5,5" data-border="0">x</div>', 300).indexOf('data-border') >= 0,
                 'app/ui/staff-editor.js': typeof nseKeyValue === 'function' && typeof nseToolState === 'function' && typeof nseBlocksToClipText === 'function' && typeof NoteStaffView === 'function' && typeof NoteStaffView.prototype.setBorder === 'function' && typeof NoteStaffView.prototype._setTuplet === 'function' && typeof nseSwingOptions === 'function' && typeof NoteStaffView.prototype._toggleTie === 'function' && typeof NoteStaffView.prototype._startMarquee === 'function',
                 'app/ui/text-frame.js': typeof NoteFrameView === 'function' && typeof NoteFrameView.prototype.setBorder === 'function',

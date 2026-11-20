@@ -1067,6 +1067,57 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         noErrors();
     });
 
+    test('Jam : Sauvegardes — recherche, dossiers et copie de sécurité de toutes les grilles', async () => {
+        const keep = await page.evaluate(() => [localStorage.getItem('jamSavedGrids'), localStorage.getItem('jamSavedGridFolders')]);
+        await page.evaluate(() => {
+            const s = {};
+            ['Estate', 'Blue Bossa', 'Été indien', 'Solar'].forEach((n, i) => { s[n] = { grid: [{ rootIndex: i, chordId: 'maj7', measures: 1 }], settings: { key: i, bpm: 120 } }; });
+            s['Estate'].folder = 'Bossa'; s['Solar'].folder = 'Jazz';
+            localStorage.setItem('jamSavedGrids', JSON.stringify(s));
+            localStorage.setItem('jamSavedGridFolders', JSON.stringify(['Vide']));
+            localStorage.removeItem('jamSavedFoldersCollapsed');
+            app.jam._sgQuery = '';
+            app.jam.openSavedGridsMenu();
+        });
+        const rows = () => page.$$eval('#jam-saved-grids-dropdown .sg-row', r => r.map(x => x.dataset.sgName));
+        const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('jamSavedGrids')));
+        assert.deepEqual(await rows(), ['Blue Bossa', 'Été indien', 'Estate', 'Solar'], 'sans dossier, puis dossiers triés');
+        await page.fill('#saved-grids-search', 'ete');
+        assert.deepEqual(await rows(), ['Été indien'], 'recherche sans accents');
+        await page.fill('#saved-grids-search', 'bossa');
+        assert.deepEqual(await rows(), ['Blue Bossa', 'Estate'], 'le nom du dossier compte aussi');
+        await page.fill('#saved-grids-search', '');
+        // ranger avec le bouton dossier
+        await page.click('.sg-row[data-sg-name="Blue Bossa"] [data-sg-act="move"]');
+        await page.click('.sg-move [data-sg-folder="Bossa"]');
+        assert.equal((await stored())['Blue Bossa'].folder, 'Bossa');
+        // une grille réenregistrée garde son dossier
+        await page.evaluate(() => { app.jam.loadSavedGrid('Estate'); app.jam.updateSavedGrid(); });
+        assert.equal((await stored())['Estate'].folder, 'Bossa');
+        // copie de sécurité : tout exporter, tout effacer, restaurer (deux fois : aucun doublon)
+        page.on('dialog', d => d.accept());
+        const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#saved-grids-modal .sg-backup-btns button:first-child')]);
+        assert.match(dl.suggestedFilename(), /^chord-scales-sauvegardes-\d{4}-\d{2}-\d{2}\.json$/);
+        const file = await dl.path();
+        await page.evaluate(() => { localStorage.removeItem('jamSavedGrids'); localStorage.removeItem('jamSavedGridFolders'); });
+        await page.setInputFiles('#jam-backup-file', file);
+        await page.waitForFunction(() => Object.keys(JSON.parse(localStorage.getItem('jamSavedGrids') || '{}')).length === 4);
+        await page.setInputFiles('#jam-import-file', file); // le bouton « Importer » reconnaît aussi une copie de sécurité
+        await page.waitForTimeout(300);
+        const back = await stored();
+        assert.deepEqual(Object.keys(back).sort(), ['Blue Bossa', 'Estate', 'Solar', 'Été indien']);
+        assert.equal(back['Solar'].folder, 'Jazz');
+        assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('jamSavedGridFolders'))), ['Bossa', 'Jazz', 'Vide'], 'les dossiers vides sont gardés');
+        page.removeAllListeners('dialog');
+        await page.evaluate((k) => {
+            app.jam.closeSavedGridsMenu();
+            if (k[0] === null) localStorage.removeItem('jamSavedGrids'); else localStorage.setItem('jamSavedGrids', k[0]);
+            if (k[1] === null) localStorage.removeItem('jamSavedGridFolders'); else localStorage.setItem('jamSavedGridFolders', k[1]);
+            app.jam.loadedGridName = null; app.jam.updateLoadedGridNameDisplay();
+        }, keep);
+        noErrors();
+    });
+
     test('Jam : disquette à côté du titre (visible avec un titre, bleue si modifié, sauvegarde au clic)', async () => {
         const btn = () => page.evaluate(() => {
             const b = document.getElementById('jam-save-grid-btn');
