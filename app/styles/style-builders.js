@@ -1366,15 +1366,23 @@ const STYLE_BUILDERS = {
     // Sept styles rock, tous en triades et dominantes septièmes (les accords de puissance sont joués par la guitare ; aucune couleur de jazz).
     // Chaque forme est écrite en degrés absolus depuis la tonique : [nom d'accord du toolkit (M majeur, m mineur, D dominante 7, Dm dominante mineure), décalage en demi-tons, mesures].
     rockroll: (t) => {
-        const { pick, join, cells } = t;
+        const { R, pick, join, cells } = t;
         // Rock'n'roll des années 50 : blues de 12 mesures aux dominantes septièmes (I7 - IV7 - V7), boogie de la guitare et du piano.
-        const forms = [
-            [[['D',0,4]], [['D',5,2],['D',0,2]], [['D',7],['D',5],['D',0],['D',7]]],                                // blues de 12 mesures
-            [[['D',0],['D',5],['D',0,2]], [['D',5,2],['D',0,2]], [['D',7],['D',5],['D',0],['D',7]]],                 // avec « quick change » au IV
-            [[['D',0,4]], [['D',5,2],['D',0,2]], [['D',7],['D',5],['D',0,2]]]                                       // fin posée sur I
-        ];
-        const f = pick(forms);
-        return join(cells(f[0],'A','A1'), cells(f[1],'B','B1'), cells(f[2],'C','C1'));
+        // Trois lignes de quatre mesures, choisies chacune dans sa liste (la première de chaque liste donne la forme de référence) :
+        //  - mesures 1-4 : I7 tenu, « quick change » au IV, ou IV en mesure 3 ;
+        //  - mesures 5-8 : IV7 puis retour au I, ou I - VI7 en fin de ligne, qui part vers II7 - V7 (enchaînement ragtime du rock'n'roll) ;
+        //  - mesures 9-12 : V - IV - I - V (tourneur), V tenu, fin posée sur I, ou ♭VI7 - V7 (tourneur chromatique).
+        // Une grille renouvelée est parfois une forme « doo-wop » (I - vi - IV - V7, trois fois), l'autre visage du rock'n'roll de ces années-là.
+        if (R && R() < 0.15) {
+            const dw = [['M',0],['m',9],['M',5],['D',7]];
+            return join(cells(dw,'A','A1'), cells(dw,'B','B1'), cells(dw,'C','C1'));
+        }
+        const L1 = [ [['D',0,4]], [['D',0],['D',5],['D',0,2]], [['D',0,2],['D',5],['D',0]] ];
+        const L2 = [ [['D',5,2],['D',0,2]], [['D',5,2],['D',0],['D',9]], [['D',5],['D',5],['D',0],['D',0]] ];
+        const L3 = [ [['D',7],['D',5],['D',0],['D',7]], [['D',7,2],['D',0],['D',7]], [['D',7],['D',5],['D',0,2]], [['D',8],['D',7],['D',0],['D',7]], [['D',7,2],['D',0,2]] ];
+        const l2 = pick(L2);
+        const l3 = l2[l2.length - 1][1] === 9 ? [['D',2],['D',7],['D',0],['D',7]] : pick(L3); // VI7 appelle II7 - V7
+        return join(cells(pick(L1),'A','A1'), cells(l2,'B','B1'), cells(l3,'C','C1'));
     },
     rockclassic: (t) => {
         const { pick, join, cells } = t;
@@ -1419,17 +1427,24 @@ const STYLE_BUILDERS = {
     bluesrock: (t) => {
         const { R, pick, join, cells } = t;
         // Blues rock : 12 mesures en shuffle, dominantes septièmes ; une grille renouvelée est parfois en mineur (i - iv - V7).
+        // Trois lignes de quatre mesures, choisies chacune dans sa liste (la première de chaque liste donne la forme de référence).
         const minor = !!R && R() < 0.35;
-        const forms = minor ? [
-            [[['m',0,4]], [['m',5,2],['m',0,2]], [['Dm',7],['m',5],['m',0],['Dm',7]]],
-            [[['m',0],['m',5],['m',0,2]], [['m',5,2],['m',0,2]], [['M',8],['Dm',7],['m',0,2]]]
-        ] : [
-            [[['D',0,4]], [['D',5,2],['D',0,2]], [['D',7],['D',5],['D',0],['D',7]]],
-            [[['D',0],['D',5],['D',0,2]], [['D',5,2],['D',0,2]], [['D',7],['D',5],['D',0,2]]],
-            [[['D',0],['D',5],['D',0],['D',0]], [['D',5,2],['D',0,2]], [['D',7],['D',5],['D',0],['D',7]]]
-        ];
-        const f = pick(forms);
-        return join(cells(f[0],'A','A1'), cells(f[1],'B','B1'), cells(f[2],'C','C1'));
+        if (minor) {
+            // Mineur : i - iv - i, puis V7 - iv - i ou ♭VI - V7 (tourneur du blues mineur) ; la ligne 2 peut finir sur ♭VI, qui mène au V7.
+            const L1 = [ [['m',0,4]], [['m',0],['m',5],['m',0,2]], [['m',0,2],['m',5],['m',0]] ];
+            const L2 = [ [['m',5,2],['m',0,2]], [['m',5,2],['m',0],['M',8]], [['m',5],['m',5],['m',0],['m',0]] ];
+            const L3 = [ [['Dm',7],['m',5],['m',0],['Dm',7]], [['M',8],['Dm',7],['m',0,2]], [['M',8],['Dm',7],['m',0],['Dm',7]], [['Dm',7,2],['m',0,2]], [['Dm',7],['m',5],['m',0,2]] ];
+            const l2 = pick(L2);
+            const l3 = l2[l2.length - 1][1] === 8 ? pick(L3.filter(l => l[0][1] === 7)) : pick(L3); // après ♭VI, la ligne repart du V7
+            return join(cells(pick(L1),'A','A1'), cells(l2,'B','B1'), cells(l3,'C','C1'));
+        }
+        // Majeur : I7 tenu ou « quick change » ; IV7 puis I7, ou I7 - VI7 qui mène à II7 - V7 ; V - IV - I - V, V tenu, IV - V, ou ♭VI7 - V7.
+        const L1 = [ [['D',0,4]], [['D',0],['D',5],['D',0,2]], [['D',0,2],['D',5],['D',0]] ];
+        const L2 = [ [['D',5,2],['D',0,2]], [['D',5,2],['D',0],['D',9]], [['D',5],['D',5],['D',0],['D',0]] ];
+        const L3 = [ [['D',7],['D',5],['D',0],['D',7]], [['D',7],['D',5],['D',0,2]], [['D',7,2],['D',0],['D',7]], [['D',8],['D',7],['D',0],['D',7]], [['D',5],['D',7],['D',0],['D',7]] ];
+        const l2 = pick(L2);
+        const l3 = l2[l2.length - 1][1] === 9 ? [['D',2],['D',7],['D',0],['D',7]] : pick(L3);
+        return join(cells(pick(L1),'A','A1'), cells(l2,'B','B1'), cells(l3,'C','C1'));
     },
     indierock: (t) => {
         const { pick, join, cells } = t;

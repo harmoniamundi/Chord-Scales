@@ -445,6 +445,7 @@ function renewTemplate(ctx, styleKey, buildTemplate, keyRoot, canonical) {
         resolveEnding(ctx, S);
         if (isBrassStyle(styleKey) || styleKey === 'dixieland') simplifyBrass(S);
         if (isTriadStyle(styleKey)) simplifyTriads(S);
+        if (isRockStyle(styleKey)) simplifyRock(S);
         if (validateSlots(S).length) continue;
         const out = norm(templateFromSlots(S));
         const keys = keysOf(out);
@@ -482,6 +483,17 @@ function isTriadStyle(styleKey) { return GEN_THEORY.TRIAD_STYLES.includes(styleK
 function simplifyTriads(S) {
     const dom = (ch) => { if (['9', '7alt', '7b9', '7sharp5'].includes(ch.c)) { ch.c = '7'; if (!GEN_THEORY.scaleFits(ch.s, '7')) ch.s = 'mixolydian'; } };
     S.forEach(sl => { GEN_THEORY.triadizeItem(sl); dom(sl); if (sl.split) dom(sl.split); });
+}
+
+// Rock : la dominante ajoutée devant la tonique finale (fin résolue) reste une septième simple, sans altérations de jazz ;
+// en mineur, elle garde la couleur du mineur (mixolydien ♭13) au lieu de la gamme altérée.
+function simplifyRock(S) {
+    const dom = (ch) => {
+        if (!['9', '7alt', '7b9', '7sharp5'].includes(ch.c)) return;
+        ch.c = '7';
+        ch.s = (ch.s === 'altered' || ch.s === 'phrygianDominant') ? 'mixolydianFlat13' : (GEN_THEORY.scaleFits(ch.s, '7') ? ch.s : 'mixolydian');
+    };
+    S.forEach(sl => { dom(sl); if (sl.split) dom(sl.split); });
 }
 
 function rememberGenerated(recent, styleKey, generated) {
