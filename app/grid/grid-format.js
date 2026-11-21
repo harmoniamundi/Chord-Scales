@@ -349,6 +349,8 @@ function sanitizeImportedGrid(raw) {
         if (Number.isInteger(re) && re >= 2 && re <= 4) step.repeatEnd = re;
         const vo = Number(item.volta);
         if (vo === 1 || vo === 2) step.volta = vo;
+        // Indication de jeu des croches à partir de ce bloc : « Droit » ou retour au « Swing » général
+        if (item.feel === 'straight' || item.feel === 'swing') step.feel = item.feel;
         clean.push(step);
     }
     return clean;

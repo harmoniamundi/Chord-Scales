@@ -19,7 +19,7 @@ const { chordRootName: med_chordRootName, bassNoteName: med_bassNoteName, chordI
     cbStructIntervals: med_cbStructIntervals, CB_EXT_ORDER: MED_EXT_ORDER, CB_EXT: MED_EXT, CB_EXT_LABEL: MED_EXT_LABEL,
     getSpelledChordNotes: med_getSpelledChordNotes, chordTypes: med_chordTypes, scalesDb: med_scalesDb } = MED_T;
 
-const MEASURE_EDITOR_BUILD = '2026-11-21-a'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
+const MEASURE_EDITOR_BUILD = '2026-11-21-b'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
 
 function editorHtml(v) {
     const { m, step, isHalf, cur, half, rootLabels, isFolded, findChordObj, halfLabelText, halfTitleText } = v;
@@ -78,6 +78,13 @@ function editorHtml(v) {
                     chip(step.volta === 1, 'data-act="rp-v1" title="1re fin : jouée au premier passage seulement"', '1re fin'),
                     chip(step.volta === 2, 'data-act="rp-v2" title="2e fin : jouée au second passage"', '2e fin')
                 ].join('');
+                // Indication de jeu des croches à partir de cette mesure, jusqu'à la prochaine indication (re-cliquer la retire)
+                const feel = m.measureInStep === 1 ? step.feel : '';
+                const feels = [
+                    chip(feel === 'straight', 'data-act="feel" data-v="straight" title="Droit : croches droites à partir de cette mesure, jusqu\'à l\'indication « Swing » suivante (re-cliquer pour retirer)"', 'Droit'),
+                    chip(feel === 'swing', 'data-act="feel" data-v="swing" title="Swing : retour au swing général de la grille à partir de cette mesure (re-cliquer pour retirer)"', 'Swing')
+                ].join('');
+                const rpBody = `<div class="jm-row">${marks}</div><div class="jm-sub-t">Croches</div><div class="jm-row">${feels}</div>`;
 
                 const durSeg = `
                     <div class="jm-row">
@@ -146,7 +153,8 @@ function editorHtml(v) {
                     return `<div class="jm-sec"><button type="button" class="jm-sec-t jm-fold-t" data-act="fold" data-v="${key}" aria-expanded="${open}"><span>${title}${summary ? `<em>${summary}</em>` : ''}</span><span class="jm-caret">${open ? '▾' : '▸'}</span></button>${open ? body : ''}</div>`;
                 };
                 const bassSummary = (Number.isInteger(cur.bassRootIndex) && cur.bassRootIndex !== rootPc) ? `/${med_bassNoteName(cur.rootIndex, cur.chordId, cur.bassRootIndex, rootLabels)}` : '';
-                const rpSummary = [step.repeatStart && m.measureInStep === 1 ? '|:' : '', rpEnd ? `:|×${rpEnd}` : '', step.volta ? `${step.volta}${step.volta === 1 ? 're' : 'e'} fin` : ''].filter(Boolean).join(' ');
+                const rpSummary = [step.repeatStart && m.measureInStep === 1 ? '|:' : '', rpEnd ? `:|×${rpEnd}` : '', step.volta ? `${step.volta}${step.volta === 1 ? 're' : 'e'} fin` : '',
+                    feel === 'straight' ? 'Droit' : (feel === 'swing' ? 'Swing' : '')].filter(Boolean).join(' ');
                 const modeBar = `<div class="jm-mode">
                         ${chip(mode === 'build', 'data-act="mode" data-v="build" title="Choisir la fondamentale, la qualité, puis les tensions"', 'Construire')}
                         ${chip(mode === 'cat', 'data-act="mode" data-v="cat" title="Liste d\'accords prédéfinis"', 'Catalogue')}
@@ -166,7 +174,7 @@ function editorHtml(v) {
                     ${buildChord}
                     ${secScale}
                     ${foldSec('bass', 'Basse', bassSummary, `<div class="jm-row">${basses}</div>`)}
-                    ${foldSec('rp', 'Reprises', rpSummary, `<div class="jm-row">${marks}</div>`)}` : `
+                    ${foldSec('rp', 'Reprises et swing', rpSummary, rpBody)}` : `
                     ${secDur}
                     ${secDeg}
                     <div class="jm-sec"><div class="jm-sec-t">Fondamentale</div><div class="jm-row">${roots}</div></div>
@@ -174,7 +182,7 @@ function editorHtml(v) {
                         <select class="jm-select" data-act="chordsel"><option value="">Autres accords…</option>${options}</select></div>
                     <div class="jm-sec"><div class="jm-sec-t">Basse</div><div class="jm-row">${basses}</div></div>
                     ${secScale}
-                    <div class="jm-sec"><div class="jm-sec-t">Reprises</div><div class="jm-row">${marks}</div></div>`;
+                    <div class="jm-sec"><div class="jm-sec-t">Reprises et swing</div>${rpBody}</div>`;
 
                 return `
                     <div class="jm-head" title="Glisser pour déplacer">

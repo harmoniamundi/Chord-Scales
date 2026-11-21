@@ -67,6 +67,7 @@ function measureCellModel(v, m) {
     const stp = v.grid[m.stepIndex];
     const hasRS = !!stp.repeatStart && m.measureInStep === 1;
     const hasRE = !!stp.repeatEnd && m.measureInStep === stp.measures;
+    const feel = (m.measureInStep === 1 && (stp.feel === 'straight' || stp.feel === 'swing')) ? stp.feel : ''; // indication Droit / Swing
     let voltaFirst = false;
     const sv = v.effV[m.stepIndex]; // 1re / 2e fin effective (la 1re fin va jusqu'au :|)
     if (sv) {
@@ -76,7 +77,7 @@ function measureCellModel(v, m) {
     const selected = !!(v.sel && m.measureNumber >= v.sel.from && m.measureNumber <= v.sel.to);
     return {
         measureNumber: m.measureNumber, isActive, repeat, showSplit, activeHalf, scaleLabel, centerHtml, bottomHtml,
-        hasRS, hasRE, sv, voltaFirst, repeatEnd: stp.repeatEnd, selected,
+        hasRS, hasRE, sv, voltaFirst, repeatEnd: stp.repeatEnd, feel, selected,
         ts3: showSplit && v.bpb === 3 && !v.aksak, editBarOpen: !!v.editBarOpen
     };
 }
@@ -97,6 +98,7 @@ function cellInnerHtml(c) {
     return `
                             <div class="jam-cell-top flex justify-between items-center text-[9px] font-mono ${c.isActive ? 'text-blue-200 font-bold' : 'text-slate-400'}">
                                 <span>${c.voltaFirst ? `<b class="rp-vtxt" title="${c.sv === 1 ? '1re' : '2e'} fin">${c.sv}.</b>` : ''}|${c.measureNumber}${c.editBarOpen ? '<span class="jam-edit-btn" role="button" aria-label="Éditer la mesure" title="Éditer cette mesure">✎</span>' : ''}</span>
+                                ${c.feel ? `<span class="jam-feel" title="${c.feel === 'straight' ? 'Croches droites à partir de cette mesure' : 'Retour au swing général à partir de cette mesure'}">${c.feel === 'straight' ? 'Droit' : 'Swing'}</span>` : ''}
                                 ${(c.hasRE && c.repeatEnd > 2) ? `<span class="rp-xn" title="Reprise jouée ${c.repeatEnd} fois">×${c.repeatEnd}</span>` : ''}
                                 <span class="text-[8px] text-emerald-400 font-medium truncate max-w-[60px]">${c.scaleLabel}</span>
                             </div>
@@ -143,6 +145,10 @@ function printMarks(grid, effV, m, flat) {
         cls += ' has-re';
         html += `<span class="jam-print-re"><i class="b1"></i><i class="b2"></i>${dots}</span>`;
         if (st.repeatEnd > 2) html += `<span class="jam-print-times">×${st.repeatEnd}</span>`;
+    }
+    if (m.measureInStep === 1 && (st.feel === 'straight' || st.feel === 'swing')) {
+        cls += ' has-feel';
+        html += `<span class="jam-print-feel">${st.feel === 'straight' ? 'Droit' : 'Swing'}</span>`;
     }
     const sv = effV[m.stepIndex];
     if (sv) {

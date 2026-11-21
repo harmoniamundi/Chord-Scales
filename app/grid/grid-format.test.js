@@ -96,6 +96,11 @@ describe('sanitizeImportedGrid : second accord, reprises, parties', () => {
         assert.equal('repeatStart' in t || 'repeatEnd' in t || 'volta' in t, false);
         assert.equal('repeatEnd' in F.sanitizeImportedGrid([step({ repeatEnd: 1 })])[0], false);
     });
+    test('indication Droit / Swing : seulement straight ou swing', () => {
+        assert.equal(F.sanitizeImportedGrid([step({ feel: 'straight' })])[0].feel, 'straight');
+        assert.equal(F.sanitizeImportedGrid([step({ feel: 'swing' })])[0].feel, 'swing');
+        assert.equal('feel' in F.sanitizeImportedGrid([step({ feel: 'shuffle' })])[0], false);
+    });
     test('repères de partie : liste proposée, lettre A-Z ou nom libre', () => {
         for (const p of ['A', 'in', "B'", 'out', 'Z', 'Couplet', 'Refrain 2', 'A1', 'Pont (solo)']) assert.equal(F.sanitizeImportedGrid([step({ partStart: p })])[0].partStart, p);
         for (const p of ['', '   ', 5, null, {}, '\n\t']) assert.equal('partStart' in F.sanitizeImportedGrid([step({ partStart: p })])[0], false, String(p));

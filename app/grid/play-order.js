@@ -221,7 +221,18 @@ function peekNextDisplayIndex(grid, i, opts) {
     return n;
 }
 
+// Indication de jeu des croches en vigueur sur chaque bloc, dans l'ordre écrit de la grille (comme sur une partition) :
+// un bloc qui porte feel = 'straight' (« Droit ») ou 'swing' (« Swing », retour au swing général) la pose, et elle vaut
+// jusqu'à la suivante. Renvoie un tableau parallèle à la grille : 'straight', 'swing' ou null (aucune indication avant ce bloc).
+function feelByStep(grid) {
+    let cur = null;
+    return (grid || []).map(st => {
+        if (st && (st.feel === 'straight' || st.feel === 'swing')) cur = st.feel;
+        return cur;
+    });
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { flatMeasureList, stepStartMeasure, effectiveVolta, repeatRegions, stepSpan, stepOfMeasure,
+    module.exports = { feelByStep, flatMeasureList, stepStartMeasure, effectiveVolta, repeatRegions, stepSpan, stepOfMeasure,
         computePlayRange, nextStepInfo, playedMeasureCount, peekNextIndex, sameChordStep, peekNextDisplayIndex };
 }

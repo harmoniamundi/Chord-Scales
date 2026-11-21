@@ -290,6 +290,23 @@ describe('signes de reprise', () => {
         E.markMeasure(g, 2, 'v2'); assert.equal(g[1].volta, undefined);
         E.markMeasure(g, 9, 'start'); // absente : sans effet
     });
+    test('markMeasure : indication Droit / Swing posée à partir de la mesure, re-cliquer la retire', () => {
+        const g = [st(0, 'maj7', 4)];
+        E.markMeasure(g, 3, 'straight');
+        assert.deepEqual(g.map(x => [x.measures, x.feel]), [[2, undefined], [2, 'straight']]); // la mesure 4 rejoint le bloc qui porte l'indication
+        E.markMeasure(g, 3, 'swing'); assert.equal(g[1].feel, 'swing');
+        E.markMeasure(g, 3, 'swing');
+        assert.deepEqual(g.map(x => [x.measures, x.feel]), [[4, undefined]]); // retirée : les blocs se refusionnent
+    });
+    test('indication Droit : gardée au début du bloc éclaté, copiée avec la mesure, pas dupliquée', () => {
+        const g = [st(0, 'maj7', 3, { feel: 'straight' })];
+        E.isolateMeasure(g, 2);
+        assert.deepEqual(g.map(x => x.feel), ['straight', undefined, undefined]);
+        const it = E.measureItems(g, 1, 2);
+        assert.deepEqual(it.map(x => x.feel), ['straight', undefined]);
+        E.duplicateMeasureAfter(g, 1);
+        assert.equal(g[1].feel, undefined);
+    });
 });
 
 describe('repères de partie automatiques', () => {

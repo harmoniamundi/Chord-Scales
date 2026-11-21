@@ -201,3 +201,11 @@ describe('sameChordStep et accord suivant affiché', () => {
         assert.equal(P.peekNextDisplayIndex(g, 0, { playRange: null, loopEnabled: true, passes: {} }), 1);
     });
 });
+
+describe('indication Droit / Swing (feelByStep)', () => {
+    test('vaut jusqu\'à la suivante, dans l\'ordre écrit', () => {
+        const g = [blk(0), blk(1, 2, { feel: 'straight' }), blk(2), blk(3, 1, { feel: 'swing' }), blk(4)];
+        assert.deepEqual(P.feelByStep(g), [null, 'straight', 'straight', 'swing', 'swing']);
+        assert.deepEqual(P.feelByStep([]), []);
+    });
+});

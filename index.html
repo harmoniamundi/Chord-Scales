@@ -620,6 +620,7 @@
                 // Métronome (hors sauvegardes / export / import) : intro d'une mesure toujours jouée ; clic pendant la grille seulement si activé
                 this.metronomeEnabled = false;
                 this.metronomeSubdivision = false; // clic léger sur les croches, en plus des temps (réglage du métronome)
+                this._feelStraight = false; // vrai pendant le calcul d'une mesure placée sous l'indication « Droit » (buildBandPlan)
                 // Les trois clics du métronome : le même enregistrement de métronome mécanique, joué à des vitesses et des niveaux
                 // différents. rate = vitesse de lecture (plus bas = plus grave et un peu plus long), gain = niveau à fond de
                 // curseur (le fichier est normalisé à 1,0). Hauteurs inversées : le 1er temps de la mesure (accent) est plus aigu et
@@ -3874,7 +3875,17 @@
             // puis mesure de « turnaround » qui anticipe l'accord suivant et peut se terminer par un fill.
 
             // Rapport de swing de l'orchestre actif : réglage choisi, sinon valeur par défaut du style (voir BAND_SWING_DEFAULTS).
-            getBandSwing() { return bandSwing(this.bandStyle, this.bpm, this._swingSettingFor(this.bandStyle), this.getEffectiveGroove()); }
+            // Pendant le calcul d'une mesure placée sous une indication « Droit » (voir buildBandPlan), les croches sont droites.
+            getBandSwing() {
+                if (this._feelStraight) return 0.5;
+                return bandSwing(this.bandStyle, this.bpm, this._swingSettingFor(this.bandStyle), this.getEffectiveGroove());
+            }
+
+            // Indication « Droit » / « Swing » en vigueur sur un bloc de la grille (ordre écrit, grid/play-order.js) ; null = aucune.
+            _feelAtStep(step) {
+                const i = this.grid.indexOf(step);
+                return i >= 0 ? feelByStep(this.grid)[i] : null;
+            }
 
             // Réglage manuel du swing d'un orchestre ; null = « Auto » (valeur par défaut du style).
             _swingSettingFor(style) {
@@ -3952,7 +3963,15 @@
 
             // Tous les orchestres sauf Jazz : les plans sont écrits en croches droites ; le swing réglé les déforme ensuite (4/4, 2/4, 3/4).
             // Jazz écrit directement ses croches swinguées (swingPos) ; sa valeur par défaut est le triolet.
+            // Indication « Droit » sur la mesure : le swing tombe à 50 % le temps du calcul de cette mesure (tous les orchestres,
+            // Jazz compris) ; « Swing » ou aucune indication : swing général de la grille. Le réglage général n'est jamais modifié.
             buildBandPlan(step, nextStep, measureInStep, isLastMeasureOfStep) {
+                this._feelStraight = this._feelAtStep(step) === 'straight';
+                try { return this._buildBandPlanFeel(step, nextStep, measureInStep, isLastMeasureOfStep); }
+                finally { this._feelStraight = false; }
+            }
+
+            _buildBandPlanFeel(step, nextStep, measureInStep, isLastMeasureOfStep) {
                 const ak = this.getAksak();
                 if (ak) return this._buildAksakPlan(ak, step, nextStep, measureInStep, isLastMeasureOfStep);
                 const plan = this._buildBandPlanRaw(step, nextStep, measureInStep, isLastMeasureOfStep);
@@ -6102,6 +6121,7 @@
                     case 'rp-end': this._editorMark('end'); break;
                     case 'rp-v1': this._editorMark('v1'); break;
                     case 'rp-v2': this._editorMark('v2'); break;
+                    case 'feel': this._editorMark(v === 'swing' ? 'swing' : 'straight'); break;
                     case 'close': ed.touched = true; this.closeMeasureEditor(); break;   // OK : on garde
                     case 'cancel': this.closeMeasureEditor(); break;                       // ✕ : une mesure ajoutée vierge est annulée
                 }
@@ -6161,7 +6181,7 @@
                 const t = this._editorTarget();
                 if (!t) return true;
                 if (key === 'bass') return !Number.isInteger(t.cur.bassRootIndex);
-                if (key === 'rp') return !(t.step.repeatStart || t.step.repeatEnd || t.step.volta);
+                if (key === 'rp') return !(t.step.repeatStart || t.step.repeatEnd || t.step.volta || t.step.feel);
                 return true;
             }
 
@@ -10785,7 +10805,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-21-a';
+        var BUILD = '2026-11-21-b';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }
@@ -10798,6 +10818,8 @@
             };
             // Fichiers nouveaux de la version : s'ils sont absents (mal placés ou pas envoyés), ils ne définissent pas leur fonction.
             var needed = {
+                'app/grid/play-order.js': typeof feelByStep === 'function',
+                'app/ui/grid-view.js': (function () { try { return printMarks([{ feel: 'straight', measures: 1 }], {}, { stepIndex: 0, measureInStep: 1, measureNumber: 1 }, []).html.indexOf('jam-print-feel') >= 0; } catch (e) { return false; } })(),
                 'app/ui/scale-harmony.js': typeof scaleHarmonyHtml === 'function' && typeof scaleHarmony === 'function',
                 'app/ui/scale-map.js': typeof scaleMapEntries === 'function' && typeof scaleMapHtml === 'function' && typeof trainingMapCards === 'function',
                 'app/ui/chord-picker.js': typeof chordPickerHtml === 'function' && typeof chordPickerBuild === 'function' && typeof chordPickerParseRoot === 'function',
