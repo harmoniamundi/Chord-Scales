@@ -983,7 +983,10 @@
                     }
                     this._fnConvention = null; // un nouveau style revient au chiffrage qui lui convient
                     this._restartFromTop();    // la nouvelle grille se lit depuis sa première mesure
-                    this.generationVariant = 0; // choisir un style affiche sa forme de référence ; « Générer » la renouvelle ensuite
+                    // Choisir un style propose d'emblée une grille renouvelée (différente de la forme de référence et des dernières grilles
+                    // de ce style, graine tirée ci-dessous) ; « Générer » en propose ensuite d'autres. `styleReferenceForm` (tests d'empreintes)
+                    // garde l'ancien comportement : la forme de référence du style.
+                    this.generationVariant = this.styleReferenceForm ? 0 : 1;
                     this._seedBase = (Math.random() * 4294967296) >>> 0;
                     // Un mode posé automatiquement par le style précédent ne doit pas s'imposer au suivant
                     if (this._qualityAuto) {

@@ -130,6 +130,7 @@ async function capturePage(spec) {
     const styleSel = document.getElementById('jam-style-select');
     const host = spec.style || spec.host;
     styleSel.value = host;
+    jam.styleReferenceForm = true;      // la forme de référence du style (choisir un style propose sinon une grille renouvelée)
     jam.changeStyle(host);
     if (spec.generer) jam.resetGrid();
     if (spec.entry) jam.chooseBandStyle(spec.entry);   // même chemin que les listes Formation / Rythme du pop-up
