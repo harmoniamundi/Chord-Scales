@@ -19,8 +19,8 @@ const STYLES = Object.keys(STYLE_BUILDERS);
 const bars = (tpl) => tpl.reduce((s, x) => s + x.m, 0);
 
 describe('catalogue des styles', () => {
-    test('70 styles (dont sept styles rock, quatre danses aksak, six styles afro-cubains et six styles africains), dont les alias blues128, ballad128 et balkan98', () => {
-        assert.equal(STYLES.length, 70);
+    test('78 styles (dont sept styles rock, quatre danses aksak, six styles afro-cubains, six styles africains et huit styles classiques par époque), dont les alias blues128, ballad128 et balkan98', () => {
+        assert.equal(STYLES.length, 78);
         assert.equal(STYLE_BUILDERS.blues128, STYLE_BUILDERS.blues);
         assert.equal(STYLE_BUILDERS.ballad128, STYLE_BUILDERS.ballad);
         assert.equal(STYLE_BUILDERS.balkan98, STYLE_BUILDERS.balkan);

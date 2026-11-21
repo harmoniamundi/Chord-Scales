@@ -58,7 +58,7 @@ describe('band-catalog : catalogue des orchestres', () => {
         assert.deepEqual(pop.options.map(o => o.value), [''].concat(C.BAND_FORMATIONS.pop.grooves));
         assert.equal(pop.disabled, false);
         // rythmes autrefois accessibles seulement par un style de grille
-        assert.deepEqual(opt('classic', 'c-baroque').options.map(o => o.value), ['', 'c-baroque']);
+        assert.deepEqual(opt('classic', 'c-baroque').options.map(o => o.value), ['', 'c-baroque', 'c-renaissance', 'c-chaconne', 'c-nocturne', 'c-romantic', 'c-impression', 'c-satie', 'c-neoclassic', 'c-minimal']);
         assert.equal(opt('classic', 'c-baroque').value, 'c-baroque');
         assert.ok(opt('guitar', null).options.some(o => o.value === 'c-baroque'));
         assert.deepEqual(opt('brass', null).options.map(o => o.value), ['', 'b-chorale']);

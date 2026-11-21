@@ -628,6 +628,42 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         noErrors();
     });
 
+    test('Jam : musique classique par époque — orchestre Classique, écriture imposée, tempo et mesure, le piano joue dans toutes les signatures', async () => {
+        const CASES = [['renaissance', 'c-renaissance', 76, '4/4'], ['chaconne', 'c-chaconne', 72, '3/4'], ['nocturne', 'c-nocturne', 58, '4/4'],
+            ['romantique', 'c-romantic', 66, '4/4'], ['impressionnisme', 'c-impression', 60, '4/4'], ['gymnopedie', 'c-satie', 72, '3/4'],
+            ['neoclassique', 'c-neoclassic', 126, '4/4'], ['minimalisme', 'c-minimal', 120, '4/4']];
+        for (const [style, groove, bpm, meter] of CASES) {
+            await page.selectOption('#jam-style-select', style);
+            const st = await page.evaluate(() => ({ band: app.jam.bandStyle, groove: app.jam.getEffectiveGroove(), bpm: app.jam.bpm, meter: app.jam.getMeterKey ? app.jam.getMeterKey() : null,
+                bars: app.jam.grid.reduce((s, x) => s + (x.measures || 1), 0) }));
+            assert.equal(st.band, 'classic', style);
+            assert.equal(st.groove, groove, style);
+            assert.equal(st.bpm, bpm, style);
+            assert.equal(st.meter, meter, style);
+            assert.ok(st.bars >= 8, `${style} : ${st.bars} mesures écrites (reprises comprises)`);
+        }
+        await page.selectOption('#jam-style-select', 'nocturne');
+        await page.evaluate(() => {
+            app.jam.bpm = 240; window.__pno = 0; window.__era = null;
+            const real = app.jam.playPianoHit.bind(app.jam);
+            app.jam.playPianoHit = (e, t, b) => { window.__pno++; window.__era = app.jam._bandPhrase && app.jam._bandPhrase.cEra; return real(e, t, b); };
+        });
+        for (const sig of ['4/4', '3/4', '2/4', '6/8', '12/8']) {
+            await page.evaluate((x) => { app.jam.setTimeSignature(x); window.__pno = 0; }, sig);
+            await page.click('#jam-play-btn');
+            await waitFor(() => window.__pno >= 12, null, 15000).catch(() => {});
+            await page.click('#jam-play-btn');
+            const heard = await page.evaluate(() => ({ n: window.__pno, era: window.__era }));
+            assert.ok(heard.n >= 12, `${sig} : ${heard.n} notes de piano`);
+            assert.equal(heard.era, 'c-nocturne', sig);
+        }
+        // le choix « Classique : minimalisme » du pop-up Orchestre impose l'écriture sans toucher au tempo
+        await page.evaluate(() => { app.jam.setTimeSignature('4/4'); app.jam.setBpm(100); app.jam.chooseBandStyle('classic-minimal'); });
+        assert.deepEqual(await page.evaluate(() => [app.jam.bandStyle, app.jam.getEffectiveGroove(), app.jam.bpm]), ['classic', 'c-minimal', 100]);
+        await page.evaluate(() => { app.jam.playPianoHit = Object.getPrototypeOf(app.jam).playPianoHit.bind(app.jam); });
+        noErrors();
+    });
+
     test('Jam : Cumbia — accordéon, basse, guacharaca / llamador / tambora jouent ; 4/4 à 98 ; le curseur « Percus. » les règle', async () => {
         await page.selectOption('#jam-style-select', 'cumbia');
         const st = await page.evaluate(() => ({ band: app.jam.bandStyle, bpm: app.jam.bpm, label: document.getElementById('band-vol-piano-label').textContent,
@@ -867,7 +903,7 @@ describe('appli complète (navigateur)', { skip: !pw && 'Playwright non install�
         await page.selectOption('#band-formation-select', 'classic');
         s = await st();
         assert.deepEqual([s.band, s.groove, s.rythme, s.disabled, s.bpm, s.meter], ['classic', null, '', false, 168, '3/4']);
-        assert.deepEqual(s.options, ['', 'c-baroque']);
+        assert.deepEqual(s.options, ['', 'c-baroque', 'c-renaissance', 'c-chaconne', 'c-nocturne', 'c-romantic', 'c-impression', 'c-satie', 'c-neoclassic', 'c-minimal']);
         await page.selectOption('#band-groove-select', 'c-baroque');
         s = await st();
         assert.deepEqual([s.groove, s.bpm, s.meter], ['c-baroque', 168, '3/4'], 'le baroque ne touche ni au tempo ni à la mesure');

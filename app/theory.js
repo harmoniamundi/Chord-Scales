@@ -578,9 +578,9 @@ function scaleFits(scaleId, chordId) {
     if (!sc || !co) return false;
     return co.notes.every(n => sc.intervals.includes(((n % 12) + 12) % 12));
 }
-// Styles « classiques et traditionnels » (Chanson, Baroque, Mozart, Menuet ; « Chanson simple » est déjà tout en triades) :
+// Styles « classiques et traditionnels » (Chanson, Baroque, Mozart, Menuet, Renaissance ; « Chanson simple » est déjà tout en triades) :
 // harmonie de triades, seules les dominantes gardent leur septième.
-const TRIAD_STYLES = ['trad', 'baroque', 'mozart', 'menuet'];
+const TRIAD_STYLES = ['trad', 'baroque', 'mozart', 'menuet', 'renaissance'];
 // Remplace dans un bloc de modèle { c, s, split? } les accords à septième (hors dominantes) par leur triade ; la gamme est
 // gardée si elle convient à la triade, sinon la première gamme de la triade.
 function triadizeItem(it) {

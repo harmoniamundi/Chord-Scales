@@ -22,6 +22,7 @@ if (typeof africaGroove === 'undefined' && typeof require === 'function') {
 if (typeof afroUsesGuitar === 'undefined' && typeof require === 'function') {
     var { afroUsesGuitar } = require('./afrocuban-plan.js');
 }
+const BC_ERA_GROOVES = typeof CLASSIC_ERA_GROOVES !== 'undefined' ? CLASSIC_ERA_GROOVES : require('./classic-eras-plan.js').CLASSIC_ERA_GROOVES;
 
 // Formations : nom affiché sur le bouton (« Orchestre … ») sans rythme, et rythmes imposés qu'elles savent jouer.
 // L'ordre des clés est celui de l'ancienne liste de setBandStyle. Un rythme absent de la liste d'une formation est ignoré
@@ -31,7 +32,7 @@ const BAND_FORMATIONS = {
     pop:       { name: 'Pop-Rock',    grooves: BC_ROCK_GROOVES },
     latin:     { name: 'Brasil',      grooves: ['bossa', 'samba', 'tango', 'piazzolla'] },
     cuba:      { name: 'Cuba',        grooves: ['afro', 'salsa'].concat(BC_AFRO.AFRO_GROOVES) },
-    classic:   { name: 'Classique',   grooves: ['c-baroque'] },
+    classic:   { name: 'Classique',   grooves: ['c-baroque'].concat(BC_ERA_GROOVES) },
     guitar:    { name: 'Guitare',     grooves: ['f-solea', 'f-bulerias', 'f-tangos', 'c-baroque'] },
     brass:     { name: 'Brass',       grooves: ['b-chorale'] },
     balkan:    { name: 'Balkans',     grooves: ['bk-sevdah', 'bk-tsifte'] },
@@ -70,6 +71,10 @@ const BAND_GROOVE_LABELS = {
     salsa: 'Salsa (4/4)', 'cu-son': 'Son montuno (4/4)', 'cu-chacha': 'Cha-cha-chá (4/4)', 'cu-bolero': 'Bolero (4/4)', 'cu-guajira': 'Guajira (4/4)',
     'cu-danzon': 'Danzón (2/4)', 'cu-guaguanco': 'Rumba guaguancó (4/4)',
     'c-baroque': 'Baroque',
+    'c-renaissance': 'Renaissance (pavane, consort, luth)', 'c-chaconne': 'Basse obstinée (chaconne, folia)',
+    'c-nocturne': 'Romantique : nocturne (Chopin)', 'c-romantic': 'Romantique tardif (Wagner, Franck)',
+    'c-impression': 'Impressionnisme (Debussy, Ravel)', 'c-satie': 'Satie (gymnopédie)',
+    'c-neoclassic': 'Néoclassique (Stravinsky, Prokofiev)', 'c-minimal': 'Minimalisme (Glass, Reich)',
     'f-solea': 'Flamenco : soleá (12 temps)', 'f-bulerias': 'Flamenco : bulerías (12 temps)', 'f-tangos': 'Flamenco : rumba / tangos (4/4)',
     'b-chorale': 'Choral (hymne, cantique)',
     'bk-sevdah': 'Sevdah, ballade lente', 'bk-tsifte': 'Tsifteteli / čoček',
@@ -120,6 +125,15 @@ const BAND_MENU = [
     { value: 'piazzolla',        label: 'Tango nuevo (quinteto)', band: 'piazzolla' },
     { value: 'milongalyrique',   label: 'Milonga lyrique (quinteto)', band: 'piazzolla', groove: 'lyrique' },  // sans tempo (comportement d'origine)
     { value: 'classic-baroque',  label: 'Classique : baroque', band: 'classic', groove: 'c-baroque' },
+    // Écritures de piano par époque (band/classic-eras-plan.js) : imposent le rythme sans toucher au tempo ni à la mesure
+    { value: 'classic-renaissance', label: 'Classique : Renaissance', band: 'classic', groove: 'c-renaissance' },
+    { value: 'classic-chaconne',    label: 'Classique : basse obstinée (chaconne)', band: 'classic', groove: 'c-chaconne' },
+    { value: 'classic-nocturne',    label: 'Classique : nocturne romantique', band: 'classic', groove: 'c-nocturne' },
+    { value: 'classic-romantic',    label: 'Classique : romantisme tardif', band: 'classic', groove: 'c-romantic' },
+    { value: 'classic-impression',  label: 'Classique : impressionnisme', band: 'classic', groove: 'c-impression' },
+    { value: 'classic-satie',       label: 'Classique : Satie', band: 'classic', groove: 'c-satie' },
+    { value: 'classic-neoclassic',  label: 'Classique : néoclassique', band: 'classic', groove: 'c-neoclassic' },
+    { value: 'classic-minimal',     label: 'Classique : minimalisme', band: 'classic', groove: 'c-minimal' },
     { value: 'guitar-baroque',   label: 'Guitare : baroque', band: 'guitar', groove: 'c-baroque' },
     { value: 'brass-chorale',    label: 'Brass band : choral', band: 'brass', groove: 'b-chorale' },
     { value: 'balkan-sevdah',    label: 'Balkans : sevdah', band: 'balkan', groove: 'bk-sevdah' },
@@ -158,12 +172,13 @@ function bandDisplayName(band, groove) {
 
 // Choix d'une formation seule dans le menu (Jazz, Brasil, Cuba, Guitare…) : rythme mémorisé qui reste, ou null.
 // Comportement d'origine conservé tel quel : les rythmes choisis dans ce menu (bossa, samba, salsa, cubains, palos, rock,
-// Afrique, lyrique) sont effacés ; le baroque n'est gardé que pour Classique ou Guitare ; les rythmes qui ne viennent que
+// Afrique, lyrique) sont effacés ; le baroque n'est gardé que pour Classique ou Guitare, les écritures par époque (nocturne,
+// impressionnisme…) pour Classique ; les rythmes qui ne viennent que
 // d'un style de grille (tango, piazzolla, afro, choral, sevdah, tsifteteli) restent en mémoire.
 function bandGrooveAfterPlainChoice(groove, value) {
     const g = groove || '';
     if (g === 'lyrique' || ['bossa', 'samba', 'salsa'].includes(g) || g.startsWith('f-') || g.startsWith('r-')
-        || (g.startsWith('c-') && !(g === 'c-baroque' && (value === 'guitar' || value === 'classic')))
+        || (g.startsWith('c-') && !((g === 'c-baroque' && (value === 'guitar' || value === 'classic')) || (BC_ERA_GROOVES.includes(g) && value === 'classic')))
         || g.startsWith('cu-') || g.startsWith('af-')) return null;
     return groove;
 }

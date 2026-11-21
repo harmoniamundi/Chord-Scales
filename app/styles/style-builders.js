@@ -90,6 +90,306 @@ function balkanKit(t) {
     };
 }
 
+// ============ Musique classique : époques (Renaissance → minimalisme) ============
+// Huit styles joués par l'orchestre Classique (piano), chacun avec son écriture (rythmes imposés c-renaissance, c-chaconne,
+// c-nocturne, c-romantic, c-impression, c-satie, c-neoclassic, c-minimal : voir band/classic-eras-plan.js). Écrits en absolu
+// depuis la tonique, en majeur ou en mineur selon la qualité choisie (modes à tierce mineure → version mineure).
+// Vocabulaire : dictionnaire nom → [décalage, accord, gamme, fonction, basse (décalage, facultatif)] ;
+// une cellule est une liste de jetons « nom », « nom*2 » (deux mesures) ou « nom|nom2 » (mesure à deux accords).
+function eraKit(t) {
+    const { keyRoot, abs, R, pick } = t;
+    const seq = (D, toks, sec, phr) => toks.map(tok => {
+        const [body, mm] = tok.split('*');
+        const [a, b] = body.split('|');
+        const A = D[a];
+        const it = abs(A[0], A[1], mm ? Number(mm) : 1, A[2], sec, phr, A[3]);
+        if (Number.isInteger(A[4])) it.bassRootIndex = (keyRoot + A[4] + 12) % 12;
+        if (b) { const B = D[b]; it.split = { r: (keyRoot + B[0] + 12) % 12, c: B[1], s: B[2] }; }
+        return it;
+    });
+    // Une autre option que `prev` quand c'est possible (deux phrases voisines ne se répètent pas)
+    const pickOther = (opts, prev) => { const o = opts.filter(x => x !== prev); return pick(o.length ? o : opts); };
+    // Après une cellule qui finit sur une dominante, la suivante part de la tonique (ou du VI / vi : cadence rompue)
+    const after = (prev, opts, D) => {
+        const last = prev[prev.length - 1].split('|').pop().split('*')[0];
+        if (!D[last] || D[last][3] !== 'dominant') return opts;
+        const ok = opts.filter(o => { const f = D[o[0].split('|')[0].split('*')[0]]; return f && (f[0] === 0 || f[0] === 8 || f[0] === 9); });
+        return ok.length ? ok : opts;
+    };
+    return { minor: !!t.minorQuality, seq, pickOther, after, R: (R && t.libOK) ? R : null };
+}
+
+// Renaissance : danses sur basses obligées (passamezzo antico / moderno, bergamasca, romanesca), triades seules, cadences
+// sur la dominante en triade (musica ficta : sensible haussée), tierce picarde à la fin d'une pièce en mineur.
+function renaissanceForm(t) {
+    const { minor, seq, pickOther, R } = eraKit(t);
+    const D = minor ? {
+        i: [0, 'minTriad', 'aeolian', 'tonic'], id: [0, 'minTriad', 'dorian', 'tonic'], I: [0, 'majTriad', 'ionian', 'tonic'],
+        VII: [10, 'majTriad', 'mixolydian', 'predominant'], III: [3, 'majTriad', 'ionian', 'predominant'],
+        VI: [8, 'majTriad', 'lydian', 'predominant'], iv: [5, 'minTriad', 'dorian', 'predominant'],
+        IV: [5, 'majTriad', 'mixolydian', 'predominant'], V: [7, 'majTriad', 'phrygianDominant', 'dominant']
+    } : {
+        I: [0, 'majTriad', 'ionian', 'tonic'], IV: [5, 'majTriad', 'lydian', 'predominant'], V: [7, 'majTriad', 'mixolydian', 'dominant'],
+        vi: [9, 'minTriad', 'aeolian', 'predominant'], ii: [2, 'minTriad', 'dorian', 'predominant'], iii: [4, 'minTriad', 'phrygian', 'predominant'],
+        bVII: [10, 'majTriad', 'lydian', 'predominant']
+    };
+    const A = minor ? [
+        ['i', 'VII', 'i', 'V', 'III', 'VII', 'i|V', 'i'],      // passamezzo antico
+        ['i', 'VII', 'VI', 'V', 'i', 'VII', 'VI|V', 'i'],       // descente vers la dominante
+        ['id', 'IV', 'id', 'V', 'id', 'IV', 'VII|V', 'id']      // pavane en dorien (IV majeur)
+    ] : [
+        ['I', 'IV', 'I', 'V', 'I', 'IV', 'I|V', 'I'],           // passamezzo moderno
+        ['I', 'IV', 'V', 'I', 'vi', 'IV', 'V', 'I'],            // bergamasca
+        ['I', 'bVII', 'I', 'V', 'I', 'bVII', 'IV|V', 'I'],      // couleur mixolydienne
+        ['I', 'V', 'vi', 'iii', 'IV', 'I', 'IV|V', 'I']         // descente par quintes
+    ];
+    const B = minor ? [
+        ['III', 'VII', 'i', 'V', 'III', 'VII', 'i|V', 'i'],     // romanesca
+        ['i', 'iv', 'i', 'V', 'III', 'VI', 'iv|V', 'i'],
+        ['VI', 'VII', 'III', 'V', 'i', 'iv', 'VII|V', 'i']
+    ] : [
+        ['vi', 'IV', 'I', 'V', 'vi', 'ii', 'IV|V', 'I'],
+        ['IV', 'I', 'ii', 'V', 'I', 'IV', 'I|V', 'I'],
+        ['I', 'IV', 'I', 'V', 'I', 'IV', 'I|V', 'I']
+    ];
+    const a = t.pick(A);
+    const b = pickOther(B, a).slice();
+    if (minor && (!R || R() < 0.65)) b[b.length - 1] = 'I';   // tierce picarde
+    return [].concat(seq(D, a, 'A', 'A1'), seq(D, b, 'B', 'B1'));
+}
+
+// Basse obstinée (chaconne, passacaille, folia), 3/4 : un ground de 8 mesures (16 pour la folia) énoncé quatre fois (deux pour
+// la folia), dont la réalisation varie à chaque énoncé dans l'orchestre ; aux énoncés du milieu, un accord peut être
+// réharmonisé sur la même basse. Le dernier énoncé conclut sur la tonique (cadence V - I).
+function chaconneForm(t) {
+    const { minor, seq, R } = eraKit(t);
+    const D = minor ? {
+        i: [0, 'minTriad', 'aeolian', 'tonic'], I: [0, 'majTriad', 'ionian', 'tonic'], V: [7, 'majTriad', 'phrygianDominant', 'dominant'],
+        V7: [7, '7', 'phrygianDominant', 'dominant'], V6: [7, 'majTriad', 'phrygianDominant', 'dominant', 11],
+        v6: [7, 'minTriad', 'phrygian', 'predominant', 10], iv6: [5, 'minTriad', 'dorian', 'predominant', 8],
+        i42: [0, 'm7', 'aeolian', 'tonic', 10], IV6: [5, 'majTriad', 'mixolydian', 'predominant', 9],
+        VII: [10, 'majTriad', 'mixolydian', 'predominant'], VI: [8, 'majTriad', 'lydian', 'predominant'],
+        III: [3, 'majTriad', 'ionian', 'predominant'], iv: [5, 'minTriad', 'dorian', 'predominant']
+    } : {
+        I: [0, 'majTriad', 'ionian', 'tonic'], V: [7, 'majTriad', 'mixolydian', 'dominant'], V7: [7, '7', 'mixolydian', 'dominant'],
+        vi: [9, 'minTriad', 'aeolian', 'predominant'], iii: [4, 'minTriad', 'phrygian', 'predominant'], IV: [5, 'majTriad', 'lydian', 'predominant'],
+        I7: [0, 'maj7', 'ionian', 'tonic', 11], vi7: [9, 'm7', 'aeolian', 'predominant', 7], I6: [0, 'majTriad', 'ionian', 'tonic', 4],
+        ii: [2, 'minTriad', 'dorian', 'predominant']
+    };
+    // [ground, réharmonisations possibles (rang, jeton : même note de basse ou variante chromatique)]
+    const G = minor ? [
+        [['i', 'v6', 'iv6', 'V', 'i', 'VII', 'VI', 'V'], [[1, 'V6'], [5, 'III']]],                       // lamento (basse 1-♭7-♭6-5)
+        [['i', 'V6', 'i42', 'IV6', 'iv6', 'V', 'V7', 'i'], [[2, 'VII'], [5, 'V7']]],                   // lamento chromatique
+        [['i', 'V', 'i', 'VII', 'III', 'VII', 'i', 'V', 'i', 'V', 'i', 'VII', 'III', 'VII', 'i|V', 'i'], [[6, 'iv'], [14, 'iv|V']]]   // folia
+    ] : [
+        [['I', 'V', 'vi', 'iii', 'IV', 'I', 'IV', 'V'], [[3, 'I6'], [7, 'V7']]],                        // ground de Pachelbel
+        [['I', 'I7', 'vi', 'vi7', 'IV', 'I6', 'ii', 'V7'], [[5, 'iii'], [7, 'V']]],                     // basse descendante (air)
+        [['I', 'V', 'vi', 'V', 'I', 'V', 'IV', 'V'], [[3, 'V7'], [6, 'ii']]]                           // ciaccona (basse 1-5-6-5)
+    ];
+    const [ground, alts] = t.pick(G);
+    const n = ground.length === 16 ? 2 : 4;
+    const tonic = minor ? 'i' : 'I';
+    const out = [];
+    for (let k = 0; k < n; k++) {
+        const g = ground.slice();
+        if (R && k > 0 && k < n - 1) alts.forEach(([ix, tok]) => { if (R() < 0.5) g[ix] = tok; });
+        if (k === n - 1) {
+            const L = g.length;
+            if (g[L - 1] !== tonic) {
+                g[L - 1] = (minor && R && R() < 0.4) ? 'I' : tonic;            // tierce picarde (parfois)
+                const p = g[L - 2].split('|')[0];
+                if (p !== 'V' && p !== 'V7') g[L - 2] = p + '|V7';
+            }
+        }
+        const sec = k === 0 ? 'A' : 'A' + (k + 1);
+        out.push(...seq(D, g, sec, sec + '1'));
+    }
+    return out;
+}
+
+// Nocturne romantique (Chopin, Field) : phrase antécédent - conséquent, contraste (relatif, dominantes secondaires, sixte
+// napolitaine, sixte augmentée, septième diminuée), retour avec cadence I6/4 - V7 - I ou plagale mineure (iv - I).
+function nocturneForm(t) {
+    const { minor, seq, pickOther, after } = eraKit(t);
+    const D = minor ? {
+        i: [0, 'minTriad', 'aeolian', 'tonic'], i64: [0, 'minTriad', 'aeolian', 'dominant', 7], iv: [5, 'minTriad', 'dorian', 'predominant'],
+        iio: [2, 'm7b5', 'locrianSharp2', 'predominant'], V7: [7, '7', 'phrygianDominant', 'dominant'], VI: [8, 'majTriad', 'lydian', 'predominant'],
+        III: [3, 'majTriad', 'ionian', 'predominant'], VII7: [10, '7', 'mixolydian', 'secondaryDominant'], N6: [1, 'majTriad', 'lydian', 'predominant', 5],
+        vii7: [11, 'dim7', 'wholeHalfDim', 'dominant'], Ger6: [8, '7', 'lydianDominant', 'predominant'], dimIV: [6, 'dim7', 'wholeHalfDim', 'color'],
+        V7iv: [0, '7', 'phrygianDominant', 'secondaryDominant']
+    } : {
+        I: [0, 'majTriad', 'ionian', 'tonic'], Imaj7: [0, 'maj7', 'ionian', 'tonic'], I64: [0, 'majTriad', 'ionian', 'dominant', 7],
+        ii: [2, 'm7', 'dorian', 'predominant'], iio: [2, 'm7b5', 'locrianSharp2', 'predominant'], iii: [4, 'minTriad', 'phrygian', 'predominant'],
+        IV: [5, 'majTriad', 'lydian', 'predominant'], iv: [5, 'minTriad', 'dorian', 'predominant'], V7: [7, '7', 'mixolydian', 'dominant'],
+        vi: [9, 'minTriad', 'aeolian', 'predominant'], V7ii: [9, '7', 'mixolydianFlat13', 'secondaryDominant'], V7V: [2, '7', 'mixolydian', 'secondaryDominant'],
+        V7IV: [0, '7', 'mixolydian', 'secondaryDominant'], V7vi: [4, '7', 'mixolydianFlat13', 'secondaryDominant'], dimI: [1, 'dim7', 'wholeHalfDim', 'color'],
+        dimIV: [6, 'dim7', 'wholeHalfDim', 'color'], N6: [1, 'majTriad', 'lydian', 'predominant', 5], bVI: [8, 'majTriad', 'lydian', 'predominant']
+    };
+    const L = minor ? {
+        a1: [['i', 'iv', 'iio', 'V7'], ['i', 'VI', 'iv', 'V7'], ['i', 'VII7', 'III', 'V7'], ['i', 'V7iv', 'iv', 'V7']],
+        a2: [['i', 'iv', 'iio|V7', 'i'], ['i', 'VI', 'N6|V7', 'i'], ['i', 'III', 'iv|V7', 'i'], ['i', 'vii7', 'i64|V7', 'i']],
+        b: [['III', 'VII7', 'III', 'V7'], ['VI', 'Ger6', 'i64', 'V7'], ['iv', 'dimIV', 'i64', 'V7'], ['VI', 'N6', 'vii7', 'V7']],
+        a3: [['i', 'iv', 'N6|V7', 'i'], ['i', 'VI', 'iio|V7', 'i'], ['i', 'vii7', 'i64|V7', 'i']]
+    } : {
+        a1: [['I', 'vi', 'ii', 'V7'], ['I', 'iii', 'IV', 'V7'], ['I', 'V7ii', 'ii', 'V7'], ['Imaj7', 'IV', 'iio', 'V7']],
+        a2: [['I', 'vi', 'ii|V7', 'I'], ['I', 'V7IV', 'IV|iv', 'I'], ['vi', 'ii', 'I64|V7', 'I'], ['I', 'dimI|ii', 'I64|V7', 'I']],
+        b: [['vi', 'V7vi', 'vi', 'ii|V7'], ['bVI', 'N6', 'I64', 'V7'], ['IV', 'dimIV', 'I64', 'V7'], ['ii', 'V7V', 'I64', 'V7']],
+        a3: [['I', 'vi', 'ii|V7', 'I'], ['I', 'V7IV', 'iv|V7', 'I'], ['I', 'IV', 'I64|V7', 'I']]
+    };
+    const a1 = t.pick(L.a1), a2 = t.pick(after(a1, L.a2, D)), b = t.pick(L.b), a3 = pickOther(after(b, L.a3, D), a2);
+    return [].concat(seq(D, a1, 'A', 'A1'), seq(D, a2, 'A', 'A2'), seq(D, b, 'B', 'B1'), seq(D, a3, 'A2', 'A3'));
+}
+
+// Romantisme tardif (Wagner, Franck, Liszt) : médiantes chromatiques (♭VI, III, ♭III), cadences rompues vers ♭VI, accords
+// « de Tristan » (demi-diminué résolu sur une septième de dominante, en marche par tierces mineures), septièmes diminuées
+// en montée chromatique, sixte allemande ; fin plagale mineure ou V7 - I.
+function romanticForm(t) {
+    const { minor, seq, pick, after } = { ...eraKit(t), pick: t.pick };
+    const D = minor ? {
+        i: [0, 'minTriad', 'aeolian', 'tonic'], i64: [0, 'minTriad', 'aeolian', 'dominant', 7], iv: [5, 'minTriad', 'dorian', 'predominant'],
+        iio: [2, 'm7b5', 'locrianSharp2', 'predominant'], V7: [7, '7', 'phrygianDominant', 'dominant'], VI: [8, 'majTriad', 'lydian', 'predominant'],
+        III: [3, 'majTriad', 'ionian', 'predominant'], N6: [1, 'majTriad', 'lydian', 'predominant', 5], Ger6: [8, '7', 'lydianDominant', 'predominant'],
+        tr8: [8, 'm7b5', 'locrianSharp2', 'predominant'], tr11: [11, 'm7b5', 'locrianSharp2', 'predominant'], tr2: [2, 'm7b5', 'locrianSharp2', 'predominant'],
+        D10: [10, '7', 'mixolydian', 'secondaryDominant'], D1: [1, '7', 'lydianDominant', 'dominant']
+    } : {
+        I: [0, 'majTriad', 'ionian', 'tonic'], I64: [0, 'majTriad', 'ionian', 'dominant', 7], ii: [2, 'm7', 'dorian', 'predominant'],
+        iii: [4, 'minTriad', 'phrygian', 'predominant'], IV: [5, 'majTriad', 'lydian', 'predominant'], iv: [5, 'minTriad', 'dorian', 'predominant'],
+        V7: [7, '7', 'mixolydian', 'dominant'], vi: [9, 'minTriad', 'aeolian', 'predominant'], bVI: [8, 'majTriad', 'lydian', 'color'],
+        bIII: [3, 'majTriad', 'lydian', 'color'], III: [4, 'majTriad', 'ionian', 'color'], bII: [1, 'majTriad', 'lydian', 'predominant'],
+        dimI: [1, 'dim7', 'wholeHalfDim', 'color'], dimII: [3, 'dim7', 'wholeHalfDim', 'color'], dimIV: [6, 'dim7', 'wholeHalfDim', 'color'],
+        tr8: [8, 'm7b5', 'locrianSharp2', 'predominant'], tr11: [11, 'm7b5', 'locrianSharp2', 'predominant'], tr2: [2, 'm7b5', 'locrianSharp2', 'predominant'],
+        D10: [10, '7', 'mixolydian', 'secondaryDominant'], D1: [1, '7', 'lydianDominant', 'dominant']
+    };
+    const tristan = ['tr8|V7', 'tr11|D10', 'tr2|D1', (minor ? 'i64' : 'I64') + '|V7'];
+    const L = minor ? {
+        p1: [['i', 'VI', 'iv', 'V7'], ['i', 'III', 'N6', 'V7'], ['i', 'iv', 'VI', 'V7']],
+        p2: [['i', 'iv', 'V7', 'VI'], ['VI', 'N6', 'V7', 'VI'], ['i', 'iio', 'V7', 'VI']],
+        p3: [tristan, ['III', 'VI', 'N6', 'V7'], ['iv', 'iio', 'Ger6', 'V7']],
+        p4: [['i', 'iv', 'i64|V7', 'i'], ['i', 'Ger6', 'V7', 'i'], ['i', 'VI', 'N6|V7', 'i']]
+    } : {
+        p1: [['I', 'bVI', 'IV|iv', 'V7'], ['I', 'III', 'vi', 'V7'], ['I', 'bIII', 'bVI', 'V7'], ['I', 'dimI', 'ii', 'V7']],
+        p2: [['I', 'ii', 'V7', 'bVI'], ['IV', 'dimIV', 'V7', 'vi'], ['vi', 'iv', 'V7', 'bVI']],
+        p3: [tristan, ['dimI', 'ii', 'dimII', 'iii'], ['iii', 'bVI', 'bII', 'V7']],
+        p4: [['I', 'bVI', 'V7', 'I'], ['IV', 'iv', 'I64|V7', 'I'], ['IV', 'dimIV', 'I64|V7', 'I']]
+    };
+    const p1 = pick(L.p1), p2 = pick(after(p1, L.p2, D)), p3 = pick(L.p3);
+    // après une dominante, le retour part de la tonique ; après un accord de repos (iii), il peut partir de IV
+    const p4 = pick(after(p3, L.p4, D));
+    return [].concat(seq(D, p1, 'A', 'A1'), seq(D, p2, 'A', 'A2'), seq(D, p3, 'B', 'B1'), seq(D, p4, 'B', 'B2'));
+}
+
+// Impressionnisme (Debussy, Ravel) : accords enrichis (neuvièmes, onzièmes, quarte augmentée, add9, mineur 6), II majeur
+// sur pédale de tonique (couleur lydienne), oscillations I - IV, glissements parallèles, gamme par tons (7♯5), emprunts
+// modaux (♭VII, ♭VI, ♭III, ♭II), fin sans dominante (plagale, ♭II - I, suspension).
+function impressionForm(t) {
+    const { minor, seq, pickOther } = eraKit(t);
+    const D = minor ? {
+        i9: [0, 'm9', 'dorian', 'tonic'], IV9: [5, '9', 'mixolydian', 'predominant'], bVII: [10, 'x:M:P:-:9', 'mixolydian', 'predominant'],
+        bVI7: [8, 'maj7', 'lydian', 'color'], bIII7: [3, 'maj7', 'ionian', 'color'], bII7: [1, 'maj7sharp11', 'lydian', 'color'],
+        v7: [7, 'm7', 'phrygian', 'dominant'], iv9: [5, 'm9', 'dorian', 'predominant'],
+        wt0: [0, '7sharp5', 'wholeTone', 'color'], wt10: [10, '7sharp5', 'wholeTone', 'color'], wt8: [8, '7sharp5', 'wholeTone', 'color']
+    } : {
+        I9: [0, 'maj9', 'ionian', 'tonic'], I7L: [0, 'maj7sharp11', 'lydian', 'tonic'], Iadd: [0, 'x:M:P:-:9', 'ionian', 'tonic'],
+        IIp: [2, 'majTriad', 'lydian', 'color', 0], IV7: [5, 'maj7', 'lydian', 'predominant'], IV9: [5, 'maj9', 'lydian', 'predominant'],
+        iii7: [4, 'm7', 'phrygian', 'predominant'], ii9: [2, 'm9', 'dorian', 'predominant'], vi9: [9, 'm9', 'aeolian', 'predominant'],
+        V9s: [7, 'x:sus4:P:b7:9', 'mixolydian', 'dominant'], bVII9: [10, '9', 'mixolydian', 'color'], bVI7: [8, 'maj7', 'lydian', 'color'],
+        bIII7: [3, 'maj7', 'lydian', 'color'], bII7: [1, 'maj7', 'lydian', 'color'], iv6: [5, 'x:m:P:6:-', 'dorian', 'predominant'],
+        wt0: [0, '7sharp5', 'wholeTone', 'color'], wt10: [10, '7sharp5', 'wholeTone', 'color'], wt8: [8, '7sharp5', 'wholeTone', 'color']
+    };
+    const L = minor ? {
+        p1: [['i9', 'IV9', 'i9', 'IV9'], ['i9', 'bVII', 'i9', 'bVI7'], ['i9', 'v7', 'bVI7', 'bVII']],
+        p2: [['bVI7', 'bVII', 'i9', 'v7'], ['bIII7', 'IV9', 'bVII', 'i9'], ['wt0', 'wt10', 'wt8', 'v7']],
+        p3: [['bIII7', 'bVI7', 'bII7', 'i9'], ['iv9', 'bVII', 'bIII7', 'bVI7'], ['bVI7', 'v7', 'iv9', 'bVII']],
+        p4: [['iv9', 'bVII', 'bII7', 'i9'], ['bVI7', 'bVII', 'i9*2'], ['iv9', 'v7', 'bVI7|bVII', 'i9']]
+    } : {
+        p1: [['I9', 'IIp', 'I9', 'IIp'], ['Iadd', 'IV7', 'Iadd', 'IV7'], ['I9', 'iii7', 'IV9', 'iii7']],
+        p2: [['bVII9', 'IV9', 'bVII9', 'I9'], ['V9s', 'IV7', 'iii7', 'ii9'], ['wt0', 'wt10', 'wt8', 'V9s']],
+        p3: [['vi9', 'IV7', 'vi9', 'bVI7'], ['bIII7', 'bVI7', 'bII7', 'I9'], ['ii9', 'bVII9', 'vi9', 'V9s']],
+        p4: [['IV9', 'iv6', 'bII7', 'I9'], ['vi9', 'IV9', 'V9s', 'I7L'], ['ii9', 'bVII9', 'IV9|iv6', 'Iadd']]
+    };
+    const p1 = t.pick(L.p1), p2 = t.pick(L.p2), p3 = pickOther(L.p3, null), p4 = t.pick(L.p4);
+    return [].concat(seq(D, p1, 'A', 'A1'), seq(D, p2, 'A', 'A2'), seq(D, p3, 'B', 'B1'), seq(D, p4, 'B', 'B2'));
+}
+
+// Satie, gymnopédie (3/4) : balancement de deux septièmes majeures, mineurs septièmes modaux (v mineur, sans sensible),
+// aucune cadence de dominante ; la fin se pose par mouvement conjoint ou plagal.
+function gymnopedieForm(t) {
+    const { minor, seq, pickOther } = eraKit(t);
+    const D = minor ? {
+        i7: [0, 'm7', 'dorian', 'tonic'], iv7: [5, 'm7', 'dorian', 'predominant'], VI7: [8, 'maj7', 'lydian', 'predominant'],
+        III7: [3, 'maj7', 'ionian', 'predominant'], v7: [7, 'm7', 'phrygian', 'color'], VII: [10, '6', 'mixolydian', 'predominant']
+    } : {
+        I7: [0, 'maj7', 'ionian', 'tonic'], IV7: [5, 'maj7', 'lydian', 'predominant'], ii7: [2, 'm7', 'dorian', 'predominant'],
+        iii7: [4, 'm7', 'phrygian', 'predominant'], vi7: [9, 'm7', 'aeolian', 'predominant'], v7: [7, 'm7', 'dorian', 'color']
+    };
+    const L = minor ? {
+        p1: [['i7', 'iv7', 'i7', 'iv7'], ['i7', 'VI7', 'i7', 'VI7']],
+        p2: [['VI7', 'III7', 'VII', 'v7'], ['iv7', 'v7', 'VI7', 'III7'], ['VI7', 'iv7', 'III7', 'VII']],
+        p4: [['iv7', 'v7', 'VI7', 'i7'], ['VI7', 'iv7', 'v7', 'i7'], ['III7', 'VI7', 'iv7', 'i7']]
+    } : {
+        p1: [['I7', 'IV7', 'I7', 'IV7'], ['I7', 'IV7', 'I7', 'iii7']],
+        p2: [['vi7', 'iii7', 'IV7', 'iii7'], ['ii7', 'v7', 'I7', 'IV7'], ['vi7', 'ii7', 'iii7', 'IV7']],
+        p4: [['ii7', 'iii7', 'IV7', 'I7'], ['vi7', 'ii7', 'IV7', 'I7'], ['IV7', 'iii7', 'ii7', 'I7']]
+    };
+    const p1 = t.pick(L.p1), p2 = t.pick(L.p2), p3 = pickOther(L.p1, null), p4 = t.pick(L.p4);
+    return [].concat(seq(D, p1, 'A', 'A1'), seq(D, p2, 'A', 'A2'), seq(D, p3, 'B', 'B1'), seq(D, p4, 'B', 'B2'));
+}
+
+// Néoclassicisme (Stravinsky, Prokofiev, Poulenc) : cadres tonals clairs (V7 - I) traversés de « fausses notes » harmoniques :
+// glissements d'un demi-ton (♭II), médiantes chromatiques (♭VI, ♭III, III), chaînes de triades majeures étrangères au ton.
+function neoclassicForm(t) {
+    const { minor, seq, pick, after } = { ...eraKit(t), pick: t.pick };
+    const D = minor ? {
+        i: [0, 'minTriad', 'aeolian', 'tonic'], iv: [5, 'minTriad', 'dorian', 'predominant'], V7: [7, '7', 'phrygianDominant', 'dominant'],
+        bII: [1, 'majTriad', 'lydian', 'color'], VI: [8, 'majTriad', 'lydian', 'predominant'], III: [3, 'majTriad', 'ionian', 'predominant'],
+        VII: [10, 'majTriad', 'mixolydian', 'predominant'], II: [2, 'majTriad', 'mixolydian', 'color']
+    } : {
+        I: [0, 'majTriad', 'ionian', 'tonic'], IV: [5, 'majTriad', 'lydian', 'predominant'], V7: [7, '7', 'mixolydian', 'dominant'],
+        vi: [9, 'minTriad', 'aeolian', 'predominant'], ii: [2, 'minTriad', 'dorian', 'predominant'], bII: [1, 'majTriad', 'lydian', 'color'],
+        bVI: [8, 'majTriad', 'lydian', 'color'], bIII: [3, 'majTriad', 'lydian', 'color'], bVII: [10, 'majTriad', 'mixolydian', 'color'],
+        III: [4, 'majTriad', 'ionian', 'color'], VI: [9, 'majTriad', 'ionian', 'color'], II: [2, 'majTriad', 'mixolydian', 'color']
+    };
+    const L = minor ? {
+        p1: [['i', 'bII', 'i', 'V7'], ['i', 'iv', 'VI', 'V7'], ['i', 'III', 'bII', 'V7']],
+        p2: [['i', 'VII', 'iv', 'i'], ['VI', 'bII', 'V7', 'i'], ['i', 'II', 'iv', 'i']],
+        p3: [['III', 'VI', 'II', 'V7'], ['VII', 'III', 'bII', 'V7'], ['iv', 'VII', 'III', 'V7']],
+        p4: [['i', 'VI', 'V7', 'i'], ['iv', 'bII', 'V7', 'i'], ['i', 'iv', 'bII|V7', 'i']]
+    } : {
+        p1: [['I', 'bII', 'I', 'V7'], ['I', 'IV', 'bVI', 'V7'], ['I', 'bIII', 'IV', 'V7'], ['I', 'vi', 'bVII', 'V7']],
+        p2: [['I', 'bVII', 'IV', 'I'], ['vi', 'bVI', 'V7', 'I'], ['I', 'III', 'IV', 'I'], ['I', 'IV', 'V7', 'I']],
+        p3: [['III', 'VI', 'II', 'V7'], ['bIII', 'bVI', 'bII', 'V7'], ['bVI', 'bVII', 'I', 'V7']],
+        p4: [['I', 'bVI', 'V7', 'I'], ['IV', 'bII', 'V7', 'I'], ['I', 'vi', 'ii|V7', 'I']]
+    };
+    const p1 = pick(L.p1), p2 = pick(after(p1, L.p2, D)), p3 = pick(L.p3), p4 = pick(after(p3, L.p4, D));
+    return [].concat(seq(D, p1, 'A', 'A1'), seq(D, p2, 'A', 'A2'), seq(D, p3, 'B', 'B1'), seq(D, p4, 'B', 'B2'));
+}
+
+// Minimalisme (Glass, Reich) : boucles de quatre accords tenus deux mesures chacun, sans cadence ; la seconde moitié
+// reprend la boucle (souvent à l'identique) ou passe à une boucle voisine. Pédales de tonique, accords colorés à la Reich.
+function minimalForm(t) {
+    const { minor, seq, pickOther, R } = eraKit(t);
+    const D = minor ? {
+        i: [0, 'minTriad', 'aeolian', 'tonic'], VI: [8, 'majTriad', 'lydian', 'predominant'], III: [3, 'majTriad', 'ionian', 'predominant'],
+        VII: [10, 'majTriad', 'mixolydian', 'predominant'], iv: [5, 'minTriad', 'dorian', 'predominant'], V: [7, 'majTriad', 'phrygianDominant', 'dominant'],
+        i42: [0, 'minTriad', 'aeolian', 'tonic', 10], i9: [0, 'm9', 'dorian', 'tonic'], VI7: [8, 'maj7', 'lydian', 'predominant'],
+        iv9: [5, 'm9', 'dorian', 'predominant'], VIIadd: [10, 'x:M:P:-:9', 'mixolydian', 'predominant']
+    } : {
+        I: [0, 'majTriad', 'ionian', 'tonic'], vi: [9, 'minTriad', 'aeolian', 'predominant'], IV: [5, 'majTriad', 'lydian', 'predominant'],
+        V: [7, 'majTriad', 'mixolydian', 'dominant'], iii: [4, 'minTriad', 'phrygian', 'predominant'], Iadd: [0, 'x:M:P:-:9', 'ionian', 'tonic'],
+        IV7: [5, 'maj7', 'lydian', 'predominant'], vi7: [9, 'm7', 'aeolian', 'predominant'], V11: [7, '7sus4', 'mixolydian', 'dominant'],
+        IVp: [5, 'majTriad', 'lydian', 'predominant', 0], Vp: [7, 'majTriad', 'mixolydian', 'dominant', 0]
+    };
+    const LOOPS = minor ? [
+        ['i*2', 'VI*2', 'III*2', 'VII*2'], ['i*2', 'VI*2', 'iv*2', 'V*2'], ['i*2', 'i42*2', 'VI*2', 'V*2'], ['i9*2', 'VI7*2', 'iv9*2', 'VIIadd*2']
+    ] : [
+        ['I*2', 'vi*2', 'IV*2', 'V*2'], ['I*2', 'IVp*2', 'I*2', 'Vp*2'], ['I*2', 'iii*2', 'vi*2', 'IV*2'], ['Iadd*2', 'IV7*2', 'vi7*2', 'V11*2']
+    ];
+    const a = t.pick(LOOPS);
+    const same = !R || R() < 0.5;
+    const b = same ? a : pickOther(LOOPS, a);
+    return [].concat(seq(D, a, 'A', 'A1'), seq(D, b, same ? 'A2' : 'B', same ? 'A21' : 'B1'));
+}
+
 const STYLE_BUILDERS = {
     // ============ 3/4 ============
     valsejazz: (t) => {
@@ -1459,6 +1759,15 @@ const STYLE_BUILDERS = {
     flamencosolea: (t) => flamencoForm(t, 'solea'),
     flamencobulerias: (t) => flamencoForm(t, 'bulerias'),
     flamencotangos: (t) => flamencoForm(t, 'tangos'),
+    // ============ Musique classique : époques ============
+    renaissance: renaissanceForm,
+    chaconne: chaconneForm,
+    nocturne: nocturneForm,
+    romantique: romanticForm,
+    impressionnisme: impressionForm,
+    gymnopedie: gymnopedieForm,
+    neoclassique: neoclassicForm,
+    minimalisme: minimalForm,
 };
 
 STYLE_BUILDERS.blues128 = STYLE_BUILDERS.blues;

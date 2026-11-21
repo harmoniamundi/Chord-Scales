@@ -172,12 +172,22 @@
                                 <option value="bluesrock">Blues rock (shuffle, 12 mesures)</option>
                                 <option value="indierock">Indie / britpop</option>
                             </optgroup>
-                            <optgroup label="Classique &amp; traditionnel">
+                            <optgroup label="Chanson &amp; traditionnel">
                                 <option value="trad">Chanson</option>
                                 <option value="chansonsimple">Chanson simple</option>
+                            </optgroup>
+                            <optgroup label="Musique classique (par époque)">
+                                <option value="renaissance">Renaissance : pavane, passamezzo</option>
                                 <option value="baroque">Baroque</option>
+                                <option value="chaconne">Baroque : chaconne, passacaille, folia (3/4)</option>
                                 <option value="mozart">Mozart / Classique</option>
                                 <option value="menuet">Menuet (3/4)</option>
+                                <option value="nocturne">Romantique : nocturne (Chopin)</option>
+                                <option value="romantique">Romantique tardif (Wagner, Franck)</option>
+                                <option value="impressionnisme">Impressionnisme (Debussy, Ravel)</option>
+                                <option value="gymnopedie">Satie : gymnopédie (3/4)</option>
+                                <option value="neoclassique">Néoclassique (Stravinsky, Prokofiev)</option>
+                                <option value="minimalisme">Minimalisme (Glass, Reich)</option>
                             </optgroup>
                             <optgroup label="Valses (3/4)">
                                 <option value="valsejazz">Valse jazz</option>
@@ -518,6 +528,7 @@
     <script src="app/band/ternary-plan.js"></script>
     <script src="app/band/bass-lines.js"></script>
     <script src="app/band/swing-plan.js"></script>
+    <script src="app/band/classic-eras-plan.js"></script>
     <script src="app/band/classic-plan.js"></script>
     <script src="app/band/flamenco-plan.js"></script>
     <script src="app/band/guitar-baroque-plan.js"></script>
@@ -3975,6 +3986,7 @@
                 const i = m % L;
                 if (!this._bandPhrase || this._bandPhrase.index !== phraseIndex || this._bandPhrase.style !== style || !!this._bandPhrase.cuba !== cuba
                     || (style === 'classic' && !!this._bandPhrase.baroque !== (this.getEffectiveGroove() === 'c-baroque'))
+                    || (style === 'classic' && (this._bandPhrase.cEra || null) !== classicEraGroove(this.getEffectiveGroove()))
                     || (style === 'guitar' && !!this._bandPhrase.gtrBaroque !== (this.getEffectiveGroove() === 'c-baroque'))) {
                     this._bandPhrase = this.buildBandPhrase(phraseIndex, style);
                     this._bandPhrase.cuba = cuba;
@@ -4010,6 +4022,9 @@
                 // Samba (orchestre Brasil, 2/4 ou 4/4) : roda de samba (violão en batida, surdo, pandeiro, tamborim, ganzá, agogô)
                 if (!cuba && style === 'latin' && ph.groove === 'samba' && !this.isTernary() && (bpbNow === 2 || bpbNow === 4)) return this.buildSambaPlan(bpbNow, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 if (cuba && style === 'latin') return this.buildCubanPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
+                // Classique par époque (Renaissance, chaconne, nocturne, impressionnisme, Satie, minimalisme…) : band/classic-eras-plan.js,
+                // dans toutes les signatures régulières (2 à 4 temps, binaires ou composées)
+                if (style === 'classic' && ph.cEra && bpbNow >= 2 && bpbNow <= 4) return this.buildClassicEraPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 if (this.isTernary()) return this.buildTernaryPlan(bpbNow, style, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 if (bpbNow !== 4) return this.buildMeterPlan(bpbNow, style, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 if (style === 'pop') return this.buildPopPlan(step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
@@ -4137,6 +4152,9 @@
             // tombent sur les temps, la voix aiguë chante un peu plus. Un accord sur basse fait entendre sa basse, en dessous.
 
 
+            buildClassicEraPlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
+                return buildClassicEraPlan({ ...this._bandEnv(), bpm: this.bpm, splitBeat: this.getSplitBeat(), density: this.getBandDensity('classic') }, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
+            }
             buildClassicPlan(step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
                 return buildClassicPlan({ ...this._bandEnv(), bpm: this.bpm, density: this.getBandDensity('classic') }, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
             }
@@ -4571,7 +4589,7 @@
 
             // ===== Génération de grille : logique pure dans grid/generation.js ; le moteur ne fournit que le contexte =====
             _genCtx() {
-                return { findChordObj: (id) => this.findChordObj(id), triadsOnly: this._triadsOnly, generationVariant: this.generationVariant,
+                return { findChordObj: (id) => this.findChordObj(id), triadsOnly: this._triadsOnly, freeEnding: !!this._freeEnding, generationVariant: this.generationVariant,
                          seedBase: this._seedBase, recentGrids: this._recentGrids };
             }
             getGridSignature(grid) { return gridSignature(grid); }
@@ -4588,6 +4606,7 @@
 
             loadStyle(styleKey) {
                 this._triadsOnly = (styleKey === 'chansonsimple'); // style limité aux triades (majeures / mineures)
+                this._freeEnding = styleFreeEnding(styleKey);       // fin sans dominante ajoutée (Renaissance, impressionnisme, minimalisme… : grid/generation.js)
                 const keyRoot = Number.isInteger(this.mainKey) ? this.mainKey : 0;
                 let template = [];
 

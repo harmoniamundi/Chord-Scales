@@ -82,10 +82,30 @@ function styleProfile(styleKey) {
         bolerocubano: { turn: false, alt: true, w: { iiV: 2, secDom: 1.5, tritone: 0.8, dim: 1, colour: 2.5, sus: 0.6, subdom: 1, chrom: 0.6 } },
         // Afrique : triades, dominantes septièmes et m7 du vamp de l'afrobeat ; aucune réharmonisation (« Générer » renouvelle la forme)
         afrobeat: { turn: false, w: {} }, highlife: { turn: false, w: {} }, rumbacongo: { turn: false, w: {} },
-        soukous: { turn: false, w: {} }, benga: { turn: false, w: {} }, mbaqanga: { turn: false, w: {} }
+        soukous: { turn: false, w: {} }, benga: { turn: false, w: {} }, mbaqanga: { turn: false, w: {} },
+        // Musique classique, époques : chaque style garde son propre vocabulaire. Renaissance, basse obstinée et minimalisme :
+        // aucune réharmonisation (« Générer » renouvelle la forme et les cellules) ; romantisme : dominantes secondaires,
+        // septièmes diminuées de passage, sous-dominantes ; impressionnisme et Satie : couleurs (neuvièmes, sixtes), glissements
+        // chromatiques parallèles ; néoclassique : glissements d'un demi-ton (« fausses notes ») et quelques dominantes secondaires.
+        renaissance: { turn: false, w: {} }, chaconne: { turn: false, w: {} }, minimalisme: { turn: false, w: {} },
+        nocturne: { turn: false, w: { secDom: 1.5, dim: 1.2, subdom: 1 } },
+        romantique: { turn: false, w: { dim: 1.5, secDom: 1.5, chrom: 1, subdom: 0.6 } },
+        impressionnisme: { turn: false, w: { colour: 2, chrom: 1.2, sus: 0.6 } },
+        gymnopedie: { turn: false, w: { colour: 1 } },
+        neoclassique: { turn: false, w: { chrom: 1.5, secDom: 0.8 } }
     };
     return table[styleKey] || { turn: false, w: { colour: 3 } };
 }
+
+// Styles de musique classique par époque (Renaissance, basse obstinée, nocturne, romantisme tardif, impressionnisme, Satie,
+// néoclassicisme, minimalisme) : leur grille vient entièrement des modèles de style-builders.js ; la variation de secours de
+// createStyleVariation (altérations, substitutions de triton du jazz) ne leur est jamais appliquée.
+const CLASSIC_ERA_STYLES = ['renaissance', 'chaconne', 'nocturne', 'romantique', 'impressionnisme', 'gymnopedie', 'neoclassique', 'minimalisme'];
+function isClassicEraStyle(styleKey) { return CLASSIC_ERA_STYLES.includes(styleKey); }
+// Styles qui concluent sans dominante ajoutée : la fin résolue pose la tonique en dernière mesure mais n'ajoute pas de V7 devant
+// (cadence plagale, ♭II - I, boucle minimaliste, triade de dominante de la Renaissance). Le moteur passe ctx.freeEnding.
+const FREE_ENDING_STYLES = ['renaissance', 'chaconne', 'impressionnisme', 'gymnopedie', 'minimalisme'];
+function styleFreeEnding(styleKey) { return FREE_ENDING_STYLES.includes(styleKey); }
 
 // Une grille doit finir par une résolution : la dernière mesure est l'accord de tonique, précédé de sa dominante.
 // (Les formes à tourneur - V7 en dernière mesure - sont celles d'une boucle ; ici la fin est conclusive.)
@@ -105,7 +125,7 @@ function resolveEnding(ctx, S) {
     const resolvesToTonic = (sl) => { const ch = sl.split || sl; return fam(ch.c) === 'dom' && [5, 11, 2].includes(mod(T.r - ch.r)); };
     const prev = S[n - 2];
     const arrived = (prev.split || prev).r === T.r && n >= 3 && resolvesToTonic(S[n - 3]);
-    if (!resolvesToTonic(prev) && !arrived && !ctx.triadsOnly) { // « Chanson simple » : jamais de septième ajoutée
+    if (!resolvesToTonic(prev) && !arrived && !ctx.triadsOnly && !ctx.freeEnding) { // « Chanson simple » : jamais de septième ajoutée ; fin libre (styles par époque)
         const minor = fam(T.c) === 'min';
         prev.split = { r: mod(T.r + 7), c: minor ? '7alt' : '7', s: minor ? 'altered' : 'mixolydian' };
         prev._dom = true; prev._mod = true;
@@ -506,7 +526,7 @@ function rememberGenerated(recent, styleKey, generated) {
 }
 
 function createStyleVariation(ctx, template, styleKey, keyRoot) {
-    if (styleKey === 'i-got-rythm' || ctx.triadsOnly || isBrassStyle(styleKey) || isRockStyle(styleKey)) return template.map(x => ({ ...x }));
+    if (styleKey === 'i-got-rythm' || ctx.triadsOnly || isBrassStyle(styleKey) || isRockStyle(styleKey) || isClassicEraStyle(styleKey)) return template.map(x => ({ ...x }));
     if (!template.length || ctx.generationVariant <= 0) return template.map(item => ({ ...item }));
     const rand = makeVariationRng(ctx.generationVariant, styleKey, ctx.seedBase);
     const out = template.map(item => ({ ...item }));
@@ -812,7 +832,9 @@ function normalizeGeneratedGrid(template, styleKey) {
         'balkan58': 16, 'balkan78': 16, 'balkan78r': 16, 'balkan118': 16, 'cumbia': 16,
         'rockroll': 12, 'rockclassic': 16, 'hardrock': 16, 'punk': 16, 'rockballad': 16, 'bluesrock': 12, 'indierock': 16,
         'sonmontuno': 16, 'chachacha': 16, 'bolerocubano': 16, 'guajira': 16, 'danzon': 32, 'guaguanco': 16,
-        'afrobeat': 16, 'highlife': 16, 'rumbacongo': 16, 'soukous': 16, 'benga': 16, 'mbaqanga': 16
+        'afrobeat': 16, 'highlife': 16, 'rumbacongo': 16, 'soukous': 16, 'benga': 16, 'mbaqanga': 16,
+        'renaissance': 16, 'chaconne': 32, 'nocturne': 16, 'romantique': 16, 'impressionnisme': 16, 'gymnopedie': 16,
+        'neoclassique': 16, 'minimalisme': 16
     }[styleKey] || 16;
     if (!template.length) return template;
 
@@ -830,7 +852,7 @@ function normalizeGeneratedGrid(template, styleKey) {
 
     // Une grille doit rester dans une carrure stable : pas de découpage aléatoire d'une
     // phrase, sauf si cela est nécessaire pour obtenir un nombre pair de cellules.
-    normalized = enforceChordRepeatLimits(normalized, styleKey === 'milongalyrique');
+    normalized = enforceChordRepeatLimits(normalized, styleKey === 'milongalyrique' || isClassicEraStyle(styleKey)); // basse conservée (Milonga lyrique, styles par époque : i - i/♭7…)
     if (normalized.length % 2 !== 0) {
         const splitIndex = normalized.findIndex(item => (item.m || 1) >= 2);
         if (splitIndex >= 0) {
@@ -934,6 +956,6 @@ function convertRomanLabel(label, convention, minor) { return convertRomanText(l
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { makeVariationRng, gridSignature, styleProfile, resolveEnding, withResolvedEnding, slotsFromTemplate, templateFromSlots,
         tagTwinSlots, copyTwinSlots, validateSlots, reharmonize, renewTemplate, isBrassStyle, ROCK_STYLES, isRockStyle, simplifyBrass, isTriadStyle, simplifyTriads, rememberGenerated,
-        createStyleVariation, findTwinSections, applyTwinCopies, compactGridRepeats, normalizeGeneratedGrid, enforceChordRepeatLimits,
+        createStyleVariation, CLASSIC_ERA_STYLES, isClassicEraStyle, FREE_ENDING_STYLES, styleFreeEnding, findTwinSections, applyTwinCopies, compactGridRepeats, normalizeGeneratedGrid, enforceChordRepeatLimits,
         chordFamily, romanDeg, romanDegByRank, convertRomanText, convertRomanLabel, fnConventionForStyle, fnMinorRef, FN_MINOR_MODES, FN_MODE_SCALES };
 }

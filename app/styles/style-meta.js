@@ -25,7 +25,11 @@ const STYLE_SCALE_PROFILE = {
     flamencosolea:'flamenco', flamencobulerias:'flamenco', flamencotangos:'flamenco',
     sonmontuno:'classic', chachacha:'jazz', bolerocubano:'jazz', guajira:'classic', danzon:'classic', guaguanco:'classic',
     // Afrique : mode diatonique du degré (l'afrobeat est en dorien, voir styleTonality)
-    afrobeat:'classic', highlife:'classic', rumbacongo:'classic', soukous:'classic', benga:'classic', mbaqanga:'classic'
+    afrobeat:'classic', highlife:'classic', rumbacongo:'classic', soukous:'classic', benga:'classic', mbaqanga:'classic',
+    // Musique classique par époque : mode du degré pour les styles tonals ; les styles modaux (impressionnisme, Satie,
+    // minimalisme) gardent les gammes écrites par le style (dorien, lydien, par tons…), comme le jazz
+    renaissance:'classic', chaconne:'classic', nocturne:'classic', romantique:'classic', neoclassique:'classic',
+    impressionnisme:'jazz', gymnopedie:'jazz', minimalisme:'jazz'
 };
 
 // Orchestre proposé pour chaque style (modifiable ensuite dans la fenêtre « Orchestre »).
@@ -46,7 +50,9 @@ const STYLE_BAND = {
     rockroll: 'pop', rockclassic: 'pop', hardrock: 'pop', punk: 'pop', rockballad: 'pop', bluesrock: 'pop', indierock: 'pop',
     flamencosolea: 'guitar', flamencobulerias: 'guitar', flamencotangos: 'guitar',
     sonmontuno: 'cuba', chachacha: 'cuba', bolerocubano: 'cuba', guajira: 'cuba', danzon: 'cuba', guaguanco: 'cuba',
-    afrobeat: 'africa', highlife: 'africa', rumbacongo: 'africa', soukous: 'africa', benga: 'africa', mbaqanga: 'africa'
+    afrobeat: 'africa', highlife: 'africa', rumbacongo: 'africa', soukous: 'africa', benga: 'africa', mbaqanga: 'africa',
+    renaissance: 'classic', chaconne: 'classic', nocturne: 'classic', romantique: 'classic', impressionnisme: 'classic',
+    gymnopedie: 'classic', neoclassique: 'classic', minimalisme: 'classic'
 };
 
 // Rythme imposé par certains styles à l'orchestre proposé (sinon chaque orchestre a son jeu par défaut). Les rythmes que sait
@@ -56,7 +62,9 @@ const STYLE_GROOVE = { baroque: 'c-baroque', bossa: 'bossa', samba: 'samba', tan
     balkansevdah: 'bk-sevdah', balkantsifte: 'bk-tsifte',
     rockroll: 'r-roll', rockclassic: 'r-classic', hardrock: 'r-hard', punk: 'r-punk', rockballad: 'r-ballad', bluesrock: 'r-blues', indierock: 'r-indie',
     sonmontuno: 'cu-son', chachacha: 'cu-chacha', bolerocubano: 'cu-bolero', guajira: 'cu-guajira', danzon: 'cu-danzon', guaguanco: 'cu-guaguanco',
-    afrobeat: 'af-afrobeat', highlife: 'af-highlife', rumbacongo: 'af-rumba', soukous: 'af-soukous', benga: 'af-benga', mbaqanga: 'af-mbaqanga' };
+    afrobeat: 'af-afrobeat', highlife: 'af-highlife', rumbacongo: 'af-rumba', soukous: 'af-soukous', benga: 'af-benga', mbaqanga: 'af-mbaqanga',
+    renaissance: 'c-renaissance', chaconne: 'c-chaconne', nocturne: 'c-nocturne', romantique: 'c-romantic', impressionnisme: 'c-impression',
+    gymnopedie: 'c-satie', neoclassique: 'c-neoclassic', minimalisme: 'c-minimal' };
 
 // Les entrées du menu Orchestre (couples orchestre + rythme : Rock, Flamenco, Brasil, Cuba, Afrique) sont décrites dans
 // band/band-catalog.js (BAND_MENU).
@@ -134,7 +142,15 @@ const STYLE_TEMPO_METER = {
     rumbacongo:       { bpm: 116, meter: '4/4' },
     soukous:          { bpm: 144, meter: '4/4' }, // sebene dansé : 135-155
     benga:            { bpm: 132, meter: '4/4' }, // Shirati Jazz, D.O. Misiani : 125-140
-    mbaqanga:         { bpm: 126, meter: '4/4' }
+    mbaqanga:         { bpm: 126, meter: '4/4' },
+    renaissance:      { bpm: 76,  meter: '4/4' }, // pavane / passamezzo : allure de marche lente
+    chaconne:         { bpm: 72,  meter: '3/4' }, // chaconne, passacaille, folia : 3/4 grave
+    nocturne:         { bpm: 58,  meter: '4/4' }, // Lento / Andante sostenuto
+    romantique:       { bpm: 66,  meter: '4/4' },
+    impressionnisme:  { bpm: 60,  meter: '4/4' }, // « Lent et rêveur »
+    gymnopedie:       { bpm: 72,  meter: '3/4' }, // « Lent et douloureux »
+    neoclassique:     { bpm: 126, meter: '4/4' }, // Allegro
+    minimalisme:      { bpm: 120, meter: '4/4' }  // croches continues de l'ostinato
 };
 
 // Recherche par clé propre : une clé inattendue (« constructor »…) ne renvoie jamais un membre hérité d'Object.
@@ -345,7 +361,7 @@ function styleTonality(styleKey, generated) {
     const tonic = generated[0];
     const fam = chordFamily(tonic.chordId);
     let quality = 'ionian';
-    if (fam === 'min') quality = (styleKey === 'modal' || styleKey === 'afrobeat') ? 'dorian' : 'aeolian';   // afrobeat : vamp en dorien
+    if (fam === 'min') quality = (styleKey === 'modal' || styleKey === 'afrobeat' || styleKey === 'impressionnisme') ? 'dorian' : 'aeolian';   // afrobeat : vamp en dorien ; impressionnisme mineur : dorien (IV9)
     else if (fam === 'dom') quality = 'mixolydian';
     return { rootIndex: tonic.rootIndex, quality };
 }

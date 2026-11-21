@@ -4919,6 +4919,2454 @@
     "6412004e348922b3"
    ]
   },
+  "orchestre:classic-chaconne@balkan78": {
+   "reglages": {
+    "tonalite": 2,
+    "mode": "aeolian",
+    "bpm": 120,
+    "mesure": "7/8",
+    "orchestre": "classic",
+    "rythme": "c-chaconne",
+    "listes": [
+     "classic",
+     "c-chaconne"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:minTriadx2 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 0:majTriadx1 5:majTriadx1 10:majTriadx1 4:m7b5x1 9:7b9x1 2:minTriadx2",
+   "grilleEmpreinte": "b19a84fcde76d864",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "761c84b9fcc4adff",
+    "5c09613da662a25e",
+    "78ae802ff4a481b1",
+    "b31f7f5b8eca7b3b",
+    "f4a2c8aab4d1dc2e",
+    "008b1c5102086084",
+    "5e90de69c4e7a5c3",
+    "f629962565ccafca",
+    "db2bc49b39a948ab",
+    "9a52dc2714d8fcbf",
+    "8c9bd5b2992302ea",
+    "26752a728912e96b",
+    "429e4ed969ca0442",
+    "293a07fea8e6e706",
+    "a426f1400d121482",
+    "3a4e823d31e56951"
+   ]
+  },
+  "orchestre:classic-chaconne@blues128": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "mixolydian",
+    "bpm": 64,
+    "mesure": "12/8",
+    "orchestre": "classic",
+    "rythme": "c-chaconne",
+    "listes": [
+     "classic",
+     "c-chaconne"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:7x2 0:7x2 5:7x2 0:7x2 7:7x1 5:7x1 0:7x1/7:7 0:7x1",
+   "grilleEmpreinte": "bd16204dffbf4ec8",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "3a22c87ef123af98",
+    "9735edf1e8361ede",
+    "59c7c3ba36f7fcba",
+    "e39d9965581b4b7b",
+    "de8555a529988478",
+    "e26a48340b025d28",
+    "2e7df1c8db0122c8",
+    "efd91b312aaacdbc",
+    "019cb6c1f320cff3",
+    "2a2facff4d3853cd",
+    "fc7ef362deea02bc",
+    "d4c80039b98078e3"
+   ]
+  },
+  "orchestre:classic-chaconne@ii-v-i": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 120,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-chaconne",
+    "listes": [
+     "classic",
+     "c-chaconne"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:m7x1 7:7x1 0:maj7x1 0:maj7x1",
+   "grilleEmpreinte": "7229f59c72c5c062",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "6348b017fedcc0cd",
+    "9942269a2e2422fa",
+    "ccf787b082982370",
+    "f997c5585ece2eed"
+   ]
+  },
+  "orchestre:classic-chaconne@jig": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 116,
+    "mesure": "6/8",
+    "orchestre": "classic",
+    "rythme": "c-chaconne",
+    "listes": [
+     "classic",
+     "c-chaconne"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 5:majTriadx1 0:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1",
+   "grilleEmpreinte": "d28cb691e2947aba",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "040b29cdb973599e",
+    "9efe3dd6da99bbdb",
+    "6187aa2b9dfc852e",
+    "bbabd2025b0690f7",
+    "1a262ebddb2fb063",
+    "e15cd061c344fb36",
+    "312f001806348b98",
+    "bda5369eac6e06e2",
+    "b6c64cb0c9fcdf90",
+    "125f2033f25b886e",
+    "8a46d02c6807a4dd",
+    "84078f894691bb7a",
+    "bf8c754f1450df0a",
+    "7d08f0689d1016ae",
+    "b1f9140b04f2232d",
+    "f62af8097f1b2b3b",
+    "15cff415dd16dd9c",
+    "1c734719a71d489e",
+    "0ebec764dfcbb0ef",
+    "4bcd66bd1be04d24",
+    "a2f06ed1b8d32a21",
+    "a634776457501b7a",
+    "aa2ca1f5b6d0b665",
+    "3ae00190cb42b6df",
+    "06b65c78f238f1d6",
+    "13785f72899286d7",
+    "e9be50a67bf1a1f8",
+    "81c22800ff4c2060",
+    "81ebbaa6ff3ae643",
+    "18e0210b57bfd429",
+    "d87c4b41698dbeed",
+    "f97b97bbd7701421"
+   ]
+  },
+  "orchestre:classic-chaconne@valsejazz": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 168,
+    "mesure": "3/4",
+    "orchestre": "classic",
+    "rythme": "c-chaconne",
+    "listes": [
+     "classic",
+     "c-chaconne"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1 7:7x1 4:7x2 9:7x2 2:7x2 7:7x2 0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1/7:7 0:maj7x1",
+   "grilleEmpreinte": "d09d1a295f26dfd4",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "bbde26e403f9a04e",
+    "d32414551f6d424a",
+    "7cb438313e049b98",
+    "c43d9f3a9276a109",
+    "e5d4e7bbd00ed11f",
+    "c669665a5ea609a0",
+    "09f2e7a2ef98f4eb",
+    "8b2647fc7dd10661",
+    "b0bca47856db5c32",
+    "88eb827cc7dd7d53",
+    "258d5c2835be07eb",
+    "03d33df2a245e143",
+    "d34bd623cca4bd57",
+    "32fcd62e048718f2",
+    "6c7c707e9ad7b346",
+    "e9598c7e168b3aa9",
+    "1dbbae5d279cc66e",
+    "d839cc2d8f2150f5",
+    "cb6c20809a6f5e1a",
+    "982fe16c9eeb5872",
+    "4b0f16b3c4ec0bb6",
+    "1e911a0c91b0c513",
+    "150aa18550ed35c2",
+    "499a105f204c053f",
+    "969fb9f8323e4142",
+    "737b1d2b7f539c8a",
+    "afbf0abaff802f66",
+    "188333edee4988f0",
+    "eb6ca3332376324a",
+    "8b89dfe82ccd6b83",
+    "53aac1c1399fdd6b",
+    "486b02ade9e2d002"
+   ]
+  },
+  "orchestre:classic-impression@balkan78": {
+   "reglages": {
+    "tonalite": 2,
+    "mode": "aeolian",
+    "bpm": 120,
+    "mesure": "7/8",
+    "orchestre": "classic",
+    "rythme": "c-impression",
+    "listes": [
+     "classic",
+     "c-impression"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:minTriadx2 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 0:majTriadx1 5:majTriadx1 10:majTriadx1 4:m7b5x1 9:7b9x1 2:minTriadx2",
+   "grilleEmpreinte": "b19a84fcde76d864",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "321e9c9369aa1797",
+    "777cc2bf63fc9049",
+    "b4d53ee7f2d10745",
+    "eb248082512e5c53",
+    "ced9fffdf3118714",
+    "843933baee1a82bb",
+    "d4c589cab0d521ce",
+    "9953ccfcd20742a3",
+    "7f4115214faca7b8",
+    "a41f863b75e6602b",
+    "1d6bf6e99f910d93",
+    "e20cec10296319db",
+    "1dad3c9901614a1e",
+    "f86d5868d38edfcd",
+    "2a143d1dae289427",
+    "f63d3df8c86ab39e"
+   ]
+  },
+  "orchestre:classic-impression@blues128": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "mixolydian",
+    "bpm": 64,
+    "mesure": "12/8",
+    "orchestre": "classic",
+    "rythme": "c-impression",
+    "listes": [
+     "classic",
+     "c-impression"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:7x2 0:7x2 5:7x2 0:7x2 7:7x1 5:7x1 0:7x1/7:7 0:7x1",
+   "grilleEmpreinte": "bd16204dffbf4ec8",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "9c3e3cdbceb10584",
+    "e840e86ba6dea2e5",
+    "d6c0c9435cb2775d",
+    "25ee10dc130ee9a9",
+    "26d3a05d8d326e09",
+    "d1caaab040f1a275",
+    "f099037bbda76e2d",
+    "88a48c9884802aad",
+    "dd99606c11faf830",
+    "636791473ee3f1c2",
+    "322fe7f8f2813237",
+    "f59abcf1484d9943"
+   ]
+  },
+  "orchestre:classic-impression@ii-v-i": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 120,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-impression",
+    "listes": [
+     "classic",
+     "c-impression"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:m7x1 7:7x1 0:maj7x1 0:maj7x1",
+   "grilleEmpreinte": "7229f59c72c5c062",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "1158e1cf68c17d78",
+    "36ed3bd917947c93",
+    "77e2d14d8905b056",
+    "ff45c474592749ca"
+   ]
+  },
+  "orchestre:classic-impression@jig": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 116,
+    "mesure": "6/8",
+    "orchestre": "classic",
+    "rythme": "c-impression",
+    "listes": [
+     "classic",
+     "c-impression"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 5:majTriadx1 0:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1",
+   "grilleEmpreinte": "d28cb691e2947aba",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "4badf884ba0405f3",
+    "92960e53b70766ef",
+    "430b1e2faf9e53d1",
+    "baf871c53db07ff6",
+    "dfde22d17c94d97c",
+    "485a8ebb033aa636",
+    "ba25180b628fc5a0",
+    "19d3b3c868712033",
+    "9f9f31f71ac97e94",
+    "00e7d8352f4022f8",
+    "688bce7731adfa67",
+    "d65b3b0f1410b7f8",
+    "a26fda6945ed7315",
+    "e63c20aae37ad394",
+    "c67b62451e27274a",
+    "e3321d4f85416a08",
+    "ef35b6c9ae441c20",
+    "5e1ba9cf0fdb36b7",
+    "d6db70f3498ea763",
+    "209efcd40fe012d6",
+    "a7e79c97341cf640",
+    "29dff29f2d7658a9",
+    "1f1b8dac72668a7e",
+    "211e92c0d359c01c",
+    "1b39e023e4a4ce9d",
+    "60d37601e2360364",
+    "54b181e6a9dbbf23",
+    "54ae25e4b09729c6",
+    "2982df01298273de",
+    "90dca3845d90cf65",
+    "169bdd9401c4a6bb",
+    "abad075d3e20e2d0"
+   ]
+  },
+  "orchestre:classic-impression@valsejazz": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 168,
+    "mesure": "3/4",
+    "orchestre": "classic",
+    "rythme": "c-impression",
+    "listes": [
+     "classic",
+     "c-impression"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1 7:7x1 4:7x2 9:7x2 2:7x2 7:7x2 0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1/7:7 0:maj7x1",
+   "grilleEmpreinte": "d09d1a295f26dfd4",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "c35d598bf44f68c4",
+    "019f27d59def7af8",
+    "58fccc7582cdba2d",
+    "376be99322d54169",
+    "746cd73ef2b3bb57",
+    "a72a4601286497e3",
+    "fed394da6d41c6b8",
+    "ce2c990006fad8b4",
+    "bb37054d95425cb6",
+    "9b2a808cd9a9cd20",
+    "9fc7150e99c0ac74",
+    "0f9ca6e05a877662",
+    "dd26939c5c6207dc",
+    "b22d2cbe9e433b36",
+    "19b0231fed62c841",
+    "0383dc912330e591",
+    "64c295e894db63fd",
+    "9e90739f8baf27c2",
+    "9e1d8e80275448d3",
+    "629ce550f1118690",
+    "f4ae8ca32db6ec50",
+    "dd252a64838eeefd",
+    "f1d96df0759d1de0",
+    "e94268b418104772",
+    "aaf9df8acb72e7e0",
+    "940740ff99f0a361",
+    "c85dd428421c5043",
+    "62a662bba0cbde2c",
+    "dc44a0c35fafcc61",
+    "f02c7a481dbe2f3c",
+    "83fc91f90459045b",
+    "6aec94707633bad7"
+   ]
+  },
+  "orchestre:classic-minimal@balkan78": {
+   "reglages": {
+    "tonalite": 2,
+    "mode": "aeolian",
+    "bpm": 120,
+    "mesure": "7/8",
+    "orchestre": "classic",
+    "rythme": "c-minimal",
+    "listes": [
+     "classic",
+     "c-minimal"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:minTriadx2 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 0:majTriadx1 5:majTriadx1 10:majTriadx1 4:m7b5x1 9:7b9x1 2:minTriadx2",
+   "grilleEmpreinte": "b19a84fcde76d864",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "bacfea3e6c7514b8",
+    "99b6f65f1990727c",
+    "4afcd20a1050b08d",
+    "189c07e80313b051",
+    "b939982f62e772fb",
+    "7c97298e249caedc",
+    "57b25733a9afb7d2",
+    "f7336516e805a990",
+    "95aa6e0005ab3eaa",
+    "996f72c7a0dd1612",
+    "9047e8918b672bdb",
+    "2fdb0797d0409fc9",
+    "348ccdf80b69ce47",
+    "e817df574d9e8d5c",
+    "9da2926fe560e6f2",
+    "b3876d15a7eef548"
+   ]
+  },
+  "orchestre:classic-minimal@blues128": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "mixolydian",
+    "bpm": 64,
+    "mesure": "12/8",
+    "orchestre": "classic",
+    "rythme": "c-minimal",
+    "listes": [
+     "classic",
+     "c-minimal"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:7x2 0:7x2 5:7x2 0:7x2 7:7x1 5:7x1 0:7x1/7:7 0:7x1",
+   "grilleEmpreinte": "bd16204dffbf4ec8",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "ffdf95cd29820820",
+    "27428229e8e1cacf",
+    "3eabc3f8cb808bf5",
+    "7708cfadd2813a0e",
+    "52f8fd4e5f216c9d",
+    "03eb8f8426774a5b",
+    "227e06fb0c41a6f5",
+    "97fe9f64b11a7d73",
+    "a2f4ee22c9a078f5",
+    "ad8f63b7da309e56",
+    "7aa67c0e0a15ab54",
+    "ab0bfbeaa49c0dc6"
+   ]
+  },
+  "orchestre:classic-minimal@ii-v-i": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 120,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-minimal",
+    "listes": [
+     "classic",
+     "c-minimal"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:m7x1 7:7x1 0:maj7x1 0:maj7x1",
+   "grilleEmpreinte": "7229f59c72c5c062",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "e2e02d4e76d3210e",
+    "bfe03afad2d3e411",
+    "fbf2af59806666cf",
+    "0a2ef637138b99b4"
+   ]
+  },
+  "orchestre:classic-minimal@jig": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 116,
+    "mesure": "6/8",
+    "orchestre": "classic",
+    "rythme": "c-minimal",
+    "listes": [
+     "classic",
+     "c-minimal"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 5:majTriadx1 0:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1",
+   "grilleEmpreinte": "d28cb691e2947aba",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "1306d310cf10c5a1",
+    "fecbacea747eb1e9",
+    "64e4813a37284a81",
+    "04f68e46dd73969c",
+    "c9ca276286778e9f",
+    "9793b3e8b4a8663c",
+    "5328f2aeeb2f3167",
+    "08686819b537414d",
+    "1e4f3256b3ce2f8b",
+    "1e5581aa4e41918f",
+    "d0c25888d290438e",
+    "d892bef39b5af917",
+    "980e34f7b145926e",
+    "2e69a0dc01bfd784",
+    "6c3307e1b5806d05",
+    "ca4d9be4eb9c46eb",
+    "6dc0b0365f27c8bb",
+    "404b75a852481b76",
+    "e8e35d8b14e4b5cf",
+    "c3fa0c66ce44544e",
+    "7eb8a2254d3c6fc4",
+    "3178e2bddb5c437b",
+    "c880dd204c35acb5",
+    "f856ee96353bf2a1",
+    "01d3d0e7f5f27347",
+    "8ae4e78376d450e3",
+    "3d881319e17357c3",
+    "1d044acb8a5e22c5",
+    "9f24908a9d292bb4",
+    "210f06e1572db4d5",
+    "23e22b15352157f3",
+    "b290c3f0546d97c4"
+   ]
+  },
+  "orchestre:classic-minimal@valsejazz": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 168,
+    "mesure": "3/4",
+    "orchestre": "classic",
+    "rythme": "c-minimal",
+    "listes": [
+     "classic",
+     "c-minimal"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1 7:7x1 4:7x2 9:7x2 2:7x2 7:7x2 0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1/7:7 0:maj7x1",
+   "grilleEmpreinte": "d09d1a295f26dfd4",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "9e01cff45ce45544",
+    "642140b7b712d5c4",
+    "f9e2939405bcae37",
+    "9860f7486d8b16a7",
+    "aa1c531cb1b13b11",
+    "e06104ed334e1017",
+    "369c3b0909bc934d",
+    "9577ae290660ef5b",
+    "695f13a8168b8ab1",
+    "d3038f743a8e7840",
+    "ddaebb481b44cabb",
+    "fa9c3b6f7c816d57",
+    "8aefe097d323d45f",
+    "c73f6add39a94e27",
+    "a1472f22203257ae",
+    "2cf0e5a60bc1e752",
+    "4f594530d7f2fd9b",
+    "27f69d15b3f9d2f0",
+    "0c76d018055fc91f",
+    "4c9cbba22cfb2e1a",
+    "ca3dae2c376103cf",
+    "a9dfb36a66ea857a",
+    "0816d70f01635386",
+    "c891aa16bf8ec447",
+    "98409500f6bf2d58",
+    "ce5ceb2e4c3e59cc",
+    "704c442c30345e61",
+    "a36c6d29d1dbc154",
+    "06db0f85cac1904e",
+    "8b24f6d4a914828b",
+    "1d3bc4843a01ac4d",
+    "c2ffa8bb51a168ac"
+   ]
+  },
+  "orchestre:classic-neoclassic@balkan78": {
+   "reglages": {
+    "tonalite": 2,
+    "mode": "aeolian",
+    "bpm": 120,
+    "mesure": "7/8",
+    "orchestre": "classic",
+    "rythme": "c-neoclassic",
+    "listes": [
+     "classic",
+     "c-neoclassic"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:minTriadx2 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 0:majTriadx1 5:majTriadx1 10:majTriadx1 4:m7b5x1 9:7b9x1 2:minTriadx2",
+   "grilleEmpreinte": "b19a84fcde76d864",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "0b7556c61cd1d015",
+    "264fbacf8d9b1c55",
+    "109576b4db4381cb",
+    "9027bfe16af9768b",
+    "3edc8a049c9397c7",
+    "4faa44fc07f48ee4",
+    "bf35af04940a2d88",
+    "be90e80c973c85ac",
+    "a73edd70b36864de",
+    "67905fcdac8d6509",
+    "103ed39b942eb324",
+    "0707807b003601e9",
+    "23f8e423e6ab57c9",
+    "861b1799db6b91ae",
+    "8d985113b92094c2",
+    "2539969224a59392"
+   ]
+  },
+  "orchestre:classic-neoclassic@blues128": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "mixolydian",
+    "bpm": 64,
+    "mesure": "12/8",
+    "orchestre": "classic",
+    "rythme": "c-neoclassic",
+    "listes": [
+     "classic",
+     "c-neoclassic"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:7x2 0:7x2 5:7x2 0:7x2 7:7x1 5:7x1 0:7x1/7:7 0:7x1",
+   "grilleEmpreinte": "bd16204dffbf4ec8",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "ca3aa21a311ea98c",
+    "e7308a35b49193ec",
+    "d612ff8098dd70d1",
+    "364e4ef5e3db5351",
+    "19544d1274119b57",
+    "ba1feef4f5ebf60b",
+    "281307b3c195bce5",
+    "465757eb6ac3f167",
+    "c9a46a459e9522d6",
+    "f267000d585c872f",
+    "06a7f0be39921569",
+    "363aa01d5abf3c08"
+   ]
+  },
+  "orchestre:classic-neoclassic@ii-v-i": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 120,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-neoclassic",
+    "listes": [
+     "classic",
+     "c-neoclassic"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:m7x1 7:7x1 0:maj7x1 0:maj7x1",
+   "grilleEmpreinte": "7229f59c72c5c062",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "3bfb669ed8cd6052",
+    "77df2dee05bc61f1",
+    "bffbf8dd50c9200a",
+    "02fa5f3353b0a845"
+   ]
+  },
+  "orchestre:classic-neoclassic@jig": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 116,
+    "mesure": "6/8",
+    "orchestre": "classic",
+    "rythme": "c-neoclassic",
+    "listes": [
+     "classic",
+     "c-neoclassic"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 5:majTriadx1 0:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1",
+   "grilleEmpreinte": "d28cb691e2947aba",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "803d536cb89b2514",
+    "33a66afabb68e7aa",
+    "a8795e3855156dd0",
+    "e18005ebf599adaa",
+    "8a5e694360b9931a",
+    "5cc9490c8940c56b",
+    "33f153840923e54c",
+    "ea93cfba7cf5b25b",
+    "c1fe17e01c72f748",
+    "0d4d350a882adf86",
+    "101000adc984fe2d",
+    "b3b6095478a1a5fb",
+    "4f632440e468dda3",
+    "d8e683f688e2c077",
+    "da296cfd16259c10",
+    "66995c8eca227acb",
+    "a1fafd14ebde8e3a",
+    "750b20ab38b56f3d",
+    "ea2e797e98ff0d45",
+    "3c497d1e90c0f52d",
+    "e23e9c1cce555479",
+    "3f3957eadd427649",
+    "19d2a0a1e320eb30",
+    "0d47ff9845f0c03e",
+    "b86b1b1bae4c54d4",
+    "b8ea776c3164f115",
+    "26dd236274a97e85",
+    "d44eac23c16e2008",
+    "f7ea0800509b0237",
+    "0647211d015b2973",
+    "99742f6b3ee68199",
+    "bedf90befa2647db"
+   ]
+  },
+  "orchestre:classic-neoclassic@valsejazz": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 168,
+    "mesure": "3/4",
+    "orchestre": "classic",
+    "rythme": "c-neoclassic",
+    "listes": [
+     "classic",
+     "c-neoclassic"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1 7:7x1 4:7x2 9:7x2 2:7x2 7:7x2 0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1/7:7 0:maj7x1",
+   "grilleEmpreinte": "d09d1a295f26dfd4",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "f53087ba8e13151a",
+    "bec6583b85902644",
+    "d3dc6258d41ef109",
+    "a2f449708a466a6c",
+    "6a5b4e4848e28402",
+    "4ffd0639f5d12b96",
+    "3fe855b989735e6a",
+    "a6ec6ccf3f6c49cb",
+    "b9c395739ea29fe0",
+    "f62d5d40c99075ef",
+    "a974cbaed96625e6",
+    "2a833e5a26bb1996",
+    "ce8be6382b390f34",
+    "a97a1c588cf46018",
+    "1a3a7cd509a77411",
+    "874040afdccb528d",
+    "f1a8651fd72bd90d",
+    "6880919cc84f0099",
+    "95e9d40daa51aa99",
+    "73b3068061adf5a9",
+    "0584db88d1c1e2c6",
+    "2f3ed260b3fbf11d",
+    "b465f658a38103d5",
+    "ee32b2163afcdd6f",
+    "7fb8cabaf768001b",
+    "bbd5279c7f69aeb5",
+    "4797f95725f20316",
+    "ec8f6aa3e7e7af14",
+    "7a189f4c679864e4",
+    "d7a31d0d7707d93d",
+    "faafef8f382de86b",
+    "ca0a265496914b8c"
+   ]
+  },
+  "orchestre:classic-nocturne@balkan78": {
+   "reglages": {
+    "tonalite": 2,
+    "mode": "aeolian",
+    "bpm": 120,
+    "mesure": "7/8",
+    "orchestre": "classic",
+    "rythme": "c-nocturne",
+    "listes": [
+     "classic",
+     "c-nocturne"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:minTriadx2 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 0:majTriadx1 5:majTriadx1 10:majTriadx1 4:m7b5x1 9:7b9x1 2:minTriadx2",
+   "grilleEmpreinte": "b19a84fcde76d864",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "be6e8f19a5a89d2f",
+    "ec1b203bc6e85ecf",
+    "059dc922bfcbd74e",
+    "a6d63397479f4c74",
+    "2e2457b96b0c7ae1",
+    "ce779f1f14805c8e",
+    "32b01f75b80e793d",
+    "1e3f81ad68d1c6f2",
+    "587bec960155afdd",
+    "8f98beac885af0d9",
+    "9b69dc461e6223db",
+    "fcd7583da6e851f4",
+    "11b11745a443ff05",
+    "e6a74151b48ff45b",
+    "9c61010c7134b67e",
+    "a5a286e96f840b66"
+   ]
+  },
+  "orchestre:classic-nocturne@blues128": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "mixolydian",
+    "bpm": 64,
+    "mesure": "12/8",
+    "orchestre": "classic",
+    "rythme": "c-nocturne",
+    "listes": [
+     "classic",
+     "c-nocturne"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:7x2 0:7x2 5:7x2 0:7x2 7:7x1 5:7x1 0:7x1/7:7 0:7x1",
+   "grilleEmpreinte": "bd16204dffbf4ec8",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "2b14f7b612e5945a",
+    "e63dbc1e983501b4",
+    "166eac904259a7d0",
+    "d41e506af93e718f",
+    "d34b0022084daca1",
+    "f172bbb8eea30696",
+    "7bab5e4b4cb7764d",
+    "142b5ef51e9d826e",
+    "eb5da345da9b42ae",
+    "c00f4de7658c3b72",
+    "8da9594ab5f56adf",
+    "d965add18638ebcc"
+   ]
+  },
+  "orchestre:classic-nocturne@ii-v-i": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 120,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-nocturne",
+    "listes": [
+     "classic",
+     "c-nocturne"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:m7x1 7:7x1 0:maj7x1 0:maj7x1",
+   "grilleEmpreinte": "7229f59c72c5c062",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "bfa6ef67e6d6d083",
+    "afa25ce806eced61",
+    "93fd2583eee4e24f",
+    "df2efa619abfb6c0"
+   ]
+  },
+  "orchestre:classic-nocturne@jig": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 116,
+    "mesure": "6/8",
+    "orchestre": "classic",
+    "rythme": "c-nocturne",
+    "listes": [
+     "classic",
+     "c-nocturne"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 5:majTriadx1 0:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1",
+   "grilleEmpreinte": "d28cb691e2947aba",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "75e1f7b02fec2697",
+    "03233e148dd71cb1",
+    "1a62853aa287ffab",
+    "f4db7276830fc2a7",
+    "1f1bc1aeb2c0b8f9",
+    "885de4b472b08bbf",
+    "d99d42bdc517d58a",
+    "6aa83511bf9256c7",
+    "5f11c8f58030caf5",
+    "d8d1758b70246d2f",
+    "6aea4d360b14dc91",
+    "cea56479cbb267ac",
+    "0f777b60cdb0c6d1",
+    "74b07ee4ab43d340",
+    "757d7349c73a2abb",
+    "ac299123c6ba7f15",
+    "ebe903ab14b69917",
+    "dc75f9674970fe29",
+    "ef3fa7f23ea65281",
+    "559f440995e618d9",
+    "0ca0ec62d409dfbc",
+    "dd50b66222d05a2b",
+    "f739bf836e693cff",
+    "526f1ef6a321014b",
+    "0babb08a929f0003",
+    "7ebda25473c02a4f",
+    "444f0d8d5e0fbcfe",
+    "1dfcd179d8d40dc2",
+    "f4cfb763b541bebb",
+    "44179420be920d5e",
+    "4fe9fce26d4c94aa",
+    "53e995b1d3bb62bd"
+   ]
+  },
+  "orchestre:classic-nocturne@valsejazz": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 168,
+    "mesure": "3/4",
+    "orchestre": "classic",
+    "rythme": "c-nocturne",
+    "listes": [
+     "classic",
+     "c-nocturne"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1 7:7x1 4:7x2 9:7x2 2:7x2 7:7x2 0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1/7:7 0:maj7x1",
+   "grilleEmpreinte": "d09d1a295f26dfd4",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "2fd8c21e526a5ee7",
+    "9e710d0b883ba865",
+    "cf725d3f0edd326c",
+    "799c6af8193a5560",
+    "7cde67e670d778ad",
+    "7c1b9cba7431baf7",
+    "a609afcb38ed4bf8",
+    "83d23a384f54a59a",
+    "185ea6b26d38c622",
+    "f0b1834219fbb38a",
+    "279a43a0bc70221f",
+    "fe3c4463aa5988ef",
+    "0b45b69d35ea71ec",
+    "a5bd1f58ca799431",
+    "026d8539022ce141",
+    "fb5e5a31661a6ee4",
+    "ef23d081bb48126c",
+    "60b14c459e9f383a",
+    "a922275dd507fcd5",
+    "e96a5df6f9d48e1a",
+    "ab3bda48c753ec85",
+    "f74d08a65f9e9f97",
+    "6f33a6dd0d2500cf",
+    "a97c73f2787a8278",
+    "d5e843f5bd3dc13c",
+    "4e2ab4d3980951ac",
+    "02f043a480cd0ed0",
+    "a5af0279b8a30b10",
+    "401b84f38bd88a4b",
+    "ab8bf7e47f17bf94",
+    "10e4d4ceb64ee9f8",
+    "5a90e46353effd4c"
+   ]
+  },
+  "orchestre:classic-renaissance@balkan78": {
+   "reglages": {
+    "tonalite": 2,
+    "mode": "aeolian",
+    "bpm": 120,
+    "mesure": "7/8",
+    "orchestre": "classic",
+    "rythme": "c-renaissance",
+    "listes": [
+     "classic",
+     "c-renaissance"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:minTriadx2 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 0:majTriadx1 5:majTriadx1 10:majTriadx1 4:m7b5x1 9:7b9x1 2:minTriadx2",
+   "grilleEmpreinte": "b19a84fcde76d864",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "079b1f97dd02d0a5",
+    "74889ddb41bf1343",
+    "900554684c31de53",
+    "e3c204e6b35b3177",
+    "b42f6964a375dd15",
+    "fa4051dc67ba8d85",
+    "5cf1feae2a3539ad",
+    "8ed824df209fcfd7",
+    "99d1d40672647dc2",
+    "8a64f025501a2fd2",
+    "73c9550021de19ba",
+    "2a77778c5dccbcc9",
+    "42194671fbfd100a",
+    "57c50518c9f546a7",
+    "90c3c03cf7e3181e",
+    "9005649599b2aec7"
+   ]
+  },
+  "orchestre:classic-renaissance@blues128": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "mixolydian",
+    "bpm": 64,
+    "mesure": "12/8",
+    "orchestre": "classic",
+    "rythme": "c-renaissance",
+    "listes": [
+     "classic",
+     "c-renaissance"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:7x2 0:7x2 5:7x2 0:7x2 7:7x1 5:7x1 0:7x1/7:7 0:7x1",
+   "grilleEmpreinte": "bd16204dffbf4ec8",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "639607eb032e6730",
+    "697006f4aa49bc7c",
+    "8c72a5b835c6c4f5",
+    "af5aa81c87e399c2",
+    "cd7926e500bc5842",
+    "318bc8049422fe34",
+    "3cdc732d649f6c4b",
+    "c2c00b1d55fe3dee",
+    "5da36f7ddcc98214",
+    "5ee4453b348d915e",
+    "a40e1faec2640d80",
+    "920921cc6f74d16e"
+   ]
+  },
+  "orchestre:classic-renaissance@ii-v-i": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 120,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-renaissance",
+    "listes": [
+     "classic",
+     "c-renaissance"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:m7x1 7:7x1 0:maj7x1 0:maj7x1",
+   "grilleEmpreinte": "7229f59c72c5c062",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "bac9e513a6bafda9",
+    "b03c65a3ff06336c",
+    "b0574c714abcb164",
+    "4c52be30e1a10274"
+   ]
+  },
+  "orchestre:classic-renaissance@jig": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 116,
+    "mesure": "6/8",
+    "orchestre": "classic",
+    "rythme": "c-renaissance",
+    "listes": [
+     "classic",
+     "c-renaissance"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 5:majTriadx1 0:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1",
+   "grilleEmpreinte": "d28cb691e2947aba",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "cb8755885d3f6c6d",
+    "49fca2c3018ecdca",
+    "a17dc38986c83ce4",
+    "0bc5328434b9b893",
+    "da9a66188633a631",
+    "df983bb6cb7173f2",
+    "8ef2892721efcf1b",
+    "c2e26d255127f667",
+    "9b09f80a1594a64e",
+    "ea4b4181691b0372",
+    "aae75be49157016a",
+    "c089b88a8ac41a47",
+    "f436296b0154e793",
+    "513d6a4ba469c129",
+    "13737f1d134fe4db",
+    "8c028444fa15dab3",
+    "b6376c2b5b7c4b2c",
+    "2414a9bd6f8899e8",
+    "1cf2ef1f80ee1a54",
+    "1755f54ee11928ad",
+    "938c5069ea881573",
+    "a81991f7edcfd037",
+    "8223863d2019c318",
+    "6c80d9b7a92753e1",
+    "28b02ff5bab810ea",
+    "b33df0ced5e83f2f",
+    "00da84675e2bab8f",
+    "f9a370fdfdc4085e",
+    "88654934b60c6e74",
+    "87c94e7b6e0dd918",
+    "3df74aaa2ca1657a",
+    "38921ca14402385e"
+   ]
+  },
+  "orchestre:classic-renaissance@valsejazz": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 168,
+    "mesure": "3/4",
+    "orchestre": "classic",
+    "rythme": "c-renaissance",
+    "listes": [
+     "classic",
+     "c-renaissance"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1 7:7x1 4:7x2 9:7x2 2:7x2 7:7x2 0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1/7:7 0:maj7x1",
+   "grilleEmpreinte": "d09d1a295f26dfd4",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "fd8362623ff58626",
+    "de967dd45f0bfcd1",
+    "3bab7e78bd376231",
+    "90e58dfc7a8cdae8",
+    "0724032640514ee6",
+    "fdeb785b716dd3c3",
+    "1452860d2be153ba",
+    "746a2ad9da8981e6",
+    "36c25f94f8564d6f",
+    "b5f39e45ff67dc5e",
+    "d8fcee937b8149f5",
+    "82d27c5dbaad0bae",
+    "57e0a7dc82c2cd59",
+    "885fb84b917ba980",
+    "6f62b8576848c297",
+    "1ce4cbd441c3f51d",
+    "0673c95c299c262f",
+    "98c28a7f77ce32e9",
+    "297a43442a71566a",
+    "24923cff2def3c19",
+    "fe0452b88ca3b866",
+    "1fdaeaf813d51dc5",
+    "2c1b8f6431fe1535",
+    "03aea9e98c617eb7",
+    "36053d0a1df80737",
+    "ea8b06524bf70ee2",
+    "20be8576d282e546",
+    "5eb7f5e0ea47d6fe",
+    "c2a3a4f12c65ad91",
+    "33202c47ccaef457",
+    "469fcbe03ea1f841",
+    "0e050f38f115677b"
+   ]
+  },
+  "orchestre:classic-romantic@balkan78": {
+   "reglages": {
+    "tonalite": 2,
+    "mode": "aeolian",
+    "bpm": 120,
+    "mesure": "7/8",
+    "orchestre": "classic",
+    "rythme": "c-romantic",
+    "listes": [
+     "classic",
+     "c-romantic"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:minTriadx2 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 0:majTriadx1 5:majTriadx1 10:majTriadx1 4:m7b5x1 9:7b9x1 2:minTriadx2",
+   "grilleEmpreinte": "b19a84fcde76d864",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "9bab2609d9d8b67e",
+    "77d1e9a32aef1a61",
+    "60ca66a4c735575c",
+    "e6e8d05c871a06c8",
+    "208776137281fa8d",
+    "1057da44fad89804",
+    "bab589a74b141641",
+    "0db159784863a9b5",
+    "5dbd4e80f792b943",
+    "3d305728721a55d9",
+    "cb2c3a4c3214a52b",
+    "9337ec5f859ea815",
+    "56696f99be91c73e",
+    "7f24b89f1d8cfbd8",
+    "e34e9a681abf1857",
+    "99b0e90874cb4a8e"
+   ]
+  },
+  "orchestre:classic-romantic@blues128": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "mixolydian",
+    "bpm": 64,
+    "mesure": "12/8",
+    "orchestre": "classic",
+    "rythme": "c-romantic",
+    "listes": [
+     "classic",
+     "c-romantic"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:7x2 0:7x2 5:7x2 0:7x2 7:7x1 5:7x1 0:7x1/7:7 0:7x1",
+   "grilleEmpreinte": "bd16204dffbf4ec8",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "0c7cd7bdc862fc8b",
+    "1901e82cee7bc1e7",
+    "2df1dfd5c13608bb",
+    "893982d51c248549",
+    "6fa07a5903d1818c",
+    "dc3b5a596a731795",
+    "28263af24b4b5b81",
+    "57e601698cb50f85",
+    "ee09cd7cdaf92ebc",
+    "6696b403d79a5c9c",
+    "d94a464d948583ff",
+    "fc8db02470d790eb"
+   ]
+  },
+  "orchestre:classic-romantic@ii-v-i": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 120,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-romantic",
+    "listes": [
+     "classic",
+     "c-romantic"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:m7x1 7:7x1 0:maj7x1 0:maj7x1",
+   "grilleEmpreinte": "7229f59c72c5c062",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "7a4df114c651269b",
+    "0925371aa116a9ee",
+    "1ee4e62b0cb85095",
+    "9ef1fdaee9519a24"
+   ]
+  },
+  "orchestre:classic-romantic@jig": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 116,
+    "mesure": "6/8",
+    "orchestre": "classic",
+    "rythme": "c-romantic",
+    "listes": [
+     "classic",
+     "c-romantic"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 5:majTriadx1 0:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1",
+   "grilleEmpreinte": "d28cb691e2947aba",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "2e727a3acde79b64",
+    "d769c518ef52a50f",
+    "198acebbcbfed747",
+    "ce27d005254251c0",
+    "77b3cc4521b71fbb",
+    "51219e31abe1bdc5",
+    "7f528a71df3ee15e",
+    "bc73860e17c6b727",
+    "795714e924382673",
+    "77eb96517a7086cc",
+    "371022f898b96ee0",
+    "4654f287eb1b2e39",
+    "70ac6eaf8cfece3f",
+    "3b51c696d5e78b31",
+    "563fd99f0ea78882",
+    "1221984212f6ca95",
+    "d91ec037d00a617d",
+    "69cd9cbc21c9774c",
+    "68b8897fa1ef9941",
+    "e5e54d804a74bea0",
+    "a30722f634e61f44",
+    "6093c6a070a80d87",
+    "aa0a82436b712714",
+    "18a8a55d7e86825a",
+    "3651bf995f49952c",
+    "935c8f8402cbdc24",
+    "3854210c870cb52f",
+    "fcca19af44290e8c",
+    "a941622c50f34e96",
+    "23d6a59064d2d13e",
+    "afe823fc76f139c2",
+    "8cdd0391d2da1b53"
+   ]
+  },
+  "orchestre:classic-romantic@valsejazz": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 168,
+    "mesure": "3/4",
+    "orchestre": "classic",
+    "rythme": "c-romantic",
+    "listes": [
+     "classic",
+     "c-romantic"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1 7:7x1 4:7x2 9:7x2 2:7x2 7:7x2 0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1/7:7 0:maj7x1",
+   "grilleEmpreinte": "d09d1a295f26dfd4",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "1b56c2a8fc490545",
+    "1c032a093ab1af32",
+    "5dd5c6fa9b32c166",
+    "8f350586f2e3d593",
+    "186f77936a4e4e28",
+    "ac30773a48fb538a",
+    "c652a804e7b937db",
+    "387b423eec33d891",
+    "8f352c30d30ef216",
+    "2ca1bee2980db4f6",
+    "f0c0911587263d01",
+    "f700a03931c85e03",
+    "ebfb71c340217f06",
+    "2bfa8168e0f2ee8a",
+    "6d9bbb1e06eea2cf",
+    "69f499f7ed00fdae",
+    "d127b789df45a9a0",
+    "6bf8046b9feeb6fb",
+    "986c743d1f5c8fda",
+    "f87037d188056e02",
+    "cfe6cb3e5b8b940c",
+    "f6bfd8ed35bfb827",
+    "7b4a8d290e69caa3",
+    "b385835dfcf1864a",
+    "2102f65d8443cb50",
+    "8fb8a003614471fa",
+    "bfbcd5a7c8a54849",
+    "1645fd4ec328fb16",
+    "18fa33bdc70143ce",
+    "4e7baf8ded896315",
+    "a2d3a3d1e74fb776",
+    "5245f59fe18e6578"
+   ]
+  },
+  "orchestre:classic-satie@balkan78": {
+   "reglages": {
+    "tonalite": 2,
+    "mode": "aeolian",
+    "bpm": 120,
+    "mesure": "7/8",
+    "orchestre": "classic",
+    "rythme": "c-satie",
+    "listes": [
+     "classic",
+     "c-satie"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:minTriadx2 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 0:majTriadx1 5:majTriadx1 10:majTriadx1 4:m7b5x1 9:7b9x1 2:minTriadx2",
+   "grilleEmpreinte": "b19a84fcde76d864",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "bcbbed7538c3c6c9",
+    "a41fb854d02fcb14",
+    "13965a295b2a49a6",
+    "7aaede40b5ca84b3",
+    "e76a4a55def4870d",
+    "f08a6893498f3dd7",
+    "2af93181bdfe4fca",
+    "c18c8851c745cc3c",
+    "063d47736a22d903",
+    "4cec73ce63da5aa6",
+    "d1872b91bb8b0db8",
+    "d8b26f2330c4d89c",
+    "9f2dc25bdce6e522",
+    "891469ea3559e2f2",
+    "c8c8bad7f9a5d959",
+    "d296d970af3ddd1b"
+   ]
+  },
+  "orchestre:classic-satie@blues128": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "mixolydian",
+    "bpm": 64,
+    "mesure": "12/8",
+    "orchestre": "classic",
+    "rythme": "c-satie",
+    "listes": [
+     "classic",
+     "c-satie"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:7x2 0:7x2 5:7x2 0:7x2 7:7x1 5:7x1 0:7x1/7:7 0:7x1",
+   "grilleEmpreinte": "bd16204dffbf4ec8",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "62ae1bab445e9c03",
+    "8a674b40cf449b4b",
+    "de5bdd4d5819c1e5",
+    "081151d257c011ef",
+    "da878e5637168755",
+    "96732ab0c3022b0b",
+    "faf2be63ed160c47",
+    "663465ddd53da071",
+    "6d60afe1a8d28d42",
+    "d6edeece5ad4f33e",
+    "1b920653d50350ec",
+    "134be56b455f6ad8"
+   ]
+  },
+  "orchestre:classic-satie@ii-v-i": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 120,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-satie",
+    "listes": [
+     "classic",
+     "c-satie"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:m7x1 7:7x1 0:maj7x1 0:maj7x1",
+   "grilleEmpreinte": "7229f59c72c5c062",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "7e0bebca4652bd1f",
+    "65954a4dc4c2419b",
+    "c3c93349252c627d",
+    "e7081ff42024be62"
+   ]
+  },
+  "orchestre:classic-satie@jig": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 116,
+    "mesure": "6/8",
+    "orchestre": "classic",
+    "rythme": "c-satie",
+    "listes": [
+     "classic",
+     "c-satie"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 5:majTriadx1 0:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1",
+   "grilleEmpreinte": "d28cb691e2947aba",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "26d3ee7cc996928d",
+    "ec5c78e55c9f48b0",
+    "2b2d63c0a7896836",
+    "77cf0c05735bf9cc",
+    "fd14b64247deb2c0",
+    "1d469130dbd1e734",
+    "fe9f4979a59a08b6",
+    "8e91a7b476fff4a7",
+    "7e321807c65af826",
+    "b26ca43bc86f07c4",
+    "9e71ed825dcd0196",
+    "5c8ab3613cb8db0c",
+    "7a3841aaa9b080f0",
+    "11c1f6d082f850ba",
+    "be35465ca8ccfa69",
+    "c7c808779979b2d6",
+    "7fe1a48ef902f11a",
+    "911069e4413725fb",
+    "6adc9872cb3ac4f8",
+    "d470c421426b49e0",
+    "f607af29bdbbd4e2",
+    "404f336bd4bf9695",
+    "ce2de905bee34832",
+    "b22b4744418432ec",
+    "e689acab9bd67563",
+    "5ac2d833186cc66e",
+    "80bbb70d1dd56417",
+    "a9bdf58777ef2f4c",
+    "3d68aeddacf17ad6",
+    "496ba679909e37ab",
+    "31df31edaf19e9a9",
+    "af3eb38e892d65bd"
+   ]
+  },
+  "orchestre:classic-satie@valsejazz": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 168,
+    "mesure": "3/4",
+    "orchestre": "classic",
+    "rythme": "c-satie",
+    "listes": [
+     "classic",
+     "c-satie"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1 7:7x1 4:7x2 9:7x2 2:7x2 7:7x2 0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1/7:7 0:maj7x1",
+   "grilleEmpreinte": "d09d1a295f26dfd4",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "783cf78e555a0cc4",
+    "20603ab007277e2b",
+    "541d33defd1adc5b",
+    "962bec1061a6f069",
+    "95220adb82d30603",
+    "e2ed6604349a2607",
+    "5f056b6fb1c271ce",
+    "6ccc55d905278f87",
+    "043a364be8fd7cf0",
+    "deb1f05e9cf70d40",
+    "222895326ae0078b",
+    "aaa27394f015b5f9",
+    "d540702678565b06",
+    "6dc4ae5a083e8825",
+    "99f0fd66d72acd3a",
+    "7926bad1caa61718",
+    "0a5ea5634d26fa3f",
+    "e74ddf8999ade121",
+    "fe0562a98ab6d01b",
+    "eae401dd227c7bb4",
+    "173e1107c35963d2",
+    "82803c4b2947457d",
+    "36a834ffe92ea529",
+    "a866fe585bd4c45d",
+    "53d0949ee74539b0",
+    "6ff754e2f1b32918",
+    "d6451f89f0445cbd",
+    "7d08915d002cb916",
+    "4c9c03695363dbf6",
+    "d4a5d9f927657024",
+    "7f996ce5a3cfb9f3",
+    "0207877fc0fda287"
+   ]
+  },
   "orchestre:classic@balkan78": {
    "reglages": {
     "tonalite": 2,
@@ -18275,6 +20723,228 @@
     "b2ac701f374757fc"
    ]
   },
+  "style:chaconne": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 72,
+    "mesure": "3/4",
+    "orchestre": "classic",
+    "rythme": "c-chaconne",
+    "listes": [
+     "classic",
+     "c-chaconne"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 7:majTriadx1 9:minTriadx1 4:minTriadx1 5:majTriadx1 0:majTriadx1 5:majTriadx1 7:majTriadx1 0:majTriadx1 7:majTriadx1 9:minTriadx1 4:minTriadx1 5:majTriadx1 0:majTriadx1 5:majTriadx1 7:majTriadx1 5:majTriadx1/7:7 0:majTriadx1",
+   "grilleEmpreinte": "4d9cea9c151b3b86",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "858f444bbecdd1a3",
+    "2216d189ccb15465",
+    "160ddb7f26e04ec0",
+    "5a91ec0fb8567d31",
+    "4730db3bb3f4faca",
+    "ff5658a864f3f163",
+    "f4e9ecbc4eefb8ae",
+    "147107a767ea91d4",
+    "7256eb0e4813248e",
+    "610c65751fbf0e55",
+    "9c445b93ddf9347e",
+    "ba7fa594887cda40",
+    "ec0ca4a6b47c7525",
+    "e70bbb7e741c2849",
+    "ee1086a73858ce2f",
+    "f95040c05f5e73dd",
+    "556e31799e1f5968",
+    "b141abc0a1f81527",
+    "5d38df56fdb7824d",
+    "f7159b4870a2963c",
+    "d97fa786eb6c71d6",
+    "01622495cc534705",
+    "608afa858eb222e7",
+    "44b3f3fd9ced69da",
+    "f3f06a9d0c26e7a5",
+    "d9e5d9d76f6d0239",
+    "9a5ae00e7bb1abd5",
+    "85efeb6d9c3a7268",
+    "fa1649159bc04b2e",
+    "293933287dd11da6",
+    "3506b1a74398ecf8",
+    "dc7ac8d968077c41"
+   ]
+  },
+  "style:chaconne#generer": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 72,
+    "mesure": "3/4",
+    "orchestre": "classic",
+    "rythme": "c-chaconne",
+    "listes": [
+     "classic",
+     "c-chaconne"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 7:majTriadx1 9:minTriadx1 7:majTriadx1 0:majTriadx1 7:majTriadx1 5:majTriadx1 7:majTriadx1 0:majTriadx1 7:majTriadx1 9:minTriadx1 7:7x1 0:majTriadx1 7:majTriadx1 2:minTriadx1 7:majTriadx1 0:majTriadx1 7:majTriadx1 9:minTriadx1 7:majTriadx1 0:majTriadx1 7:majTriadx1 5:majTriadx1/7:7 0:majTriadx1",
+   "grilleEmpreinte": "3ab6443ec8e44d46",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "858f444bbecdd1a3",
+    "0849701b84bd6e06",
+    "0313b1eaa1ceacc3",
+    "4e0dc40464bfd3a9",
+    "d18645d0c3107e00",
+    "80bc3f89930b6f02",
+    "a8de2061cf80c703",
+    "0de5c88c9b71d113",
+    "ef4d230c5b03312d",
+    "376532a7b538bf9a",
+    "9f0d8f922306ca05",
+    "f67ecec99db1b33e",
+    "84645da1cc9be062",
+    "bc8adcfb753b3f49",
+    "a7cfec8cf5e4a74a",
+    "eb6d75b71a66020b",
+    "4c6c19ca6e51d3de",
+    "f5531a569653d2d1",
+    "7f06af04996f8bf8",
+    "d7e4e529cc549fa8",
+    "e4122ec137e69a65",
+    "fb82efbcbf584638",
+    "0936abe285e334ff",
+    "8449d806aeaaabdb",
+    "bdefdddcf528599f",
+    "6d5cdeed229078ca",
+    "7a38b2be55441d18",
+    "865e880fd34a099f",
+    "254b71937fb522f4",
+    "e871af62509e8317",
+    "8dfbe0fff4046893",
+    "09930ffed1f6b02e"
+   ]
+  },
+  "style:chaconne#graine2": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 72,
+    "mesure": "3/4",
+    "orchestre": "classic",
+    "rythme": "c-chaconne",
+    "listes": [
+     "classic",
+     "c-chaconne"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 7:majTriadx1 9:minTriadx1 4:minTriadx1 5:majTriadx1 0:majTriadx1 5:majTriadx1 7:majTriadx1 0:majTriadx1 7:majTriadx1 9:minTriadx1 4:minTriadx1 5:majTriadx1 0:majTriadx1 5:majTriadx1 7:majTriadx1 5:majTriadx1/7:7 0:majTriadx1",
+   "grilleEmpreinte": "4d9cea9c151b3b86",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "ecdc082c21e619d4",
+    "ff9f321aa0c64c02",
+    "c9d5955410ea2cbe",
+    "fd21690710774913",
+    "758a26d57dc11706",
+    "07e58fa680808099",
+    "ccc9daf85338c3dc",
+    "fe78c55fcd10334a",
+    "1157bac9530759d0",
+    "434eb5894ec9e539",
+    "d1d5b9870a5ffb9b",
+    "1367c273d9c9f8bd",
+    "c540776fdb7ccdd6",
+    "fe62200c2f71fc04",
+    "b4421b0eaa8166af",
+    "2869a28b41d4c42b",
+    "d54a8d5dc7d6c4f3",
+    "17defcd1c49d42ae",
+    "5ccc287f778c3cfe",
+    "dfb36ec236763d98",
+    "30a0da851a5d2faa",
+    "e7dd0990c3778648",
+    "b96a82ebb7a70198",
+    "4d380863608fe033",
+    "e42bb78a137d37ba",
+    "9d25f26a3cc56337",
+    "4dfdda2e90f1fde2",
+    "9869c07cd3daf59d",
+    "3a1bc57c9cbb3efa",
+    "7a9740c99c8ee4ad",
+    "5cfd5b18879372a6",
+    "8344a928d8de6fe6"
+   ]
+  },
   "style:chansonsimple": {
    "reglages": {
     "tonalite": 0,
@@ -20441,6 +23111,180 @@
     "63881cd93ed37f15"
    ]
   },
+  "style:gymnopedie": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 72,
+    "mesure": "3/4",
+    "orchestre": "classic",
+    "rythme": "c-satie",
+    "listes": [
+     "classic",
+     "c-satie"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:maj7x1 5:maj7x1 0:maj7x1 5:maj7x1 9:m7x1 4:m7x1 5:maj7x1 4:m7x1 2:m7x1 4:m7x1 5:maj7x1 0:maj7x1",
+   "grilleEmpreinte": "8c80080d1a3379db",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "d3f096705b25fbc3",
+    "fced4b294b2f7ead",
+    "cf3113948f62d7c5",
+    "bbf5aae24ed45081",
+    "325d7c94b5e7660a",
+    "f5b5b3306bc71418",
+    "c09cc47a58590185",
+    "8790d248d014940a",
+    "875b167f371a80bc",
+    "f8a6f29c428e8c74",
+    "7f701188c965eef1",
+    "cd22bb8a3041e4ae",
+    "1efb4310746fa276",
+    "6f1a3370185f901b",
+    "b60b15b8233ae210",
+    "ca406899b9d97921"
+   ]
+  },
+  "style:gymnopedie#generer": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 72,
+    "mesure": "3/4",
+    "orchestre": "classic",
+    "rythme": "c-satie",
+    "listes": [
+     "classic",
+     "c-satie"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:6x1 5:maj7x1 0:maj9x1 4:m7x1 2:m7x1 7:m9x1 0:maj9x1 5:maj7x1 0:maj7x1 5:maj7x1 0:maj7x1 5:maj7x1 5:maj7x1 4:m7x1 2:m7x1 0:maj7x1",
+   "grilleEmpreinte": "c6295c9bbb53b420",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "6a907a8c19bc396c",
+    "fced4b294b2f7ead",
+    "cf3113948f62d7c5",
+    "49b36723e9753463",
+    "530db90026068ce3",
+    "25ebed3149237791",
+    "7aeff684438b8806",
+    "ee2122e0438d5464",
+    "875b167f371a80bc",
+    "f8a6f29c428e8c74",
+    "7f701188c965eef1",
+    "cd22bb8a3041e4ae",
+    "f2cf156a38d9131f",
+    "6f1a3370185f901b",
+    "b398f534f4f36966",
+    "ca406899b9d97921"
+   ]
+  },
+  "style:gymnopedie#graine2": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 72,
+    "mesure": "3/4",
+    "orchestre": "classic",
+    "rythme": "c-satie",
+    "listes": [
+     "classic",
+     "c-satie"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:maj7x1 5:maj7x1 0:maj7x1 5:maj7x1 9:m7x1 4:m7x1 5:maj7x1 4:m7x1 2:m7x1 4:m7x1 5:maj7x1 0:maj7x1",
+   "grilleEmpreinte": "8c80080d1a3379db",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "4039b5fce1e83ae1",
+    "fec4e356efbd4c89",
+    "8f514d2b17f902d0",
+    "e44da6a9c16ef4e7",
+    "dcfb290bdaacf3cf",
+    "288bc4e27b6bac14",
+    "6929f2333cadf5c2",
+    "5253fe62c4ac8514",
+    "abfba6e0798222e1",
+    "8f8359db0897b2f8",
+    "b606c976918caf5e",
+    "f74e520b1cfbe93f",
+    "a011e9961410012b",
+    "5728d48f401e16cf",
+    "fb8ff6dd3857b0b5",
+    "14775daa76363b4c"
+   ]
+  },
   "style:hardbop": {
    "reglages": {
     "tonalite": 0,
@@ -21288,6 +24132,180 @@
     "8c3d071af185e0b0",
     "957107814907e219",
     "270dae5b9d5e2b66"
+   ]
+  },
+  "style:impressionnisme": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 60,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-impression",
+    "listes": [
+     "classic",
+     "c-impression"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:maj9x1 2:majTriadx1 0:maj9x1 2:majTriadx1 10:9x1 5:maj9x1 10:9x1 0:maj9x1 9:m9x1 5:maj7x1 9:m9x1 8:maj7x1 5:maj9x1 5:x:m:P:6:-x1 1:maj7x1 0:maj9x1",
+   "grilleEmpreinte": "ff79ccde71139603",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "5c0e803304482275",
+    "e2659e59b72ae4eb",
+    "10629b952f685b54",
+    "b2b034ac4fa26d6a",
+    "3d7a314cfef576ca",
+    "32a48a653bcaa407",
+    "ae0eac392e978584",
+    "a7b1d2b85b28ec21",
+    "c87535db9cf1b248",
+    "52644433766d9e5e",
+    "35ddc330550fcf2a",
+    "168496b94fcfcf7a",
+    "57563c934798f358",
+    "75384ccd2fe885b6",
+    "c195fe78a0d7a66f",
+    "50446253e02ae83a"
+   ]
+  },
+  "style:impressionnisme#generer": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 60,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-impression",
+    "listes": [
+     "classic",
+     "c-impression"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:maj7x1 2:majTriadx1/1:maj9 0:maj9x1 2:majTriadx1 0:7sharp5x1 10:7sharp5x1 8:7sharp5x1 7:x:sus4:P:b7:9x1 3:maj7x1 8:maj7x1 1:maj7x1/11:maj9 0:maj9x1 2:m9x1 10:9x1 5:maj9x1/5:x:m:P:6:- 0:x:M:P:-:9x1",
+   "grilleEmpreinte": "c913f48bff4275c1",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "bcc83cf83b38b979",
+    "828bc30ba63b61e6",
+    "dd5eeb4aeb818251",
+    "de337e4f14af46f1",
+    "3cf6788057323e52",
+    "e7fdcd664e1ae8ba",
+    "d417b0dd70d51fff",
+    "3cd698b1cbabf892",
+    "ab43f68fce39a818",
+    "4f6fdffe9c609051",
+    "eaadd6a532eaae72",
+    "184398eec3b9e801",
+    "7a5c7e8a3f6a2938",
+    "ea06ad4dbf22d358",
+    "279c23950f095fee",
+    "2ad51ef7e3c92ea5"
+   ]
+  },
+  "style:impressionnisme#graine2": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 60,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-impression",
+    "listes": [
+     "classic",
+     "c-impression"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:maj9x1 2:majTriadx1 0:maj9x1 2:majTriadx1 10:9x1 5:maj9x1 10:9x1 0:maj9x1 9:m9x1 5:maj7x1 9:m9x1 8:maj7x1 5:maj9x1 5:x:m:P:6:-x1 1:maj7x1 0:maj9x1",
+   "grilleEmpreinte": "ff79ccde71139603",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "8d5e7229aa225ac8",
+    "9fd2cd985f01c456",
+    "0003fb2b03e9af52",
+    "50cbeafa1b5df059",
+    "8065a2fbf1a806d0",
+    "e16bc140277c6fbe",
+    "fb26b7e3766c4256",
+    "b97e4d3a11f7aed5",
+    "57ad410efaf29f17",
+    "32d87a13143667ce",
+    "57262b7cc493c088",
+    "912fc09bd27f221b",
+    "54b27df24c374ee3",
+    "3877afc78b005e8b",
+    "a27eb0f2a902f5d7",
+    "51e7aa80a4967ec7"
    ]
   },
   "style:indierock": {
@@ -22508,6 +25526,180 @@
     "be61afa4e076ce6a"
    ]
   },
+  "style:minimalisme": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 120,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-minimal",
+    "listes": [
+     "classic",
+     "c-minimal"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 0:majTriadx1 9:minTriadx2 5:majTriadx2 7:majTriadx1 7:majTriadx1 0:majTriadx1",
+   "grilleEmpreinte": "042a6ec352b77a99",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "b399168827044779",
+    "79d30a390621d63d",
+    "f4407789267748c6",
+    "f3c1a5c90513f25d",
+    "f8422eb396f00d03",
+    "5aa3ae70ca98a8b5",
+    "74ac1f66967e70ae",
+    "a74fe1a3350d1525",
+    "ba53d1dc159e4236",
+    "250c238afb5d4b7a",
+    "a66e1f5152216c6c",
+    "3898775da5b72af2",
+    "ebd3583c2a8aafa4",
+    "1bb4d9b36f65fd1a",
+    "a413a8bc8357d30d",
+    "f142bc93dfb4dbd4"
+   ]
+  },
+  "style:minimalisme#generer": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 120,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-minimal",
+    "listes": [
+     "classic",
+     "c-minimal"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:x:M:P:-:9x1 0:x:M:P:-:9x1 5:maj7x2 9:m7x2 7:7sus4x2 0:majTriadx2 4:minTriadx2 9:minTriadx2 5:majTriadx1 0:x:M:P:-:9x1",
+   "grilleEmpreinte": "79542d3947bd752b",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "b399168827044779",
+    "45d417eba495b375",
+    "859369ce84f4ab0e",
+    "60da2550aec31699",
+    "f427802c7aef8cf8",
+    "977b7fa6376b2ccb",
+    "d5411059eba142ba",
+    "8c444f8f9758b730",
+    "1aacf1cf51bfc448",
+    "85748629c7c1c0a0",
+    "b3f796d998c9d57b",
+    "b242d36e134f16ec",
+    "2b25fdf3fd5d26bd",
+    "93e346968824ebf9",
+    "8dc63817d431882e",
+    "d8911f1469452769"
+   ]
+  },
+  "style:minimalisme#graine2": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 120,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-minimal",
+    "listes": [
+     "classic",
+     "c-minimal"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 0:majTriadx1 9:minTriadx2 5:majTriadx2 7:majTriadx1 7:majTriadx1 0:majTriadx1",
+   "grilleEmpreinte": "042a6ec352b77a99",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "7647834181ec5325",
+    "f066ea14e220eb00",
+    "990d025827b7b4dd",
+    "b98178f75a796b5c",
+    "901add5241753b71",
+    "30b0d7bd17a4aca0",
+    "b5f75519605917f5",
+    "7cff4ccbadf8633c",
+    "59c2b954f7332fcf",
+    "635794a08b9d0ef7",
+    "b570a89f3e9f7c56",
+    "d90cd9f2b6f80c37",
+    "c682dfceb250a4f8",
+    "3d00694bcc56a178",
+    "a309c4166ed4672f",
+    "0e5af917de58ecb5"
+   ]
+  },
   "style:modal": {
    "reglages": {
     "tonalite": 0,
@@ -22848,6 +26040,354 @@
     "059b4a54e315c12f",
     "2089245fe8732cdb",
     "d7043be56739affe"
+   ]
+  },
+  "style:neoclassique": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 126,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-neoclassic",
+    "listes": [
+     "classic",
+     "c-neoclassic"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 1:majTriadx1 0:majTriadx1 7:7x1 0:majTriadx1 10:majTriadx1 5:majTriadx1 0:majTriadx1 4:majTriadx1 9:majTriadx1 2:majTriadx1 7:7x1 0:majTriadx1 8:majTriadx1 7:7x1 0:majTriadx1",
+   "grilleEmpreinte": "57a52984f9050cec",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "38510eef5d377685",
+    "6edba6c7722f6eca",
+    "b8e27a3c46b7830f",
+    "45052f0bd16ae958",
+    "3562757e932a967d",
+    "a10369ec9976986c",
+    "4436fa72ee70d98f",
+    "a603826cc093ebd5",
+    "ccc2b31592c12160",
+    "623d5877ffc23d5a",
+    "860413670d98e04e",
+    "27dc524d662a009f",
+    "180db0ff38180736",
+    "072aff2130e532f2",
+    "101901357889a9d8",
+    "7c9d5ec0f7df7e49"
+   ]
+  },
+  "style:neoclassique#generer": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 126,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-neoclassic",
+    "listes": [
+     "classic",
+     "c-neoclassic"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 9:minTriadx1/9:majTriad 10:majTriadx1 7:7x1 0:majTriadx1 0:7x1 5:majTriadx1 0:majTriadx1 3:majTriadx1 8:majTriadx1 1:majTriadx1 7:7x1 0:majTriadx1 9:minTriadx1 2:minTriadx1/7:7 0:majTriadx1",
+   "grilleEmpreinte": "9374e68484345422",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "38510eef5d377685",
+    "d5c35c3a1652039a",
+    "583816ce3f771a54",
+    "ed49dfedb50737e3",
+    "da765d3f4c5b676e",
+    "2b0f664310015f57",
+    "a269612a4b901608",
+    "f0ec9ca41e7ec09d",
+    "aa4496bce577daae",
+    "ed71a2844415fcb3",
+    "98fcdea20c4bd7ae",
+    "daec94d38b6fa1d2",
+    "d9b54bf1e23c0de4",
+    "0561200924c796ac",
+    "da066dc901f62cf7",
+    "87a7a292e913b5d1"
+   ]
+  },
+  "style:neoclassique#graine2": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 126,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-neoclassic",
+    "listes": [
+     "classic",
+     "c-neoclassic"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 1:majTriadx1 0:majTriadx1 7:7x1 0:majTriadx1 10:majTriadx1 5:majTriadx1 0:majTriadx1 4:majTriadx1 9:majTriadx1 2:majTriadx1 7:7x1 0:majTriadx1 8:majTriadx1 7:7x1 0:majTriadx1",
+   "grilleEmpreinte": "57a52984f9050cec",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "94e9bcf9f1cb3864",
+    "c8a1182f635b3ecc",
+    "bceaec4c33da6a60",
+    "08cb0612fc3af38b",
+    "4223bb853763fdd1",
+    "1a881435997f844c",
+    "32709290a8b765ac",
+    "dd54e93c25d4110c",
+    "6da61b00304f4a19",
+    "55f05e7e279ca14a",
+    "f0aacd79218e7e8c",
+    "99474cfdd55cb8e5",
+    "33566792365b555d",
+    "218e91932c70f84a",
+    "93bd98b7013436a1",
+    "b2a18305e1a6b878"
+   ]
+  },
+  "style:nocturne": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 58,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-nocturne",
+    "listes": [
+     "classic",
+     "c-nocturne"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 9:minTriadx1 2:m7x1 7:7x1 0:majTriadx1 9:minTriadx1 2:m7x1/7:7 0:majTriadx1 9:minTriadx1 4:7x1 9:minTriadx1 2:m7x1/7:7 0:majTriadx1 9:minTriadx1 2:m7x1/7:7 0:majTriadx1",
+   "grilleEmpreinte": "6947dc0525859156",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "ba0009359d40498b",
+    "5fd3c060d35f2d43",
+    "ebc78f61f44389e6",
+    "1b9a53b2adbbecf3",
+    "b3c5c3d7bab3e92f",
+    "0756a38e21191e86",
+    "3f768cf31f2ba910",
+    "b1a149b7b79e8449",
+    "cc1086d86190111d",
+    "d3b1771778c53096",
+    "99d4f19280ba055f",
+    "eb49f1226906bf51",
+    "8a5120556871eab9",
+    "71f914557bde5fd8",
+    "60a5fed920991e86",
+    "89af8c49551e3b6c"
+   ]
+  },
+  "style:nocturne#generer": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 58,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-nocturne",
+    "listes": [
+     "classic",
+     "c-nocturne"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:maj7x1 5:majTriadx1 2:m7b5x1 7:7x1 0:majTriadx1 1:dim7x1/2:m7 0:majTriadx1/7:7 0:majTriadx1 2:m7x1 2:7x1 0:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 0:majTriadx1/7:7 0:majTriadx1",
+   "grilleEmpreinte": "7c8662d0c07b0035",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "be9bb97c9885ccea",
+    "3f2478eb3424975c",
+    "cf27ab7cdec6798c",
+    "e2402874b97284d3",
+    "b7c27e8641fe3af2",
+    "d25aac6f5e6172d6",
+    "70c0da193a72284e",
+    "19063ab9fddf6408",
+    "158da8cd80aeeb8c",
+    "235b00d2a09093df",
+    "fe1bba093ab5102b",
+    "ecad25ceb408c092",
+    "7665b6614b33a246",
+    "201c579fe3b3e442",
+    "3b0b0df804e6d431",
+    "a69b2a66b3dda6b2"
+   ]
+  },
+  "style:nocturne#graine2": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 58,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-nocturne",
+    "listes": [
+     "classic",
+     "c-nocturne"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 9:minTriadx1 2:m7x1 7:7x1 0:majTriadx1 9:minTriadx1 2:m7x1/7:7 0:majTriadx1 9:minTriadx1 4:7x1 9:minTriadx1 2:m7x1/7:7 0:majTriadx1 9:minTriadx1 2:m7x1/7:7 0:majTriadx1",
+   "grilleEmpreinte": "6947dc0525859156",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "58661231ba3258aa",
+    "b6f16bfeaef2aefd",
+    "2e6c6071ab5dc59c",
+    "4fb87933fd1b8b68",
+    "7b2fc382101c6238",
+    "aa577a051c83490a",
+    "8847514e77734345",
+    "f6eb9ece4d312bd1",
+    "b8ce33d798739a2b",
+    "1f49af4a3c448615",
+    "2377a8601ca6f436",
+    "81e9d9c53bce0ff4",
+    "282b082f71ae7ba7",
+    "ad46596f4f2159a1",
+    "010aab4becd6b24a",
+    "f188cb4ddbab94f8"
    ]
   },
   "style:piazzolla": {
@@ -23393,6 +26933,180 @@
     "d815129a0ca126aa"
    ]
   },
+  "style:renaissance": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 76,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-renaissance",
+    "listes": [
+     "classic",
+     "c-renaissance"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 5:majTriadx1 0:majTriadx1 7:majTriadx1 0:majTriadx1 5:majTriadx1 0:majTriadx1/7:majTriad 0:majTriadx1 9:minTriadx1 5:majTriadx1 0:majTriadx1 7:majTriadx1 9:minTriadx1 2:minTriadx1 5:majTriadx1/7:majTriad 0:majTriadx1",
+   "grilleEmpreinte": "d84f5c15d673c6d0",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "ae07fafb3b470633",
+    "5e1471e6b117f839",
+    "ef99e2592bd188aa",
+    "48af36bafb382a35",
+    "2a7ed4863bc87dfa",
+    "41119f84f26421f9",
+    "fc9606957dca203b",
+    "ade3b5240911ff7f",
+    "d818a0acfb17a816",
+    "5f63cb9f7561198b",
+    "f0631832c6305f1b",
+    "273dec1633534a14",
+    "3bcb8ed58623c1fc",
+    "f9810ea9fcdd3cfe",
+    "6a4655d1d79f7124",
+    "5723f3d104c28d59"
+   ]
+  },
+  "style:renaissance#generer": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 76,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-renaissance",
+    "listes": [
+     "classic",
+     "c-renaissance"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 7:majTriadx1 9:minTriadx1 4:minTriadx1 5:majTriadx1 0:majTriadx1 5:majTriadx1/7:majTriad 0:majTriadx1 0:majTriadx1 5:majTriadx1 0:majTriadx1 7:majTriadx1 0:majTriadx1 5:majTriadx1 0:majTriadx1/7:majTriad 0:majTriadx1",
+   "grilleEmpreinte": "590b7dee7abe9792",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "ae07fafb3b470633",
+    "33a519fa5fd46e8b",
+    "1b74280c96c918f7",
+    "99f5d46fe186e64e",
+    "3aa313b035591f51",
+    "92220e3fa3adc9cc",
+    "91ef1a3c7543d2ce",
+    "ade3b5240911ff7f",
+    "96abe6d53b176446",
+    "5f63cb9f7561198b",
+    "f0631832c6305f1b",
+    "273dec1633534a14",
+    "fc47fedffb7af2cc",
+    "bb082e543d385917",
+    "c1b60b311acc5bca",
+    "5723f3d104c28d59"
+   ]
+  },
+  "style:renaissance#graine2": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 76,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-renaissance",
+    "listes": [
+     "classic",
+     "c-renaissance"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 5:majTriadx1 0:majTriadx1 7:majTriadx1 0:majTriadx1 5:majTriadx1 0:majTriadx1/7:majTriad 0:majTriadx1 9:minTriadx1 5:majTriadx1 0:majTriadx1 7:majTriadx1 9:minTriadx1 2:minTriadx1 5:majTriadx1/7:majTriad 0:majTriadx1",
+   "grilleEmpreinte": "d84f5c15d673c6d0",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "9cacb77e4aaf348b",
+    "c00a189c259d3081",
+    "0a8d6a9c5aa543a2",
+    "e783a8adae401267",
+    "67af1bf92dea7f93",
+    "03e5951a9e88247c",
+    "b2c2285142dde77e",
+    "3ba72cf2c3984b26",
+    "73c36318345b999b",
+    "806b7ed0ed4ac541",
+    "ae62642cd5ce3cff",
+    "ca5b8eaf1c0c2f26",
+    "78f3ec52bf94648c",
+    "2cc4f5ad3c669846",
+    "8f6ebbccfd53dadd",
+    "33d7e5eac298d554"
+   ]
+  },
   "style:rockballad": {
    "reglages": {
     "tonalite": 7,
@@ -23919,6 +27633,180 @@
     "4c7d1dcc9e4d03eb",
     "1e45e6c027c33ecf",
     "d1c840991e63640c"
+   ]
+  },
+  "style:romantique": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 66,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-romantic",
+    "listes": [
+     "classic",
+     "c-romantic"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 8:majTriadx1 5:majTriadx1/5:minTriad 7:7x1 0:majTriadx1 2:m7x1 7:7x1 8:majTriadx1 8:m7b5x1/7:7 11:m7b5x1/10:7 2:m7b5x1/1:7 0:majTriadx1/7:7 0:majTriadx1 8:majTriadx1 7:7x1 0:majTriadx1",
+   "grilleEmpreinte": "f3c9c0154992d0a5",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "296dce339f09638b",
+    "7f8f919a012ef5e4",
+    "78f873786de4b673",
+    "30dda9289d0be7bc",
+    "a16f8beb54599527",
+    "d4fb428d3d02ad55",
+    "27e44f336c1d97f3",
+    "37f3430143cd2943",
+    "f08034dc6a7306cf",
+    "7dbe8fb170939ad1",
+    "9bd5832036b7db5b",
+    "18a2fa2bd00a2fc5",
+    "e97ec6f2418dc4b0",
+    "da12c16bd5f4b5df",
+    "715a8bbba01114e5",
+    "78d739910c7dc75a"
+   ]
+  },
+  "style:romantique#generer": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 66,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-romantic",
+    "listes": [
+     "classic",
+     "c-romantic"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 8:majTriadx1 5:majTriadx1/5:minTriad 7:7x1 9:minTriadx1 5:minTriadx1 7:7x1 8:majTriadx1 4:minTriadx1 8:majTriadx1/0:majTriad 1:majTriadx1 7:7x1 0:majTriadx1 8:majTriadx1 7:7x1 0:majTriadx1",
+   "grilleEmpreinte": "1c39b9a8c1197340",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "296dce339f09638b",
+    "7f8f919a012ef5e4",
+    "78f873786de4b673",
+    "aeeba0e4d465d7bf",
+    "952bcbc70c271e64",
+    "e10a7f712c9b725d",
+    "27e44f336c1d97f3",
+    "37f3430143cd2943",
+    "741f933a3c095a99",
+    "98300a67ea5e6569",
+    "68d20b23061def6c",
+    "b745b4e053763034",
+    "92de857b3c6c6037",
+    "d2f4d0bb5706f2cf",
+    "5cdf974abef05fc6",
+    "e0a40c557a67da16"
+   ]
+  },
+  "style:romantique#graine2": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 66,
+    "mesure": "4/4",
+    "orchestre": "classic",
+    "rythme": "c-romantic",
+    "listes": [
+     "classic",
+     "c-romantic"
+    ],
+    "nom": "Orchestre Classique",
+    "swing": 0.5,
+    "densite": 0.5,
+    "curseurs": [
+     "Piano",
+     "Basse",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 8:majTriadx1 5:majTriadx1/5:minTriad 7:7x1 0:majTriadx1 2:m7x1 7:7x1 8:majTriadx1 8:m7b5x1/7:7 11:m7b5x1/10:7 2:m7b5x1/1:7 0:majTriadx1/7:7 0:majTriadx1 8:majTriadx1 7:7x1 0:majTriadx1",
+   "grilleEmpreinte": "f3c9c0154992d0a5",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "62d86362278bb540",
+    "ca5de67ed3156375",
+    "2234ea3f5e465ac7",
+    "d6a5008e049ac21b",
+    "7ad9fcb5dabc3594",
+    "99e471be15aeab38",
+    "be3e5d8396b30e1b",
+    "3c2e7f8408eae662",
+    "af831e424fe8b2b9",
+    "8e2cf21915ff80cd",
+    "36a3d550f488bce3",
+    "4d2739831eab6d51",
+    "778628cbfada677e",
+    "01a0d42fd934f05c",
+    "75cda4b82865aa87",
+    "89aca4758ae0fa56"
    ]
   },
   "style:rumbacongo": {

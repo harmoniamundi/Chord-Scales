@@ -31,6 +31,7 @@ const isPartLabel = (v) => typeof v === 'string' && (PART_LABELS.includes(v) || 
 // Rythmes imposés par un style (samba, tango…), valables dans un fichier importé.
 const IMPORT_GROOVES = ['bossa', 'samba', 'salsa', 'tango', 'piazzolla', 'lyrique', 'afro', 'b-chorale', 'bk-sevdah', 'bk-tsifte', 'f-solea', 'f-bulerias', 'f-tangos',
     'r-roll', 'r-classic', 'r-hard', 'r-punk', 'r-ballad', 'r-blues', 'r-indie', 'c-baroque',
+    'c-renaissance', 'c-chaconne', 'c-nocturne', 'c-romantic', 'c-impression', 'c-satie', 'c-neoclassic', 'c-minimal',
     'cu-son', 'cu-chacha', 'cu-bolero', 'cu-guajira', 'cu-danzon', 'cu-guaguanco',
     'af-afrobeat', 'af-highlife', 'af-rumba', 'af-soukous', 'af-benga', 'af-mbaqanga'];
 

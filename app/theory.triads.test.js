@@ -35,6 +35,6 @@ describe('triades', () => {
         assert.equal(m.c, 'majTriad'); assert.equal(m.s, 'ionian');
     });
     test('les styles classiques et traditionnels sont listés', () => {
-        assert.deepEqual([...T.TRIAD_STYLES].sort(), ['baroque', 'menuet', 'mozart', 'trad']);
+        assert.deepEqual([...T.TRIAD_STYLES].sort(), ['baroque', 'menuet', 'mozart', 'renaissance', 'trad']);
     });
 });

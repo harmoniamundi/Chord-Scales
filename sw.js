@@ -55,6 +55,7 @@ const SHELL_FILES = [
     'app/band/ternary-plan.js',
     'app/band/bass-lines.js',
     'app/band/swing-plan.js',
+    'app/band/classic-eras-plan.js',
     'app/band/classic-plan.js',
     'app/band/flamenco-plan.js',
     'app/band/guitar-baroque-plan.js',

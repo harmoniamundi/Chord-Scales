@@ -11,6 +11,10 @@
 if (typeof clsVoicing === 'undefined' && typeof require === 'function') {
     var { clsVoicing, clsLowNote, clsMutate, popScaleNotes, popRun } = require('./band-helpers.js');
 }
+// Écritures par époque (Renaissance… minimalisme) : globales en navigateur (band/classic-eras-plan.js), à charger sous Node.
+if (typeof buildClassicEraPlan === 'undefined' && typeof require === 'function') {
+    var { buildClassicEraPlan, classicEraPhraseExtras } = require('./classic-eras-plan.js');
+}
 // Tables de motifs : globales en navigateur (band-patterns.js), à charger sous Node.
 const CLASSIC_PAT = (typeof CLS_EIGHTS !== 'undefined') ? { CLS_EIGHTS, CLS_QUARTERS, CLS_MIXED, CLS_UPPER } : require('../band-patterns.js');
 const { CLS_EIGHTS: CL_EIGHTS, CLS_QUARTERS: CL_QUARTERS, CLS_MIXED: CL_MIXED, CLS_UPPER: CL_UPPER } = CLASSIC_PAT;
@@ -47,6 +51,7 @@ function classicPhraseExtras(bpm, rng, prev, index, groove) {
         endingOn: rng() < 0.75
     };
     if (groove === BAROQUE_GROOVE) Object.assign(out, baroquePhraseExtras(bpm, rng, pl, pickW));
+    else Object.assign(out, classicEraPhraseExtras(groove, bpm, rng, prev, index));   // époques : { cEra, … } ou rien
     return out;
 }
 
@@ -256,6 +261,7 @@ function buildBaroquePlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, 
 // Plan d'une mesure du style Classique.
 function buildClassicPlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
     if (ph.baroque) return buildBaroquePlan(env, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn);
+    if (ph.cEra) return buildClassicEraPlan(env, 4, false, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
     const rng = ph.rng;
     const I = ph.intensity;
     const fam = ph.family;

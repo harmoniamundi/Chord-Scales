@@ -207,7 +207,7 @@ function makeStyleToolkit(ctx) {
 
 
     return {
-        styleKey, keyRoot, rotation, libOK, R, pick, jazzTonal, minorKey, minorTonicScale, classicTonal, minorNative: JAZZ_MINOR_NATIVE.has(styleKey),
+        styleKey, keyRoot, mainQuality, minorQuality: MINOR_QUALITIES.has(mainQuality), rotation, libOK, R, pick, jazzTonal, minorKey, minorTonicScale, classicTonal, minorNative: JAZZ_MINOR_NATIVE.has(styleKey),
         chord, chordJazz, secondary, abs, join, iiV, turnaround, cadence, turnCell,
         CH, TONIC_KINDS, cells, okAfter, twinOf, absCell, withTwin, JBR, jbr
     };
