@@ -163,6 +163,22 @@ describe('plans de mesure', () => {
             assert.ok(offOne > mel * 0.6, `${g} : ${offOne} / ${mel} attaques ailleurs que sur le 1`);
         }
     });
+    test('Renaissance : jamais plus de deux mesures de suite qui commencent par un accord plaqué, et du détaché dans chaque grille', () => {
+        const prog = [step(0, 'majTriad'), step(5, 'majTriad'), step(7, 'majTriad'), step(9, 'minTriad')];
+        for (let seed = 1; seed <= 6; seed++) {
+            let ph = null, prev = null, run = 0, maxRun = 0, single = 0;
+            for (let m = 0; m < 32; m++) {
+                const idx = Math.floor(m / 4), i = m % 4;
+                if (!ph || ph.index !== idx) { const rng = rngOf(seed * 100 + idx); ph = { style: 'classic', index: idx, rng, ...classicPhraseExtras(76, rng, prev, idx, 'c-renaissance') }; prev = ph; }
+                const plan = E.buildClassicEraPlan(env({ bpm: 76 }), 4, false, prog[m % 4], prog[(m + 1) % 4], true, null, ph, i, 4, i === 3, m);
+                const block = plan.piano.some(e => e.pos < 0.01 && e.intervals.length >= 3);
+                run = block ? run + 1 : 0; maxRun = Math.max(maxRun, run);
+                single += plan.piano.filter(e => e.intervals.length === 1 && e.pos > 0.01).length;
+            }
+            assert.ok(maxRun <= 2, `graine ${seed} : ${maxRun} mesures plaquées de suite`);
+            assert.ok(single >= 32, `graine ${seed} : ${single} notes détachées`);
+        }
+    });
     test('Satie : première phrase sans mélodie (main gauche seule), puis mélodie', () => {
         const run = (index) => {
             const ph = phrase('c-satie', index, 7);

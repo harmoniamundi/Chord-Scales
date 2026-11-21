@@ -43,6 +43,7 @@ function classicEraPhraseExtras(groove, bpm, rng, prev, index) {
     // ligne mélodique et accompagnement continus : l'état passe d'une phrase d'orchestre à la suivante
     if (pe && pe.ceM) out.ceM = { ...pe.ceM };
     if (pe && pe.ceAcc) out.ceAcc = { ...pe.ceAcc };
+    if (pe) { out.ceTex = pe.ceTex; out.ceBlk = pe.ceBlk; }   // Renaissance : l'alternance plaqué / détaché continue d'une phrase à l'autre
     if (g === 'c-renaissance') out.ceFam = (pe && rng() < 0.4) ? pe.ceFam : cePickW(rng, [['pavane', 3], ['choral', 2], ['lute', 2]]);
     else if (g === 'c-chaconne') {
         const k = Math.floor(index / 2);   // un énoncé du ground = deux phrases de quatre mesures
@@ -314,56 +315,109 @@ function ceMelody(c, cfg) {
 
 const CE_WRITERS = {
     // ---------- Renaissance : consort à quatre voix ou luth (pavane, passamezzo) ----------
+    // La texture change à chaque mesure et alterne le plaqué et le détaché : jamais deux mesures d'accords plaqués de
+    // suite (hors cadence), et même une mesure « plaquée » se détache sur sa fin. Textures détachées : luth (basse au
+    // pouce, accord égrené), diminutions du dessus sur des voix tenues, entrées décalées des voix (imitation), accord
+    // qui s'égrène en seconde moitié de mesure.
     'c-renaissance': (c) => {
-        const { sg, cs, pcs, low, put, len, rng, ph, up, prog, closing, e8 } = c;
+        const { sg, si, cs, pcs, low, put, rng, ph, up, thin, prog, closing, e8, fits } = c;
+        const len = c.len, s = sg.s;
+        const pick = (arr) => arr[Math.floor(rng() * arr.length)];
         const tri = pcs.slice(0, 3);
         const center = 13 + ph.ceShift + 3 * Math.sin(Math.PI * prog);
         const V = c.env.findChordObj(cs.chordId);
         const isTriad = V && V.notes && V.notes.length === 3 && (V.notes[1] === 3 || V.notes[1] === 4);
-        let Vc = ceVoiceNear(tri, center, 3, low + 9, 24);
+        const Vc = ceVoiceNear(tri, center, 3, low + 9, 24);
         const top = Vc[Vc.length - 1];
-        const s = sg.s;
+        const q = Math.max(1, Math.floor(len));
+        const e8ok = fits(e8);
         // Cadence de fin de phrase : retard de la quarte (4 - 3) sur l'accord, résolu à mi-mesure
         if (closing && isTriad && len >= 2) {
             const third = ceMod(cs.rootIndex + V.notes[1]);
             const sus = Vc.map(p => ceMod(p) === third ? p + (5 - V.notes[1]) : p);
             const h = len >= 4 ? 2 : len / 2;
             put(s, len, [low], 0.62);
-            put(s, h, sus, 0.6, { nv: 0.8 });
-            put(s + h, len - h, Vc, 0.5, { nv: 0.8 });
+            // après une mesure plaquée, l'accord de la cadence s'égrène ; sinon il est posé
+            const isSus = (p) => ceMod(p) === ceMod(cs.rootIndex + 5);
+            if (ph.ceBlk) sus.forEach((p, k) => put(s + k * 0.25, (isSus(p) ? h : len) - k * 0.25, [p], 0.5 + 0.03 * k));   // la quarte s'arrête quand la tierce arrive
+            else put(s, len, sus.filter(p => ceMod(p) !== ceMod(cs.rootIndex + 5)), 0.54, { nv: 0.8 });
+            // la résolution est détachée : seule la voix retardée descend sur la tierce, puis le dessus se pose
+            const susNote = sus.find(p => ceMod(p) === ceMod(cs.rootIndex + 5));
+            if (susNote !== undefined && ph.ceBlk) {
+                // (égrené : la quarte a déjà sonné dans l'arpège)
+            } else if (susNote !== undefined) put(s, h, [susNote], 0.56);
+            const res = Vc.find(p => ceMod(p) === third);
+            if (res !== undefined) put(s + h, len - h + 0.3, [res], 0.5);
+            if (len >= 4) put(s + h + 1, len - h - 1 + 0.3, [top], 0.44, { opt: true });
+            ph.ceBlk = 0;
             return;
         }
+        // ----- texture de la mesure (une seule par mesure, même à deux accords) -----
+        if (si === 0 || !ph.ceTex) {
+            const W = { pavane: 2, choral: 1.5, lute: 2.5, divisions: 2.5, voices: 2, mixed: 2 };
+            const fam = { pavane: ['pavane', 'divisions', 'mixed'], choral: ['choral', 'voices', 'mixed'], lute: ['lute', 'divisions'] }[ph.ceFam] || [];
+            fam.forEach(k => { W[k] += 1.2; });
+            // pas deux mesures plaquées de suite ; la « mixte » (accord posé puis égrené) peut suivre une fois, jamais une troisième
+            if (ph.ceBlk >= 2) { W.pavane = 0; W.choral = 0; W.mixed = 0; }
+            else if (ph.ceBlk) { W.pavane *= 0.08; W.choral *= 0.08; W.mixed *= 0.4; }
+            if (ph.ceTex && W[ph.ceTex]) W[ph.ceTex] *= 0.3;                        // ni deux fois la même texture
+            if (!e8ok) W.divisions = 0;
+            ph.ceTex = cePickW(rng, Object.entries(W));
+            ph.ceBlk = (ph.ceTex === 'pavane' || ph.ceTex === 'choral' || ph.ceTex === 'mixed') ? (ph.ceBlk || 0) + 1 : 0;
+        }
+        const tex = ph.ceTex;
         put(s, len, [low], 0.62);
-        if (ph.ceFam === 'lute') {
-            // luth : basse au pouce, accord brisé en noires aux doigts, divisions en croches quand la densité monte
-            const ord = [Vc[1], Vc[2], Vc[0], Vc[2]];
-            const q = Math.max(1, Math.floor(len));
-            for (let b = 0; b < q; b++) {
-                const p = b === 0 ? Vc : [ord[b % 4]];
-                put(s + b, 1.6, p, b === 0 ? 0.55 : 0.48, { roll: 0.035, opt: b > 0 && b % 2 === 1 });
-                if (up > 0.3 && rng() < up && b < q - 1) put(s + b + e8, 0.6, [ceConsonantStep(cs, ord[b % 4], rng() < 0.5 ? 1 : -1, [low])], 0.4, { opt: true });
-            }
-            return;
-        }
-        if (ph.ceFam === 'choral' || len < 3) {
-            // demi-notes (blanches) : le soprano change de note de l'accord au milieu de la mesure (échange de voix)
+        const others = [low].concat(Vc.slice(0, -1));
+
+        if (tex === 'pavane') {
+            // long - bref - bref : blanche plaquée, puis le dessus se détache par degrés sur les noires
+            put(s, Math.min(2, len), Vc, 0.56, { nv: 0.82, roll: 0.006 });
+            const dir = rng() < 0.5 ? 1 : -1;
+            const n2 = ceConsonantStep(cs, top, dir, others);
+            if (len >= 3) put(s + 2, 0.8, [n2], 0.48);
+            if (len >= 4) put(s + 3, 0.8, [rng() < 0.5 ? top : Vc[1]], 0.46);
+        } else if (tex === 'choral') {
+            // blanches : premier accord plaqué, le second égrené (basse - ténor - dessus)
             const h = len >= 4 ? 2 : len;
-            put(s, h, Vc, 0.56, { nv: 0.82, roll: 0.006 });
+            put(s, h, Vc, 0.54, { nv: 0.82, roll: 0.006 });
             if (len >= 4) {
                 const alt = ceTonesIn(tri, top - 5, top + 5).filter(p => p !== top);
                 const t2 = alt.length ? ceNearest(alt, top + (rng() < 0.5 ? 2 : -2)) : top;
-                put(s + 2, 2, ceVoiceNear(tri, t2, 3, low + 9, 24), 0.5, { nv: 0.82, roll: 0.006 });
+                const V2 = ceVoiceNear(tri, t2, 3, low + 9, 24);
+                V2.forEach((p, k) => put(s + 2 + k * (e8ok ? e8 : 0.5) * 0.5, 2 - k * 0.25, [p], 0.46 + 0.03 * k));
             }
-            return;
+        } else if (tex === 'lute') {
+            // luth : basse au pouce, accord égrené note à note aux doigts (ordre et rythme variables)
+            const ord = pick([[Vc[0], Vc[1], Vc[2], Vc[1]], [Vc[1], Vc[2], Vc[0], Vc[2]], [Vc[2], Vc[1], Vc[0], Vc[1]]]);
+            const unit = e8ok && (up > 0.3 || rng() < 0.4) ? e8 : 1;
+            ceGrid(sg, unit).forEach((p, k) => {
+                if (k === 0) return;   // le pouce tient la basse sur le temps
+                put(p, unit * 1.8, [ord[k % 4]], Math.abs(p - Math.round(p)) < 1e-6 ? 0.5 : 0.42, { opt: unit < 1 && k % 2 === 1 && thin > 0 });
+            });
+            put(s, 1.2, [ord[0]], 0.48);
+        } else if (tex === 'divisions') {
+            // diminutions : alto et ténor tiennent, le dessus brode en croches (degrés conjoints, sans frottement)
+            put(s, len, Vc.slice(0, -1), 0.4, { roll: 0.01 });
+            let p0 = top;
+            const dir0 = rng() < 0.5 ? 1 : -1;
+            ceGrid(sg, e8).forEach((p, k) => {
+                const n = k === 0 ? p0 : ceConsonantStep(cs, p0, (k % 4 < 2 ? dir0 : -dir0), others);
+                put(p, e8 * 1.2, [n], k === 0 ? 0.54 : (Math.abs(p - Math.round(p)) < 1e-6 ? 0.46 : 0.4), { opt: k % 2 === 1 && thin > 0 });
+                p0 = n;
+            });
+        } else if (tex === 'voices') {
+            // entrées décalées : ténor, puis alto, puis dessus, chacun tenu (effet d'imitation)
+            const gaps = q >= 4 ? pick([[0.5, 1, 2], [1, 1.5, 2.5], [0.5, 1.5, 2]]) : (q >= 3 ? [0.5, 1, 1.5] : [0.25, 0.5, 1]);
+            Vc.forEach((p, k) => put(s + gaps[k], len - gaps[k] + 0.2, [p], 0.44 + 0.04 * k));
+            if (q >= 4 && rng() < 0.6) put(s + 3, 0.9, [ceConsonantStep(cs, top, rng() < 0.5 ? 1 : -1, others)], 0.42, { opt: true });
+        } else {
+            // mixte : accord posé sur le temps, puis égrené en seconde moitié de mesure
+            const h = len >= 4 ? 2 : Math.max(1, Math.floor(len / 2));
+            put(s, h, Vc, 0.52, { nv: 0.82, roll: 0.008 });
+            const unit = e8ok && rng() < 0.5 ? e8 : 1;
+            const ord = rng() < 0.5 ? [Vc[0], Vc[1], Vc[2], Vc[1]] : [Vc[2], Vc[1], Vc[0], Vc[1]];
+            for (let p = h, k = 0; p < len - 1e-6; p += unit, k++) put(s + p, unit * 1.6, [ord[k % 4]], 0.44, { opt: unit < 1 && k % 2 === 1 && thin > 0 });
         }
-        // pavane : rythme long - bref - bref (blanche, noire, noire), le soprano passe par degrés conjoints
-        const dir = rng() < 0.5 ? 1 : -1;
-        put(s, 2, Vc, 0.58, { nv: 0.82, roll: 0.006 });
-        const others = [low].concat(Vc.slice(0, -1));
-        const n2 = ceConsonantStep(cs, top, dir, others);
-        put(s + 2, 1, Vc.slice(0, -1).concat([n2]), 0.48, { nv: 0.82, roll: 0.006 });
-        if (len >= 4) put(s + 3, 1, Vc, 0.5, { nv: 0.82, roll: 0.006, opt: true });
-        if (up > 0.4 && n2 !== top) put(s + 2 + e8, 0.5, [top], 0.4, { opt: true });
     },
 
     // ---------- Basse obstinée (chaconne, passacaille, folia) : le ground à la main gauche, une variation par énoncé ----------
