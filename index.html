@@ -4627,9 +4627,17 @@
                 this._assignAutoParts(); // repères de partie (A, B, C…) déduits des sections du style
                 this._skipCustom = true;
                 this.loadedGridName = null;
+                // Une grille générée (style choisi ou « Générer ») repart sans annotations, comme elle repart sans fonctions tonales choisies :
+                // les annotations n'appartiennent qu'à une grille enregistrée sous un nom (celles des mesures partent avec l'ancienne grille,
+                // l'annotation générale est vidée ici). ↶ les retrouve, l'état d'avant faisant partie de l'historique.
+                this.gridNote = '';
+                this._annotSpanDraft = null;
                 this.updateLoadedGridNameDisplay();
                 this.lastGeneratedSignature = signature;
-                this.renderGridUI();
+                // Zone d'annotation en cours d'édition : redessinée elle aussi, sinon sa validation à la sortie du champ
+                // réécrirait l'ancien texte sur la nouvelle grille.
+                this._annotForceRender = true;
+                try { this.renderGridUI(); } finally { this._annotForceRender = false; }
             }
 
             // ===== Métadonnées de style, modulations, gammes par style : logique pure dans styles/style-meta.js =====
