@@ -322,6 +322,42 @@ describe('signes de reprise', () => {
         assert.equal(g[0].byPass, undefined);
         assert.equal(g.length, 1); assert.equal(g[0].measures, 2); // refusionné
     });
+    test('setRepeatRange : ×N sur la sélection, Aucune retire tout', () => {
+        const g = [st(0, 'maj7', 4), st(5, 'maj7', 2)];
+        E.setRepeatRange(g, 2, 5, 3);
+        const fl = flatMeasureList(g);
+        assert.equal(g[fl[1].stepIndex].repeatStart, true);
+        assert.equal(g[fl[4].stepIndex].repeatEnd, 3);
+        E.setRepeatRange(g, 2, 5, 0);
+        assert.ok(g.every(x => !x.repeatStart && !x.repeatEnd));
+        assert.deepEqual(g.map(x => x.measures), [4, 2]);
+    });
+    test('setPlayMark : un passage réglé, les autres reçoivent la valeur neutre ; valeurs identiques regroupées', () => {
+        const g = [st(0, 'maj7', 2)];
+        E.setPlayMark(g, 1, 'feel', 1, 'straight', 2);
+        assert.deepEqual(g[0].byPass, { 1: { feel: 'straight' }, 2: { feel: 'swing' } });
+        E.setPlayMark(g, 1, 'tempo', 2, 160, 2);
+        assert.deepEqual(g[0].byPass, { 1: { feel: 'straight', tempo: 'base' }, 2: { feel: 'swing', tempo: 160 } });
+        E.setPlayMark(g, 1, 'feel', 2, 'straight', 2); // les deux passages en Droit : rangé pour tous
+        assert.equal(g[0].feel, 'straight');
+        assert.deepEqual(g[0].byPass, { 1: { tempo: 'base' }, 2: { tempo: 160 } });
+        E.setPlayMark(g, 1, 'tempo', 0, 90, 0); // hors reprise : une seule valeur
+        assert.equal(g[0].tempo, 90); assert.equal(g[0].byPass, undefined);
+        E.clearPlayMarks(g, 1);
+        assert.deepEqual(Object.keys(g[0]).sort(), ['chordId', 'measures', 'rootIndex', 'scaleId']);
+    });
+    test('setPlayMark au milieu d\'une reprise (fillNeutral = false) : les autres passages gardent le jeu en cours', () => {
+        const g = [st(0, 'maj7', 2)];
+        E.setPlayMark(g, 1, 'feel', 1, 'straight', 2, false);
+        assert.deepEqual(g[0].byPass, { 1: { feel: 'straight' } });
+    });
+    test('setReturnMarks : Swing / a tempo sur la mesure suivante, retirés ensuite', () => {
+        const g = [st(0, 'maj7', 4)];
+        E.setReturnMarks(g, 3, true, { feel: true, tempo: true });
+        assert.deepEqual([g[1].feel, g[1].tempo], ['swing', 'base']);
+        E.setReturnMarks(g, 3, false);
+        assert.deepEqual(g.map(x => x.measures), [4]);
+    });
     test('indication Droit : gardée au début du bloc éclaté, copiée avec la mesure, pas dupliquée', () => {
         const g = [st(0, 'maj7', 3, { feel: 'straight' })];
         E.isolateMeasure(g, 2);

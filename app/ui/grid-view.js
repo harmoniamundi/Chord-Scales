@@ -107,6 +107,57 @@ function marksHtml(st) {
     return parts.join(' · ');
 }
 
+// Mêmes indications en texte simple (résumé de la barre d'édition, info-bulles).
+function marksText(st) { return marksHtml(st).replace(/<[^>]*>/g, ''); }
+
+// Popup « Reprise et jeu » de la barre d'édition (sélection from..to). v :
+//   from, to             plage sélectionnée (numéros de mesure)
+//   times                reprise posée exactement sur la sélection (2 à 4), 0 sinon
+//   region               { from, to, times } reprise qui contient la sélection sans être elle (affichée pour information), ou null
+//   volta                1re / 2e fin commune à toute la sélection (1, 2) ou 0
+//   rows                 [{ p, feel, tempo }] : une ligne par passage (p = 1…N) quand la mesure est reprise, sinon une seule (p = 0)
+//   tempoHere, baseBpm   tempo en vigueur au début de la sélection (indice du champ) et tempo général
+//   after                { possible, on, measure } : « revenir au jeu général » sur la mesure qui suit la sélection
+//   hasMarks             la première mesure porte au moins une indication de jeu
+function repeatPopHtml(v) {
+    const chip = (on, attrs, inner, extra = '') => `<button type="button" class="jm-chip${extra}${on ? ' is-on' : ''}" ${attrs}>${inner}</button>`;
+    const range = v.from === v.to ? `mesure ${v.from}` : `mesures ${v.from} à ${v.to}`;
+    const reps = [[0, 'Aucune', 'Pas de reprise : retire les signes de reprise et les 1re / 2e fins de la sélection'],
+        [2, '×2', 'Sélection jouée 2 fois'], [3, '×3', 'Sélection jouée 3 fois'], [4, '×4', 'Sélection jouée 4 fois']]
+        .map(([n, l, t]) => chip(v.times === n && !(n === 0 && v.region), `data-act="rep" data-v="${n}" title="${t}"`, l)).join('');
+    const regionNote = v.region
+        ? `<div class="jrp-note">Dans la reprise ×${v.region.times} des mesures ${v.region.from} à ${v.region.to}</div>` : '';
+    const voltas = chip(v.volta === 1, 'data-act="volta" data-v="1" title="La sélection est la 1re fin : jouée seulement au premier passage"', '1re fin')
+        + chip(v.volta === 2, 'data-act="volta" data-v="2" title="La sélection est la 2e fin : jouée au dernier passage"', '2e fin');
+    const qn = '<span class="jm-qn">\u2669</span>';
+    const row = (r) => {
+        const pa = `data-p="${r.p}"`;
+        const lab = r.p ? `<span class="jrp-pass">${r.p}x</span>` : '';
+        const tnum = Number.isInteger(r.tempo) ? r.tempo : '';
+        return `<div class="jrp-row">${lab}
+                <div class="jm-seg jrp-feel">${chip(r.feel === 'straight', `data-act="feel" data-v="straight" ${pa} title="Croches droites"`, 'Droit')}${chip(r.feel === 'swing', `data-act="feel" data-v="swing" ${pa} title="Swing général de la grille"`, 'Swing')}</div>
+                <div class="jrp-tempo">${chip(false, `data-act="tstep" data-v="-5" ${pa} title="Ralentir de 5"`, '−')}<label title="Tempo (vider pour retirer)">${qn}=<input type="number" data-act="tempo" ${pa} min="30" max="300" step="1" inputmode="numeric" value="${tnum}" placeholder="${r.here || v.tempoHere || ''}"></label>${chip(false, `data-act="tstep" data-v="5" ${pa} title="Accélérer de 5"`, '+')}${chip(r.tempo === 'base', `data-act="tbase" ${pa} title="a tempo : tempo général (\u2669 = ${v.baseBpm || ''})"`, 'a tempo')}</div>
+            </div>`;
+    };
+    const after = v.after && v.after.possible
+        ? `<label class="jrp-after" title="Rétablit, à la mesure ${v.after.measure}, le jeu (croches et tempo) d'avant la sélection"><input type="checkbox" data-act="after"${v.after.on ? ' checked' : ''}${v.hasMarks || v.after.on ? '' : ' disabled'}> Reprendre le jeu d'avant à la mesure ${v.after.measure}</label>` : '';
+    const multi = v.rows.length > 1;
+    return `
+        <div class="jm-head" title="Glisser pour déplacer">
+            <span class="jm-title">Reprise et jeu · ${range}</span>
+            <button type="button" class="jm-btn" data-act="close" title="Fermer (Échap)">✕</button>
+        </div>
+        <div class="jm-sec"><div class="jm-sec-t">Reprise</div>
+            <div class="jm-seg jrp-rep">${reps}</div>${regionNote}
+            <div class="jm-row jrp-voltas">${voltas}</div>
+        </div>
+        <div class="jm-sec"><div class="jm-sec-t">Jeu à partir de la mesure ${v.from}${multi ? ', passage par passage' : ''}</div>
+            ${v.rows.map(row).join('')}
+            ${after}
+            ${v.hasMarks ? `<button type="button" class="jm-chip jrp-clear" data-act="clearplay" title="Retire les indications de croches et de tempo de la mesure ${v.from}">Effacer le jeu</button>` : ''}
+        </div>`;
+}
+
 // Classes ajoutées à la case en plus de cellClassName.
 function cellExtraClasses(c) {
     const out = [];
@@ -367,6 +418,7 @@ function scrollTargetFor(containerTop, clientHeight, rowTop, rowHeight) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         layoutRows, cellClassName, measureCellModel, cellExtraClasses, cellInnerHtml, cellMarksHtml, sequenceFingerprint, printMarks, printGridHtml, printInfoParts, measureNoteTitle,
+        repeatPopHtml, marksHtml, marksText, tempoMarkText, tempoMarkHtml,
         currentMeasureNumber, selectionFix, gutterMark, partBanner, isBoxPart, rowFillers, needsAddRow, clickPosition, playRangeAfterClick, halfToHighlight, neighborMeasure, neighborStop, scrollTargetFor,
     };
 }

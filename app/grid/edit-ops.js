@@ -22,6 +22,9 @@ const EDIT_IS_PART_LABEL = (typeof isPartLabel !== 'undefined') ? isPartLabel : 
 const EDIT_NOTE_MAX = (typeof MEASURE_NOTE_MAX !== 'undefined') ? MEASURE_NOTE_MAX : require('./grid-format.js').MEASURE_NOTE_MAX;
 const EDIT_NOTE_SPAN_MAX = (typeof MEASURE_NOTE_SPAN_MAX !== 'undefined') ? MEASURE_NOTE_SPAN_MAX : require('./grid-format.js').MEASURE_NOTE_SPAN_MAX;
 const EDIT_CLEAN_NOTE = (typeof sanitizeNoteHtml !== 'undefined') ? sanitizeNoteHtml : require('./grid-format.js').sanitizeNoteHtml;
+if (typeof marksAt === 'undefined' && typeof require === 'function') {
+    var { marksAt } = require('./play-order.js');
+}
 if (typeof isSplit === 'undefined' && typeof require === 'function') {
     var { isSplit } = require('../band/band-helpers.js');
 }
@@ -29,7 +32,7 @@ if (typeof romanDegByRank === 'undefined' && typeof require === 'function') {
     var { romanDegByRank, fnMinorRef } = require('./generation.js');
 }
 
-const EDIT_OPS_BUILD = '2026-11-21-d'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
+const EDIT_OPS_BUILD = '2026-11-21-e'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
 const cloneStep = (o) => JSON.parse(JSON.stringify(o));
 
 // Repère de partie porté par la mesure m (liste à plat), seulement si elle ouvre son bloc ; '' sinon.
@@ -448,6 +451,71 @@ function setMeasureTempo(grid, measureNumber, val, pass) {
     mergeAround(grid, idx - 1, idx + 1);
 }
 
+// ===== Popup « Reprise et jeu » (barre d'édition) =====
+// Reprise sur les mesures from..to : times = 2 à 4 pose |: sur la première et :| ×times sur la dernière (les signes déjà posés
+// à l'intérieur sont retirés) ; times = 0 retire reprises et 1re / 2e fins de la plage.
+function setRepeatRange(grid, from, to, times) {
+    withIsolatedRange(grid, from, to, (i0, i1) => {
+        for (let i = i0; i <= i1; i++) { delete grid[i].repeatStart; delete grid[i].repeatEnd; }
+        if (times >= 2 && times <= 4) { grid[i0].repeatStart = true; grid[i1].repeatEnd = times; }
+        else for (let i = i0; i <= i1; i++) delete grid[i].volta;
+    });
+}
+
+// Indication de jeu (field = 'feel' ou 'tempo') posée sur la mesure measureNumber.
+// passCount < 2 : une seule valeur, pour tous les passages (value undefined = retirée).
+// passCount ≥ 2 (mesure dans une reprise) : valeur du passage `pass`. fillNeutral (début de reprise) : les autres passages prennent
+// la valeur neutre (Swing, a tempo) s'ils n'en ont pas, pour qu'un « 1x Droit » ne déborde pas sur le 2e passage ; au milieu d'une
+// reprise, un passage sans valeur garde le jeu en cours. Si tous les passages ont la même valeur, elle est rangée une seule fois.
+function setPlayMark(grid, measureNumber, field, pass, value, passCount, fillNeutral = true) {
+    if (field !== 'feel' && field !== 'tempo') return;
+    const idx = isolateMeasure(grid, measureNumber);
+    if (idx < 0) return;
+    const st = grid[idx];
+    const N = passCount >= 2 ? Math.min(4, passCount) : 0;
+    const clearAll = () => { delete st[field]; if (st.byPass) Object.values(st.byPass).forEach(o => { if (o) delete o[field]; }); };
+    if (!N) {
+        clearAll();
+        if (value !== undefined) st[field] = value;
+    } else {
+        const neutral = field === 'feel' ? 'swing' : 'base';
+        const vals = [];
+        for (let p = 1; p <= N; p++) vals[p] = marksAt(st, p)[field];
+        if (pass >= 1 && pass <= N) vals[pass] = value;
+        const list = vals.slice(1);
+        if (fillNeutral && list.some(x => x !== undefined)) for (let p = 1; p <= N; p++) if (vals[p] === undefined) vals[p] = neutral;
+        clearAll();
+        if (vals.slice(1).every(x => x === vals[1])) { if (vals[1] !== undefined) st[field] = vals[1]; }
+        else for (let p = 1; p <= N; p++) if (vals[p] !== undefined) markTarget(st, p)[field] = vals[p];
+    }
+    pruneByPass(st);
+    mergeAround(grid, idx - 1, idx + 1);
+}
+
+// Retire toutes les indications de jeu (croches, tempo, par passage) de la mesure measureNumber.
+function clearPlayMarks(grid, measureNumber) {
+    const idx = isolateMeasure(grid, measureNumber);
+    if (idx < 0) return;
+    delete grid[idx].feel; delete grid[idx].tempo; delete grid[idx].byPass;
+    mergeAround(grid, idx - 1, idx + 1);
+}
+
+// « Revenir au jeu général » sur la mesure measureNumber (celle qui suit un passage) : on = pose Swing (si feel) et a tempo
+// (si tempo) ; off = retire ces deux retours s'ils y sont.
+function setReturnMarks(grid, measureNumber, on, fields) {
+    const idx = isolateMeasure(grid, measureNumber);
+    if (idx < 0) return;
+    const st = grid[idx];
+    if (on) {
+        if (fields && fields.feel) st.feel = 'swing';
+        if (fields && fields.tempo) st.tempo = 'base';
+    } else {
+        if (st.feel === 'swing') delete st.feel;
+        if (st.tempo === 'base') delete st.tempo;
+    }
+    mergeAround(grid, idx - 1, idx + 1);
+}
+
 // Objet qui reçoit une indication : le bloc lui-même (tous les passages) ou son entrée byPass[pass] (créée au besoin).
 function markTarget(st, pass) {
     const p = parseInt(pass, 10);
@@ -533,5 +601,5 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = { partLabelOfMeasure, measureItems, isolateMeasure, isolateRange, splitBeforeMeasure, mergeAround, deleteRange,
         deleteMeasureAt, insertItemsAfter, duplicateMeasureAfter, appendCopyOfLast, setMeasureSplit, transposeRange, setFunctionLabel, setMeasureNote, noteCoverage, noteOwnerAt, measureNotes, setMeasureNoteSpan,
         chordPositions, laterChordOccurrences, applyFunctionLabelToLater, chordSuggestionsForRoot, rememberChord,
-        withIsolatedRange, toggleRepeatStart, cycleRepeatEnd, toggleVolta, clearRepeats, markMeasure, setMeasureTempo, assignAutoParts, diatonicDegrees, qualityTargetChord };
+        withIsolatedRange, toggleRepeatStart, cycleRepeatEnd, toggleVolta, clearRepeats, markMeasure, setMeasureTempo, setRepeatRange, setPlayMark, clearPlayMarks, setReturnMarks, assignAutoParts, diatonicDegrees, qualityTargetChord };
 }

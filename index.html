@@ -396,11 +396,8 @@
                             <span id="jam-sel-info" class="jam-eb-info" role="status" aria-live="polite"></span>
                         </div>
                         <div class="flex items-center gap-1.5 flex-wrap">
-                            <button type="button" id="jam-eb-rs" class="jam-eb jam-eb-ico" onclick="app.jam.gridRepeatStart()" title="Début de reprise : pose ou retire le signe sur la première mesure de la sélection" aria-label="Début de reprise"><svg width="16" height="14" viewBox="0 0 16 14" fill="currentColor" aria-hidden="true"><rect x="1" y="0" width="2.6" height="14"/><rect x="5.2" y="0" width="1.1" height="14"/><circle cx="10" cy="4.8" r="1.5"/><circle cx="10" cy="9.2" r="1.5"/></svg></button>
-                            <button type="button" id="jam-eb-re" class="jam-eb jam-eb-ico" onclick="app.jam.gridRepeatEnd()" title="Fin de reprise sur la dernière mesure de la sélection ; clics successifs : ×2, ×3, ×4, aucun" aria-label="Fin de reprise"><svg width="16" height="14" viewBox="0 0 16 14" fill="currentColor" aria-hidden="true"><rect x="12.4" y="0" width="2.6" height="14"/><rect x="9.7" y="0" width="1.1" height="14"/><circle cx="6" cy="4.8" r="1.5"/><circle cx="6" cy="9.2" r="1.5"/></svg></button>
-                            <button type="button" id="jam-eb-v1" class="jam-eb" onclick="app.jam.gridVolta(1)" title="Marque la sélection comme 1re fin (jouée au premier passage seulement)">1re fin</button>
-                            <button type="button" id="jam-eb-v2" class="jam-eb" onclick="app.jam.gridVolta(2)" title="Marque la sélection comme 2e fin (jouée au second passage)">2e fin</button>
-                            <button type="button" id="jam-eb-rclr" class="jam-eb" onclick="app.jam.gridClearRepeats()" title="Retire reprises et fins de la sélection">Retirer reprises</button>
+                            <button type="button" id="jam-eb-rp" class="jam-eb" onclick="app.jam.toggleRepeatPop()" aria-haspopup="true" title="Reprise de la sélection (×2, ×3, ×4, 1re / 2e fin), croches droites ou swing et tempo, passage par passage"><svg width="16" height="14" viewBox="0 0 16 14" fill="currentColor" aria-hidden="true" style="display:inline;vertical-align:-2px;margin-right:4px"><rect x="0.5" y="0" width="1.8" height="14"/><rect x="3.4" y="0" width="0.8" height="14"/><circle cx="6.4" cy="4.8" r="1.2"/><circle cx="6.4" cy="9.2" r="1.2"/><circle cx="9.6" cy="4.8" r="1.2"/><circle cx="9.6" cy="9.2" r="1.2"/><rect x="11.8" y="0" width="0.8" height="14"/><rect x="13.7" y="0" width="1.8" height="14"/></svg>Reprise et jeu</button>
+                            <span id="jam-eb-rp-sum" class="jam-eb-sum" title="Reprise et jeu de la sélection"></span>
                             <span class="jam-eb-sep"></span>
                             <button type="button" id="jam-eb-part" class="jam-eb" onclick="app.jam.gridPartStart(event)" aria-haspopup="true" title="Repère de partie sur la première mesure de la sélection : ouvre un menu (in, A à G, A' à G', out, ou un nom libre : Couplet, Refrain…). Re-choisir le repère actif le retire"><span class="jam-part-btn-ico">A</span>Partie</button>
                             <span class="jam-eb-sep"></span>
@@ -5799,7 +5796,9 @@
                 dis('jam-eb-dup', !range);
                 dis('jam-eb-del', !range);
                 dis('jam-eb-paste', clip.length === 0);
-                ['jam-eb-rs', 'jam-eb-re', 'jam-eb-v1', 'jam-eb-v2', 'jam-eb-rclr', 'jam-eb-part', 'jam-eb-tr'].forEach(id => dis(id, !range));
+                ['jam-eb-rp', 'jam-eb-part', 'jam-eb-tr'].forEach(id => dis(id, !range));
+                this._updateRepeatSummary(range);
+                this._renderRepeatPop();
                 const paste = document.getElementById('jam-eb-paste');
                 if (paste) paste.textContent = clip.length ? `Coller (${clip.length})` : 'Coller';
                 const modeBtn = document.getElementById('jam-sel-mode-btn');
@@ -6481,6 +6480,189 @@
             // Posé après compactGridRepeats / _annotateModulations pour ne figurer que sur le premier bloc de chaque partie.
             // Aucun repère si la grille n'a qu'une seule section (une lettre unique n'apporterait rien).
             _assignAutoParts() { assignAutoParts(this.grid); }
+
+            // ===== Popup « Reprise et jeu » (barre d'édition) =====
+            // Sur la sélection : reprise en un clic (Aucune, ×2, ×3, ×4) et 1re / 2e fin ; puis le jeu à partir de sa première mesure
+            // (croches Droit / Swing, tempo ♩ = N ou a tempo), une ligne par passage quand la mesure est reprise ; et le retour au jeu
+            // général sur la mesure qui suit. Les calculs sont dans grid/edit-ops.js, le contenu dans ui/grid-view.js (repeatPopHtml).
+
+            // Résumé à côté du bouton : reprise posée sur la sélection et indications de sa première mesure.
+            _updateRepeatSummary(range) {
+                const el = document.getElementById('jam-eb-rp-sum');
+                if (!el) return;
+                const v = range ? this._repeatPopView(range) : null;
+                const parts = [];
+                if (v && v.times) parts.push(`<b>×${v.times}</b>`);
+                if (v && v.volta) parts.push(v.volta === 1 ? '1re fin' : '2e fin');
+                if (v && v.firstStep) { const t = marksHtml(v.firstStep); if (t) parts.push(t); }
+                el.innerHTML = parts.join(' · ');
+                el.title = parts.length ? 'Sélection : ' + el.textContent : '';
+            }
+
+            _repeatPopView(r) {
+                const flat = this.getFlatMeasureList();
+                const mA = flat[r.from - 1], mB = flat[r.to - 1];
+                if (!mA || !mB) return null;
+                const a = this.grid[mA.stepIndex], b = this.grid[mB.stepIndex];
+                const times = (a.repeatStart && mA.measureInStep === 1 && b.repeatEnd && mB.measureInStep === b.measures) ? b.repeatEnd : 0;
+                // Reprise qui contient le début de la sélection (la sélection elle-même quand elle est la reprise)
+                const rgA = repeatRegions(this.grid).find(rg => mA.stepIndex >= rg.start && mA.stepIndex <= rg.end) || null;
+                const region = (!times && rgA) ? { from: stepSpan(this.grid, rgA.start).first, to: stepSpan(this.grid, rgA.end).last, times: rgA.times } : null;
+                // Début de reprise : un réglage pour un passage donne la valeur neutre aux autres (sinon il déborderait au passage suivant)
+                const atRegionStart = !!times || !!(rgA && rgA.start === mA.stepIndex && mA.measureInStep === 1);
+                let volta = a.volta || 0;
+                for (let i = mA.stepIndex; i <= mB.stepIndex; i++) if ((this.grid[i].volta || 0) !== volta) { volta = 0; break; }
+                const N = times || this._passCountOfStep(mA.stepIndex);
+                const firstStep = mA.measureInStep === 1 ? a : null;
+                const f = firstStep || {};
+                const rows = N >= 2
+                    ? Array.from({ length: Math.min(4, N) }, (_, k) => ({ p: k + 1, ...marksAt(f, k + 1) }))
+                    : [{ p: 0, feel: f.feel, tempo: f.tempo }];
+                // Tempo en vigueur au début de la sélection, passage par passage (indice grisé du champ)
+                const rgPass = (p) => (rgA && p) ? { [rgA.end]: p } : {};
+                rows.forEach(rw => { rw.here = markStateAt(this.grid, mA.stepIndex, rgPass(rw.p)).tempo || this.bpm; });
+                const total = flat.length;
+                const next = flat[r.to];
+                const nst = next ? this.grid[next.stepIndex] : null;
+                const after = { possible: r.to < total, measure: r.to + 1, inRegion: !!(rgA && next && next.stepIndex <= rgA.end),
+                    on: !!(nst && next.measureInStep === 1 && (nst.feel || nst.tempo !== undefined || nst.byPass)) };
+                // Jeu en vigueur juste avant la sélection, pour chaque passage (le retour au jeu général le rétablit)
+                const before = flat[r.from - 2];
+                const prior = (p) => before ? markStateAt(this.grid, before.stepIndex, rgPass(p)) : { feel: null, tempo: null };
+                return { from: r.from, to: r.to, times, region, volta, rows, N, firstStep, after, total, atRegionStart, prior,
+                    hasMarks: !!(f.feel || f.tempo !== undefined || f.byPass), tempoHere: this._tempoAtIndex(mA.stepIndex), baseBpm: this.bpm };
+            }
+
+            toggleRepeatPop() {
+                if (this._rpPop) { this._closeRepeatPop(); return; }
+                if (this.isPlaying) return;
+                const r = this._actionRange();
+                if (!r) { this._flash('Sélectionnez des mesures'); return; }
+                const btn = document.getElementById('jam-eb-rp');
+                const el = document.createElement('div');
+                el.className = 'jm-pop jrp-pop';
+                el.addEventListener('click', (ev) => {
+                    const t = ev.target.closest('[data-act]');
+                    if (!t || t.tagName === 'INPUT') return;
+                    this._repeatPopAction(t.dataset.act, t.dataset.v, parseInt(t.dataset.p, 10) || 0);
+                });
+                el.addEventListener('change', (ev) => {
+                    const t = ev.target;
+                    if (!t.dataset) return;
+                    if (t.dataset.act === 'tempo') this._repeatPopAction('tempo', t.value, parseInt(t.dataset.p, 10) || 0);
+                    if (t.dataset.act === 'after') this._repeatPopAction('after', t.checked ? '1' : '');
+                });
+                document.body.appendChild(el);
+                const onDown = (e) => {
+                    const t = e.target;
+                    if (el.contains(t) || (btn && btn.contains(t))) return;
+                    if (t.closest && (t.closest('#jam-chord-sequence-display') || t.closest('#jam-edit-bar'))) return; // changer la sélection garde le popup ouvert
+                    this._closeRepeatPop();
+                };
+                const onKey = (e) => { if (e.key === 'Escape') this._closeRepeatPop(); };
+                document.addEventListener('pointerdown', onDown, true);
+                document.addEventListener('keydown', onKey, true);
+                this._rpPop = { el, onDown, onKey };
+                this._renderRepeatPop(true);
+                // Placement : sous le bouton (au-dessus s'il manque de place) ; feuille du bas sur téléphone
+                const vw = window.innerWidth, vh = window.innerHeight;
+                if (vw < 640) el.classList.add('jm-sheet');
+                else if (btn) {
+                    const br = btn.getBoundingClientRect();
+                    const pw = el.offsetWidth, ph = el.offsetHeight;
+                    const left = Math.min(Math.max(8, br.left), vw - pw - 8);
+                    let top = br.bottom + 6;
+                    if (top + ph > vh - 8) top = Math.max(8, vh - ph - 8);
+                    el.style.left = `${left}px`;
+                    el.style.top = `${top}px`;
+                    this._enablePopupDrag(el);
+                }
+                if (btn) btn.setAttribute('aria-expanded', 'true');
+            }
+
+            _closeRepeatPop() {
+                const m = this._rpPop;
+                if (!m) return;
+                this._rpPop = null;
+                document.removeEventListener('pointerdown', m.onDown, true);
+                document.removeEventListener('keydown', m.onKey, true);
+                m.el.remove();
+                const btn = document.getElementById('jam-eb-rp');
+                if (btn) btn.removeAttribute('aria-expanded');
+            }
+
+            // force : redessine même si un champ du popup a le focus (sinon on attend, pour ne pas effacer une saisie en cours)
+            _renderRepeatPop(force) {
+                const m = this._rpPop;
+                if (!m) return;
+                if (this.isPlaying) { this._closeRepeatPop(); return; }
+                const r = this._actionRange();
+                const v = r ? this._repeatPopView(r) : null;
+                if (!v) { this._closeRepeatPop(); return; }
+                const a = document.activeElement;
+                if (!force && a && m.el.contains(a) && a.tagName === 'INPUT' && a.type === 'number') return;
+                const sc = m.el.scrollTop;
+                m.el.innerHTML = repeatPopHtml(v);
+                m.el.scrollTop = sc;
+            }
+
+            _repeatPopAction(act, val, p) {
+                if (act === 'close') { this._closeRepeatPop(); return; }
+                if (this.isPlaying) return;
+                const r = this._actionRange();
+                const v = r ? this._repeatPopView(r) : null;
+                if (!v) return;
+                const row = v.rows.find(x => x.p === p) || v.rows[0];
+                const g = this.grid;
+                // Le retour, sur la mesure qui suit la sélection, rétablit le jeu d'avant la sélection (passage par passage quand cette
+                // mesure est encore dans la reprise). Posé d'office quand on marque un passage de plusieurs mesures qui n'en portait pas
+                // encore, complété ensuite pour chaque nouveau réglage (croches et/ou tempo).
+                const putReturn = (field) => {
+                    const val = (st) => field === 'feel' ? (st.feel === 'straight' ? 'straight' : 'swing') : (st.tempo || 'base');
+                    if (v.after.inRegion && v.N >= 2) for (let q = 1; q <= v.N; q++) setPlayMark(g, v.after.measure, field, q, val(v.prior(q)), v.N, false);
+                    else setPlayMark(g, v.after.measure, field, 0, val(v.prior(0)), 0);
+                };
+                const withReturn = (field) => {
+                    if (!v.after.possible) return;
+                    if (v.after.on || (!v.hasMarks && v.to > v.from)) putReturn(field);
+                };
+                this.withUndo(() => {
+                    switch (act) {
+                        case 'rep': setRepeatRange(g, v.from, v.to, parseInt(val, 10) || 0); break;
+                        case 'volta': withIsolatedRange(g, v.from, v.to, (i0, i1) => toggleVolta(g, i0, i1, parseInt(val, 10) === 2 ? 2 : 1)); break;
+                        case 'feel': {
+                            const nv = row.feel === val ? undefined : (val === 'swing' ? 'swing' : 'straight');
+                            setPlayMark(g, v.from, 'feel', p, nv, v.N, v.atRegionStart);
+                            if (nv) withReturn('feel');
+                            break;
+                        }
+                        case 'tempo': case 'tbase': case 'tstep': {
+                            let nv;
+                            if (act === 'tbase') nv = row.tempo === 'base' ? undefined : 'base';
+                            else if (act === 'tempo') { const n = Math.round(Number(val)); nv = (String(val).trim() === '' || !Number.isFinite(n)) ? undefined : Math.max(30, Math.min(300, n)); }
+                            else { const cur = Number.isInteger(row.tempo) ? row.tempo : (row.here || v.tempoHere || this.bpm); nv = Math.max(30, Math.min(300, Math.round(cur / 5) * 5 + (parseInt(val, 10) || 0))); }
+                            setPlayMark(g, v.from, 'tempo', p, nv, v.N, v.atRegionStart);
+                            if (nv !== undefined) withReturn('tempo');
+                            break;
+                        }
+                        case 'after': {
+                            const on = !!val;
+                            const anyFeel = v.rows.some(x => x.feel), anyTempo = v.rows.some(x => x.tempo !== undefined);
+                            if (!v.after.possible) break;
+                            if (on) { if (anyFeel) putReturn('feel'); if (anyTempo) putReturn('tempo'); }
+                            else { setPlayMark(g, v.after.measure, 'feel', 0, undefined, 0); setPlayMark(g, v.after.measure, 'tempo', 0, undefined, 0); }
+                            break;
+                        }
+                        case 'clearplay':
+                            clearPlayMarks(g, v.from);
+                            if (v.after.possible && v.after.on) { setPlayMark(g, v.after.measure, 'feel', 0, undefined, 0); setPlayMark(g, v.after.measure, 'tempo', 0, undefined, 0); }
+                            break;
+                    }
+                });
+                this.renderGridUI();
+                this.updateEditBar();
+                this._renderRepeatPop(true);
+            }
 
             // Bouton « Partie » : ouvre un menu (in, A–G, A'–G', out, et un nom libre) ; le repère choisi est posé sur la 1re mesure de la
             // sélection. Re-choisir le repère déjà actif le retire. Les noms libres déjà utilisés dans la grille sont proposés en raccourci.
@@ -10866,7 +11048,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-21-d';
+        var BUILD = '2026-11-21-e';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }
@@ -10880,7 +11062,7 @@
             // Fichiers nouveaux de la version : s'ils sont absents (mal placés ou pas envoyés), ils ne définissent pas leur fonction.
             var needed = {
                 'app/grid/play-order.js': typeof feelByStep === 'function' && typeof tempoByStep === 'function' && typeof playedSeconds === 'function' && typeof markStateAt === 'function',
-                'app/ui/grid-view.js': (function () { try { return printMarks([{ byPass: { 2: { feel: 'swing' } }, measures: 1 }], {}, { stepIndex: 0, measureInStep: 1, measureNumber: 1 }, []).html.indexOf('jam-pass') >= 0; } catch (e) { return false; } })(),
+                'app/ui/grid-view.js': (function () { try { return printMarks([{ byPass: { 2: { feel: 'swing' } }, measures: 1 }], {}, { stepIndex: 0, measureInStep: 1, measureNumber: 1 }, []).html.indexOf('jam-pass') >= 0 && typeof repeatPopHtml === 'function'; } catch (e) { return false; } })(),
                 'app/ui/scale-harmony.js': typeof scaleHarmonyHtml === 'function' && typeof scaleHarmony === 'function',
                 'app/ui/scale-map.js': typeof scaleMapEntries === 'function' && typeof scaleMapHtml === 'function' && typeof trainingMapCards === 'function',
                 'app/ui/chord-picker.js': typeof chordPickerHtml === 'function' && typeof chordPickerBuild === 'function' && typeof chordPickerParseRoot === 'function',

@@ -140,28 +140,23 @@ describe('basse', () => {
     });
 });
 
-describe('reprises et sections repliables', () => {
+describe('sections repliables (les reprises sont dans le popup « Reprise et jeu » de la barre d\'édition)', () => {
     const g = [blk({ measures: 2, repeatStart: true, repeatEnd: 3, volta: 2 })];
-    test('marques : début sur la 1re mesure du bloc, fin ×N sur la dernière, fin 1re/2e', () => {
-        const first = editorHtml(view(g, { measureNumber: 1, mode: 'cat' }));
-        assert.ok(/is-on" data-act="rp-start"/.test(first) && !/is-on" data-act="rp-end"/.test(first));
-        const last = editorHtml(view(g, { measureNumber: 2, mode: 'cat' }));
-        assert.ok(last.includes(':| Fin ×3') && /is-on" data-act="rp-end"/.test(last) && !/is-on" data-act="rp-start"/.test(last));
-        assert.ok(/is-on" data-act="rp-v2"/.test(last) && !/is-on" data-act="rp-v1"/.test(last));
+    test('plus de section Reprises dans le pop-up de mesure', () => {
+        for (const mode of ['cat', 'build']) {
+            const h = editorHtml(view(g, { measureNumber: 1, mode, folded: () => false }));
+            assert.ok(!h.includes('data-act="rp-start"') && !h.includes('Reprises'));
+        }
     });
-    test('mode Construire : sections Basse et Reprises repliées / dépliées', () => {
+    test('mode Construire : section Basse repliée / dépliée, résumé de la basse choisie', () => {
         const closed = editorHtml(view(g, { mode: 'build', folded: () => true }));
-        assert.ok(closed.includes('aria-expanded="false"') && !closed.includes('data-act="bass"') && !closed.includes('data-act="rp-start"'));
+        assert.ok(closed.includes('aria-expanded="false"') && !closed.includes('data-act="bass"'));
         const open = editorHtml(view(g, { mode: 'build', folded: () => false }));
-        assert.ok(open.includes('aria-expanded="true"') && open.includes('data-act="bass"') && open.includes('data-act="rp-start"'));
-    });
-    test('résumé d\'une section repliée : basse choisie, marques de reprise', () => {
-        const h = editorHtml(view([blk({ measures: 1, bassRootIndex: 7, repeatStart: true, repeatEnd: 2 })], { mode: 'build', folded: () => true }));
+        assert.ok(open.includes('aria-expanded="true"') && open.includes('data-act="bass"'));
+        const h = editorHtml(view([blk({ measures: 1, bassRootIndex: 7 })], { mode: 'build', folded: () => true }));
         assert.ok(h.includes('<em>/G</em>'));
-        assert.ok(h.includes('<em>|: :|×2</em>'));
     });
 });
-
 
 describe('choix d\'accords sur 2 lignes et accords déjà utilisés dans la grille', () => {
     const chordChips = (h) => (h.match(/<div class="jm-chords[^"]*">([\s\S]*?)<\/div>/) || [, ''])[1];

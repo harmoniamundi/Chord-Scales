@@ -415,7 +415,7 @@
         #jam-chord-sequence-display .jam-cell-top > span:last-child { min-width: 0; }
         #jam-chord-sequence-display .jam-add-cell { align-self: stretch; min-height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 1.5px dashed #2f6f57; background: rgba(16,185,129,.06); color: #34d399; font-size: 24px; line-height: 1; cursor: pointer; user-select: none; transition: background .12s, border-color .12s; }
         #jam-chord-sequence-display .jam-add-cell:hover { background: rgba(16,185,129,.16); border-color: #34d399; }
-        :root { --cs-build: '2026-11-21-d'; } /* numéro de version lu par la page */
+        :root { --cs-build: '2026-11-21-e'; } /* numéro de version lu par la page */
         .jm-pop { position: fixed; z-index: 2000; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); color: #e2e8f0; padding: 10px 12px 12px; font-size: 12px; }
         .jm-pop.jm-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; max-height: 62vh; }
         /* Pop-up « Orchestre » : fenêtre flottante à gauche de l'écran, sans voile, déplaçable par sa barre de titre */
@@ -687,6 +687,26 @@
         /* Retour ponctuel (« Mesure dupliquée »…) : posé à l'extrême droite de la ligne, hors du flux, pour ne jamais décaler les boutons */
         .jam-eb-info { position: absolute; right: 0; top: 50%; transform: translateY(-50%); max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 10px; background: #252525; color: #94a3b8; font-size: 11px; pointer-events: none; }
         .jam-eb-info:empty { display: none; }
+        /* Résumé « Reprise et jeu » de la sélection, à côté du bouton (×2 · 1x Droit ♩=80 · 2x Swing ♩=160) */
+        .jam-eb-sum { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: "Kalam", cursive; font-size: 13px; font-weight: 700; color: #f1f5f9; align-self: center; }
+        .jam-eb-sum:empty { display: none; }
+        .jam-eb-sum .jam-pass { font-style: normal; color: #93c5fd; }
+        /* Popup « Reprise et jeu » */
+        .jrp-pop { width: 380px; }
+        .jrp-pop .jrp-rep { margin-bottom: 6px; }
+        .jrp-pop .jrp-voltas { margin-top: 2px; }
+        .jrp-pop .jrp-note { margin: 2px 0 6px; color: #94a3b8; font-size: 11px; }
+        .jrp-pop .jrp-row { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-top: 1px solid #2c2c2e; }
+        .jrp-pop .jrp-row:first-of-type { border-top: 0; }
+        .jrp-pop .jrp-pass { flex: 0 0 22px; font-weight: 700; color: #93c5fd; font-size: 13px; }
+        .jrp-pop .jrp-feel { flex: 0 0 112px; }
+        .jrp-pop .jrp-tempo { display: flex; align-items: center; gap: 3px; flex: 1 1 auto; justify-content: flex-end; }
+        .jrp-pop .jrp-tempo .jm-chip { padding-left: 6px; padding-right: 6px; flex: 0 0 auto; }
+        .jrp-pop .jrp-tempo label { display: inline-flex; align-items: center; gap: 2px; font-size: 13px; }
+        .jrp-pop .jrp-tempo input { width: 46px; padding: 4px 5px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #e2e8f0; font-size: 12px; }
+        .jrp-pop .jrp-after { display: flex; align-items: center; gap: 6px; margin-top: 8px; color: #cbd5e1; cursor: pointer; }
+        .jrp-pop .jrp-after input:disabled + * , .jrp-pop .jrp-after:has(input:disabled) { opacity: .55; cursor: default; }
+        .jrp-pop .jrp-clear { margin-top: 8px; }
         @media (max-width: 639px) { .jam-eb-info { position: static; transform: none; max-width: 100%; margin-left: auto; padding-left: 0; background: transparent; } }
         .jam-eb-sep { width: 1px; align-self: stretch; background: #333; margin: 0 2px; }
         #view-jam.jam-playing #jam-edit-bar, #jam-edit-bar.hidden { display: none !important; }

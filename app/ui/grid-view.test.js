@@ -358,3 +358,22 @@ describe('position, sélection et défilement', () => {
         assert.equal(V.scrollTargetFor(0, 100, 0, 150), 50);
     });
 });
+
+describe('popup « Reprise et jeu » et indications', () => {
+    const base = { from: 1, to: 4, times: 0, region: null, volta: 0, tempoHere: 120, baseBpm: 120,
+        after: { possible: true, on: false, measure: 5 }, hasMarks: false };
+    test('une seule ligne de jeu hors reprise, une par passage dans une reprise', () => {
+        const one = V.repeatPopHtml({ ...base, rows: [{ p: 0 }] });
+        assert.ok(one.includes('data-act="rep" data-v="2"') && !one.includes('jrp-pass'));
+        assert.ok(one.includes('data-act="after"') && one.includes(' disabled'));
+        const two = V.repeatPopHtml({ ...base, times: 2, rows: [{ p: 1, feel: 'straight', tempo: 80 }, { p: 1 + 1, feel: 'swing', tempo: 160 }], hasMarks: true });
+        assert.ok(/is-on" data-act="rep" data-v="2"/.test(two));
+        assert.ok(two.includes('>1x<') && two.includes('>2x<') && two.includes('value="80"') && two.includes('value="160"'));
+        assert.ok(/is-on" data-act="feel" data-v="straight" data-p="1"/.test(two) && /is-on" data-act="feel" data-v="swing" data-p="2"/.test(two));
+        assert.ok(two.includes('data-act="clearplay"'));
+    });
+    test('marksText : tous les passages puis par passage', () => {
+        assert.equal(V.marksText({ feel: 'straight', tempo: 90, byPass: { 2: { tempo: 'base' } } }), 'Droit \u2669=90 · 2x a tempo');
+        assert.equal(V.marksText({}), '');
+    });
+});
