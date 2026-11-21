@@ -49,7 +49,7 @@ function measureCellModel(v, m) {
     const centerHtml = showSplit
         ? `<div class="jam-split my-auto">
                                    <div class="jam-half${activeHalf === 0 ? ' jam-half-active' : ''}" data-half="0"><span class="jam-realbook-chord whitespace-nowrap">${symA}</span></div>
-                                   <div class="jam-half${activeHalf === 1 ? ' jam-half-active' : ''}" data-half="1"><span class="jam-realbook-chord whitespace-nowrap">${v.symbolHtml(m.split)}</span></div>
+                                   <div class="jam-half${activeHalf === 1 ? ' jam-half-active' : ''}" data-half="1"><span class="jam-realbook-chord whitespace-nowrap">${v.symbolHtml(m.split, m)}</span></div>
                                </div>`
         : `<div class="jam-realbook-chord my-auto whitespace-nowrap overflow-visible">${displayChordSymbol}</div>`;
     let bottomHtml = '';
@@ -121,7 +121,7 @@ function cellMarksHtml(c) {
 
 // Empreinte de tout ce qui détermine l'aspect des cases de la grille, hors mesure en cours.
 function sequenceFingerprint(v, chordSymbol) {
-    const sym = v.flat.map(m => chordSymbol(m) + (m.split ? '/' + chordSymbol(m.split) : '')).join(';');
+    const sym = v.flat.map(m => chordSymbol(m) + (m.split ? '/' + chordSymbol(m.split, m) : '')).join(';');
     let fn = '';
     if (v.showHarmonicFunctions) {
         fn = v.flat.map((m, i) => v.fnLabel(m, v.flat, i) + (m.split ? '/' + v.fnLabel(m.split, v.flat, i, 1) : '')).join(';');
@@ -177,7 +177,7 @@ function printGridHtml(v) {
             if (m.split && !repeat) {
                 const fnA = fn({ rootIndex: m.rootIndex, chordId: m.chordId, harmonicFunction: null, fnLabel: m.fnLabel }, 0);
                 const fnB = fn({ rootIndex: m.split.rootIndex, chordId: m.split.chordId, harmonicFunction: null, fnLabel: m.split.fnLabel }, 1);
-                cellsHtml += `<div class="jam-print-cell${pm.cls}${fnA || fnB ? ' has-fn' : ''}"><div class="jam-print-split${v.bpb === 3 && !v.aksak ? ' jam-print-split-3' : ''}"><span class="jam-print-chord" data-symbol="${encodeURIComponent(v.chordSymbol(m))}"></span><span class="jam-print-chord" data-symbol="${encodeURIComponent(v.chordSymbol(m.split))}"></span></div>${fnA}${fnB}${pm.html}</div>`;
+                cellsHtml += `<div class="jam-print-cell${pm.cls}${fnA || fnB ? ' has-fn' : ''}"><div class="jam-print-split${v.bpb === 3 && !v.aksak ? ' jam-print-split-3' : ''}"><span class="jam-print-chord" data-symbol="${encodeURIComponent(v.chordSymbol(m))}"></span><span class="jam-print-chord" data-symbol="${encodeURIComponent(v.chordSymbol(m.split, m))}"></span></div>${fnA}${fnB}${pm.html}</div>`;
             } else {
                 const displayChordSymbol = repeat ? '%' : v.chordSymbol(m);
                 const f = fn(m, 0);

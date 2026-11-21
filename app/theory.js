@@ -94,8 +94,9 @@ function chordRootName(rootIndex, chordId, labels) {
 }
 // Nom de la note de basse d'un accord sur basse (C/E, A/C#, Cm/Eb…) : écrite comme la note de l'accord qu'elle est
 // (tierce → lettre +2, quinte → +4, …) plutôt qu'avec l'orthographe générale de la touche.
-function bassNoteName(rootIndex, chordId, bassPc, labels) {
-    const rootName = chordRootName(rootIndex, chordId, labels);
+// rootName (facultatif) : fondamentale déjà écrite en contexte (voir contextChordRootName), ex. « B# » pour B#°7/D#.
+function bassNoteName(rootIndex, chordId, bassPc, labels, rootName = null) {
+    rootName = rootName || chordRootName(rootIndex, chordId, labels);
     const rl = LETTER_ORDER.indexOf(rootName[0]);
     const iv = (((bassPc - rootIndex) % 12) + 12) % 12;
     const info = chordInfo(chordId);
@@ -103,6 +104,25 @@ function bassNoteName(rootIndex, chordId, bassPc, labels) {
     const flat5 = !!info && (info.minorish || info.st.fifth === 'b5');
     const steps = [0, 1, 1, 2, 2, 3, flat5 ? 4 : 3, 4, aug ? 4 : 5, (info && info.st.sev === 'bb7') ? 6 : 5, 6, 6];
     return spellOnLetter(LETTER_ORDER[(rl + steps[iv]) % 7], bassPc) || labels[bassPc];
+}
+// Fondamentale écrite selon l'accord qui suit : un accord diminué (°, °7) ou demi-diminué (ø) placé un demi-ton sous la
+// basse de l'accord suivant est l'accord de sensible de cet accord (vii°7/x, dominante sans fondamentale) ; sa fondamentale
+// s'écrit donc sur la lettre juste au-dessous de celle de la note visée : B#°7 → C#m7 (et non C°7), E#°7 → B/F# (et non F°7),
+// C#°7 → Dm7. next = { rootIndex, chordId, bassRootIndex? } (accord suivant) ou null. Hors de ce cas, ou si l'écriture
+// demandait une double altération, renvoie chordRootName (orthographe habituelle).
+function contextChordRootName(rootIndex, chordId, labels, next) {
+    const plain = chordRootName(rootIndex, chordId, labels);
+    const info = chordInfo(chordId);
+    if (!info || (info.fam !== 'dim' && info.fam !== 'hdim') || !next || !Number.isInteger(next.rootIndex)) return plain;
+    const targetPc = Number.isInteger(next.bassRootIndex) ? next.bassRootIndex : next.rootIndex;
+    if ((((targetPc - rootIndex) % 12) + 12) % 12 !== 1) return plain;
+    const target = targetPc !== next.rootIndex
+        ? bassNoteName(next.rootIndex, next.chordId, targetPc, labels)
+        : chordRootName(next.rootIndex, next.chordId, labels);
+    const li = LETTER_ORDER.indexOf(String(target)[0]);
+    if (li < 0) return plain;
+    const name = spellOnLetter(LETTER_ORDER[(li + 6) % 7], rootIndex);
+    return (name && !/##|bb/.test(name)) ? name : plain;
 }
 // Rang de lettre (0 = lettre de la fondamentale … 6 = septième) d'un intervalle dans une gamme donnée.
 // Les notes chromatiques de passage prennent un dièse en montant, un bémol en descendant.
@@ -614,6 +634,7 @@ if (typeof module !== 'undefined' && module.exports) {
         LETTER_ORDER,
         spellOnLetter,
         chordRootName,
+        contextChordRootName,
         bassNoteName,
         scaleLetterStep,
         AWKWARD_NOTE,

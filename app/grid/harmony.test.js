@@ -457,3 +457,30 @@ describe('modulation en mode mineur : V7 de Xm', () => {
         assert.equal(viaMinor[0], 'V7 de Dm'); // un libellé « X de Y » reste tel quel
     });
 });
+
+describe('gridRootName : fondamentale écrite selon l\'accord suivant', () => {
+    const L = T.labelsForSpelling('sssss');
+    // grille « romantique » en Si : B | C°7 / C#m7 | B/F# / F#7 | B | E | F°7 | B/F# | F#7
+    const grid = [
+        { rootIndex: 11, chordId: 'majTriad', measures: 1 },
+        { rootIndex: 0, chordId: 'dim7', measures: 1, split: { rootIndex: 1, chordId: 'm7' } },
+        { rootIndex: 11, chordId: 'majTriad', measures: 1, bassRootIndex: 6, split: { rootIndex: 6, chordId: '7' } },
+        { rootIndex: 4, chordId: 'majTriad', measures: 1 },
+        { rootIndex: 5, chordId: 'dim7', measures: 1 },
+        { rootIndex: 11, chordId: 'majTriad', measures: 1, bassRootIndex: 6 },
+        { rootIndex: 6, chordId: '7', measures: 1 }
+    ];
+    test('C°7 suivi (dans la même mesure) de C#m7 → B#', () => assert.equal(H.gridRootName(grid, 1, 0, L), 'B#'));
+    test('F°7 suivi de B/F# → E#', () => assert.equal(H.gridRootName(grid, 4, 0, L), 'E#'));
+    test('les autres accords ne changent pas', () => {
+        assert.deepEqual(H.gridRootNames(grid, L), [['B', null], ['B#', 'C#'], ['B', 'F#'], ['E', null], ['E#', null], ['B', null], ['F#', null]]);
+    });
+    test('symbole avec la fondamentale en contexte', () => {
+        assert.equal(H.chordSymbol(grid[1], L, H.gridRootName(grid, 1, 0, L)), 'B#°');
+        assert.equal(H.chordSymbol({ rootIndex: 0, chordId: 'dim7', bassRootIndex: 3 }, L, 'B#'), 'B#°/D#');
+    });
+    test('le dernier accord est suivi du premier (boucle)', () => {
+        const g = [{ rootIndex: 1, chordId: 'm7', measures: 1 }, { rootIndex: 0, chordId: 'dim7', measures: 1 }];
+        assert.equal(H.gridRootName(g, 1, 0, L), 'B#');
+    });
+});

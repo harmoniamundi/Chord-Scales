@@ -4714,7 +4714,23 @@
                 return this.isSplit(step) && (this.currentBeat % this.getBeatsPerBar()) >= this.getSplitBeat() ? 1 : 0;
             }
 
-            getChordSymbol(chord) { return chordSymbol(chord, rootLabels); }
+            // Fondamentale écrite d'un accord de la grille (bloc stepIndex, moitié half) selon l'accord qui le suit :
+            // B#°7 avant C#m7, E#°7 avant B/F#… (voir contextChordRootName dans theory.js).
+            ctxRootName(stepIndex, half = 0) { return gridRootName(this.grid, stepIndex, half, rootLabels); }
+
+            // Même chose pour un accord donné : une entrée de getFlatMeasureList() (son 2d accord si parent est l'entrée
+            // de la mesure), un bloc de this.grid ou son 2d accord. null pour un accord hors de la grille.
+            _rootNameOf(chord, parent = null) {
+                if (!chord) return null;
+                if (parent && Number.isInteger(parent.stepIndex)) return this.ctxRootName(parent.stepIndex, 1);
+                if (Number.isInteger(chord.stepIndex) && Number.isInteger(chord.measureNumber)) return this.ctxRootName(chord.stepIndex, 0);
+                let i = this.grid.indexOf(chord);
+                if (i >= 0) return this.ctxRootName(i, 0);
+                i = this.grid.findIndex(st => st && st.split === chord);
+                return i >= 0 ? this.ctxRootName(i, 1) : null;
+            }
+
+            getChordSymbol(chord, parent = null) { return chordSymbol(chord, rootLabels, this._rootNameOf(chord, parent)); }
 
             // Vrai sur un téléphone (écran tactile dont le petit côté fait moins de 600 px), en portrait comme en paysage.
             isPhone() {
@@ -4729,7 +4745,7 @@
 
             // Version HTML du symbole pour la grille : les caractères absents de la police Kalam (Δ, ♭, ♯, −)
             // sont isolés dans un <span> afin que le téléphone puisse leur imposer une police qui les contient.
-            getChordSymbolHtml(chord) { return chordSymbolHtml(chord, rootLabels); }
+            getChordSymbolHtml(chord, parent = null) { return chordSymbolHtml(chord, rootLabels, this._rootNameOf(chord, parent)); }
 
             getMeasureKey(m) {
                 // clé numérique : deux accords identiques (même fondamentale, qualité et basse) se répètent quelle que soit l'orthographe
@@ -5288,7 +5304,7 @@
                 const conv = this.getFnConvention();
                 const ctxMinor = localKeyMinor(flat, measureNumber - 1, useHalf ? 1 : 0, true, this.mainKey, this.mainQuality);
                 const groups = displayAlternatives(this.getFunctionAlternatives(chord, useHalf ? nextM : (m.split ? m.split : nextM), ctxKey.root, localKeyScale(flat, measureNumber - 1, useHalf ? 1 : 0, true, this.mainKey, this.mainQuality), followingChords(flat, measureNumber - 1, useHalf ? 1 : 0, 2)), conv, ctxMinor);
-                const symbol = `${chordRootName(chord.rootIndex, chord.chordId, rootLabels)}${this.getJazzChordNotation(chord.chordId)}`;
+                const symbol = `${this.ctxRootName(m.stepIndex, useHalf ? 1 : 0) || chordRootName(chord.rootIndex, chord.chordId, rootLabels)}${this.getJazzChordNotation(chord.chordId)}`;
                 const auto = this.getHarmonicFunctionLabel({ rootIndex: chord.rootIndex, chordId: chord.chordId, harmonicFunction: useHalf ? null : m.harmonicFunction, fnLabel: null }, flat, measureNumber - 1, useHalf ? 1 : 0, ctxKey.root, { keyMinor: ctxMinor });
                 const cur = chord.fnLabel || null;
                 const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -6696,7 +6712,7 @@
 
             // Empreinte de tout ce qui détermine l'aspect des cases de la grille, hors mesure en cours.
             _sequenceFingerprint(flatMeasures) {
-                return sequenceFingerprint({ ...this._gridViewCtx(flatMeasures, this._effectiveVolta(), 0), mainKey: this.mainKey }, (c) => this.getChordSymbol(c));
+                return sequenceFingerprint({ ...this._gridViewCtx(flatMeasures, this._effectiveVolta(), 0), mainKey: this.mainKey }, (c, parent) => this.getChordSymbol(c, parent));
             }
 
             // Ce dont ui/grid-view.js a besoin pour décrire les cases de la grille (voir ce fichier).
@@ -6705,7 +6721,7 @@
                     grid: this.grid, flat, effV, scalesDb, bpb: this.getBeatsPerBar(), splitBeat: this.getSplitBeat(), aksak: !!this.getAksak(),
                     currentBeat: this.currentBeat, currentMeasureNum, showHarmonicFunctions: this.showHarmonicFunctions,
                     editBarOpen: this._editBarOpen, sel: this._sel,
-                    symbolHtml: (c) => this.getChordSymbolHtml(c),
+                    symbolHtml: (c, parent) => this.getChordSymbolHtml(c, parent),
                     fnLabel: (c, f, i, half) => glyphHtml(this.getHarmonicFunctionLabel(c, f, i, half)),
                     partLabelOf: (m) => this._partLabelOfMeasure(m), measureKey: (m) => this.getMeasureKey(m)
                 };
@@ -6910,7 +6926,7 @@
             // Page d'impression de la grille (titre, cases, et chiffrage des degrés si `withAnalysis`).
             _fillPrintGrid(printArea, flatMeasures, title, withAnalysis) {
                 printArea.innerHTML = printGridHtml({
-                    ...this._gridViewCtx(flatMeasures, this._effectiveVolta(), 0), chordSymbol: (c) => this.getChordSymbol(c),
+                    ...this._gridViewCtx(flatMeasures, this._effectiveVolta(), 0), chordSymbol: (c, parent) => this.getChordSymbol(c, parent),
                     fnHtml: withAnalysis ? (c, f, i, half) => glyphHtml(this.getHarmonicFunctionLabel(c, f, i, half) || '') : null
                 });
                 printArea.querySelector('.jam-print-title').textContent = title;
@@ -7228,7 +7244,7 @@
 
                         const scaleDef = scalesDb[data.scaleId];
                         if (!scaleDef) return;
-                        const rootName = chordRootName(data.rootIndex, data.chordId, rootLabels);
+                        const rootName = this.ctxRootName(item.idx, item.half === 1 ? 1 : 0) || chordRootName(data.rootIndex, data.chordId, rootLabels);
                         const chordObj = this.findChordObj(data.chordId);
                         const ids = playingCardIds(item.idx, item.half, data.scaleId);
                         const scaleKey = ids.scaleKey;
@@ -7272,7 +7288,7 @@
                             return;
                         }
 
-                        const rootName = chordRootName(step.rootIndex, step.chordId, rootLabels);
+                        const rootName = this.ctxRootName(idx, 0) || chordRootName(step.rootIndex, step.chordId, rootLabels);
                         const chordObj = this.findChordObj(step.chordId);
                         const scaleDef = scalesDb[step.scaleId];
                         if (!scaleDef) return;
@@ -8709,7 +8725,7 @@
                 const blocks = halves.map((h, k) => {
                     const scaleDef = scalesDb[h.scaleId];
                     if (!scaleDef) return '';
-                    const rootName = chordRootName(h.rootIndex, h.chordId, rootLabels);
+                    const rootName = this.ctxRootName(idx, k) || chordRootName(h.rootIndex, h.chordId, rootLabels);
                     const chordObj = this.findChordObj(h.chordId);
                     const on = activeHalf === k;
                     return halfBlockHtml({
@@ -8737,7 +8753,7 @@
                     const scaleDef = scalesDb[h.scaleId];
                     if (!scaleDef) return;
                     pendingStaves.push(staffTask(
-                        halfCanvasId(idx, k), scaleDef, chordRootName(h.rootIndex, h.chordId, rootLabels),
+                        halfCanvasId(idx, k), scaleDef, this.ctxRootName(idx, k) || chordRootName(h.rootIndex, h.chordId, rootLabels),
                         this.showAvoidNotes ? getAvoidNotes(h.scaleId, h.chordId) : [],
                         this.showCharacteristic ? scaleDef.characteristicInterval : null,
                         this.findChordObj(h.chordId), this.showTargetNotes
@@ -9280,7 +9296,16 @@
                 }
 
                 this.displayedNextChord = { rootIndex: nextChord.rootIndex, chordId: nextChord.chordId, bassRootIndex: nextChord.bassRootIndex };
-                const nextRootName = chordRootName(nextChord.rootIndex, nextChord.chordId, rootLabels);
+                // Place de l'accord suivant dans la grille (même logique que nextChordOf), pour l'écrire selon ce qui le suit lui-même.
+                const nextRootName = (() => {
+                    const idx = this.isPlaying ? this.currentStepIndex : this.displayedChordStepIndex;
+                    const h = this.isPlaying ? half : this.displayedChordHalf;
+                    const st = Number.isInteger(idx) ? this.grid[idx] : null;
+                    if (!st) return null;
+                    const pos = (this.isSplit(st) && h === 0) ? [idx, 1] : [this._peekNextDisplayIndex(idx), 0];
+                    const c = pos[0] >= 0 ? (pos[1] === 1 ? this.grid[pos[0]].split : this.grid[pos[0]]) : null;
+                    return (c && c.rootIndex === nextChord.rootIndex && c.chordId === nextChord.chordId) ? this.ctxRootName(pos[0], pos[1]) : null;
+                })() || chordRootName(nextChord.rootIndex, nextChord.chordId, rootLabels);
                 const nextChordObj = this.findChordObj(nextChord.chordId);
                 title.textContent = `${nextRootName}${this.getJazzChordNotation(nextChord.chordId)}`;
                 notesContainer.innerHTML = '';
@@ -9301,7 +9326,7 @@
                 // Sur une mesure à deux accords, half = 1 affiche le second accord (temps 3-4)
                 const shown = displayedChordOf(step, half, this.isSplit(step));
                 const chord = shown.chord;
-                const rootName = chordRootName(chord.rootIndex, chord.chordId, rootLabels);
+                const rootName = this.ctxRootName(this.grid.indexOf(step), shown.half) || chordRootName(chord.rootIndex, chord.chordId, rootLabels);
                 const chordObj = this.findChordObj(chord.chordId);
                 const scaleDef = scalesDb[chord.scaleId];
                 this.displayedChord = { rootIndex: chord.rootIndex, chordId: chord.chordId, bassRootIndex: chord.bassRootIndex };
@@ -10760,7 +10785,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-20-b';
+        var BUILD = '2026-11-21-a';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }

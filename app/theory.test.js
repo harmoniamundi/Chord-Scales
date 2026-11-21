@@ -191,3 +191,29 @@ describe('catalogue d’accords', () => {
         }
     });
 });
+
+describe('contextChordRootName : accord diminué de sensible', () => {
+    const L = T.labelsForSpelling('sssss');
+    test('C°7 avant C#m7 s\'écrit B#°7 (vii°7 de ii en Si majeur)', () => {
+        assert.equal(T.contextChordRootName(0, 'dim7', L, { rootIndex: 1, chordId: 'm7' }), 'B#');
+        assert.deepEqual(T.getSpelledChordNotes('B#', T.lookupChord('dim7')), ['B#', 'D#', 'F#', 'A']);
+    });
+    test('F°7 avant B/F# s\'écrit E#°7 (la note visée est la basse)', () => {
+        assert.equal(T.contextChordRootName(5, 'dim7', L, { rootIndex: 11, chordId: 'majTriad', bassRootIndex: 6 }), 'E#');
+    });
+    test('C#°7 avant Dm7 et Bø7 avant C restent tels quels', () => {
+        assert.equal(T.contextChordRootName(1, 'dim7', L, { rootIndex: 2, chordId: 'm7' }), 'C#');
+        assert.equal(T.contextChordRootName(11, 'm7b5', L, { rootIndex: 0, chordId: 'maj7' }), 'B');
+    });
+    test('hors du cas de sensible : orthographe habituelle', () => {
+        assert.equal(T.contextChordRootName(0, 'dim7', L, { rootIndex: 2, chordId: 'm7' }), 'C');   // C°7 → Dm7
+        assert.equal(T.contextChordRootName(0, 'dim7', L, null), 'C');
+        assert.equal(T.contextChordRootName(0, '7', L, { rootIndex: 1, chordId: 'm7' }), 'C');     // pas un diminué
+    });
+    test('jamais de double altération (G##°7 → A#m reste A°7)', () => {
+        assert.equal(T.contextChordRootName(9, 'dim7', L, { rootIndex: 10, chordId: 'minTriad' }), 'A');
+    });
+    test('bassNoteName suit la fondamentale écrite en contexte (B#°7/D#)', () => {
+        assert.equal(T.bassNoteName(0, 'dim7', 3, L, 'B#'), 'D#');
+    });
+});

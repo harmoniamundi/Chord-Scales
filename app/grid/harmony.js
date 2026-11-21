@@ -6,9 +6,9 @@
 
 // Sous Node, la théorie se charge ; en navigateur ce sont des globaux (theory.js).
 const HARM_THEORY = (typeof lookupChord !== 'undefined')
-    ? { lookupChord, chordInfo, chordTypes, chordRootName, bassNoteName }
+    ? { lookupChord, chordInfo, chordTypes, chordRootName, contextChordRootName, bassNoteName }
     : require('../theory.js');
-const HARMONY_BUILD = '2026-11-20-b'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
+const HARMONY_BUILD = '2026-11-21-a'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
 if (typeof romanDeg === 'undefined' && typeof require === 'function') {
     var { romanDeg, chordFamily, convertRomanText, convertRomanLabel } = require('./generation.js');
 }
@@ -44,10 +44,28 @@ function jazzChordNotation(chordId) {
     return notation[chordId] || (HARM_THEORY.lookupChord(chordId) || HARM_THEORY.chordTypes.maj[0]).name;
 }
 
-function chordSymbol(chord, rootLabels) {
-    const symbol = `${HARM_THEORY.chordRootName(chord.rootIndex, chord.chordId, rootLabels)}${jazzChordNotation(chord.chordId)}`;
-    if (Number.isInteger(chord.bassRootIndex) && chord.bassRootIndex !== chord.rootIndex) return `${symbol}/${HARM_THEORY.bassNoteName(chord.rootIndex, chord.chordId, chord.bassRootIndex, rootLabels)}`;
+// rootName (facultatif) : fondamentale écrite en contexte (voir gridRootNames) ; sinon l'orthographe habituelle.
+function chordSymbol(chord, rootLabels, rootName = null) {
+    const root = rootName || HARM_THEORY.chordRootName(chord.rootIndex, chord.chordId, rootLabels);
+    const symbol = `${root}${jazzChordNotation(chord.chordId)}`;
+    if (Number.isInteger(chord.bassRootIndex) && chord.bassRootIndex !== chord.rootIndex) return `${symbol}/${HARM_THEORY.bassNoteName(chord.rootIndex, chord.chordId, chord.bassRootIndex, rootLabels, root)}`;
     return symbol;
+}
+
+// Fondamentale écrite d'un accord de la grille (bloc i, moitié half : 0 = 1er accord, 1 = 2d accord d'une mesure à deux
+// accords), d'après l'accord qui le suit dans l'ordre de la grille (voir contextChordRootName : B#°7 avant C#m7, E#°7 avant
+// B/F#…). Le dernier accord est suivi du premier (lecture en boucle). Renvoie null si le bloc n'existe pas.
+function gridRootName(grid, i, half, rootLabels) {
+    const st = grid[i];
+    if (!st) return null;
+    const isSplit2 = !!(st.split && st.measures === 1);
+    const chord = (half === 1 && isSplit2) ? st.split : st;
+    const next = (chord === st && isSplit2) ? st.split : (grid.length > 1 ? grid[(i + 1) % grid.length] : null);
+    return HARM_THEORY.contextChordRootName(chord.rootIndex, chord.chordId, rootLabels, next);
+}
+// Toute la grille : tableau parallèle à grid, [1er accord, 2d accord ou null].
+function gridRootNames(grid, rootLabels) {
+    return grid.map((st, i) => [gridRootName(grid, i, 0, rootLabels), (st.split && st.measures === 1) ? gridRootName(grid, i, 1, rootLabels) : null]);
 }
 
 // Les caractères absents de la police Kalam (Δ, ♭, ♯ et le signe moins « − » du mineur) sont isolés dans un <span>
@@ -58,8 +76,8 @@ function glyphHtml(text) {
 }
 
 // Version HTML du symbole pour la grille (voir glyphHtml).
-function chordSymbolHtml(chord, rootLabels) {
-    return glyphHtml(chordSymbol(chord, rootLabels));
+function chordSymbolHtml(chord, rootLabels, rootName = null) {
+    return glyphHtml(chordSymbol(chord, rootLabels, rootName));
 }
 
 // Tonalité en vigueur à une mesure (et une moitié de mesure) : celle du dernier marqueur de modulation
@@ -366,5 +384,5 @@ function displayAlternatives(groups, convention, minor) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { jazzChordNotation, chordSymbol, chordSymbolHtml, glyphHtml, localKey, localKeyInfo, localKeyMinor, localKeyScale, harmonicFunctionLabel, functionAlternatives, displayAlternatives, followingChords };
+    module.exports = { jazzChordNotation, chordSymbol, chordSymbolHtml, gridRootName, gridRootNames, glyphHtml, localKey, localKeyInfo, localKeyMinor, localKeyScale, harmonicFunctionLabel, functionAlternatives, displayAlternatives, followingChords };
 }
