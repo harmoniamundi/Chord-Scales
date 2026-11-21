@@ -144,6 +144,25 @@ describe('plans de mesure', () => {
             assert.equal(((lowest % 12) + 12) % 12, 4, g);
         }
     });
+    test('impressionnisme et romantisme : la mélodie passe d\'une mesure à l\'autre (liaisons, attaques hors du temps 1, état transmis entre phrases)', () => {
+        for (const g of ['c-impression', 'c-romantic']) {
+            const prog = [step(0, 'maj9'), step(9, 'm9'), step(5, 'maj7'), step(7, '9'), step(4, 'm7'), step(2, 'm9'), step(10, '9'), step(0, 'maj9')];
+            let ph = null, prev = null, tied = 0, offOne = 0, mel = 0;
+            for (let m = 0; m < 16; m++) {
+                const idx = Math.floor(m / 4), i = m % 4;
+                if (!ph || ph.index !== idx) { const rng = rngOf(50 + idx); ph = { style: 'classic', index: idx, rng, ...classicPhraseExtras(60, rng, prev, idx, g) }; prev = ph; }
+                if (i === 0 && idx > 0) assert.ok(ph.ceM, `${g} : l'état de la ligne passe à la phrase suivante`);
+                const plan = E.buildClassicEraPlan(env({ bpm: 60 }), 4, false, prog[m % 8], prog[(m + 1) % 8], true, null, ph, i, 4, i === 3, m);
+                plan.piano.filter(e => e.intervals.length === 1 && e.intervals[0] >= 15).forEach(e => {
+                    mel++;
+                    if (e.pos + e.dur > 4.05) tied++;
+                    if (e.pos > 0.01) offOne++;
+                });
+            }
+            assert.ok(tied >= 3, `${g} : ${tied} notes liées par-dessus la barre`);
+            assert.ok(offOne > mel * 0.6, `${g} : ${offOne} / ${mel} attaques ailleurs que sur le 1`);
+        }
+    });
     test('Satie : première phrase sans mélodie (main gauche seule), puis mélodie', () => {
         const run = (index) => {
             const ph = phrase('c-satie', index, 7);

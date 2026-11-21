@@ -40,6 +40,9 @@ function classicEraPhraseExtras(groove, bpm, rng, prev, index) {
     const pe = (prev && prev.cEra === g) ? prev : null;
     const idx = (n) => Math.floor(rng() * n);
     const out = { cEra: g, ceShift: Math.round((rng() - 0.5) * 4), ceOrn: rng() < 0.55, ceDouble: rng() < 0.5 };
+    // ligne mélodique et accompagnement continus : l'état passe d'une phrase d'orchestre à la suivante
+    if (pe && pe.ceM) out.ceM = { ...pe.ceM };
+    if (pe && pe.ceAcc) out.ceAcc = { ...pe.ceAcc };
     if (g === 'c-renaissance') out.ceFam = (pe && rng() < 0.4) ? pe.ceFam : cePickW(rng, [['pavane', 3], ['choral', 2], ['lute', 2]]);
     else if (g === 'c-chaconne') {
         const k = Math.floor(index / 2);   // un énoncé du ground = deux phrases de quatre mesures
@@ -146,7 +149,26 @@ function buildClassicEraPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfS
     const clampV = (v) => Math.max(0.1, Math.min(1, v));
     const fold = (p) => { while (p + off > 31) p -= 12; while (p + off < -26) p += 12; return p; };
 
-    const ctx = { env, rng, ph, i, L, isTurn, nb, ternary, prog, I, up, thin, e8, e16, fits, bpm, m: m || 0 };
+    // Accords de la mesure (et de la suivante) pour les lignes qui traversent la barre de mesure (impressionnisme, romantisme)
+    // pcs : notes de l'accord, basse comprise (accord sur basse : C/E…), pour éviter qu'une note de la ligne ne frotte contre elle
+    const withBass = (cs) => { const p = cePcs(env, cs); if (Number.isInteger(cs.bassRootIndex) && !p.includes(ceMod(cs.bassRootIndex))) p.push(ceMod(cs.bassRootIndex)); return p; };
+    const segInfo = segs.map(sg => ({ s: sg.s, e: sg.e, cs: sg.cs, pcs: withBass(sg.cs) }));
+    const nextCs = changes ? nextStep : (holdOn ? lastSeg.cs : null);
+    // putM : frappe à l'échelle de la mesure ; une note peut déborder sur la mesure suivante (liaison) d'au plus 1,5 temps
+    const putM = (pos, dur, pitches, vel, o = {}) => {
+        if (!pitches || !pitches.length || pos >= nb - 1e-6 || pos < -1e-6) return;
+        const ps = pitches.map(fold).sort((a, b) => a - b).filter((x, k, arr) => k === 0 || x !== arr[k - 1]);
+        const c = ps.length;
+        const evt = {
+            pos, dur: Math.max(0.12, Math.min(nb + 1.5 - pos, dur)), vel: clampV(vel * gv), rootIndex: 0, intervals: ps,
+            noteVels: o.nv ? ps.map((_, k) => (k === c - 1 ? 1 : o.nv)) : ps.map((_, k) => (c === 1 ? 1 : (k === c - 1 ? 1 : 0.84))),
+            roll: c > 1 ? (o.roll !== undefined ? o.roll : 0.012 + rng() * 0.01) : 0,
+            lay: rng() * 0.006, wide: true, gainMul: 1.2, opt: !!o.opt
+        };
+        ev.push(evt);
+        return evt;
+    };
+    const ctx = { env, rng, ph, i, L, isTurn, nb, ternary, prog, I, up, thin, e8, e16, fits, bpm, m: m || 0, segInfo, nextCs, putM };
     const writer = CE_WRITERS[ph.cEra] || CE_WRITERS['c-nocturne'];
     segs.forEach((sg, si) => {
         const lastOne = si === segs.length - 1;
@@ -186,6 +208,108 @@ function ceGrid(sg, unit) {
     const n = Math.max(1, Math.round((sg.e - sg.s) / unit));
     for (let k = 0; k < n; k++) out.push(sg.s + k * unit);
     return out;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Ligne mélodique continue (impressionnisme, romantisme tardif)
+// ---------------------------------------------------------------------------------------------
+// La mélodie n'est plus écrite mesure par mesure : un état (ph.ceM, transmis d'une phrase d'orchestre à la suivante)
+// garde la dernière note, la position de la prochaine attaque (qui peut tomber après la barre de mesure quand une note
+// est liée), la phrase mélodique en cours (longueur en temps, sommet visé, sens) et la respiration à venir. Les phrases
+// mélodiques durent de une à trois mesures et commencent ou finissent n'importe où dans la mesure (levées, notes liées).
+// cfg : { lo, hi, center, vals [[durée, poids]…], runP, runUnits, leapP, appogP, len [min, max] (temps), breath [min, max],
+//         vel, dbl(p) → hauteurs jouées, pool(cs, pcs) → réservoir de notes }
+function ceFitsChord(cs, pcs, p) {
+    const pc = ceMod(p);
+    if (pcs.includes(pc)) return true;
+    const S = popScaleNotes(cs, p, p);
+    return S.length > 0 && !pcs.includes(ceMod(p - 1)) && !pcs.includes(ceMod(p + 1));
+}
+function ceMelody(c, cfg) {
+    const { rng, ph, nb, segInfo, nextCs, putM, fits, env } = c;
+    const pick = (arr) => arr[Math.floor(rng() * arr.length)];
+    const segAt = (t) => segInfo.find(sg => t >= sg.s - 1e-6 && t < sg.e - 1e-6) || segInfo[segInfo.length - 1];
+    const poolOf = (sg) => cfg.pool(sg.cs, sg.pcs).filter(p => p >= cfg.lo && p <= cfg.hi);
+    const M = ph.ceM || (ph.ceM = { p: Math.round(cfg.center), t: 0, left: 0, rest: 0.5 + Math.floor(rng() * 3) * 0.5, tgt: cfg.center, dir: 1 });
+    let t = M.t;
+    let guard = 0;
+    while (t < nb - 1e-6 && guard++ < 64) {
+        if (M.rest > 1e-6) { const adv = Math.min(M.rest, nb - t); t += adv; M.rest -= adv; continue; }
+        if (M.left <= 1e-6) {
+            // nouvelle phrase mélodique : une à trois mesures, sommet tiré autour du centre du registre
+            M.left = cfg.len[0] + rng() * (cfg.len[1] - cfg.len[0]);
+            M.tgt = cfg.center + (rng() - 0.35) * 9;
+            M.dir = M.tgt >= M.p ? 1 : -1;
+            M.span = M.left;
+        }
+        const sg = segAt(t);
+        const P = poolOf(sg);
+        if (P.length < 3) { t = nb; break; }
+        let j = Math.max(0, P.indexOf(ceNearest(P, M.p)));
+        // sens : vers le sommet pendant la première moitié de la phrase, puis retour vers le centre
+        const half = M.left < (M.span || 1) * 0.45;
+        const goal = half ? cfg.center - 2 : M.tgt;
+        const dir = Math.abs(P[j] - goal) < 1.5 ? (rng() < 0.5 ? 1 : -1) : (P[j] < goal ? 1 : -1);
+        const prog = 1 - M.left / (M.span || 1);
+        const arch = Math.sin(Math.PI * Math.max(0, Math.min(1, prog)));
+        const vel = cfg.vel[0] + (cfg.vel[1] - cfg.vel[0]) * arch;
+        const runUnit = cfg.runUnits.filter(u => fits(u))[0];
+        if (runUnit && rng() < cfg.runP && M.left >= 1) {
+            // trait (arabesque, gruppetto, ruissellement) : 3 à 7 notes rapides qui mènent à une note tenue
+            const n = 3 + Math.floor(rng() * 5);
+            let rd = dir, lastEv = null;
+            for (let k = 0; k < n && t < nb - 1e-6; k++) {
+                let nj = j + rd * (rng() < 0.8 ? 1 : 2);
+                if (nj < 0 || nj >= P.length) { rd = -rd; nj = j + rd; }   // rebond en bout de registre (pas de note répétée)
+                j = Math.max(0, Math.min(P.length - 1, nj));
+                lastEv = putM(t, runUnit * 1.8, [P[j]], vel * (0.75 + 0.25 * k / n), { opt: k % 2 === 1 && k < n - 1 });
+                t += runUnit; M.left -= runUnit;
+            }
+            // la dernière note du trait se pose et se tient jusqu'à la croche suivante : la ligne retombe sur la grille
+            const g = c.ternary ? 1 / 3 : 0.5;
+            const tal = Math.ceil((t - 1e-6) / g) * g;
+            if (lastEv) { lastEv.dur = Math.max(lastEv.dur, tal - lastEv.pos + 0.6); lastEv.opt = false; }
+            M.left -= (tal - t); t = tal;
+            M.p = P[j];
+            continue;
+        }
+        // une note ordinaire part toujours de la grille des croches (pas d'attaque flottante après un trait ou une liaison)
+        const gq = c.ternary ? 1 / 3 : 0.5;
+        const tq = Math.ceil((t - 1e-6) / gq) * gq;
+        if (tq - t > 1e-6) { M.left -= (tq - t); t = tq; if (t >= nb - 1e-6) break; }
+        let d = cePickW(rng, cfg.vals);
+        if (d > M.left + 0.5) d = Math.max(0.5, Math.round(M.left * 2) / 2);
+        // hauteur : degré conjoint le plus souvent, parfois un saut (quarte, quinte, sixte)
+        const stp = rng() < cfg.leapP ? 2 + Math.floor(rng() * 2) : 1;
+        j = Math.max(0, Math.min(P.length - 1, j + dir * stp));
+        let note = P[j];
+        const onBeat = Math.abs(t - Math.round(t)) < 1e-6;
+        if (onBeat && !sg.pcs.includes(ceMod(note))) {
+            const tn = ceTonesIn(sg.pcs, note - 2, note + 2).filter(x => x >= cfg.lo && x <= cfg.hi);
+            if (tn.length) {
+                const ch = ceNearest(tn, note);
+                // appoggiature : la note étrangère sur le temps, résolue par degré vers la note de l'accord
+                if (cfg.appogP && rng() < cfg.appogP && d >= 1 && Math.abs(ch - note) <= 2) {
+                    putM(t, d * 0.5, cfg.dbl(note), vel * 1.05);
+                    putM(t + d * 0.5, d * 0.5 + 0.2, cfg.dbl(ch), vel * 0.85);
+                    M.p = ch; t += d; M.left -= d;
+                    if (M.left <= 1e-6) M.rest = cfg.breath[0] + rng() * (cfg.breath[1] - cfg.breath[0]);
+                    continue;
+                }
+                note = ch;
+            }
+        }
+        // liaison par-dessus la barre : seulement si la note convient à l'accord suivant, sinon elle s'arrête à la barre
+        let dd = d;
+        if (t + d > sg.e + 1e-6) {
+            const nxt = segInfo.find(x => x.s >= sg.e - 1e-6) || (nextCs ? { cs: nextCs, pcs: cePcs(env, nextCs) } : null);
+            if (nxt && !ceFitsChord(nxt.cs, nxt.pcs, note)) dd = Math.max(0.5, sg.e - t);
+        }
+        putM(t, dd + 0.15, cfg.dbl(note), vel);
+        M.p = note; t += dd; M.left -= dd;
+        if (M.left <= 1e-6) M.rest = cfg.breath[0] + rng() * (cfg.breath[1] - cfg.breath[0]);
+    }
+    M.t = Math.max(0, t - nb);
 }
 
 const CE_WRITERS = {
@@ -355,65 +479,107 @@ const CE_WRITERS = {
         }
     },
 
-    // ---------- Romantisme tardif (Wagner, Franck, Liszt) : accords battus, grandes vagues, choral chromatique ----------
+    // ---------- Romantisme tardif (Wagner, Franck, Liszt) : ligne chantée continue sur un accompagnement qui coule ----------
+    // La mélodie (ceMelody) traverse les barres de mesure : phrases d'une à trois mesures, notes liées, appoggiatures,
+    // sauts expressifs, doublure à l'octave dans les moments intenses. L'accompagnement garde une même texture deux à quatre
+    // mesures (accords battus dont la position change, grandes vagues d'arpèges, syncopes à la Schumann, rarement un choral)
+    // et la poursuit sans repartir à chaque temps 1 ; la basse avance vers l'accord suivant.
     'c-romantic': (c) => {
-        const { sg, cs, toCs, pcs, low, put, len, rng, ph, up, prog, fits, ternary, closing } = c;
-        const s = sg.s;
-        const dyn = 0.45 + 0.4 * Math.sin(Math.PI * Math.min(1, prog * 1.3));   // crescendo vers le sommet de la phrase, puis retombée
-        const oct = (low - 12 + c.env.transOffset >= -26) ? [low - 12, low] : [low, low + 12];
-        const center = 13 + ph.ceShift + 4 * dyn;
-        const Vc = ceVoiceNear(pcs, center, Math.min(4, Math.max(3, pcs.length)), low + 9, 25);
-        const top = Vc[Vc.length - 1];
-        const Vb = ceVoiceNear(pcs, center - 4, 3, low + 9, 22);   // accords battus, sous la mélodie
-        const mel = ceNearest(ceTonesIn(pcs, Vb[Vb.length - 1] + 3, Vb[Vb.length - 1] + 9), center + 4) || top;
-        const fam = closing ? 'choral' : ph.ceFam;
-        put(s, len >= 4 ? 2 : len, oct, 0.58 + 0.25 * dyn);
-        if (len >= 4 && fam !== 'surge') put(s + 2, 2, oct, 0.5 + 0.2 * dyn, { opt: true });
-        if (fam === 'battus') {
-            // accords répétés en triolets (en croches dans une mesure composée), mélodie doublée à l'octave sur les temps forts
-            const unit = ternary ? 1 / 3 : (fits(1 / 3) ? 1 / 3 : 0.5);
-            ceGrid(sg, unit).forEach((p, k) => {
-                const onBeat = Math.abs(p - Math.round(p)) < 1e-6;
-                put(p, unit * 1.05, Vb, (onBeat ? 0.36 : 0.28) + 0.2 * dyn, { roll: 0.004, opt: !onBeat && k % 3 === 2 });
+        const { sg, si, cs, toCs, pcs, low, put, rng, ph, up, thin, fits, ternary, nb, I } = c;
+        const len = c.len, s = sg.s, e = sg.e;
+        const pick = (arr) => arr[Math.floor(rng() * arr.length)];
+        if (si === 0) {
+            const A = ph.ceAcc;
+            if (!A || A.bars >= A.dur) ph.ceAcc = { kind: cePickW(rng, [['battus', 3], ['wave', 3], ['synco', 2], ['choral', A && A.kind === 'choral' ? 0 : 0.8]].filter(([k]) => !A || k !== A.kind || rng() < 0.3)), k: A ? A.k : 0, bars: 0, dur: 2 + Math.floor(rng() * 3) };
+            else A.bars++;
+            ceMelody(c, {
+                lo: 15, hi: 29, center: 21 + ph.ceShift,
+                vals: [[1, 2], [1.5, 2], [0.5, 1.5], [2, 2], [3, 1.2], [4, 0.5]],
+                runP: 0.07 + 0.08 * up, runUnits: ternary ? [1 / 6] : [1 / 6, 1 / 4], leapP: 0.3, appogP: 0.35,
+                len: [nb, nb * 3], breath: [0.5, 1.25 + thin],
+                vel: [0.5, 0.8],
+                dbl: (p) => (ph.ceDouble && I > 0.5 && p - 12 >= 14) ? [p - 12, p] : [p],
+                pool: (x) => popScaleNotes(x, 13, 31)
             });
-            put(s, len >= 4 ? 2 : len, [mel, mel + 12], 0.62 + 0.3 * dyn, { nv: 0.75, roll: 0.01 });
-            if (len >= 4) {
-                const nt = ceTonesIn(pcs, mel - 4, mel + 5).filter(p => p !== mel && p > Vb[Vb.length - 1]);
-                const t2 = nt.length ? ceNearest(nt, mel + (dyn > 0.6 ? 3 : -2)) : mel;
-                put(s + 2, 2, [t2, t2 + 12], 0.6 + 0.3 * dyn, { nv: 0.75, roll: 0.01 });
+        }
+        const A = ph.ceAcc;
+        const blk = (A.bars + s / nb) / Math.max(1, A.dur);                   // avancée dans le bloc de texture
+        const dyn = 0.4 + 0.35 * Math.sin(Math.PI * Math.min(1, blk + 0.15));  // houle sur plusieurs mesures
+        // ----- basse -----
+        const oct = (low - 12 + c.env.transOffset >= -26) ? [low - 12, low] : [low, low + 12];
+        const keep = c.lastOne === false ? false : (ph.ceBass === low && rng() < 0.45);   // même basse : on la laisse sonner
+        if (!keep) put(s, len + 1.2, rng() < 0.6 ? oct : [low], 0.5 + 0.2 * dyn);
+        ph.ceBass = low;
+        if (len >= 3 && toCs) {
+            // marche de basse vers l'accord suivant (note de passage sur le dernier temps)
+            const nl = clsLowNote(c.env, toCs, c.env.transOffset || 0);
+            if (Math.abs(nl - low) >= 3) {
+                const LS = popScaleNotes(cs, Math.min(nl, low) - 2, Math.max(nl, low) + 2);
+                const pass = ceNearest(LS.filter(p => p !== low && p !== nl), nl + (nl > low ? -1.5 : 1.5));
+                if (pass !== null) put(e - 1, 1.1, [pass], 0.42 + 0.1 * dyn, { opt: rng() < 0.3 });
             }
-        } else if (fam === 'surge') {
-            // vague : arpège montant rapide sur deux octaves et demie, tenu à la pédale, puis grand accord
-            const T = ceTonesIn(pcs, low + 7, low + 34);
-            const unit = fits(1 / 6) ? (ternary ? 1 / 6 : 1 / 6) : 1 / 3;
-            const n = Math.min(T.length, Math.floor(Math.min(len, 2) / unit));
-            for (let k = 0; k < n; k++) put(s + k * unit, Math.max(0.5, len - k * unit), [T[k]], 0.38 + 0.3 * dyn * (k / Math.max(1, n)), { opt: k % 2 === 1 && k < n - 1 });
-            if (len >= 3) put(s + 2, len - 2, Vc.concat([top + 12]), 0.62 + 0.3 * dyn, { roll: 0.025 });
+        } else if (len >= 4 && !keep && rng() < 0.4) put(s + 2, 2, [low + 7 <= low + 12 ? low + 7 : low], 0.36, { opt: true });
+
+        // ----- accompagnement -----
+        const accHi = 21;
+        if (A.kind === 'battus') {
+            const unit = ternary ? 1 / 3 : (fits(1 / 3) ? 1 / 3 : 0.5);
+            ceGrid(sg, unit).forEach((p) => {
+                // la position de l'accord change tous les deux temps (voix intérieures qui bougent), sans accent de barre
+                const half = Math.floor(p / 2 + 1e-6);
+                const V = ceVoiceNear(pcs, 13 + ((half + A.k) % 2 ? 2 : -1), 3, low + 9, accHi);
+                const onB = Math.abs(p - Math.round(p)) < 1e-6;
+                put(p, unit * 1.05, V, (onB ? 0.33 : 0.27) + 0.18 * dyn, { roll: 0.004, opt: !onB && rng() < 0.35 });
+            });
+            A.k++;
+        } else if (A.kind === 'wave') {
+            // grandes vagues d'arpèges, qui continuent d'une mesure à l'autre
+            const T = ceTonesIn(pcs, low + 7, low + 27).filter(p => p <= accHi + 3);
+            if (T.length >= 3) {
+                const unit = ternary ? 1 / 3 : (fits(1 / 3) ? 1 / 3 : 0.5);
+                const per = 2 * (T.length - 1);
+                ceGrid(sg, unit).forEach((p) => {
+                    const r = A.k % per, idx = r < T.length ? r : per - r;
+                    put(p, unit * 3, [T[idx]], 0.26 + 0.16 * dyn + (idx === 0 ? 0.04 : 0), { opt: idx > 0 && idx % 2 === 1 && thin > 0 });
+                    A.k++;
+                });
+            }
+        } else if (A.kind === 'synco') {
+            // accords syncopés (contretemps), liés, sous la mélodie
+            const V = ceVoiceNear(pcs, 14, 3, low + 9, accHi);
+            const off8 = ternary ? 1 / 3 : 0.5;
+            ceGrid(sg, 1).forEach((p, k) => {
+                const V2 = k % 2 ? ceVoiceNear(pcs, 12, 3, low + 9, accHi) : V;
+                put(p + off8, 1 - off8 + 0.35, V2, 0.3 + 0.18 * dyn, { roll: 0.012, opt: k % 2 === 1 && thin > 0 });
+            });
         } else {
-            // choral : accords pleins en blanches ; une voix intérieure glisse d'un demi-ton vers l'accord suivant
-            put(s, len >= 4 ? 2 : len, Vc.concat([top + 12]), 0.5 + 0.3 * dyn, { roll: 0.02, nv: 0.8 });
+            // choral : accords tenus, une voix intérieure glisse vers l'accord suivant
+            const V = ceVoiceNear(pcs, 14, 4, low + 9, accHi);
+            const h = len >= 4 ? 2 : len;
+            put(s + pick([0, 0, 0.5]), h, V, 0.36 + 0.2 * dyn, { roll: 0.025, nv: 0.85 });
             if (len >= 4) {
-                let V2 = Vc.slice();
+                let V2 = V.slice();
                 if (toCs) {
                     const npcs = cePcs(c.env, toCs);
-                    const k = V2.findIndex((p, ix) => ix > 0 && ix < V2.length - 1 && !npcs.includes(ceMod(p)));
+                    const k = V2.findIndex((p, ix) => ix > 0 && !npcs.includes(ceMod(p)));
                     if (k >= 0) V2[k] = npcs.includes(ceMod(V2[k] + 1)) ? V2[k] + 1 : (npcs.includes(ceMod(V2[k] - 1)) ? V2[k] - 1 : V2[k]);
                 } else if (V2.length > 2) V2[1] = ceStep(cs, V2[1], rng() < 0.5 ? 1 : -1);
-                put(s + 2, 2, V2.concat([top + 12]), 0.46 + 0.28 * dyn, { roll: 0.02, nv: 0.8 });
+                put(s + 2, 2.4, V2, 0.32 + 0.18 * dyn, { roll: 0.025, nv: 0.85 });
             }
-            if (up > 0.5 && len >= 4) put(s + 1, 1, [ceStep(cs, top, 1)], 0.42, { opt: true });
         }
     },
 
-    // ---------- Impressionnisme (Debussy, Ravel) : un geste différent à chaque mesure, peu d'accords plaqués ----------
-    // Main gauche : quinte tenue, note seule, arpège lent ou basse qui se déplace (pédale). Main droite : arabesque,
-    // mélodie sur accord brisé, ruissellement, écho à l'octave, cloches, ou bref glissement parallèle. La texture change
-    // d'une mesure à l'autre (rarement deux fois de suite la même), avec des contours, des valeurs et des départs tirés à
-    // chaque fois et un léger rubato.
+    // ---------- Impressionnisme (Debussy, Ravel) : ligne qui flotte par-dessus les barres, accompagnement en nappes ----------
+    // Une mélodie continue (ceMelody) sur un réservoir sans demi-ton qui frotte (pentatonique de l'accord, neuvièmes,
+    // sixtes) : phrases d'une à trois mesures, notes liées, levées, arabesques et ruissellements intégrés à la ligne,
+    // respirations. Dessous, une nappe qui dure une à trois mesures : vague d'accord brisé (qui ne repart pas à chaque
+    // mesure), accords arpégés tenus à des moments variés, ou quartes et quintes parallèles en contretemps. Main gauche
+    // variée, et laissée sonner quand la basse ne change pas.
     'c-impression': (c) => {
-        const { sg, cs, pcs, low, rng, ph, up, prog, fits, ternary, closing } = c;
+        const { sg, si, cs, pcs, low, rng, ph, up, thin, fits, ternary, nb } = c;
         const len = c.len, s = sg.s, e = sg.e;
-        // une même note n'est jamais frappée deux fois au même instant (main gauche et accompagnement qui se croisent)
+        const pick = (arr) => arr[Math.floor(rng() * arr.length)];
+        const jit = (amt = 0.04) => (rng() - 0.5) * amt;
         const seen = [];
         const put = (pos, max, pitches, vel, o) => {
             const ps = pitches.filter(p => !seen.some(([q, x]) => x === p && Math.abs(q - pos) < 0.1));
@@ -421,147 +587,62 @@ const CE_WRITERS = {
             ps.forEach(p => seen.push([pos, p]));
             c.put(pos, max, ps, vel, o);
         };
-        const jit = (amt = 0.04) => (rng() - 0.5) * amt;
-        const at = (p) => Math.max(s, Math.min(e - 0.06, p));
-        const pick = (arr) => arr[Math.floor(rng() * arr.length)];
-        // réservoir de notes : notes de l'accord, neuvièmes, sixtes… sans demi-ton qui frotte contre l'accord
-        const pool = popScaleNotes(cs, 8, 32).filter(p => pcs.includes(ceMod(p)) || !pcs.includes(ceMod(p - 1)));
-        const center = 17 + ph.ceShift + 3 * Math.sin(Math.PI * prog);
-        const idxNear = (p) => Math.max(0, pool.indexOf(ceNearest(pool, p)));
+        const soft = (x) => popScaleNotes(x, 8, 32).filter(p => pcsOf(x).includes(ceMod(p)) || !pcsOf(x).includes(ceMod(p - 1)));
+        const pcsOf = (x) => (x === cs ? pcs : cePcs(c.env, x));
+        if (si === 0) {
+            const A = ph.ceAcc;
+            if (!A || A.bars >= A.dur) ph.ceAcc = { kind: cePickW(rng, [['wave', 3], ['pedal', 2.5], ['planing', 1.5]].filter(([k]) => !A || k !== A.kind || rng() < 0.25)), k: A ? A.k : 0, bars: 0, dur: 1 + Math.floor(rng() * 3), dir: rng() < 0.5 ? 1 : -1 };
+            else A.bars++;
+            ceMelody(c, {
+                lo: 17, hi: 30, center: 22 + ph.ceShift,
+                vals: [[1, 2], [1.5, 2.2], [2, 1.6], [3, 1], [0.5, 1.6], [2.5, 0.8]],
+                runP: 0.15 + 0.12 * up, runUnits: ternary ? [1 / 6, 1 / 3] : [1 / 6, 1 / 4, 1 / 3], leapP: 0.28, appogP: 0,
+                len: [3, nb * 2.5], breath: [0.5, 1.5 + thin],
+                vel: [0.28, 0.42],
+                dbl: (p) => [p],
+                pool: (x, xp) => popScaleNotes(x, 14, 31).filter(p => xp.includes(ceMod(p)) || !xp.includes(ceMod(p - 1)))
+            });
+        }
+        const A = ph.ceAcc;
+        // ----- main gauche (laissée sonner si la basse ne change pas) -----
         const ninth = pcs.includes(ceMod(low + 2));
-
-        // ----- main gauche -----
-        const lhKind = closing ? 'roll' : cePickW(rng, [['fifth', 2], ['single', 2], ['roll', 3], ['moving', len >= 3 ? 2 : 0]]);
-        if (lhKind === 'fifth') put(s, len + 0.6, [low, low + 7], 0.38, { roll: 0.05 + rng() * 0.04, nv: 0.8 });
-        else if (lhKind === 'single') {
-            put(s, len + 0.6, [low], 0.42);
-            if (len >= 3 && rng() < 0.6) put(at(s + Math.floor(len / 2) + jit()), len / 2 + 0.4, [low + (rng() < 0.5 ? 7 : 12)], 0.28, { opt: true });
-        } else if (lhKind === 'roll') {
-            const u = fits(0.25) ? (rng() < 0.5 ? 0.25 : 1 / 3) : 0.5;
-            const R = [low, low + 7, ninth ? low + 14 : low + 12];
-            const above = ceTonesIn(pcs, R[2] + 2, R[2] + 7);
-            if (above.length && rng() < 0.6) R.push(above[0]);
-            R.forEach((p, k) => put(s + k * u, len + 0.6 - k * u, [p], k === 0 ? 0.44 : 0.3, { opt: k === 3 }));
-        } else {
-            put(s, 1.6, [low], 0.42);
-            const T = ceTonesIn(pcs, low + 5, low + 17);
-            [1.5, 2.5].filter(p => p < len).forEach((p, k) => { if (T.length) put(at(s + p + jit()), len - p + 0.5, [T[Math.min(T.length - 1, k * 2)]], 0.28, { opt: k === 1 }); });
-        }
-
-        if (closing) {
-            // fin de phrase : accord arpégé lentement, une note aiguë laissée vibrer
-            const V = ceVoiceNear(pcs, center - 2, Math.min(4, pcs.length), low + 12, 26);
-            put(s + 0.25, len, V, 0.34, { roll: 0.09, nv: 0.75 });
-            const hi = ceTonesIn(pcs, 22, 31);
-            if (hi.length) put(at(s + Math.min(len - 0.5, 1.5) + jit()), 2.5, [pick(hi)], 0.32);
-            return;
-        }
-
-        // ----- main droite : choix de la texture de la mesure -----
-        const w = { arabesque: 3, melody: 3, ripple: 2, echo: 2, bells: 1.5, planing: 1 };
-        if (w[ph.ceFam]) w[ph.ceFam] += 1.5;                 // couleur dominante de la phrase
-        if (ph.ceLastTex && w[ph.ceLastTex]) w[ph.ceLastTex] *= 0.2;   // pas deux fois de suite le même geste
-        if (len < 2) { w.ripple = 0; w.echo = 0; w.planing = 0; }
-        const tex = cePickW(rng, Object.entries(w));
-        ph.ceLastTex = tex;
-        if (pool.length < 5) return;
-
-        // une ligne qui suit un contour dans le réservoir (pas de 1 ou 2 notes), d'une position à une autre
-        const line = (start, unit, n, j0, contour) => {
-            const out = [];
-            let j = j0, dir = contour === 'fall' ? -1 : 1;
-            const peak = Math.max(1, Math.floor(n * (0.4 + 0.35 * rng())));
-            for (let k = 0; k < n; k++) {
-                const p = start + k * unit;
-                if (p >= e - 0.05) break;
-                out.push([p, pool[j]]);
-                if (contour === 'wave' && k === peak) dir = -dir;
-                if (contour === 'turn' && k % 3 === 2) dir = -dir;
-                const stp = rng() < 0.7 ? 1 : 2;
-                j += dir * stp;
-                if (j < 0 || j >= pool.length) { dir = -dir; j = Math.max(0, Math.min(pool.length - 1, j + 2 * dir * stp)); }
+        if (!(ph.ceBass === low && rng() < 0.5)) {
+            const lhKind = cePickW(rng, [['fifth', 2], ['single', 2], ['roll', 3]]);
+            if (lhKind === 'fifth') put(s, len + 1.2, [low, low + 7], 0.36, { roll: 0.05 + rng() * 0.04, nv: 0.8 });
+            else if (lhKind === 'single') put(s + (rng() < 0.3 ? 0.5 : 0), len + 1.2, [low], 0.4);
+            else {
+                const u = fits(0.25) ? (rng() < 0.5 ? 0.25 : 1 / 3) : 0.5;
+                [low, low + 7, ninth ? low + 14 : low + 12].forEach((p, k) => put(s + k * u, len + 1.2 - k * u, [p], k === 0 ? 0.4 : 0.28));
             }
-            return out;
-        };
-        // accompagnement doux en accord brisé (jamais plaqué) dans le médium
-        const broken = (from, gap) => {
-            const V = ceVoiceNear(pcs, 14 + Math.round(jit(4)), 3, Math.max(low + 15, 8), 21);   // au-dessus de la main gauche
-            const ord = rng() < 0.7 ? V : V.slice().reverse();
-            ord.forEach((p, k) => put(at(from + k * gap), Math.max(0.6, e - from - k * gap + 0.4), [p], 0.24 + 0.04 * rng(), { opt: k === 2 }));
-        };
-
-        if (tex === 'arabesque') {
-            const unit = ternary ? pick([1 / 3, 1 / 6].filter(u => fits(u))) || 1 / 3 : pick([1 / 3, 0.5].concat(fits(0.25) ? [0.25] : []));
-            const start = s + (len >= 3 ? pick([0, 0.5, 1]) : 0);
-            const span = Math.min(e - start, Math.max(1.5, len * (0.55 + 0.35 * rng())));
-            const n = Math.max(3, Math.round(span / unit));
-            const L = line(start, unit, n, idxNear(center - 4 + jit(6)), pick(['rise', 'wave', 'wave', 'fall', 'turn']));
-            L.forEach(([p, note], k) => {
-                const lastN = k === L.length - 1;
-                const sw = Math.sin(Math.PI * (k + 0.5) / L.length);
-                put(at(p + (k ? jit(0.03) : 0)), lastN ? e - p + 0.8 : unit * 2.4, [note], 0.26 + 0.14 * sw + (lastN ? 0.04 : 0), { opt: !lastN && k % 2 === 1 });
-            });
-            if (start > s) put(s, start - s + 0.6, [pool[idxNear(center)]], 0.34);   // note tenue avant l'arabesque
-            if (up > 0.5 && L.length && e - (L[L.length - 1][0] + unit) >= 1) broken(L[L.length - 1][0] + unit, 0.33);
-        } else if (tex === 'melody') {
-            const R4 = [[[0, 1.5], [1.5, 0.5], [2, 2]], [[0, 3], [3, 1]], [[0.5, 1], [1.5, 2.5]], [[0, 2], [2, 1], [3, 1]], [[0, 1], [1, 1.5], [2.5, 1.5]], [[1, 3]]];
-            const rh = len >= 4 ? pick(R4) : (len >= 3 ? pick([[[0, 2], [2, 1]], [[0, 3]], [[1, 2]], [[0, 1.5], [1.5, 1.5]]]) : [[0, len]]);
-            if (typeof ph.ceMel !== 'number') ph.ceMel = pool[idxNear(center)];
-            let j = idxNear(ph.ceMel);
-            rh.forEach(([p, d], k) => {
-                if (k) j = Math.max(0, Math.min(pool.length - 1, j + pick([-2, -1, -1, 1, 1, 2, 3])));
-                let note = pool[j];
-                if (note > 29 || note < 15) { j = idxNear(center); note = pool[j]; }
-                // sur le temps, la mélodie se pose sur une note de l'accord ou sa neuvième
-                if (p === 0) { const tn = ceTonesIn(pcs, note - 2, note + 2); if (tn.length) { note = ceNearest(tn, note); j = idxNear(note); } }
-                put(at(s + p + (p ? jit() : 0)), d + 0.3, [note], 0.4 + 0.06 * rng());
-                ph.ceMel = note;
-            });
-            broken(s + pick([0, 0.25, 0.5]), pick([1 / 3, 0.5, 0.75]));
-        } else if (tex === 'ripple') {
-            // ruissellement : arpège rapide qui monte vers l'aigu, note du haut tenue, retombée en écho
-            const unit = fits(1 / 8) ? (ternary ? 1 / 6 : pick([1 / 6, 1 / 8])) : 0.25;
-            const start = s + (len >= 3 ? pick([0, 0, 1]) : 0);
-            const n = 6 + Math.floor(rng() * 4);
-            let j = idxNear(center - 9);
-            for (let k = 0; k < n && j < pool.length; k++) {
-                const top = k === n - 1 || j === pool.length - 1;
-                put(at(start + k * unit), top ? 2.5 : 1.4, [pool[j]], 0.22 + 0.2 * (k / n), { opt: !top && k % 2 === 1 });
-                if (top) break;
-                j += rng() < 0.75 ? 1 : 2;
+        }
+        ph.ceBass = low;
+        // ----- nappe d'accompagnement (sous la mélodie) -----
+        const accLo = Math.max(low + 10, 4), accHi = 19;
+        if (A.kind === 'wave') {
+            const T = ceTonesIn(pcs, accLo, accHi + 2);
+            if (T.length >= 3) {
+                const unit = ternary ? 1 / 3 : (fits(1 / 3) && rng() < 0.6 ? 1 / 3 : 0.5);
+                const per = 2 * (T.length - 1);
+                ceGrid(sg, unit).forEach((p) => {
+                    const r = A.k % per, idx = r < T.length ? r : per - r;
+                    put(p + (p > s ? jit(0.03) : 0), unit * 3, [T[idx]], 0.2 + 0.05 * Math.sin(A.k / 3), { opt: idx % 2 === 1 && thin > 0 });
+                    A.k++;
+                });
             }
-            const back = start + n * unit + 0.5 + rng() * 0.5;
-            if (back < e - 0.5) [2, 4].forEach((d, k) => { const q = pool[Math.max(0, Math.min(pool.length - 1, j - d))]; put(at(back + k * 0.5 + jit()), 1.2, [q], 0.26, { opt: k === 1 }); });
-        } else if (tex === 'echo') {
-            // motif de trois ou quatre notes, repris une octave plus haut (ou plus bas) et plus doucement
-            const unit = pick([0.5, 1 / 3].concat(ternary ? [] : [0.25].filter(fits)));
-            const L = line(s + pick([0, 0.5]), unit, 3 + Math.floor(rng() * 2), idxNear(center - 3 + jit(4)), pick(['rise', 'turn', 'fall']));
-            const shift = rng() < 0.7 ? 12 : -12;
-            const gap = len >= 4 ? 2 : len / 2;
-            L.forEach(([p, note], k) => {
-                put(at(p), unit * 2.5, [note], 0.4 - k * 0.02);
-                if (p + gap < e - 0.05) put(at(p + gap + jit(0.03)), unit * 2.5 + (k === L.length - 1 ? 1 : 0), [note + shift], 0.28 - k * 0.02, { opt: k === 1 });
-            });
-            if (rng() < 0.5) broken(s + 0.5, 0.5);
-        } else if (tex === 'bells') {
-            // cloches : accord arpégé très doucement, deux ou trois notes aiguës à des moments irréguliers
-            put(s + pick([0, 0.25]), len, ceVoiceNear(pcs, center - 4, Math.min(4, pcs.length), low + 12, 26), 0.28, { roll: 0.07 + rng() * 0.04, nv: 0.75 });
-            const hi = ceTonesIn(pcs, 20, 31);
-            if (!hi.length) return;
-            const spots = [0.5, 1, 1.5, 2, 2.5, 3].filter(p => p < len - 0.25).sort(() => rng() - 0.5).slice(0, 2 + (rng() < 0.5 ? 1 : 0)).sort((a, b) => a - b);
-            spots.forEach((p, k) => put(at(s + p + jit()), 2.6, [pick(hi)], 0.34 - k * 0.03, { opt: k === 2 }));
+        } else if (A.kind === 'pedal') {
+            const V = ceVoiceNear(pcs, 15 + Math.round(jit(4)), Math.min(4, pcs.length), accLo, accHi + 2);
+            put(s + pick([0, 0.5, 1].filter(p => p < len)), len + 1.2, V, 0.26, { roll: 0.06 + rng() * 0.05, nv: 0.75 });
+            if (len >= 4 && rng() < 0.5) put(s + pick([2, 2.5]), 2.5, V.slice(1), 0.2, { roll: 0.06, opt: true });
         } else {
-            // glissement parallèle bref : trois accords arpégés qui montent ou descendent d'un degré, puis le dernier tenu
-            const V = ceVoiceNear(pcs, center - 2, 3, low + 12, 27);
-            const dir = rng() < 0.6 ? 1 : -1;
-            const rhy = len >= 4 ? pick([[0, 1, 1.5], [0, 0.75, 1.5], [0.5, 1.5, 2]]) : [0, len / 3, 2 * len / 3];
-            let cur = V;
-            rhy.forEach((p, k) => {
-                const lastC = k === rhy.length - 1;
-                put(at(s + p), lastC ? e - s - p + 0.5 : 0.9, cur, 0.34 - k * 0.03, { roll: 0.035 + rng() * 0.03 });
-                cur = cur.map(x => ceStep(cs, x, dir));
+            // quartes / quintes parallèles qui glissent par degrés, en contretemps
+            let a = ceNearest(soft(cs).filter(p => p >= accLo && p <= accHi - 5), 11 + A.k % 3) ?? accLo;
+            const offs = len >= 4 ? pick([[0.5, 1.5, 2.5], [1, 2, 3], [0.5, 2, 3.5]]) : [0.5].filter(p => p < len);
+            offs.forEach((p, k) => {
+                const b = ceStep(cs, ceStep(cs, ceStep(cs, a, 1), 1), 1);   // une quarte ou une quinte au-dessus (dans la gamme)
+                put(s + p, 1.4, [a, b], 0.22, { roll: 0.02, opt: k === 2 });
+                a = ceStep(cs, a, A.dir);
             });
-            if (len >= 4 && rng() < 0.6) put(at(s + 3 + jit()), 1.4, [pool[idxNear(V[V.length - 1] + 5)]], 0.3, { opt: true });
+            A.k++;
         }
     },
 
