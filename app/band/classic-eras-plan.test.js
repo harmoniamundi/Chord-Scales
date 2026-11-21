@@ -179,6 +179,26 @@ describe('plans de mesure', () => {
             assert.ok(single >= 32, `graine ${seed} : ${single} notes détachées`);
         }
     });
+    test('chaconne : dans un énoncé, la figure enchaîne les mesures par la note la plus proche (pas de redémarrage au temps 1)', () => {
+        const prog = [step(0, 'minTriad'), step(7, 'majTriad', { bassRootIndex: 11 }), step(0, 'm7', { bassRootIndex: 10 }), step(5, 'majTriad', { bassRootIndex: 9 }),
+            step(5, 'minTriad', { bassRootIndex: 8 }), step(7, 'majTriad'), step(7, '7'), step(0, 'minTriad')];
+        let prev = null, gaps = [];
+        for (let idx = 0; idx < 12; idx++) {
+            const rng = rngOf(idx + 3);
+            const ph = { style: 'classic', index: idx, rng, ...classicPhraseExtras(72, rng, prev, idx, 'c-chaconne') }; prev = ph;
+            if (!['eighths', 'sixteenths', 'scales'].includes(ph.ceVar)) continue;
+            let lastTop = null;
+            for (let i = 0; i < 4; i++) {
+                const m = idx * 4 + i;
+                const plan = E.buildClassicEraPlan(env({ bpm: 72 }), 3, false, prog[m % 8], prog[(m + 1) % 8], true, null, ph, i, 4, i === 3, m);
+                const fig = plan.piano.filter(e => e.intervals.length === 1 && e.intervals[0] >= 2);
+                if (lastTop !== null && fig.length) gaps.push(Math.abs(fig[0].intervals[0] - lastTop));
+                if (fig.length) lastTop = fig[fig.length - 1].intervals[0];
+            }
+        }
+        assert.ok(gaps.length >= 6, `${gaps.length} enchaînements mesurés`);
+        assert.ok(gaps.every(g => g <= 7), `écarts à la barre : ${gaps.join(', ')}`);
+    });
     test('Satie : première phrase sans mélodie (main gauche seule), puis mélodie', () => {
         const run = (index) => {
             const ph = phrase('c-satie', index, 7);

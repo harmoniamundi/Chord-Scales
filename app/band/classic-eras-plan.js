@@ -306,7 +306,13 @@ function ceMelody(c, cfg) {
             const nxt = segInfo.find(x => x.s >= sg.e - 1e-6) || (nextCs ? { cs: nextCs, pcs: cePcs(env, nextCs) } : null);
             if (nxt && !ceFitsChord(nxt.cs, nxt.pcs, note)) dd = Math.max(0.5, sg.e - t);
         }
-        putM(t, dd + 0.15, cfg.dbl(note), vel);
+        if (cfg.dotP && Math.abs(dd - 1) < 1e-6 && rng() < cfg.dotP && fits(0.25)) {
+            // rythme pointé : la longue (3/4 de temps) puis une brève qui mène à la note suivante
+            putM(t, 0.75, cfg.dbl(note), vel * 1.04);
+            const P2 = poolOf(segAt(Math.min(nb - 0.01, t + 0.75)));
+            const bj = Math.max(0, Math.min(P2.length - 1, P2.indexOf(ceNearest(P2, note)) + dir));
+            putM(t + 0.75, 0.3, cfg.dbl(P2[bj] !== undefined ? P2[bj] : note), vel * 0.8);
+        } else putM(t, dd + 0.15, cfg.dbl(note), vel);
         M.p = note; t += dd; M.left -= dd;
         if (M.left <= 1e-6) M.rest = cfg.breath[0] + rng() * (cfg.breath[1] - cfg.breath[0]);
     }
@@ -421,59 +427,111 @@ const CE_WRITERS = {
     },
 
     // ---------- Basse obstinée (chaconne, passacaille, folia) : le ground à la main gauche, une variation par énoncé ----------
+    // Chaque énoncé du ground (huit mesures) a son écriture, mais à l'intérieur d'un énoncé la musique coule d'une mesure à
+    // l'autre : les figurations (croches, doubles, gammes) gardent leur mouvement et enchaînent les accords par la note la
+    // plus proche, sans accent ni redémarrage au temps 1 ; la sarabande et les rythmes pointés sont des lignes chantées qui
+    // traversent les barres (ceMelody). Seule la fin d'un énoncé respire ; la basse s'anime dans les variations brillantes.
     'c-chaconne': (c) => {
-        const { sg, cs, pcs, low, put, len, rng, ph, up, prog, e8, e16, fits, closing } = c;
-        const s = sg.s;
-        const bass = (ph.ceOct && low - 12 + c.env.transOffset >= -24) ? [low - 12, low] : [low];
-        put(s, len, bass, 0.66);
-        const center = 12 + ph.ceShift + 2 * Math.sin(Math.PI * prog);
-        const V3 = ceVoiceNear(pcs, center, 3, low + 8, 24);
-        const rank = (V, k) => { const n = V.length, q = Math.floor(k / n); return V[k - q * n] + 12 * q; };
+        const { sg, si, cs, toCs, pcs, low, put, rng, ph, up, thin, prog, e8, e16, fits, nb, ternary } = c;
+        const len = c.len, s = sg.s, e = sg.e;
+        const stmtEnd = c.isTurn && c.lastOne && c.L > 1 && ph.index % 2 === 1;   // fin d'un énoncé du ground (deux phrases)
         let kind = ph.ceVar || 'sarabande';
         if (kind === 'sixteenths' && !fits(e16)) kind = 'eighths';
-        if (closing && kind !== 'chords') {   // fin d'énoncé : accord posé sur le dernier temps
-            put(s, Math.max(1, len - 1), V3, 0.5, { roll: 0.015 });
-            if (len >= 2) put(s + len - 1, 1.4, V3.concat([V3[V3.length - 1] + (rng() < 0.5 ? 0 : 12)]), 0.56, { roll: 0.02 });
+        const bright = kind === 'sixteenths' || kind === 'scales' || kind === 'chords';
+        // ----- le ground -----
+        const bass = (ph.ceOct && low - 12 + c.env.transOffset >= -24) ? [low - 12, low] : [low];
+        put(s, len, bass, 0.62);
+        if (bright && toCs && len >= 3 && rng() < 0.55) {
+            // la basse rejoint la note suivante du ground par une note de passage sur le dernier temps
+            const nl = clsLowNote(c.env, toCs, c.env.transOffset || 0);
+            const LS = popScaleNotes(cs, Math.min(nl, low) - 2, Math.max(nl, low) + 2).filter(p => p !== low && p !== nl);
+            const pass = LS.length ? ceNearest(LS, (low + nl) / 2) : null;
+            if (pass !== null && Math.abs(nl - low) >= 2) put(e - 1, 1, [pass], 0.48);
+        }
+        // arc de l'énoncé (8 mesures) : la nuance monte puis redescend sur tout l'énoncé, pas sur chaque mesure
+        const st = ((ph.index % 2) * c.L + c.i + s / nb) / (2 * Math.max(1, c.L));
+        const arch = 0.85 + 0.25 * Math.sin(Math.PI * st);
+        const A = ph.ceAcc && ph.ceAcc.kind === kind ? ph.ceAcc : (ph.ceAcc = { kind, p: 14 + ph.ceShift, dir: 1, k: 0 });
+
+        if (kind === 'sarabande' || kind === 'dotted') {
+            if (si === 0) {
+                if (stmtEnd && ph.ceM) ph.ceM.left = Math.min(ph.ceM.left, Math.max(0.5, nb - ph.ceM.t - 1));   // respiration en fin d'énoncé
+                ceMelody(c, {
+                    lo: 14, hi: 27, center: 20 + ph.ceShift,
+                    vals: kind === 'dotted' ? [[1, 3], [2, 1.2], [1.5, 1]] : [[1, 2], [2, 2.5], [1.5, 1.5], [0.5, 1], [3, 0.8]],
+                    dotP: kind === 'dotted' ? 0.75 : 0.15,
+                    runP: 0.05 + 0.08 * up, runUnits: ternary ? [1 / 6] : [1 / 4], leapP: 0.22, appogP: kind === 'sarabande' ? 0.3 : 0.15,
+                    len: [nb * 1.5, nb * 3], breath: [0.5, 1 + thin],
+                    vel: [0.46 * arch, 0.62 * arch],
+                    dbl: (p) => [p],
+                    pool: (x) => popScaleNotes(x, 12, 29)
+                });
+            }
+            // accompagnement : accord médium, accentué sur le deuxième temps (sarabande) ou posé sur le premier (pointé)
+            const V3 = ceVoiceNear(pcs, 11, 3, low + 8, 17);
+            if (kind === 'sarabande' && len >= 2) {
+                if (rng() < 0.35) put(s, 0.9, V3, 0.34 * arch, { roll: 0.01 });
+                put(s + 1, len - 1 + 0.2, V3, 0.44 * arch, { roll: 0.015 });
+            } else put(s + (rng() < 0.3 && len >= 2 ? 1 : 0), len, V3, 0.34 * arch, { roll: 0.015, opt: rng() < 0.3 });
             return;
         }
-        if (kind === 'sarabande') {
-            // accent sur le deuxième temps, comme une sarabande
-            put(s, 1, V3, 0.48);
-            if (len >= 2) put(s + 1, len - 1, V3.concat(up > 0.4 ? [V3[0] + 12] : []), 0.62, { roll: 0.018 });
-        } else if (kind === 'eighths' || kind === 'sixteenths') {
-            const unit = kind === 'eighths' ? e8 : e16;
-            const cell = kind === 'eighths' ? [0, 1, 2, 1] : CE_CELLS[ph.ceCell || 0];
-            ceGrid(sg, unit).forEach((p, k) => {
-                const shift = Math.floor((p - s) + 1e-6) % 2;   // la figure monte d'un rang un temps sur deux (effet de séquence)
-                put(p, unit * 1.9, [rank(V3, cell[k % cell.length] + shift)], k === 0 ? 0.58 : (Math.abs(p - Math.round(p)) < 1e-6 ? 0.52 : 0.44), { opt: k % 2 === 1 && kind === 'sixteenths' });
-            });
-        } else if (kind === 'dotted') {
-            // rythmes pointés (style français) : longue - brève, la brève mène à la note suivante
-            const q = Math.max(1, Math.floor(len));
-            let note = V3[V3.length - 1];
-            for (let b = 0; b < q; b++) {
-                put(s + b, 0.75, b === 0 ? V3 : [note], b === 0 ? 0.6 : 0.54);
-                const nx = ceStep(cs, note, b % 2 === 0 ? 1 : -1);
-                put(s + b + 0.75, 0.25, [nx], 0.44, { opt: true });
-                const pool = ceTonesIn(pcs, nx - 4, nx + 4);
-                note = pool.length ? ceNearest(pool, nx) : nx;
+
+        if (kind === 'chords') {
+            // accords sur chaque temps ; le dessus forme une ligne qui enchaîne les accords par la note la plus proche
+            const qn = Math.max(1, Math.floor(len));
+            for (let b = 0; b < qn; b++) {
+                const V = ceVoiceNear(pcs, A.p + (b % 2 ? A.dir : 0), 3, low + 8, 26);
+                A.p = V[V.length - 1];
+                if (A.p > 24 || A.p < 14) A.dir = -A.dir;
+                const end = stmtEnd && b === qn - 1;
+                put(s + b, end ? 1.5 : 1, V.concat(b === 0 || end ? [V[0] + 12] : []), (0.5 + 0.06 * (b === 1 && nb === 3 ? 1 : 0)) * arch, { roll: 0.012 });
+                if (!end && up > 0.4 && fits(e8)) put(s + b + e8, e8, [ceStep(cs, A.p, A.dir)], 0.38 * arch, { opt: true });
             }
-        } else if (kind === 'scales') {
-            // gamme en croches qui traverse la mesure, montante ou descendante une mesure sur deux
-            const dir = c.i % 2 === 0 ? 1 : -1;
-            const S = popScaleNotes(cs, V3[0] - 7, V3[V3.length - 1] + 12);
-            let j = S.indexOf(dir > 0 ? V3[0] : V3[V3.length - 1]);
-            if (j < 0) j = Math.floor(S.length / 2);
-            ceGrid(sg, e8).forEach((p, k) => {
-                const jj = Math.max(0, Math.min(S.length - 1, j + dir * k));
-                put(p, e8 * 1.8, [S[jj]], k === 0 ? 0.56 : 0.46, { opt: k % 2 === 1 && up < 0.2 && rng() < 0.3 });
-            });
-        } else {   // chords : accords pleins sur chaque temps (variation majestueuse)
-            const V4 = V3.concat([V3[0] + 12]);
-            const q = Math.max(1, Math.floor(len));
-            for (let b = 0; b < q; b++) put(s + b, 1, b === 0 ? V4 : V3, b === 0 ? 0.68 : 0.56, { roll: 0.012, opt: b === q - 1 && q > 2 });
-            if (up > 0.5 && fits(e8)) for (let b = 0; b < q; b++) put(s + b + e8, e8, [V3[V3.length - 1]], 0.42, { opt: true });
+            return;
         }
+
+        // figurations continues : croches, doubles-croches, gammes
+        const unit = kind === 'sixteenths' ? e16 : e8;
+        // cellules de mouvement (pas, en notes de l'accord) : la figure avance sans répéter de note ni sauter plus d'une tierce d'accord
+        const FIG = [[1, 1, -1, 1], [1, -1, 1, 1], [1, 1, 1, -2], [-1, 1, 1, 1], [2, -1, -1, 2]];
+        const cell = kind === 'sixteenths' ? FIG[(ph.ceCell || 0) % FIG.length] : [1, 1, -1, 1];
+        const lo = Math.max(low + 8, 2), hi = 26;
+        const G = ceGrid(sg, unit);
+        G.forEach((p, k) => {
+            const last = stmtEnd && p >= e - 1 - 1e-6;
+            let note;
+            if (kind === 'scales') {
+                const S = popScaleNotes(cs, lo, hi);
+                let j = S.indexOf(ceNearest(S, A.p));
+                if (A.k > 0) j += A.dir;
+                if (j < 0 || j >= S.length) { A.dir = -A.dir; j = Math.max(0, Math.min(S.length - 1, j + 2 * A.dir)); }
+                // demi-tour par moments, pas à chaque mesure
+                if (Math.abs(p - Math.round(p)) < 1e-6 && rng() < 0.12) A.dir = -A.dir;
+                note = S[j];
+            } else {
+                const T = ceTonesIn(pcs, lo, hi);
+                let j = T.indexOf(ceNearest(T, A.p));
+                if (A.k > 0) {
+                    const stp = cell[A.k % cell.length];
+                    let nj = j + A.dir * stp;
+                    if (nj < 0 || nj >= T.length) { A.dir = -A.dir; nj = j + A.dir * Math.abs(stp); }   // rebond, même pas
+                    j = Math.max(0, Math.min(T.length - 1, nj));
+                }
+                if (A.k % (cell.length * 3) === cell.length * 3 - 1 && rng() < 0.5) A.dir = -A.dir;   // le dessin change de sens toutes les quelques cellules
+                note = T[j];
+            }
+            if (last) {
+                // fin d'énoncé : la figure se pose sur une note de l'accord, tenue
+                const T = ceTonesIn(pcs, lo, hi);
+                put(p, e - p + 0.3, [ceNearest(T, note)], 0.5 * arch);
+                A.p = note; A.k++;
+                return;
+            }
+            const onB = Math.abs(p - Math.round(p)) < 1e-6;
+            put(p, unit * 1.8, [note], (onB ? 0.5 : 0.42) * arch, { opt: !onB && k % 2 === 1 && thin > 0 });
+            A.p = note; A.k++;
+        });
+        if (stmtEnd) { A.dir = -A.dir; }
     },
 
     // ---------- Nocturne (Chopin, Field) : grand arpège de la main gauche avec pédale, mélodie chantée ornée ----------
