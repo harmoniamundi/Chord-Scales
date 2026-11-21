@@ -315,3 +315,23 @@ describe('menu Orchestre : entrées Rock', () => {
         Object.entries(ROCK_BAND_GROOVES).forEach(([k, g]) => assert.equal(M.tempoMeterFor(k).bpm, R.ROCK[g].tempo, k));
     });
 });
+
+describe('gamme d\'un accord posé par l\'utilisateur (userScaleFor)', () => {
+    test('les couleurs du style ne s\'imposent plus : mode du degré dans la tonalité', () => {
+        assert.equal(M.userScaleFor(env({ scaleStyle: 'blues' }), '7', 0), 'mixolydian');            // et non la gamme blues
+        assert.notEqual(M.userScaleFor(env({ scaleStyle: 'flamencosolea', mainKey: 9, mainQuality: 'aeolian' }), 'majTriad', 4), 'phrygianDominant');
+        assert.equal(M.userScaleFor(env({ scaleStyle: 'balkan', mainKey: 9, mainQuality: 'aeolian' }), 'minTriad', 9), 'aeolian'); // et non le mineur harmonique
+    });
+    test('mode juste du degré, y compris pour une grille sans style', () => {
+        assert.equal(M.userScaleFor(env({ scaleStyle: null }), 'm7', 4), 'phrygian');        // Mi m7 en do : III
+        assert.equal(M.userScaleFor(env({ scaleStyle: null }), 'm7', 9), 'aeolian');         // La m7 en do : VI
+        assert.equal(M.userScaleFor(env({ scaleStyle: 'pop' }), 'majTriad', 5), 'lydian');    // Fa en do : IV
+    });
+    test('grille issue d\'un style de jazz : choix jazz habituel (catalogue)', () => {
+        assert.equal(M.userScaleFor(env({ scaleStyle: 'swing' }), 'm7', 4), null);
+        assert.equal(M.userScaleFor(env({ scaleStyle: 'bossa' }), 'maj7', 0), null);
+    });
+    test('la génération d\'un style garde ses couleurs (styleScaleFor inchangé)', () => {
+        assert.equal(M.styleScaleFor(env({ scaleStyle: 'blues' }), '7', 0), 'bluesScale');
+    });
+});

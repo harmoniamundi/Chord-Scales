@@ -243,8 +243,18 @@ function annotateModulations(g, opts) {
 // Gamme par défaut d'un accord selon le profil du style chargé (STYLE_SCALE_PROFILE).
 // env : { scaleStyle, mainKey, mainQuality, qualityAuto, findChordObj }.
 // Renvoie un id de gamme proposée pour cet accord, ou null : le comportement jazz habituel (1re gamme de l'accord) s'applique.
-function styleScaleFor(env, chordId, rootIndex) {
-    const profile = STYLE_SCALE_PROFILE[env.scaleStyle];
+function styleScaleFor(env, chordId, rootIndex) { return profileScaleFor(env, STYLE_SCALE_PROFILE[env.scaleStyle], chordId, rootIndex); }
+
+// Gamme proposée pour un accord que l'utilisateur pose ou modifie (éditeur de mesure, degrés de la tonalité, changement de qualité).
+// La grille est alors personnelle : les couleurs propres au style (gamme blues, hijaz des Balkans, phrygien dominant du flamenco…)
+// ne s'imposent plus ; il reste le mode du degré dans la tonalité (profil « classic »), y compris pour une grille sans style
+// (sauvegardée, importée, effacée). Seule une grille issue d'un style de jazz garde le choix jazz habituel (1re gamme de l'accord).
+function userScaleFor(env, chordId, rootIndex) {
+    const origin = STYLE_SCALE_PROFILE[env.scaleStyle];
+    return profileScaleFor(env, origin === 'jazz' ? 'jazz' : 'classic', chordId, rootIndex);
+}
+
+function profileScaleFor(env, profile, chordId, rootIndex) {
     if (!profile || profile === 'jazz') return null;
     const co = env.findChordObj(chordId);
     if (!co || !co.scales || !co.scales.length) return null;
@@ -343,5 +353,5 @@ function styleTonality(styleKey, generated) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { STYLE_SCALE_PROFILE, STYLE_BAND, STYLE_GROOVE, STYLE_TEMPO_METER, STYLES_FOLLOWING_KEY,
         bandStyleFor, grooveHintFor, tempoMeterFor, styleModulations, modReading, annotateModulations,
-        styleScaleFor, applyStyleScaleProfile, styleTonality };
+        styleScaleFor, userScaleFor, applyStyleScaleProfile, styleTonality };
 }

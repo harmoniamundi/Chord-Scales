@@ -857,6 +857,7 @@
                 this._restartFromTop();
                 this.grid = [];
                 this.gridNote = '';
+                this._scaleStyle = null; // grille effacée : plus de style, les accords posés prennent le mode de leur degré
                 this.loadedGridName = null;
                 this.updateLoadedGridNameDisplay();
                 this.renderGridUI();
@@ -4648,7 +4649,7 @@
                 return { scaleStyle: this._scaleStyle, mainKey: this.mainKey, mainQuality: this.mainQuality, qualityAuto: this._qualityAuto,
                          findChordObj: (id) => this.findChordObj(id) };
             }
-            _styleScaleFor(chordId, rootIndex) { return styleScaleFor(this._scaleEnv(), chordId, rootIndex); }
+            _styleScaleFor(chordId, rootIndex) { return userScaleFor(this._scaleEnv(), chordId, rootIndex); } // accord posé par l'utilisateur : mode du degré, sans les couleurs du style (styles/style-meta.js)
             _applyStyleScaleProfile(styleKey, items) {
                 this._scaleStyle = styleKey;
                 applyStyleScaleProfile(this._scaleEnv(), styleKey, items);
