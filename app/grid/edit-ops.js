@@ -3,7 +3,7 @@
 // poser des signes de reprise, enregistrer une fonction tonale, repères de partie automatiques.
 // Toutes les fonctions reçoivent le tableau `grid` (liste de blocs) et le MODIFIENT en place, comme le faisait le moteur ;
 // sélection, pile d'annulation et rafraîchissement de l'écran restent dans index.html.
-// Un bloc : { rootIndex, chordId, scaleId, measures, split?, bassRootIndex?, repeatStart?, repeatEnd?, volta?, feel?, partStart?, fnLabel?, modKey?, note?, noteSpan? }
+// Un bloc : { rootIndex, chordId, scaleId, measures, split?, bassRootIndex?, repeatStart?, repeatEnd?, volta?, feel?, tempo?, partStart?, fnLabel?, modKey?, note?, noteSpan? }
 // Les mesures sont numérotées à partir de 1 (comme flatMeasureList). Chargé par index.html via <script src="grid/edit-ops.js">
 // (après grid/play-order.js et grid/grid-format.js) et testé par grid/edit-ops.test.js.
 
@@ -29,7 +29,7 @@ if (typeof romanDegByRank === 'undefined' && typeof require === 'function') {
     var { romanDegByRank, fnMinorRef } = require('./generation.js');
 }
 
-const EDIT_OPS_BUILD = '2026-11-21-b'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
+const EDIT_OPS_BUILD = '2026-11-21-c'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
 const cloneStep = (o) => JSON.parse(JSON.stringify(o));
 
 // Repère de partie porté par la mesure m (liste à plat), seulement si elle ouvre son bloc ; '' sinon.
@@ -48,6 +48,7 @@ function measureItems(grid, from, to) {
         const stp = grid[m.stepIndex];
         if (stp.repeatStart && m.measureInStep === 1) it.repeatStart = true;
         if (stp.feel && m.measureInStep === 1) it.feel = stp.feel;
+        if (stp.tempo !== undefined && m.measureInStep === 1) it.tempo = stp.tempo;
         if (stp.partStart && m.measureInStep === 1) it.partStart = stp.partStart;
         if (stp.repeatEnd && m.measureInStep === stp.measures) it.repeatEnd = stp.repeatEnd;
         if (effVolta[m.stepIndex]) it.volta = effVolta[m.stepIndex];
@@ -85,10 +86,11 @@ function isolateMeasure(grid, measureNumber) {
     parts.push({ ...base, measures: 1 });
     if (after > 0) parts.push({ ...base, measures: after });
     // Début de reprise : seulement sur la première partie ; fin de reprise : seulement sur la dernière.
-    parts.forEach(pt => { delete pt.repeatStart; delete pt.repeatEnd; delete pt.noteSpan; delete pt.feel; });
+    parts.forEach(pt => { delete pt.repeatStart; delete pt.repeatEnd; delete pt.noteSpan; delete pt.feel; delete pt.tempo; });
     if (s.noteSpan) parts[0].noteSpan = s.noteSpan; // durée de l'annotation : elle part du début du bloc
     if (s.repeatStart) parts[0].repeatStart = true;
-    if (s.feel) parts[0].feel = s.feel; // indication Droit / Swing : posée au début du bloc
+    if (s.feel) parts[0].feel = s.feel; // indications Droit / Swing et tempo : posées au début du bloc
+    if (s.tempo !== undefined) parts[0].tempo = s.tempo;
     // Repère de partie : seulement sur la première partie du bloc éclaté
     parts.forEach(pt => { delete pt.partStart; });
     if (s.partStart) parts[0].partStart = s.partStart;
@@ -113,10 +115,11 @@ function splitBeforeMeasure(grid, n) {
     delete base.split;
     const before = m.measureInStep - 1;
     const parts = [{ ...base, measures: before }, { ...base, measures: st.measures - before }];
-    parts.forEach(pt => { delete pt.repeatStart; delete pt.repeatEnd; delete pt.noteSpan; delete pt.feel; });
+    parts.forEach(pt => { delete pt.repeatStart; delete pt.repeatEnd; delete pt.noteSpan; delete pt.feel; delete pt.tempo; });
     if (st.noteSpan) parts[0].noteSpan = st.noteSpan;
     if (st.repeatStart) parts[0].repeatStart = true;
     if (st.feel) parts[0].feel = st.feel;
+    if (st.tempo !== undefined) parts[0].tempo = st.tempo;
     if (st.repeatEnd) parts[1].repeatEnd = st.repeatEnd;
     parts.forEach(pt => { delete pt.partStart; });
     if (st.partStart) parts[0].partStart = st.partStart;
@@ -127,13 +130,13 @@ function splitBeforeMeasure(grid, n) {
 function mergeAround(grid, i0, i1) {
     // Le repère de partie ne compte pas dans la comparaison, mais un bloc qui ouvre une partie
     // n'est jamais absorbé par le précédent (sinon son repère serait perdu).
-    // Même règle pour l'indication Droit / Swing : elle reste au début du bloc qui la porte.
-    const strip = (o) => { const c = { ...o }; delete c.measures; delete c.partStart; delete c.feel; return JSON.stringify(c); };
+    // Même règle pour les indications Droit / Swing et de tempo : elles restent au début du bloc qui les porte.
+    const strip = (o) => { const c = { ...o }; delete c.measures; delete c.partStart; delete c.feel; delete c.tempo; return JSON.stringify(c); };
     let i = Math.max(0, i0 - 1);
     let end = Math.min(grid.length - 1, i1 + 1);
     while (i < end && i < grid.length - 1) {
         const a = grid[i], b = grid[i + 1];
-        if (!a.split && !b.split && !b.partStart && !b.feel && !a.noteSpan && !b.noteSpan && strip(a) === strip(b)) {
+        if (!a.split && !b.split && !b.partStart && !b.feel && b.tempo === undefined && !a.noteSpan && !b.noteSpan && strip(a) === strip(b)) {
             a.measures += b.measures;
             grid.splice(i + 1, 1);
             end--;
@@ -187,7 +190,7 @@ function duplicateMeasureAfter(grid, measureNumber) {
     const idx = isolateMeasure(grid, measureNumber);
     if (idx < 0) return -1;
     const cp = cloneStep(grid[idx]);
-    delete cp.repeatStart; delete cp.repeatEnd; delete cp.volta; delete cp.partStart; delete cp.noteSpan; delete cp.feel;
+    delete cp.repeatStart; delete cp.repeatEnd; delete cp.volta; delete cp.partStart; delete cp.noteSpan; delete cp.feel; delete cp.tempo;
     grid.splice(idx + 1, 0, cp);
     return idx;
 }
@@ -196,7 +199,7 @@ function duplicateMeasureAfter(grid, measureNumber) {
 function appendCopyOfLast(grid) {
     const last = cloneStep(grid[grid.length - 1]);
     if (last.measures !== 1) delete last.split;
-    delete last.repeatStart; delete last.repeatEnd; delete last.volta; delete last.feel; delete last.fnLabel; delete last.modKey; delete last.partStart; delete last.note; delete last.noteSpan;
+    delete last.repeatStart; delete last.repeatEnd; delete last.volta; delete last.feel; delete last.tempo; delete last.fnLabel; delete last.modKey; delete last.partStart; delete last.note; delete last.noteSpan;
     last.measures = 1;
     grid.push(last);
 }
@@ -422,6 +425,19 @@ function markMeasure(grid, measureNumber, kind) {
     mergeAround(grid, idx - 1, idx + 1);
 }
 
+// Indication de tempo posée depuis le pop-up d'une mesure : val = ♩ (30 à 300), 'base' (« a tempo » : re-cliquer la retire)
+// ou null (retirée). Une mesure au milieu d'un bloc est isolée : le tempo change à partir d'elle.
+function setMeasureTempo(grid, measureNumber, val) {
+    const idx = isolateMeasure(grid, measureNumber);
+    if (idx < 0) return;
+    const st = grid[idx];
+    const n = Math.round(Number(val));
+    if (val === 'base') { if (st.tempo === 'base') delete st.tempo; else st.tempo = 'base'; }
+    else if (val !== null && val !== '' && Number.isFinite(n)) st.tempo = Math.max(30, Math.min(300, n));
+    else delete st.tempo;
+    mergeAround(grid, idx - 1, idx + 1);
+}
+
 // Grilles générées : un repère de partie à chaque changement de section du style (A, A2, A3 → « A »).
 // Aucun repère si la grille n'a qu'une seule section (une lettre unique n'apporterait rien).
 function assignAutoParts(grid) {
@@ -492,5 +508,5 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = { partLabelOfMeasure, measureItems, isolateMeasure, isolateRange, splitBeforeMeasure, mergeAround, deleteRange,
         deleteMeasureAt, insertItemsAfter, duplicateMeasureAfter, appendCopyOfLast, setMeasureSplit, transposeRange, setFunctionLabel, setMeasureNote, noteCoverage, noteOwnerAt, measureNotes, setMeasureNoteSpan,
         chordPositions, laterChordOccurrences, applyFunctionLabelToLater, chordSuggestionsForRoot, rememberChord,
-        withIsolatedRange, toggleRepeatStart, cycleRepeatEnd, toggleVolta, clearRepeats, markMeasure, assignAutoParts, diatonicDegrees, qualityTargetChord };
+        withIsolatedRange, toggleRepeatStart, cycleRepeatEnd, toggleVolta, clearRepeats, markMeasure, setMeasureTempo, assignAutoParts, diatonicDegrees, qualityTargetChord };
 }

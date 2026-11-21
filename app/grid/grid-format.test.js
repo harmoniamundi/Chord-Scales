@@ -101,6 +101,12 @@ describe('sanitizeImportedGrid : second accord, reprises, parties', () => {
         assert.equal(F.sanitizeImportedGrid([step({ feel: 'swing' })])[0].feel, 'swing');
         assert.equal('feel' in F.sanitizeImportedGrid([step({ feel: 'shuffle' })])[0], false);
     });
+    test('indication de tempo : entier 30 à 300 ou « base »', () => {
+        assert.equal(F.sanitizeImportedGrid([step({ tempo: 90 })])[0].tempo, 90);
+        assert.equal(F.sanitizeImportedGrid([step({ tempo: 'base' })])[0].tempo, 'base');
+        assert.equal('tempo' in F.sanitizeImportedGrid([step({ tempo: 12 })])[0], false);
+        assert.equal('tempo' in F.sanitizeImportedGrid([step({ tempo: '90' })])[0], false);
+    });
     test('repères de partie : liste proposée, lettre A-Z ou nom libre', () => {
         for (const p of ['A', 'in', "B'", 'out', 'Z', 'Couplet', 'Refrain 2', 'A1', 'Pont (solo)']) assert.equal(F.sanitizeImportedGrid([step({ partStart: p })])[0].partStart, p);
         for (const p of ['', '   ', 5, null, {}, '\n\t']) assert.equal('partStart' in F.sanitizeImportedGrid([step({ partStart: p })])[0], false, String(p));

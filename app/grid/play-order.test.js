@@ -209,3 +209,15 @@ describe('indication Droit / Swing (feelByStep)', () => {
         assert.deepEqual(P.feelByStep([]), []);
     });
 });
+
+describe('indication de tempo (tempoByStep, playedSeconds)', () => {
+    test('vaut jusqu\'à la suivante ; « a tempo » rend le tempo général', () => {
+        const g = [blk(0), blk(1, 2, { tempo: 90 }), blk(2), blk(3, 1, { tempo: 'base' }), blk(4, 1, { tempo: 500 })];
+        assert.deepEqual(P.tempoByStep(g), [null, 90, 90, null, null]);
+    });
+    test('durée : chaque mesure à son tempo, reprises comprises', () => {
+        const g = [blk(0, 1), blk(1, 1, { tempo: 60, repeatStart: true, repeatEnd: 2 }), blk(2, 1, { tempo: 'base' })];
+        // 4/4 à 120 : 2 s par mesure ; à 60 : 4 s. Mesures jouées : 1, 2, 2, 3
+        assert.equal(P.playedSeconds(g, 4, 120), 2 + 4 + 4 + 2);
+    });
+});

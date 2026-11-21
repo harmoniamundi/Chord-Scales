@@ -620,6 +620,7 @@
                 // Métronome (hors sauvegardes / export / import) : intro d'une mesure toujours jouée ; clic pendant la grille seulement si activé
                 this.metronomeEnabled = false;
                 this.metronomeSubdivision = false; // clic léger sur les croches, en plus des temps (réglage du métronome)
+                this._planBpm = 0; // tempo de la mesure en cours de calcul (buildBandPlan), 0 hors calcul
                 this._feelStraight = false; // vrai pendant le calcul d'une mesure placée sous l'indication « Droit » (buildBandPlan)
                 // Les trois clics du métronome : le même enregistrement de métronome mécanique, joué à des vitesses et des niveaux
                 // différents. rate = vitesse de lecture (plus bas = plus grave et un peu plus long), gain = niveau à fond de
@@ -1305,7 +1306,7 @@
             }
 
             // Estimation de la durée du son exporté (toute la grille une fois, reprises comprises)
-            _exportSeconds() { return playedMeasureCount(this.grid) * this._barUnits() * 60 / this.bpm; }
+            _exportSeconds() { return playedSeconds(this.grid, this._barUnits(), this.bpm); } // chaque mesure à son tempo (indications ♩ = N)
 
             _exportRefresh() {
                 const audio = this._exportKind === 'audio';
@@ -3878,8 +3879,17 @@
             // Pendant le calcul d'une mesure placée sous une indication « Droit » (voir buildBandPlan), les croches sont droites.
             getBandSwing() {
                 if (this._feelStraight) return 0.5;
-                return bandSwing(this.bandStyle, this.bpm, this._swingSettingFor(this.bandStyle), this.getEffectiveGroove());
+                return bandSwing(this.bandStyle, this._curBpm(), this._swingSettingFor(this.bandStyle), this.getEffectiveGroove());
             }
+
+            // Tempo joué sur un bloc : indication ♩ = N en vigueur (ordre écrit, grid/play-order.js), sinon tempo général.
+            _tempoAtIndex(i) {
+                const t = (i >= 0 && i < this.grid.length) ? tempoByStep(this.grid)[i] : null;
+                return t || this.bpm;
+            }
+            _tempoOfStep(step) { return this._tempoAtIndex(this.grid.indexOf(step)); }
+            // Tempo vu par les orchestres : celui de la mesure en cours de calcul (buildBandPlan), sinon le tempo général.
+            _curBpm() { return this._planBpm || this.bpm; }
 
             // Indication « Droit » / « Swing » en vigueur sur un bloc de la grille (ordre écrit, grid/play-order.js) ; null = aucune.
             _feelAtStep(step) {
@@ -3956,7 +3966,7 @@
                 const rng = this.makeVariationRng(this._bandSeed + index * 7919 + 1, style);
                 const ctx = {
                     lib: this.getPatternLib(style), bpb: this.getBeatsPerBar(), ternary: this.isTernary(),
-                    bpm: this.bpm, isCuba: this.bandStyle === 'cuba', groove: this.getEffectiveGroove(), rng
+                    bpm: this._curBpm(), isCuba: this.bandStyle === 'cuba', groove: this.getEffectiveGroove(), rng
                 };
                 return buildBandPhrase(ctx, index, style, this._bandPhrase);
             }
@@ -3967,8 +3977,9 @@
             // Jazz compris) ; « Swing » ou aucune indication : swing général de la grille. Le réglage général n'est jamais modifié.
             buildBandPlan(step, nextStep, measureInStep, isLastMeasureOfStep) {
                 this._feelStraight = this._feelAtStep(step) === 'straight';
+                this._planBpm = this._tempoOfStep(step); // indication de tempo : les orchestres qui suivent le tempo s'y adaptent
                 try { return this._buildBandPlanFeel(step, nextStep, measureInStep, isLastMeasureOfStep); }
-                finally { this._feelStraight = false; }
+                finally { this._feelStraight = false; this._planBpm = 0; }
             }
 
             _buildBandPlanFeel(step, nextStep, measureInStep, isLastMeasureOfStep) {
@@ -4109,7 +4120,7 @@
             // ===================== Orchestration GUITARE : le calcul est dans band/guitar-plan.js =====================
             // Guitare classique seule : le pouce tient les basses, les doigts arpègent les cordes aiguës, les accords sont roulés.
             buildGuitarPlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                return this._bandRun(['gtrVoice'], env => buildGuitarPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat(), bpm: this.bpm, density: this.getBandDensity('guitar') });
+                return this._bandRun(['gtrVoice'], env => buildGuitarPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat(), bpm: this._curBpm(), density: this.getBandDensity('guitar') });
             }
 
             // Une frappe de la guitare seule (pouce, doigts, accord roulé) sur les cordes de nylon. Sans guitare chargée, le piano prend le relais.
@@ -4144,7 +4155,7 @@
             // Choix propres au 3/4 et au 2/4, faits une fois par phrase et gardés pendant toute la phrase.
 
             buildMeterPlan(bpb, style, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                const extra = { splitBeat: this.getSplitBeat(), meterKey: this.getMeterKey(), swing: style === 'swing' ? this.getBandSwing() : 0.5, bpm: this.bpm, density: this.getBandDensity(style) }; // hors Jazz : swing appliqué après coup (buildBandPlan)
+                const extra = { splitBeat: this.getSplitBeat(), meterKey: this.getMeterKey(), swing: style === 'swing' ? this.getBandSwing() : 0.5, bpm: this._curBpm(), density: this.getBandDensity(style) }; // hors Jazz : swing appliqué après coup (buildBandPlan)
                 return this._bandRun(['meterVoice', 'bandLastFill'], env => buildMeterPlan(env, bpb, style, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), extra);
             }
 
@@ -4158,7 +4169,7 @@
             // Choix propres aux mesures composées, faits une fois par phrase.
 
             buildTernaryPlan(bpb, style, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                const extra = { splitBeat: this.getSplitBeat(), meterKey: this.getMeterKey(), bpm: this.bpm, density: this.getBandDensity(style) };
+                const extra = { splitBeat: this.getSplitBeat(), meterKey: this.getMeterKey(), bpm: this._curBpm(), density: this.getBandDensity(style) };
                 return this._bandRun(['meterVoice', 'bandLastFill'], env => buildTernaryPlan(env, bpb, style, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), extra);
             }
 
@@ -4172,10 +4183,10 @@
 
 
             buildClassicEraPlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                return buildClassicEraPlan({ ...this._bandEnv(), bpm: this.bpm, splitBeat: this.getSplitBeat(), density: this.getBandDensity('classic') }, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
+                return buildClassicEraPlan({ ...this._bandEnv(), bpm: this._curBpm(), splitBeat: this.getSplitBeat(), density: this.getBandDensity('classic') }, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
             }
             buildClassicPlan(step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                return buildClassicPlan({ ...this._bandEnv(), bpm: this.bpm, density: this.getBandDensity('classic') }, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
+                return buildClassicPlan({ ...this._bandEnv(), bpm: this._curBpm(), density: this.getBandDensity('classic') }, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
             }
 
             buildArpPlan(bpb, step, nextStep, isLastMeasureOfStep, halves) {
@@ -4358,14 +4369,14 @@
             // ===================== Orchestration BRASS BAND : le calcul est dans band/brass-plan.js =====================
 
             buildBrassPlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                const extra = { splitBeat: this.getSplitBeat(), bpm: this.bpm, bandCtx: this._bandCtx, density: this.getBandDensity('brass') };
+                const extra = { splitBeat: this.getSplitBeat(), bpm: this._curBpm(), bandCtx: this._bandCtx, density: this.getBandDensity('brass') };
                 return this._bandRun(['brassVoice', 'brassLines'], env => buildBrassPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), extra);
             }
 
             // ===================== Orchestration BALKANS : le calcul est dans band/balkan-plan.js =====================
 
             buildBalkanPlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                return this._bandRun(['balkanVoice', 'balkanMel'], env => buildBalkanPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat(), bpm: this.bpm, density: this.getBandDensity('balkan'),
+                return this._bandRun(['balkanVoice', 'balkanMel'], env => buildBalkanPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat(), bpm: this._curBpm(), density: this.getBandDensity('balkan'),
                     groups: (this.getAksak() && !this._planProxy) ? this.getAksak().groups : null });   // aksak : temps inégaux
             }
 
@@ -4373,7 +4384,7 @@
 
             buildAfricaPlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
                 return this._bandRun(['africaVoice', 'africaLead', 'africaKeys'], env => buildAfricaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m),
-                    { splitBeat: this.getSplitBeat(), bpm: this.bpm, groove: this.getEffectiveGroove('africa') });
+                    { splitBeat: this.getSplitBeat(), bpm: this._curBpm(), groove: this.getEffectiveGroove('africa') });
             }
 
             // Une frappe de l'orchestre Afrique : section de cuivres (e.inst 'horn', comme le Brass band), sinon guitare électrique ou
@@ -4386,7 +4397,7 @@
             // ===================== Orchestration CUMBIA : le calcul est dans band/cumbia-plan.js =====================
 
             buildCumbiaPlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                return this._bandRun(['cumbiaVoice', 'cumbiaMel'], env => buildCumbiaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat(), bpm: this.bpm, density: this.getBandDensity('cumbia') });
+                return this._bandRun(['cumbiaVoice', 'cumbiaMel'], env => buildCumbiaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat(), bpm: this._curBpm(), density: this.getBandDensity('cumbia') });
             }
 
             // Bus de l'accordéon : anches un peu nasales (bosse vers 1,8 kHz), graves nettoyés, aigus adoucis, compresseur doux, puis
@@ -4459,7 +4470,7 @@
             // ===================== Orchestration PIAZZOLLA : le calcul est dans band/piazzolla-plan.js =====================
 
             buildPiazzollaPlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                const extra = { splitBeat: this.getSplitBeat(), bpm: this.bpm, density: this.getBandDensity('piazzolla') };
+                const extra = { splitBeat: this.getSplitBeat(), bpm: this._curBpm(), density: this.getBandDensity('piazzolla') };
                 return this._bandRun(['pzState'], env => buildPiazzollaPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), extra);
             }
 
@@ -4568,7 +4579,7 @@
                 // Les frappes sont plus nombreuses qu'avant : on purge régulièrement les nœuds déjà terminés.
                 if (this.bandAudioNodes.length > 600) this.bandAudioNodes.splice(0, this.bandAudioNodes.length - 300);
                 const now = this._audioNow();
-                const beatSec = 60 / this.bpm;
+                const beatSec = 60 / this._tempoOfStep(step);
 
                 if (beatInMeasure === 0) {
                     this._bandMeasureCounter = (this._bandMeasureCounter + 1) % 1000000;
@@ -5280,6 +5291,23 @@
                 this._editorSelect();
             }
 
+            // Indication de tempo depuis le pop-up d'une mesure : ♩ = N, 'base' (« a tempo ») ou null (retirée)
+            _editorTempo(val) {
+                const ed = this._editor;
+                if (!ed) return;
+                ed.touched = true;
+                this.withUndo(() => setMeasureTempo(this.grid, ed.measureNumber, val));
+                this._editorSelect();
+            }
+            // Boutons − / + : ±5 à partir du tempo en vigueur sur la mesure (indication posée sinon tempo général)
+            _editorTempoStep(d) {
+                const ed = this._editor;
+                if (!ed || !d) return;
+                const m = this.getFlatMeasureList().find(x => x.measureNumber === ed.measureNumber);
+                const cur = m ? this._tempoAtIndex(m.stepIndex) : this.bpm;
+                this._editorTempo(Math.round(cur / 5) * 5 + d);
+            }
+
             // ===== Barre d'outils d'édition (crayon) et panneau éditeur (téléphone) =====
             toggleEditBar(force) {
                 this._editBarOpen = typeof force === 'boolean' ? force : !this._editBarOpen;
@@ -5977,12 +6005,13 @@
                 el.className = 'jm-pop';
                 el.addEventListener('click', (ev) => {
                     const t = ev.target.closest('[data-act]');
-                    if (!t || t.tagName === 'SELECT') return;
+                    if (!t || t.tagName === 'SELECT' || t.tagName === 'INPUT') return;
                     this._editorOnAction(t.dataset.act, t.dataset.v, t.dataset.i);
                 });
                 el.addEventListener('change', (ev) => {
                     const t = ev.target;
                     if (t.dataset && t.dataset.act === 'chordsel' && t.value) this._editorApply({ chordId: t.value });
+                    if (t.dataset && t.dataset.act === 'tempo') this._editorTempo(t.value.trim() === '' ? null : t.value); // champ vidé : indication retirée
                 });
                 (document.fullscreenElement || document.body).appendChild(el);
                 this._enablePopupDrag(el);
@@ -6122,6 +6151,9 @@
                     case 'rp-v1': this._editorMark('v1'); break;
                     case 'rp-v2': this._editorMark('v2'); break;
                     case 'feel': this._editorMark(v === 'swing' ? 'swing' : 'straight'); break;
+                    case 'tempo-base': this._editorTempo('base'); break;
+                    case 'tempo-step': this._editorTempoStep(parseInt(v, 10) || 0); break;
+                    case 'tempo-clear': this._editorTempo(null); break;
                     case 'close': ed.touched = true; this.closeMeasureEditor(); break;   // OK : on garde
                     case 'cancel': this.closeMeasureEditor(); break;                       // ✕ : une mesure ajoutée vierge est annulée
                 }
@@ -6181,7 +6213,7 @@
                 const t = this._editorTarget();
                 if (!t) return true;
                 if (key === 'bass') return !Number.isInteger(t.cur.bassRootIndex);
-                if (key === 'rp') return !(t.step.repeatStart || t.step.repeatEnd || t.step.volta || t.step.feel);
+                if (key === 'rp') return !(t.step.repeatStart || t.step.repeatEnd || t.step.volta || t.step.feel || t.step.tempo !== undefined);
                 return true;
             }
 
@@ -6325,7 +6357,8 @@
                     m, step, isHalf, cur, half: ed.half, mode: this._edModeGet(), isFolded: (key) => this._editorFolded(key), suggestions,
                     degrees: this.getDiatonicDegrees({ triads: this._degreeTriads }), degreeTriads: this._degreeTriads, rootLabels, symbol: (c) => this.getChordSymbol(c),
                     jazz: (id) => this.getJazzChordNotation(id), findChordObj: (id) => this.findChordObj(id),
-                    halfLabelText: (h) => this.halfLabelText(h), halfTitleText: () => this.halfTitleText()
+                    halfLabelText: (h) => this.halfLabelText(h), halfTitleText: () => this.halfTitleText(),
+                    tempoHere: this._tempoAtIndex(m.stepIndex), baseBpm: this.bpm // tempo en vigueur sur la mesure et tempo général
                 });
                 ed.el.scrollTop = prevScroll;
             }
@@ -9086,7 +9119,7 @@
             // aucun effet audible, et le métronome comme la musique restent parfaitement réguliers.
             _scheduleNextTick(runId) {
                 const ctx = this.app.audioCtx;
-                const delayMs = nextTickDelayMs({ beatAudio: this._beatAudio, now: ctx.currentTime, lead: this._LEAD, intervalSec: 60 / this.bpm });   // l'avance ne dépasse jamais un temps
+                const delayMs = nextTickDelayMs({ beatAudio: this._beatAudio, now: ctx.currentTime, lead: this._LEAD, intervalSec: 60 / this._tempoAtIndex(this.currentStepIndex) });   // l'avance ne dépasse jamais un temps
                 this.timer = this._clockSet(delayMs, () => this.tick(runId));
             }
 
@@ -9103,7 +9136,8 @@
                 const splitBeat = this.getSplitBeat();
                 // Durée de CE temps : une noire (une pulsation en mesure composée) ; en aksak, 1 ou 1,5 noire selon le groupe de croches
                 const beatIdx = this._countInBeats > 0 ? bpb - this._countInBeats : this.currentBeat % bpb;
-                const intervalSec = 60 / this.bpm * this._beatUnitsAt(beatIdx);
+                // Tempo du bloc joué (indication ♩ = N en vigueur, sinon tempo général) ; pendant l'intro, celui du bloc de départ.
+                const intervalSec = 60 / this._tempoAtIndex(this.currentStepIndex) * this._beatUnitsAt(beatIdx);
                 // Grille de temps en secondes AUDIO : premier temps, ou recalage après un retard de plus d'un temps.
                 const clock = beatClock({ beatAudio: this._beatAudio, now: ctx.currentTime, intervalSec, firstLead: this._FIRST_LEAD, lead: this._LEAD });
                 const t = clock.t;
@@ -10805,7 +10839,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-21-b';
+        var BUILD = '2026-11-21-c';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }
@@ -10818,8 +10852,8 @@
             };
             // Fichiers nouveaux de la version : s'ils sont absents (mal placés ou pas envoyés), ils ne définissent pas leur fonction.
             var needed = {
-                'app/grid/play-order.js': typeof feelByStep === 'function',
-                'app/ui/grid-view.js': (function () { try { return printMarks([{ feel: 'straight', measures: 1 }], {}, { stepIndex: 0, measureInStep: 1, measureNumber: 1 }, []).html.indexOf('jam-print-feel') >= 0; } catch (e) { return false; } })(),
+                'app/grid/play-order.js': typeof feelByStep === 'function' && typeof tempoByStep === 'function' && typeof playedSeconds === 'function',
+                'app/ui/grid-view.js': (function () { try { return printMarks([{ feel: 'straight', tempo: 90, measures: 1 }], {}, { stepIndex: 0, measureInStep: 1, measureNumber: 1 }, []).html.indexOf('jam-print-tempo') >= 0; } catch (e) { return false; } })(),
                 'app/ui/scale-harmony.js': typeof scaleHarmonyHtml === 'function' && typeof scaleHarmony === 'function',
                 'app/ui/scale-map.js': typeof scaleMapEntries === 'function' && typeof scaleMapHtml === 'function' && typeof trainingMapCards === 'function',
                 'app/ui/chord-picker.js': typeof chordPickerHtml === 'function' && typeof chordPickerBuild === 'function' && typeof chordPickerParseRoot === 'function',

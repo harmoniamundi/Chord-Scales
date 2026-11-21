@@ -382,8 +382,12 @@
             #jam-print-area .jam-print-split-3 ~ .jam-print-fn.jam-print-fn-a { right: calc(33.333% + 6pt); }
             #jam-print-area .jam-print-cell.has-re .jam-print-fn:not(.jam-print-fn-a) { right: 20pt; }
             #jam-print-area .jam-print-cell.has-fn.has-re .jam-print-times { bottom: auto; top: 4pt; }
-            /* Indication « Droit » / « Swing » (export PDF) : en haut, au centre de la case */
-            #jam-print-area .jam-print-feel { position: absolute; top: 3pt; left: 50%; transform: translateX(-50%); font: italic 700 9pt "Kalam", cursive; color: #000000; line-height: 1; white-space: nowrap; }
+            /* Indications Droit / Swing et de tempo (export PDF) : en haut à gauche de la case, en noir */
+            #jam-print-area .jam-print-marks { position: absolute; top: 3pt; left: 5pt; font: 700 9pt "Kalam", cursive; color: #000000; line-height: 1; white-space: nowrap; }
+            #jam-print-area .jam-print-feel { font-style: italic; }
+            #jam-print-area .jam-print-cell.has-rs .jam-print-marks { left: 21pt; }
+            #jam-print-area .jam-print-cell.has-feel-v .jam-print-marks { top: 9pt; left: 18pt; } /* sous le trait de 1re / 2e fin, après « 1. » */
+            #jam-print-area .jam-print-cell.has-rs.has-feel-v .jam-print-marks { left: 34pt; }
 
             /* Annotations (export PDF) : après la grille, celle de la grille puis celles des mesures */
             #jam-print-area .jam-pdf-notes { margin-top: 14mm; }
@@ -411,7 +415,7 @@
         #jam-chord-sequence-display .jam-cell-top > span:last-child { min-width: 0; }
         #jam-chord-sequence-display .jam-add-cell { align-self: stretch; min-height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 1.5px dashed #2f6f57; background: rgba(16,185,129,.06); color: #34d399; font-size: 24px; line-height: 1; cursor: pointer; user-select: none; transition: background .12s, border-color .12s; }
         #jam-chord-sequence-display .jam-add-cell:hover { background: rgba(16,185,129,.16); border-color: #34d399; }
-        :root { --cs-build: '2026-11-21-b'; } /* numéro de version lu par la page */
+        :root { --cs-build: '2026-11-21-c'; } /* numéro de version lu par la page */
         .jm-pop { position: fixed; z-index: 2000; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); color: #e2e8f0; padding: 10px 12px 12px; font-size: 12px; }
         .jm-pop.jm-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; max-height: 62vh; }
         /* Pop-up « Orchestre » : fenêtre flottante à gauche de l'écran, sans voile, déplaçable par sa barre de titre */
@@ -568,6 +572,10 @@
         .jm-chip.is-on small { color: #dbeafe; }
         .jm-deg { flex: 1 1 0; min-width: 0; padding: 5px 2px; }
         .jm-scale { font-size: 11px; font-weight: 500; padding: 4px 7px; }
+        .jm-tempo-row { align-items: center; flex-wrap: nowrap; gap: 3px; }
+        .jm-tempo-row .jm-chip { padding-left: 7px; padding-right: 7px; flex: 0 0 auto; }
+        .jm-tempo { display: inline-flex; align-items: center; gap: 2px; font-size: 13px; color: #e2e8f0; }
+        .jm-tempo input { width: 48px; padding: 4px 6px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #e2e8f0; font-size: 12px; }
         .jm-select { width: 100%; margin-top: 5px; padding: 5px 6px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #e2e8f0; font-size: 12px; }
         .jm-foot { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; padding-top: 9px; border-top: 1px solid #333; }
         .jm-btn { padding: 6px 10px; border-radius: 7px; border: 1px solid #3a3a3c; background: #2a2a2c; color: #e2e8f0; font: 600 12px/1 inherit; font-family: inherit; cursor: pointer; }
@@ -709,8 +717,11 @@
         #jam-chord-sequence-display .jam-cell.rp-has-v .jam-cell-top { margin-top: 5px; }
         #jam-chord-sequence-display .jam-cell .rp-xn { font-size: 9px; font-weight: 700; }
         /* Indication de jeu des croches (« Droit » / « Swing ») posée sur la mesure */
-        #jam-chord-sequence-display .jam-cell .jam-feel { font-family: "Kalam", cursive; font-size: 11px; font-weight: 700; font-style: italic; line-height: 1; color: #b45309; white-space: nowrap; }
-        #jam-chord-sequence-display .jam-cell.bg-blue-600 .jam-feel { color: #fde68a; }
+        /* Indications Droit / Swing et de tempo : en haut à gauche, après le numéro de mesure, en noir */
+        #jam-chord-sequence-display .jam-cell .jam-feel { margin-left: 5px; font-family: "Kalam", cursive; font-size: 11px; font-weight: 700; font-style: italic; line-height: 1; color: #000000; white-space: nowrap; vertical-align: middle; }
+        #jam-chord-sequence-display .jam-cell .jam-tempo { font-style: normal; }
+        .jam-qn, .jm-qn { font-family: "Apple Symbols", "Segoe UI Symbol", "DejaVu Sans", "Noto Music", serif; font-style: normal; font-weight: 400; font-size: 1.35em; line-height: 0; vertical-align: -0.1em; }
+        #jam-chord-sequence-display .jam-cell.bg-blue-600 .jam-feel { color: #ffffff; }
 
         /* Une case portant une barre de reprise décale son contenu pour ne rien chevaucher */
         #jam-chord-sequence-display .jam-cell.rp-has-l { padding-left: 20px; }

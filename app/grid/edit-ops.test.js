@@ -298,6 +298,15 @@ describe('signes de reprise', () => {
         E.markMeasure(g, 3, 'swing');
         assert.deepEqual(g.map(x => [x.measures, x.feel]), [[4, undefined]]); // retirée : les blocs se refusionnent
     });
+    test('setMeasureTempo : ♩ = N à partir de la mesure, a tempo bascule, null retire', () => {
+        const g = [st(0, 'maj7', 4)];
+        E.setMeasureTempo(g, 2, 92);
+        assert.deepEqual(g.map(x => [x.measures, x.tempo]), [[1, undefined], [3, 92]]);
+        E.setMeasureTempo(g, 2, 999); assert.equal(g[1].tempo, 300);
+        E.setMeasureTempo(g, 2, 'base'); assert.equal(g[1].tempo, 'base');
+        E.setMeasureTempo(g, 2, 'base');
+        assert.deepEqual(g.map(x => [x.measures, x.tempo]), [[4, undefined]]);
+    });
     test('indication Droit : gardée au début du bloc éclaté, copiée avec la mesure, pas dupliquée', () => {
         const g = [st(0, 'maj7', 3, { feel: 'straight' })];
         E.isolateMeasure(g, 2);

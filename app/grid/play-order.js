@@ -232,7 +232,36 @@ function feelByStep(grid) {
     });
 }
 
+// Indication de tempo d'un bloc : un nombre entier de 30 à 300 (♩ = N) ou 'base' (« a tempo » : retour au tempo général).
+const TEMPO_MARK_MIN = 30, TEMPO_MARK_MAX = 300;
+function isTempoMark(v) { return v === 'base' || (Number.isInteger(v) && v >= TEMPO_MARK_MIN && v <= TEMPO_MARK_MAX); }
+
+// Tempo en vigueur sur chaque bloc, dans l'ordre écrit (même règle que feelByStep) : un nombre (♩ = N) ou null (tempo général,
+// avant toute indication ou après « a tempo »).
+function tempoByStep(grid) {
+    let cur = null;
+    return (grid || []).map(st => {
+        if (st && isTempoMark(st.tempo)) cur = st.tempo === 'base' ? null : st.tempo;
+        return cur;
+    });
+}
+
+// Durée en secondes d'une lecture complète (reprises comprises, sans boucle) : chaque mesure à son tempo.
+// barUnits = noires (ou pulsations) par mesure ; baseBpm = tempo général de la grille.
+function playedSeconds(grid, barUnits, baseBpm) {
+    const tempos = tempoByStep(grid);
+    let total = 0, i = 0, guard = 0;
+    const passes = {};
+    while (grid.length && i >= 0 && i < grid.length && guard++ < 100000) {
+        total += Math.max(1, grid[i].measures || 1) * barUnits * 60 / (tempos[i] || baseBpm);
+        const nx = nextStepInfo(grid, i, passes);
+        if (nx.wrapped) break;
+        i = nx.idx;
+    }
+    return total;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { feelByStep, flatMeasureList, stepStartMeasure, effectiveVolta, repeatRegions, stepSpan, stepOfMeasure,
+    module.exports = { feelByStep, tempoByStep, isTempoMark, playedSeconds, TEMPO_MARK_MIN, TEMPO_MARK_MAX, flatMeasureList, stepStartMeasure, effectiveVolta, repeatRegions, stepSpan, stepOfMeasure,
         computePlayRange, nextStepInfo, playedMeasureCount, peekNextIndex, sameChordStep, peekNextDisplayIndex };
 }

@@ -351,6 +351,8 @@ function sanitizeImportedGrid(raw) {
         if (vo === 1 || vo === 2) step.volta = vo;
         // Indication de jeu des croches à partir de ce bloc : « Droit » ou retour au « Swing » général
         if (item.feel === 'straight' || item.feel === 'swing') step.feel = item.feel;
+        // Indication de tempo à partir de ce bloc : ♩ = 30 à 300, ou « a tempo » (retour au tempo général)
+        if (item.tempo === 'base' || (Number.isInteger(item.tempo) && item.tempo >= 30 && item.tempo <= 300)) step.tempo = item.tempo;
         clean.push(step);
     }
     return clean;
