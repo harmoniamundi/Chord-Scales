@@ -619,6 +619,7 @@
                 this.metronomeSubdivision = false; // clic léger sur les croches, en plus des temps (réglage du métronome)
                 this._markState = null; // état de jeu pendant la lecture (croches, tempo), voir _syncMarkState
                 this._planBpm = 0; // tempo de la mesure en cours de calcul (buildBandPlan), 0 hors calcul
+                this._feelSwing = false; // vrai pendant le calcul d'une mesure placée sous l'indication « Swing »
                 this._feelStraight = false; // vrai pendant le calcul d'une mesure placée sous l'indication « Droit » (buildBandPlan)
                 // Les trois clics du métronome : le même enregistrement de métronome mécanique, joué à des vitesses et des niveaux
                 // différents. rate = vitesse de lecture (plus bas = plus grave et un peu plus long), gain = niveau à fond de
@@ -3875,9 +3876,15 @@
 
             // Rapport de swing de l'orchestre actif : réglage choisi, sinon valeur par défaut du style (voir BAND_SWING_DEFAULTS).
             // Pendant le calcul d'une mesure placée sous une indication « Droit » (voir buildBandPlan), les croches sont droites.
+            // Indication « Swing » : le swing réglé ; s'il est droit (50 %), celui de l'orchestre en « Auto », ou le triolet.
             getBandSwing() {
                 if (this._feelStraight) return 0.5;
-                return bandSwing(this.bandStyle, this._curBpm(), this._swingSettingFor(this.bandStyle), this.getEffectiveGroove());
+                const v = bandSwing(this.bandStyle, this._curBpm(), this._swingSettingFor(this.bandStyle), this.getEffectiveGroove());
+                if (this._feelSwing && v <= 0.5 + 1e-9) {
+                    const d = defaultBandSwing(this.bandStyle, this._curBpm(), this.getEffectiveGroove());
+                    return d > 0.5 + 1e-9 ? d : 0.667;
+                }
+                return v;
             }
 
             // Tempo joué sur un bloc : indication ♩ = N en vigueur (ordre écrit, grid/play-order.js), sinon tempo général.
@@ -3987,10 +3994,12 @@
             // Indication « Droit » sur la mesure : le swing tombe à 50 % le temps du calcul de cette mesure (tous les orchestres,
             // Jazz compris) ; « Swing » ou aucune indication : swing général de la grille. Le réglage général n'est jamais modifié.
             buildBandPlan(step, nextStep, measureInStep, isLastMeasureOfStep) {
-                this._feelStraight = this._feelAtStep(step) === 'straight';
+                const feel = this._feelAtStep(step);
+                this._feelStraight = feel === 'straight';
+                this._feelSwing = feel === 'swing';
                 this._planBpm = this._tempoOfStep(step); // indication de tempo : les orchestres qui suivent le tempo s'y adaptent
                 try { return this._buildBandPlanFeel(step, nextStep, measureInStep, isLastMeasureOfStep); }
-                finally { this._feelStraight = false; this._planBpm = 0; }
+                finally { this._feelStraight = false; this._feelSwing = false; this._planBpm = 0; }
             }
 
             _buildBandPlanFeel(step, nextStep, measureInStep, isLastMeasureOfStep) {
@@ -6499,38 +6508,55 @@
                 el.title = parts.length ? 'Sélection : ' + el.textContent : '';
             }
 
+            // Ce sur quoi agit le popup :
+            //  - Reprise : une sélection de plusieurs mesures est reprise d'un bloc (Aucune, ×2, ×3, ×4) ; une seule mesure reçoit
+            //    séparément le début |: et/ou la fin :| ×N (une reprise qui commence et finit ailleurs se pose en deux fois).
+            //  - Jeu : sur une reprise (sélection = la reprise, ou une seule mesure dedans), le jeu de chaque passage est écrit sur sa
+            //    première mesure (« 1x Droit · 2x Swing ») ; un passage de plusieurs mesures garde son propre jeu, puis reprend le jeu
+            //    d'avant ; ailleurs, le jeu change à partir de la mesure sélectionnée.
             _repeatPopView(r) {
                 const flat = this.getFlatMeasureList();
                 const mA = flat[r.from - 1], mB = flat[r.to - 1];
                 if (!mA || !mB) return null;
                 const a = this.grid[mA.stepIndex], b = this.grid[mB.stepIndex];
-                const times = (a.repeatStart && mA.measureInStep === 1 && b.repeatEnd && mB.measureInStep === b.measures) ? b.repeatEnd : 0;
+                const single = r.from === r.to;
+                const times = (!single && a.repeatStart && mA.measureInStep === 1 && b.repeatEnd && mB.measureInStep === b.measures) ? b.repeatEnd : 0;
+                const repStart = !!(a.repeatStart && mA.measureInStep === 1);
+                const repEnd = (b.repeatEnd && mB.measureInStep === b.measures) ? b.repeatEnd : 0;
                 // Reprise qui contient le début de la sélection (la sélection elle-même quand elle est la reprise)
                 const rgA = repeatRegions(this.grid).find(rg => mA.stepIndex >= rg.start && mA.stepIndex <= rg.end) || null;
-                const region = (!times && rgA) ? { from: stepSpan(this.grid, rgA.start).first, to: stepSpan(this.grid, rgA.end).last, times: rgA.times } : null;
-                // Début de reprise : un réglage pour un passage donne la valeur neutre aux autres (sinon il déborderait au passage suivant)
-                const atRegionStart = !!times || !!(rgA && rgA.start === mA.stepIndex && mA.measureInStep === 1);
+                const rgBounds = rgA ? { from: stepSpan(this.grid, rgA.start).first, to: stepSpan(this.grid, rgA.end).last, times: rgA.times } : null;
+                const region = !times ? rgBounds : null;
                 let volta = a.volta || 0;
                 for (let i = mA.stepIndex; i <= mB.stepIndex; i++) if ((this.grid[i].volta || 0) !== volta) { volta = 0; break; }
-                const N = times || this._passCountOfStep(mA.stepIndex);
-                const firstStep = mA.measureInStep === 1 ? a : null;
-                const f = firstStep || {};
+                // Mesure qui porte le jeu
+                const mode = times || (single && rgA) ? 'region' : (rgA ? 'inside' : 'plain');
+                const target = mode === 'region' ? (times ? r.from : rgBounds.from) : r.from;
+                const tA = flat[target - 1];
+                const f = tA.measureInStep === 1 ? this.grid[tA.stepIndex] : {};
+                const N = rgA ? rgA.times : 0;
+                // Début de reprise : un réglage pour un passage donne la valeur neutre aux autres (sinon il déborderait au passage suivant)
+                const atRegionStart = !!(rgA && rgA.start === tA.stepIndex && tA.measureInStep === 1);
+                const rgPass = (p) => (rgA && p) ? { [rgA.end]: p } : {};
                 const rows = N >= 2
                     ? Array.from({ length: Math.min(4, N) }, (_, k) => ({ p: k + 1, ...marksAt(f, k + 1) }))
                     : [{ p: 0, feel: f.feel, tempo: f.tempo }];
-                // Tempo en vigueur au début de la sélection, passage par passage (indice grisé du champ)
-                const rgPass = (p) => (rgA && p) ? { [rgA.end]: p } : {};
-                rows.forEach(rw => { rw.here = markStateAt(this.grid, mA.stepIndex, rgPass(rw.p)).tempo || this.bpm; });
+                // Tempo en vigueur sur la mesure qui porte le jeu, passage par passage (indice grisé du champ)
+                rows.forEach(rw => { rw.here = markStateAt(this.grid, tA.stepIndex, rgPass(rw.p)).tempo || this.bpm; });
                 const total = flat.length;
                 const next = flat[r.to];
                 const nst = next ? this.grid[next.stepIndex] : null;
-                const after = { possible: r.to < total, measure: r.to + 1, inRegion: !!(rgA && next && next.stepIndex <= rgA.end),
+                const after = { possible: mode !== 'region' && r.to < total, measure: r.to + 1, inRegion: !!(rgA && next && next.stepIndex <= rgA.end),
                     on: !!(nst && next.measureInStep === 1 && (nst.feel || nst.tempo !== undefined || nst.byPass)) };
-                // Jeu en vigueur juste avant la sélection, pour chaque passage (le retour au jeu général le rétablit)
-                const before = flat[r.from - 2];
+                // Jeu en vigueur juste avant la mesure qui porte le jeu, pour chaque passage (le retour le rétablit)
+                const before = flat[target - 2];
                 const prior = (p) => before ? markStateAt(this.grid, before.stepIndex, rgPass(p)) : { feel: null, tempo: null };
-                return { from: r.from, to: r.to, times, region, volta, rows, N, firstStep, after, total, atRegionStart, prior,
-                    hasMarks: !!(f.feel || f.tempo !== undefined || f.byPass), tempoHere: this._tempoAtIndex(mA.stepIndex), baseBpm: this.bpm };
+                const jeuTitle = mode === 'region'
+                    ? `Jeu de chaque passage de la reprise (mesures ${rgBounds.from} à ${rgBounds.to})`
+                    : (single ? `Jeu à partir de la mesure ${r.from}` : `Jeu des mesures ${r.from} à ${r.to}`) + (N >= 2 ? ', passage par passage' : '');
+                return { from: r.from, to: r.to, single, repStart, repEnd, times, region, volta, rows, N, target, mode, jeuTitle,
+                    firstStep: tA.measureInStep === 1 ? this.grid[tA.stepIndex] : null, after, total, atRegionStart, prior,
+                    hasMarks: !!(f.feel || f.tempo !== undefined || f.byPass), tempoHere: this._tempoAtIndex(tA.stepIndex), baseBpm: this.bpm };
             }
 
             toggleRepeatPop() {
@@ -6629,10 +6655,13 @@
                 this.withUndo(() => {
                     switch (act) {
                         case 'rep': setRepeatRange(g, v.from, v.to, parseInt(val, 10) || 0); break;
+                        // Une seule mesure : début |: et fin :| ×N posés séparément
+                        case 'rstart': withIsolatedRange(g, v.from, v.from, (i0) => toggleRepeatStart(g[i0])); break;
+                        case 'rend': withIsolatedRange(g, v.from, v.from, (i0) => { const n = parseInt(val, 10) || 0; if (n >= 2 && n <= 4) g[i0].repeatEnd = n; else delete g[i0].repeatEnd; }); break;
                         case 'volta': withIsolatedRange(g, v.from, v.to, (i0, i1) => toggleVolta(g, i0, i1, parseInt(val, 10) === 2 ? 2 : 1)); break;
                         case 'feel': {
                             const nv = row.feel === val ? undefined : (val === 'swing' ? 'swing' : 'straight');
-                            setPlayMark(g, v.from, 'feel', p, nv, v.N, v.atRegionStart);
+                            setPlayMark(g, v.target, 'feel', p, nv, v.N, v.atRegionStart);
                             if (nv) withReturn('feel');
                             break;
                         }
@@ -6641,7 +6670,7 @@
                             if (act === 'tbase') nv = row.tempo === 'base' ? undefined : 'base';
                             else if (act === 'tempo') { const n = Math.round(Number(val)); nv = (String(val).trim() === '' || !Number.isFinite(n)) ? undefined : Math.max(30, Math.min(300, n)); }
                             else { const cur = Number.isInteger(row.tempo) ? row.tempo : (row.here || v.tempoHere || this.bpm); nv = Math.max(30, Math.min(300, Math.round(cur / 5) * 5 + (parseInt(val, 10) || 0))); }
-                            setPlayMark(g, v.from, 'tempo', p, nv, v.N, v.atRegionStart);
+                            setPlayMark(g, v.target, 'tempo', p, nv, v.N, v.atRegionStart);
                             if (nv !== undefined) withReturn('tempo');
                             break;
                         }
@@ -6654,7 +6683,7 @@
                             break;
                         }
                         case 'clearplay':
-                            clearPlayMarks(g, v.from);
+                            clearPlayMarks(g, v.target);
                             if (v.after.possible && v.after.on) { setPlayMark(g, v.after.measure, 'feel', 0, undefined, 0); setPlayMark(g, v.after.measure, 'tempo', 0, undefined, 0); }
                             break;
                     }
@@ -11048,7 +11077,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-21-e';
+        var BUILD = '2026-11-21-f';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }

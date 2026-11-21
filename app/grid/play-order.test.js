@@ -238,7 +238,7 @@ describe('indications par passage (byPass)', () => {
     });
     test('markStateAt : état au 1er puis au 2e passage', () => {
         assert.deepEqual(P.markStateAt(g(), 1, {}), { feel: 'straight', tempo: 60 });
-        assert.deepEqual(P.markStateAt(g(), 1, { 1: 2 }), { feel: null, tempo: 180 });
+        assert.deepEqual(P.markStateAt(g(), 1, { 1: 2 }), { feel: 'swing', tempo: 180 });
     });
     test('durée : 1er passage à 60, 2e à 180, la suite garde le dernier tempo', () => {
         // 4/4 : à 60 une mesure = 4 s, à 180 = 4/3 s. Mesures : m1 m2 (60), m1 m2 (180), m3 (180)

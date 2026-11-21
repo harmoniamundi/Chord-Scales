@@ -415,7 +415,7 @@
         #jam-chord-sequence-display .jam-cell-top > span:last-child { min-width: 0; }
         #jam-chord-sequence-display .jam-add-cell { align-self: stretch; min-height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 1.5px dashed #2f6f57; background: rgba(16,185,129,.06); color: #34d399; font-size: 24px; line-height: 1; cursor: pointer; user-select: none; transition: background .12s, border-color .12s; }
         #jam-chord-sequence-display .jam-add-cell:hover { background: rgba(16,185,129,.16); border-color: #34d399; }
-        :root { --cs-build: '2026-11-21-e'; } /* numéro de version lu par la page */
+        :root { --cs-build: '2026-11-21-f'; } /* numéro de version lu par la page */
         .jm-pop { position: fixed; z-index: 2000; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); color: #e2e8f0; padding: 10px 12px 12px; font-size: 12px; }
         .jm-pop.jm-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; max-height: 62vh; }
         /* Pop-up « Orchestre » : fenêtre flottante à gauche de l'écran, sans voile, déplaçable par sa barre de titre */
@@ -707,6 +707,9 @@
         .jrp-pop .jrp-after { display: flex; align-items: center; gap: 6px; margin-top: 8px; color: #cbd5e1; cursor: pointer; }
         .jrp-pop .jrp-after input:disabled + * , .jrp-pop .jrp-after:has(input:disabled) { opacity: .55; cursor: default; }
         .jrp-pop .jrp-clear { margin-top: 8px; }
+        .jrp-pop .jrp-line { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+        .jrp-pop .jrp-line .jrp-rep { flex: 1 1 auto; margin-bottom: 0; }
+        .jrp-pop .jrp-lab { flex: 0 0 44px; color: #94a3b8; font-size: 11px; }
         @media (max-width: 639px) { .jam-eb-info { position: static; transform: none; max-width: 100%; margin-left: auto; padding-left: 0; background: transparent; } }
         .jam-eb-sep { width: 1px; align-self: stretch; background: #333; margin: 0 2px; }
         #view-jam.jam-playing #jam-edit-bar, #jam-edit-bar.hidden { display: none !important; }

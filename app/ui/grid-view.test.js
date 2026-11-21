@@ -372,6 +372,11 @@ describe('popup « Reprise et jeu » et indications', () => {
         assert.ok(/is-on" data-act="feel" data-v="straight" data-p="1"/.test(two) && /is-on" data-act="feel" data-v="swing" data-p="2"/.test(two));
         assert.ok(two.includes('data-act="clearplay"'));
     });
+    test('une seule mesure : début et fin de reprise séparés, pas de ×2 autour', () => {
+        const h = V.repeatPopHtml({ ...base, from: 28, to: 28, single: true, repStart: false, repEnd: 2, rows: [{ p: 0 }], jeuTitle: 'Jeu de chaque passage de la reprise (mesures 1 à 28)' });
+        assert.ok(h.includes('data-act="rstart"') && /is-on" data-act="rend" data-v="2"/.test(h));
+        assert.ok(!h.includes('data-act="rep"') && h.includes('mesures 1 à 28'));
+    });
     test('marksText : tous les passages puis par passage', () => {
         assert.equal(V.marksText({ feel: 'straight', tempo: 90, byPass: { 2: { tempo: 'base' } } }), 'Droit \u2669=90 · 2x a tempo');
         assert.equal(V.marksText({}), '');

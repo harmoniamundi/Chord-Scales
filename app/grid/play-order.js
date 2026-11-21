@@ -259,9 +259,10 @@ function passOfStep(grid, i, passes) {
     return 1;
 }
 
-// Applique des indications à un état de jeu { feel: 'straight' | null, tempo: N | null } (null = réglage général).
+// Applique des indications à un état de jeu { feel: 'straight' | 'swing' | null, tempo: N | null } (null = réglage général ;
+// 'swing' = croches swing même si le réglage général est droit).
 function applyMarks(state, mk) {
-    if (mk.feel) state.feel = mk.feel === 'straight' ? 'straight' : null;
+    if (mk.feel) state.feel = mk.feel;
     if (mk.tempo !== undefined) state.tempo = mk.tempo === 'base' ? null : mk.tempo;
     return state;
 }

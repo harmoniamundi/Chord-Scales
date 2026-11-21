@@ -126,7 +126,16 @@ function repeatPopHtml(v) {
         [2, '×2', 'Sélection jouée 2 fois'], [3, '×3', 'Sélection jouée 3 fois'], [4, '×4', 'Sélection jouée 4 fois']]
         .map(([n, l, t]) => chip(v.times === n && !(n === 0 && v.region), `data-act="rep" data-v="${n}" title="${t}"`, l)).join('');
     const regionNote = v.region
-        ? `<div class="jrp-note">Dans la reprise ×${v.region.times} des mesures ${v.region.from} à ${v.region.to}</div>` : '';
+        ? `<div class="jrp-note">Cette mesure est dans la reprise ×${v.region.times} des mesures ${v.region.from} à ${v.region.to}.</div>` : '';
+    // Une seule mesure sélectionnée : début et fin de reprise se posent séparément (la reprise commence ici et/ou finit ici)
+    const ends = [[0, '—', 'Pas de fin de reprise sur cette mesure'], [2, '×2', 'Fin de reprise : retour au début, 2 passages'],
+        [3, '×3', 'Fin de reprise : 3 passages'], [4, '×4', 'Fin de reprise : 4 passages']]
+        .map(([n, l, t]) => chip((v.repEnd || 0) === n, `data-act="rend" data-v="${n}" title="${t}"`, l)).join('');
+    const singleRep = `<div class="jrp-single">
+                <div class="jrp-line"><span class="jrp-lab">Début</span>${chip(!!v.repStart, 'data-act="rstart" title="Début de reprise |: sur cette mesure (re-cliquer pour retirer)"', '|: ici')}</div>
+                <div class="jrp-line"><span class="jrp-lab">Fin :|</span><div class="jm-seg jrp-rep">${ends}</div></div>
+            </div>
+            <div class="jrp-note">Pour reprendre plusieurs mesures d'un coup, sélectionnez-les en glissant dans la grille : la reprise se pose alors autour de la sélection.</div>`;
     const voltas = chip(v.volta === 1, 'data-act="volta" data-v="1" title="La sélection est la 1re fin : jouée seulement au premier passage"', '1re fin')
         + chip(v.volta === 2, 'data-act="volta" data-v="2" title="La sélection est la 2e fin : jouée au dernier passage"', '2e fin');
     const qn = '<span class="jm-qn">\u2669</span>';
@@ -135,7 +144,7 @@ function repeatPopHtml(v) {
         const lab = r.p ? `<span class="jrp-pass">${r.p}x</span>` : '';
         const tnum = Number.isInteger(r.tempo) ? r.tempo : '';
         return `<div class="jrp-row">${lab}
-                <div class="jm-seg jrp-feel">${chip(r.feel === 'straight', `data-act="feel" data-v="straight" ${pa} title="Croches droites"`, 'Droit')}${chip(r.feel === 'swing', `data-act="feel" data-v="swing" ${pa} title="Swing général de la grille"`, 'Swing')}</div>
+                <div class="jm-seg jrp-feel">${chip(r.feel === 'straight', `data-act="feel" data-v="straight" ${pa} title="Croches droites"`, 'Droit')}${chip(r.feel === 'swing', `data-act="feel" data-v="swing" ${pa} title="Croches swing : le swing réglé dans le jukebox, ou celui de l'orchestre (triolet) s'il est réglé droit"`, 'Swing')}</div>
                 <div class="jrp-tempo">${chip(false, `data-act="tstep" data-v="-5" ${pa} title="Ralentir de 5"`, '−')}<label title="Tempo (vider pour retirer)">${qn}=<input type="number" data-act="tempo" ${pa} min="30" max="300" step="1" inputmode="numeric" value="${tnum}" placeholder="${r.here || v.tempoHere || ''}"></label>${chip(false, `data-act="tstep" data-v="5" ${pa} title="Accélérer de 5"`, '+')}${chip(r.tempo === 'base', `data-act="tbase" ${pa} title="a tempo : tempo général (\u2669 = ${v.baseBpm || ''})"`, 'a tempo')}</div>
             </div>`;
     };
@@ -148,13 +157,13 @@ function repeatPopHtml(v) {
             <button type="button" class="jm-btn" data-act="close" title="Fermer (Échap)">✕</button>
         </div>
         <div class="jm-sec"><div class="jm-sec-t">Reprise</div>
-            <div class="jm-seg jrp-rep">${reps}</div>${regionNote}
+            ${v.single ? singleRep : `<div class="jm-seg jrp-rep">${reps}</div>`}${regionNote}
             <div class="jm-row jrp-voltas">${voltas}</div>
         </div>
-        <div class="jm-sec"><div class="jm-sec-t">Jeu à partir de la mesure ${v.from}${multi ? ', passage par passage' : ''}</div>
+        <div class="jm-sec"><div class="jm-sec-t">${v.jeuTitle || `Jeu à partir de la mesure ${v.from}${multi ? ', passage par passage' : ''}`}</div>
             ${v.rows.map(row).join('')}
             ${after}
-            ${v.hasMarks ? `<button type="button" class="jm-chip jrp-clear" data-act="clearplay" title="Retire les indications de croches et de tempo de la mesure ${v.from}">Effacer le jeu</button>` : ''}
+            ${v.hasMarks ? `<button type="button" class="jm-chip jrp-clear" data-act="clearplay" title="Retire les indications de croches et de tempo de la mesure ${v.target || v.from}">Effacer le jeu</button>` : ''}
         </div>`;
 }
 
