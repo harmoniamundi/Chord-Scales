@@ -307,7 +307,7 @@ const CE_WRITERS = {
         const spread = [];
         let last = low;
         for (const p of T) { if (p - last >= 3 && spread.length < 4) { spread.push(p); last = p; } }
-        while (spread.length < 3) spread.push((spread[spread.length - 1] || low) + 12);
+        while (spread.length < 3) spread.push((spread.length ? spread[spread.length - 1] : low) + 12);
         const wave = [low].concat(spread, spread.slice(0, -1).reverse());
         const unit = (!ternary && up > 0.6 && fits(1 / 3)) ? 1 / 3 : (c.thin > 0.6 ? 1 : e8);
         ceGrid(sg, unit).forEach((p, k) => {
@@ -602,56 +602,168 @@ const CE_WRITERS = {
         ph.ceMel = mel;
     },
 
-    // ---------- Néoclassicisme (Stravinsky, Prokofiev, Poulenc) : staccato, ostinatos, « fausses notes » ----------
+    // ---------- Néoclassicisme (Stravinsky, Prokofiev, Poulenc) : gestes variés, articulations contrastées ----------
+    // Chaque mesure combine une main gauche et une main droite tirées parmi plusieurs gestes (jamais deux fois de suite le
+    // même) : pompe irrégulière, basse qui marche, Alberti, ostinato, accords décalés ou basse tenue ; motif piqué qui se
+    // transforme (renversé, déplacé, raccourci), mélodie liée en grands intervalles, accords en 3 + 3 + 2, trait de gamme,
+    // tierces parallèles, notes répétées. Les « fausses notes » restent rares, et la fin de phrase varie (tenue, arrêt sec,
+    // trait qui enchaîne).
     'c-neoclassic': (c) => {
-        const { sg, cs, pcs, low, put, len, rng, ph, up, e8, fits, closing, I } = c;
-        const s = sg.s;
-        const Vlow = ceVoiceNear(pcs, 4, 3, low + 7, 12);
-        const T = ceTonesIn(pcs, 12, 28);
+        const { sg, cs, pcs, low, rng, ph, up, thin, e8, fits, closing, I, ternary } = c;
+        const len = c.len, s = sg.s, e = sg.e;
+        const put = c.put;
+        const pick = (arr) => arr[Math.floor(rng() * arr.length)];
+        const on = (p) => Math.abs(p - Math.round(p)) < 1e-6;
+        const T = ceTonesIn(pcs, 12, 28);                         // notes de l'accord, registre de la main droite
+        const S = popScaleNotes(cs, 11, 30);                      // gamme, même registre
+        const Vlow = ceVoiceNear(pcs, 5, 3, low + 7, 13);
         const q = Math.max(1, Math.floor(len));
-        const wrong = (p, k) => (k === ph.ceWrong && I > 0.35) ? p + (rng() < 0.5 ? 1 : -1) : p;   // une note décalée d'un demi-ton, puis remise en place
+        const e8ok = fits(e8);
+        // une fausse note d'un demi-ton, rare : une mesure sur trois environ, et seulement quand la phrase s'anime
+        const wrongBar = I > 0.35 && rng() < 0.33;
+        let wrongDone = false;
+        const wrong = (p) => { if (!wrongBar || wrongDone || rng() < 0.6) return p; wrongDone = true; return p + (rng() < 0.5 ? 1 : -1); };
+        const sIdx = (p) => Math.max(0, S.indexOf(ceNearest(S, p)));
+
+        // ----- fin de phrase : trois façons de conclure -----
         if (closing) {
-            put(s, 0.4, [low, low + 12], 0.7); put(s, 0.4, Vlow.concat(T.slice(-2)), 0.66, { roll: 0.004 });
-            if (len >= 2) put(s + len - 1, 0.5, [low - 12 + c.env.transOffset >= -26 ? low - 12 : low + 12, low], 0.72);
+            const kind = cePickW(rng, [['held', 3], ['dry', 1.5], ['run', 2]]);
+            const top = T.length ? T[T.length - 1] : 24;
+            if (kind === 'held') {
+                put(s, len + 0.5, [low, low + 12], 0.6);
+                put(s + (rng() < 0.5 ? 0 : 0.5), len, Vlow.concat(T.slice(-2)), 0.54, { roll: 0.015 });
+            } else if (kind === 'dry') {
+                put(s, 0.45, [low, low + 12], 0.68); put(s, 0.4, Vlow.concat(T.slice(-2)), 0.62, { roll: 0.004 });
+                if (len >= 3) put(s + len - (rng() < 0.5 ? 1 : 1.5), 0.45, [low + 12], 0.5);
+            } else {
+                // trait qui file vers la mesure suivante : basse tenue, gamme montante sur la fin de la mesure
+                put(s, len, [low], 0.56); put(s, Math.min(2, len), Vlow, 0.42, { roll: 0.01 });
+                const unit = fits(e8 / 2) && !ternary ? e8 / 2 : e8;
+                let j = sIdx(top - 12);
+                for (let p = s + Math.max(1, len - 2); p < e - 1e-6; p += unit) { put(p, unit * 1.1, [S[Math.min(S.length - 1, j++)]], 0.38 + 0.25 * ((p - s) / len), { opt: !on(p) && rng() < 0.3 }); }
+            }
             return;
         }
-        if (ph.ceFam === 'toccata' && fits(e8)) {
-            // main gauche en croches (basse / accord), accords secs de la main droite en 3 + 3 + 2
-            ceGrid(sg, e8).forEach((p, k) => put(p, e8 * 0.7, k % 2 === 0 ? [k % 4 === 0 ? low : low + 12] : Vlow, k % 2 === 0 ? 0.58 : 0.44, { roll: 0.002, opt: k % 2 === 1 && k % 4 === 3 }));
-            const hits = len >= 4 ? [0, 1.5, 3] : (len >= 3 ? [0, 1.5] : [0]);
-            const V3 = ceVoiceNear(pcs, 18 + ph.ceShift, 3, 12, 28);
-            const odd = c.i % 2 === 1;
-            hits.forEach((p, k) => put(s + p, 0.35, (k === 1 && odd) ? V3.slice(0, -1).concat([wrong(V3[V3.length - 1], ph.ceWrong)]) : V3, 0.7 - k * 0.04, { roll: 0.003 }));
-            return;
+
+        // ----- choix des gestes de la mesure -----
+        const bias = { march: { pompe: 1.5, walking: 1.5 }, toccata: { ostinato: 1.5, stabs: 1.5 }, pastiche: { alberti: 1.5, legato: 1.5 } }[ph.ceFam] || {};
+        const wl = { pompe: 2, walking: 2, alberti: e8ok ? 2 : 0, ostinato: e8ok ? 1.5 : 0, offbeat: 1.5, held: 1.5 };
+        const wr = { motif: 3, legato: 2.5, stabs: 2, scale: len >= 2 ? 1.5 : 0, thirds: e8ok ? 1.5 : 0, repeat: e8ok ? 1 : 0, rest: 0.8 };
+        Object.keys(bias).forEach(k => { if (k in wl) wl[k] += bias[k]; if (k in wr) wr[k] += bias[k]; });
+        if (ph.ceLastL) wl[ph.ceLastL] *= 0.25;
+        if (ph.ceLastR) wr[ph.ceLastR] *= 0.25;
+        let lh = cePickW(rng, Object.entries(wl));
+        let rh = cePickW(rng, Object.entries(wr));
+        if (rh === 'rest' && (lh === 'held' || ph.ceLastR === 'rest')) rh = 'legato';   // jamais deux silences de suite
+        if (rh === 'thirds' && lh === 'alberti' && rng() < 0.5) lh = 'held';
+        ph.ceLastL = lh; ph.ceLastR = rh;
+        const stac = () => 0.22 + rng() * 0.16;                  // piqué, plus ou moins sec
+
+        // ----- main gauche -----
+        if (lh === 'pompe') {
+            // basse - accord, mais irrégulière : un temps sauté, un accord avancé d'une croche, une basse doublée
+            const skip = q >= 4 && rng() < 0.4 ? 1 + Math.floor(rng() * (q - 1)) : -1;
+            for (let b = 0; b < q; b++) {
+                if (b === skip) continue;
+                const early = b % 2 === 1 && e8ok && rng() < 0.25 ? -e8 : 0;
+                if (b % 2 === 0) put(s + b, stac() + 0.1, [b === 0 ? low : (rng() < 0.5 ? low + 7 : low + 12)], b === 0 ? 0.62 : 0.52);
+                else put(s + b + early, stac(), Vlow, 0.42, { roll: 0.003 });
+            }
+        } else if (lh === 'walking') {
+            // basse qui marche en noires détachées, par degrés et notes de l'accord, vers l'accord suivant
+            const LS = popScaleNotes(cs, low - 2, low + 12);
+            let j = Math.max(0, LS.indexOf(ceNearest(LS, low)));
+            const dir = rng() < 0.6 ? 1 : -1;
+            for (let b = 0; b < q; b++) {
+                put(s + b, b === q - 1 ? 0.8 : 0.55, [b === 0 ? low : LS[Math.max(0, Math.min(LS.length - 1, j))]], b === 0 ? 0.6 : 0.5);
+                j += dir * (rng() < 0.7 ? 1 : 2);
+            }
+        } else if (lh === 'alberti') {
+            const A = [low, Vlow[2] ?? low + 7, Vlow[1] ?? low + 3, Vlow[2] ?? low + 7];   // ?? : la hauteur 0 (do) est une vraie note
+            ceGrid(sg, e8).forEach((p, k) => put(p, e8 * 0.85, [A[k % 4]], k % 4 === 0 ? 0.46 : 0.34, { opt: k % 2 === 1 && thin > 0 }));
+        } else if (lh === 'ostinato') {
+            // figure de deux ou trois notes qui tourne en croches, accentuée de façon asymétrique
+            const fig = pick([[low, low + 7], [low, low + 12, low + 7], [low, low + 7, low + 12, low + 7]]);
+            const acc = pick([[0, 3, 6], [0, 2, 5], [0, 3, 5]]);
+            ceGrid(sg, e8).forEach((p, k) => put(p, e8 * 0.8, [fig[k % fig.length]], acc.includes(k % 8) ? 0.56 : 0.36, { opt: !acc.includes(k % 8) && k % 2 === 1 && thin > 0 }));
+        } else if (lh === 'offbeat') {
+            // basse sur le 1, accords sur les contretemps
+            put(s, 1.2, [low], 0.6);
+            const offs = ceGrid(sg, 1).map(p => p + (e8ok ? e8 : 0.5)).filter(p => p < e - 0.05);
+            offs.forEach((p, k) => { if (k === 0 || rng() < 0.8) put(p, stac(), Vlow, 0.4, { roll: 0.004, opt: k === offs.length - 1 }); });
+        } else {
+            // basse tenue (respiration : la main gauche laisse sonner)
+            put(s, len + 0.3, rng() < 0.5 ? [low, low + 12] : [low, low + 7], 0.5);
+            if (len >= 3 && rng() < 0.5) put(s + Math.floor(len / 2), len / 2, Vlow, 0.32, { roll: 0.02, opt: true });
         }
-        if (ph.ceFam === 'pastiche' && fits(e8)) {
-            // Alberti piqué à la main gauche, mélodie en grands sauts à la main droite (Symphonie classique de Prokofiev)
-            const A = [low, Vlow[2] || low + 7, Vlow[1] || low + 4, Vlow[2] || low + 7];
-            ceGrid(sg, e8).forEach((p, k) => put(p, e8 * 0.8, [A[k % 4]], k % 4 === 0 ? 0.48 : 0.36, { opt: k % 2 === 1 && c.thin > 0 }));
-            const rhy = len >= 4 ? [[0, 1], [1, 0.5], [1.5, 0.5], [2, 1], [3, 1]] : [[0, 1], [1, 0.5], [1.5, 0.5]].filter(([p]) => p < len);
-            let j = Math.max(0, T.indexOf(ceNearest(T, 16 + ph.ceShift)));
+
+        // ----- main droite -----
+        if (rh === 'rest' || T.length < 3) return;
+        if (rh === 'motif') {
+            // un motif propre à la phrase (intervalles et rythme), transformé à chaque retour : renversé, déplacé, raccourci
+            if (!ph.ceCell) {
+                const n = 4 + Math.floor(rng() * 3);
+                ph.ceCell = { steps: Array.from({ length: n }, () => pick([-2, -1, 1, 2, 3, -3])), rests: Array.from({ length: n }, () => rng() < 0.18) };
+            }
+            const inv = rng() < 0.35 ? -1 : 1;
+            const shift = (e8ok && rng() < 0.35) ? e8 : 0;
+            const cut = rng() < 0.3 ? 1 : 0;
+            const unit = e8ok ? e8 : 1;
+            let j = Math.max(0, T.indexOf(ceNearest(T, 16 + ph.ceShift + Math.round((rng() - 0.5) * 6))));
+            const cell = ph.ceCell;
+            for (let k = 0; k < cell.steps.length - cut; k++) {
+                const p = s + shift + k * unit;
+                if (p >= e - 0.05) break;
+                if (!cell.rests[k]) put(p, k === cell.steps.length - cut - 1 ? 0.6 : stac(), [wrong(T[Math.max(0, Math.min(T.length - 1, j))])], k === 0 ? 0.6 : (on(p) ? 0.52 : 0.44), { opt: k % 2 === 1 && rng() < 0.25 });
+                j += inv * cell.steps[k];
+                if (j < 0 || j >= T.length) j = Math.max(0, Math.min(T.length - 1, j - 2 * inv * cell.steps[k]));
+            }
+        } else if (rh === 'legato') {
+            // mélodie liée à la Poulenc : valeurs longues, grands intervalles, une note de passage
+            const rhy = q >= 4 ? pick([[[0, 1.5], [1.5, 0.5], [2, 2]], [[0, 1], [1, 1], [2, 1.5], [3.5, 0.5]], [[0, 3], [3, 1]], [[0.5, 1.5], [2, 2]]])
+                : (q >= 3 ? pick([[[0, 2], [2, 1]], [[0, 1], [1, 2]]]) : [[0, len]]);
+            let j = sIdx(17 + ph.ceShift);
             rhy.forEach(([p, d], k) => {
-                j = Math.max(0, Math.min(T.length - 1, j + [3, -1, -1, 2, -3][k % 5] * (rng() < 0.5 ? 1 : -1)));
-                const note = wrong(T[j], k + 1);
-                if (k === 3 && ph.ceOrn && fits(1 / 8)) put(s + p - 0.08, 0.08, [note - 1], 0.44, { opt: true });   // petite note
-                put(s + p, d * 0.55, [note], k === 0 ? 0.64 : 0.54);
+                if (k) j = Math.max(0, Math.min(S.length - 1, j + pick([-4, -2, -1, 1, 2, 4, 5])));
+                let note = S[j];
+                if (on(p)) { const tn = ceTonesIn(pcs, note - 2, note + 2); if (tn.length) { note = ceNearest(tn, note); j = sIdx(note); } }
+                put(s + p, d * 0.95, [note], 0.5 + (k === 0 ? 0.06 : 0));
             });
-            return;
+        } else if (rh === 'stabs') {
+            // accords secs, accents asymétriques (3 + 3 + 2, 2 + 3 + 3, 3 + 2 + 3)
+            const V3 = ceVoiceNear(pcs, 18 + ph.ceShift, 3, 12, 28);
+            const pats = q >= 4 ? [[0, 1.5, 3], [0, 1, 2.5], [0, 1.5, 2.5], [0.5, 2, 3]] : (q >= 3 ? [[0, 1.5], [0, 1, 2.5], [0.5, 2]] : [[0], [0.5]]);
+            pick(pats).forEach((p, k) => { if (p < len) put(s + p, stac(), k === 1 ? V3.slice(0, -1).concat([wrong(V3[V3.length - 1])]) : V3, 0.66 - k * 0.04, { roll: 0.003 }); });
+        } else if (rh === 'scale') {
+            // trait de gamme vers une note tenue
+            const unit = (!ternary && fits(e8 / 2)) ? e8 / 2 : e8;
+            const dir = rng() < 0.65 ? 1 : -1;
+            const start = s + (q >= 4 ? pick([0, 1, 2]) : 0);
+            let j = sIdx(dir > 0 ? 13 : 26);
+            const n = Math.min(Math.round((e - start) / unit) - 2, 6 + Math.floor(rng() * 5));
+            for (let k = 0; k < n; k++) put(start + k * unit, unit * 1.1, [S[Math.max(0, Math.min(S.length - 1, j + dir * k))]], 0.38 + 0.2 * (k / n), { opt: k % 2 === 1 && thin > 0 });
+            const endP = start + Math.max(0, n) * unit;
+            const tgt = ceNearest(T, S[Math.max(0, Math.min(S.length - 1, j + dir * n))]);
+            if (endP < e - 0.1) put(endP, e - endP + 0.3, [tgt], 0.58);
+        } else if (rh === 'thirds') {
+            // tierces (ou sixtes) parallèles en croches, liées deux par deux
+            const sixth = rng() < 0.35;
+            let j = sIdx(15 + ph.ceShift);
+            const dir0 = rng() < 0.5 ? 1 : -1;
+            ceGrid(sg, e8).forEach((p, k) => {
+                const top = S[Math.max(0, Math.min(S.length - 1, j))];
+                const lowV = S[Math.max(0, Math.min(S.length - 1, j - (sixth ? 5 : 2)))];
+                put(p, k % 2 === 0 ? e8 * 1.6 : e8 * 0.7, [lowV, top], k % 2 === 0 ? 0.5 : 0.4, { roll: 0.002, opt: k % 2 === 1 && thin > 0 });
+                j += (k % 4 < 2 ? dir0 : -dir0);
+            });
+        } else {
+            // notes répétées (Prokofiev), avec une petite note avant l'accent
+            const note = wrong(pick(T.slice(-3)));
+            const G = ceGrid(sg, e8);
+            G.forEach((p, k) => { if (k % 4 !== 3 || rng() < 0.4) put(p, e8 * 0.6, [note], k % 4 === 0 ? 0.58 : 0.4, { opt: k % 2 === 1 }); });
+            if (ph.ceOrn && fits(1 / 8) && G.length > 4) put(s + 2 - 0.08, 0.08, [note + (rng() < 0.5 ? 1 : 2)], 0.42, { opt: true });
         }
-        // marche : basse et accords piqués (« oum - pa »), motif staccato en croches à la main droite
-        for (let b = 0; b < q; b++) {
-            if (b % 2 === 0) put(s + b, 0.4, [b % 4 === 0 ? low : low + 12], 0.62);
-            else put(s + b, 0.3, Vlow, 0.44, { roll: 0.003 });
-        }
-        const MOT = [[0, 2, 1, 3, null, 2, 4, 3], [0, null, 2, 1, 3, null, 4, 2], [4, 3, 2, 1, 0, null, 1, 2], [0, 1, 2, null, 3, 4, 2, 0]][ph.ceMotif || 0];
-        const base = Math.max(0, T.indexOf(ceNearest(T, 14 + ph.ceShift)));
-        ceGrid(sg, fits(e8) ? e8 : 1).forEach((p, k) => {
-            const r = MOT[k % MOT.length];
-            if (r === null) return;
-            const note = wrong(T[Math.min(T.length - 1, base + r)], k);
-            put(p, 0.3, [note], k === 0 ? 0.62 : (Math.abs(p - Math.round(p)) < 1e-6 ? 0.54 : 0.46), { opt: k % 2 === 1 && rng() < 0.3 });
-        });
-        if (up > 0.5 && len >= 2) put(s + len - 0.5, 0.25, [T[T.length - 1]], 0.5, { opt: true });
+        if (up > 0.5 && len >= 2 && rh !== 'scale') put(s + len - (e8ok ? e8 : 0.5), e8 * 0.8, [T[T.length - 1]], 0.46, { opt: true });
     },
 
     // ---------- Minimalisme (Glass, Reich) : ostinato immuable, basse tenue, pulsation ----------
