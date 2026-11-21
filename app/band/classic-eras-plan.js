@@ -49,7 +49,7 @@ function classicEraPhraseExtras(groove, bpm, rng, prev, index) {
         out.ceOct = rng() < 0.4;
     } else if (g === 'c-nocturne') out.ceFam = cePickW(rng, [['cantabile', 3], ['appog', 1.5]]);
     else if (g === 'c-romantic') out.ceFam = (pe && rng() < 0.35) ? pe.ceFam : cePickW(rng, [['battus', 3], ['surge', 2], ['choral', 2]]);
-    else if (g === 'c-impression') out.ceFam = (pe && rng() < 0.3) ? pe.ceFam : cePickW(rng, [['planing', 3], ['arabesque', 3], ['bells', 2]]);
+    else if (g === 'c-impression') out.ceFam = (pe && rng() < 0.3) ? pe.ceFam : cePickW(rng, [['arabesque', 3], ['melody', 3], ['ripple', 2], ['echo', 2], ['bells', 1.5], ['planing', 1]]);   // couleur dominante de la phrase (chaque mesure choisit ensuite son geste)
     else if (g === 'c-satie') {
         out.ceIntro = index === 0;   // comme dans les Gymnopédies : la main gauche seule d'abord
         out.ceRh = idx(3);
@@ -405,47 +405,163 @@ const CE_WRITERS = {
         }
     },
 
-    // ---------- Impressionnisme (Debussy, Ravel) : quinte grave tenue, accords parallèles, arabesques, cloches ----------
+    // ---------- Impressionnisme (Debussy, Ravel) : un geste différent à chaque mesure, peu d'accords plaqués ----------
+    // Main gauche : quinte tenue, note seule, arpège lent ou basse qui se déplace (pédale). Main droite : arabesque,
+    // mélodie sur accord brisé, ruissellement, écho à l'octave, cloches, ou bref glissement parallèle. La texture change
+    // d'une mesure à l'autre (rarement deux fois de suite la même), avec des contours, des valeurs et des départs tirés à
+    // chaque fois et un léger rubato.
     'c-impression': (c) => {
-        const { sg, cs, pcs, low, put, len, rng, ph, up, prog, fits, ternary, closing } = c;
-        const s = sg.s;
+        const { sg, cs, pcs, low, rng, ph, up, prog, fits, ternary, closing } = c;
+        const len = c.len, s = sg.s, e = sg.e;
+        // une même note n'est jamais frappée deux fois au même instant (main gauche et accompagnement qui se croisent)
+        const seen = [];
+        const put = (pos, max, pitches, vel, o) => {
+            const ps = pitches.filter(p => !seen.some(([q, x]) => x === p && Math.abs(q - pos) < 0.1));
+            if (!ps.length) return;
+            ps.forEach(p => seen.push([pos, p]));
+            c.put(pos, max, ps, vel, o);
+        };
+        const jit = (amt = 0.04) => (rng() - 0.5) * amt;
+        const at = (p) => Math.max(s, Math.min(e - 0.06, p));
+        const pick = (arr) => arr[Math.floor(rng() * arr.length)];
+        // réservoir de notes : notes de l'accord, neuvièmes, sixtes… sans demi-ton qui frotte contre l'accord
+        const pool = popScaleNotes(cs, 8, 32).filter(p => pcs.includes(ceMod(p)) || !pcs.includes(ceMod(p - 1)));
+        const center = 17 + ph.ceShift + 3 * Math.sin(Math.PI * prog);
+        const idxNear = (p) => Math.max(0, pool.indexOf(ceNearest(pool, p)));
         const ninth = pcs.includes(ceMod(low + 2));
-        put(s, len + 0.6, ninth ? [low, low + 7, low + 14] : [low, low + 7], 0.42, { roll: 0.045, nv: 0.8 });
-        const center = 15 + ph.ceShift + 3 * Math.sin(Math.PI * prog);
-        const V4 = ceVoiceNear(pcs, center, Math.min(4, pcs.length), low + 12, 27);
-        const fam = closing ? 'bells' : ph.ceFam;
-        if (fam === 'planing') {
-            // glissement parallèle : le même accord monte d'un degré de la gamme puis revient
-            const shift = (V, dir) => V.map(p => ceStep(cs, p, dir));
-            const h = len >= 4 ? 1.5 : len / 2;
-            put(s, h, V4, 0.42, { roll: 0.03 });
-            if (len >= 2) {
-                const dir = rng() < 0.65 ? 1 : -1;
-                put(s + h, len >= 4 ? 1 : len - h, shift(V4, dir), 0.36, { roll: 0.03 });
-                if (len >= 4) put(s + h + 1, len - h - 1, V4, 0.38, { roll: 0.03, opt: true });
-                if (up > 0.4 && len >= 4) put(s + h + 0.5, 0.5, shift(V4, 2 * dir).slice(-2), 0.32, { opt: true });
-            }
-        } else if (fam === 'arabesque') {
-            // arabesque en triolets (en croches en mesure composée) sur les notes de l'accord et ses neuvièmes, sans demi-ton qui frotte
-            put(s, len, V4.slice(0, 2), 0.3, { roll: 0.05 });
-            const pool = popScaleNotes(cs, 12, 31).filter(p => pcs.includes(ceMod(p)) || !pcs.includes(ceMod(p - 1)));
-            if (pool.length < 4) return;
-            const unit = ternary ? 1 / 3 : (fits(1 / 3) ? 1 / 3 : 0.5);
-            const G = ceGrid(sg, unit);
-            let j = pool.indexOf(ceNearest(pool, center - 3));
-            const peak = Math.floor(G.length * (0.55 + 0.2 * rng()));
-            G.forEach((p, k) => {
-                j = Math.max(0, Math.min(pool.length - 1, j + (k < peak ? 1 : -1)));
-                put(p, k === peak ? 1.5 : unit * 2.2, [pool[j]], k === 0 ? 0.42 : (k === peak ? 0.44 : 0.32), { opt: k % 2 === 1 && k !== peak });
-            });
-            if (up > 0.6) put(s + len / 2, len / 2, [pool[pool.length - 1]], 0.3, { opt: true });
+
+        // ----- main gauche -----
+        const lhKind = closing ? 'roll' : cePickW(rng, [['fifth', 2], ['single', 2], ['roll', 3], ['moving', len >= 3 ? 2 : 0]]);
+        if (lhKind === 'fifth') put(s, len + 0.6, [low, low + 7], 0.38, { roll: 0.05 + rng() * 0.04, nv: 0.8 });
+        else if (lhKind === 'single') {
+            put(s, len + 0.6, [low], 0.42);
+            if (len >= 3 && rng() < 0.6) put(at(s + Math.floor(len / 2) + jit()), len / 2 + 0.4, [low + (rng() < 0.5 ? 7 : 12)], 0.28, { opt: true });
+        } else if (lhKind === 'roll') {
+            const u = fits(0.25) ? (rng() < 0.5 ? 0.25 : 1 / 3) : 0.5;
+            const R = [low, low + 7, ninth ? low + 14 : low + 12];
+            const above = ceTonesIn(pcs, R[2] + 2, R[2] + 7);
+            if (above.length && rng() < 0.6) R.push(above[0]);
+            R.forEach((p, k) => put(s + k * u, len + 0.6 - k * u, [p], k === 0 ? 0.44 : 0.3, { opt: k === 3 }));
         } else {
-            // cloches : accord doux, puis deux ou trois notes aiguës laissées vibrer
-            put(s, len, V4, 0.34, { roll: 0.05 });
+            put(s, 1.6, [low], 0.42);
+            const T = ceTonesIn(pcs, low + 5, low + 17);
+            [1.5, 2.5].filter(p => p < len).forEach((p, k) => { if (T.length) put(at(s + p + jit()), len - p + 0.5, [T[Math.min(T.length - 1, k * 2)]], 0.28, { opt: k === 1 }); });
+        }
+
+        if (closing) {
+            // fin de phrase : accord arpégé lentement, une note aiguë laissée vibrer
+            const V = ceVoiceNear(pcs, center - 2, Math.min(4, pcs.length), low + 12, 26);
+            put(s + 0.25, len, V, 0.34, { roll: 0.09, nv: 0.75 });
+            const hi = ceTonesIn(pcs, 22, 31);
+            if (hi.length) put(at(s + Math.min(len - 0.5, 1.5) + jit()), 2.5, [pick(hi)], 0.32);
+            return;
+        }
+
+        // ----- main droite : choix de la texture de la mesure -----
+        const w = { arabesque: 3, melody: 3, ripple: 2, echo: 2, bells: 1.5, planing: 1 };
+        if (w[ph.ceFam]) w[ph.ceFam] += 1.5;                 // couleur dominante de la phrase
+        if (ph.ceLastTex && w[ph.ceLastTex]) w[ph.ceLastTex] *= 0.2;   // pas deux fois de suite le même geste
+        if (len < 2) { w.ripple = 0; w.echo = 0; w.planing = 0; }
+        const tex = cePickW(rng, Object.entries(w));
+        ph.ceLastTex = tex;
+        if (pool.length < 5) return;
+
+        // une ligne qui suit un contour dans le réservoir (pas de 1 ou 2 notes), d'une position à une autre
+        const line = (start, unit, n, j0, contour) => {
+            const out = [];
+            let j = j0, dir = contour === 'fall' ? -1 : 1;
+            const peak = Math.max(1, Math.floor(n * (0.4 + 0.35 * rng())));
+            for (let k = 0; k < n; k++) {
+                const p = start + k * unit;
+                if (p >= e - 0.05) break;
+                out.push([p, pool[j]]);
+                if (contour === 'wave' && k === peak) dir = -dir;
+                if (contour === 'turn' && k % 3 === 2) dir = -dir;
+                const stp = rng() < 0.7 ? 1 : 2;
+                j += dir * stp;
+                if (j < 0 || j >= pool.length) { dir = -dir; j = Math.max(0, Math.min(pool.length - 1, j + 2 * dir * stp)); }
+            }
+            return out;
+        };
+        // accompagnement doux en accord brisé (jamais plaqué) dans le médium
+        const broken = (from, gap) => {
+            const V = ceVoiceNear(pcs, 14 + Math.round(jit(4)), 3, Math.max(low + 15, 8), 21);   // au-dessus de la main gauche
+            const ord = rng() < 0.7 ? V : V.slice().reverse();
+            ord.forEach((p, k) => put(at(from + k * gap), Math.max(0.6, e - from - k * gap + 0.4), [p], 0.24 + 0.04 * rng(), { opt: k === 2 }));
+        };
+
+        if (tex === 'arabesque') {
+            const unit = ternary ? pick([1 / 3, 1 / 6].filter(u => fits(u))) || 1 / 3 : pick([1 / 3, 0.5].concat(fits(0.25) ? [0.25] : []));
+            const start = s + (len >= 3 ? pick([0, 0.5, 1]) : 0);
+            const span = Math.min(e - start, Math.max(1.5, len * (0.55 + 0.35 * rng())));
+            const n = Math.max(3, Math.round(span / unit));
+            const L = line(start, unit, n, idxNear(center - 4 + jit(6)), pick(['rise', 'wave', 'wave', 'fall', 'turn']));
+            L.forEach(([p, note], k) => {
+                const lastN = k === L.length - 1;
+                const sw = Math.sin(Math.PI * (k + 0.5) / L.length);
+                put(at(p + (k ? jit(0.03) : 0)), lastN ? e - p + 0.8 : unit * 2.4, [note], 0.26 + 0.14 * sw + (lastN ? 0.04 : 0), { opt: !lastN && k % 2 === 1 });
+            });
+            if (start > s) put(s, start - s + 0.6, [pool[idxNear(center)]], 0.34);   // note tenue avant l'arabesque
+            if (up > 0.5 && L.length && e - (L[L.length - 1][0] + unit) >= 1) broken(L[L.length - 1][0] + unit, 0.33);
+        } else if (tex === 'melody') {
+            const R4 = [[[0, 1.5], [1.5, 0.5], [2, 2]], [[0, 3], [3, 1]], [[0.5, 1], [1.5, 2.5]], [[0, 2], [2, 1], [3, 1]], [[0, 1], [1, 1.5], [2.5, 1.5]], [[1, 3]]];
+            const rh = len >= 4 ? pick(R4) : (len >= 3 ? pick([[[0, 2], [2, 1]], [[0, 3]], [[1, 2]], [[0, 1.5], [1.5, 1.5]]]) : [[0, len]]);
+            if (typeof ph.ceMel !== 'number') ph.ceMel = pool[idxNear(center)];
+            let j = idxNear(ph.ceMel);
+            rh.forEach(([p, d], k) => {
+                if (k) j = Math.max(0, Math.min(pool.length - 1, j + pick([-2, -1, -1, 1, 1, 2, 3])));
+                let note = pool[j];
+                if (note > 29 || note < 15) { j = idxNear(center); note = pool[j]; }
+                // sur le temps, la mélodie se pose sur une note de l'accord ou sa neuvième
+                if (p === 0) { const tn = ceTonesIn(pcs, note - 2, note + 2); if (tn.length) { note = ceNearest(tn, note); j = idxNear(note); } }
+                put(at(s + p + (p ? jit() : 0)), d + 0.3, [note], 0.4 + 0.06 * rng());
+                ph.ceMel = note;
+            });
+            broken(s + pick([0, 0.25, 0.5]), pick([1 / 3, 0.5, 0.75]));
+        } else if (tex === 'ripple') {
+            // ruissellement : arpège rapide qui monte vers l'aigu, note du haut tenue, retombée en écho
+            const unit = fits(1 / 8) ? (ternary ? 1 / 6 : pick([1 / 6, 1 / 8])) : 0.25;
+            const start = s + (len >= 3 ? pick([0, 0, 1]) : 0);
+            const n = 6 + Math.floor(rng() * 4);
+            let j = idxNear(center - 9);
+            for (let k = 0; k < n && j < pool.length; k++) {
+                const top = k === n - 1 || j === pool.length - 1;
+                put(at(start + k * unit), top ? 2.5 : 1.4, [pool[j]], 0.22 + 0.2 * (k / n), { opt: !top && k % 2 === 1 });
+                if (top) break;
+                j += rng() < 0.75 ? 1 : 2;
+            }
+            const back = start + n * unit + 0.5 + rng() * 0.5;
+            if (back < e - 0.5) [2, 4].forEach((d, k) => { const q = pool[Math.max(0, Math.min(pool.length - 1, j - d))]; put(at(back + k * 0.5 + jit()), 1.2, [q], 0.26, { opt: k === 1 }); });
+        } else if (tex === 'echo') {
+            // motif de trois ou quatre notes, repris une octave plus haut (ou plus bas) et plus doucement
+            const unit = pick([0.5, 1 / 3].concat(ternary ? [] : [0.25].filter(fits)));
+            const L = line(s + pick([0, 0.5]), unit, 3 + Math.floor(rng() * 2), idxNear(center - 3 + jit(4)), pick(['rise', 'turn', 'fall']));
+            const shift = rng() < 0.7 ? 12 : -12;
+            const gap = len >= 4 ? 2 : len / 2;
+            L.forEach(([p, note], k) => {
+                put(at(p), unit * 2.5, [note], 0.4 - k * 0.02);
+                if (p + gap < e - 0.05) put(at(p + gap + jit(0.03)), unit * 2.5 + (k === L.length - 1 ? 1 : 0), [note + shift], 0.28 - k * 0.02, { opt: k === 1 });
+            });
+            if (rng() < 0.5) broken(s + 0.5, 0.5);
+        } else if (tex === 'bells') {
+            // cloches : accord arpégé très doucement, deux ou trois notes aiguës à des moments irréguliers
+            put(s + pick([0, 0.25]), len, ceVoiceNear(pcs, center - 4, Math.min(4, pcs.length), low + 12, 26), 0.28, { roll: 0.07 + rng() * 0.04, nv: 0.75 });
             const hi = ceTonesIn(pcs, 20, 31);
             if (!hi.length) return;
-            const spots = len >= 4 ? [0.5, 2, 3] : [len / 2];
-            spots.forEach((p, k) => put(s + p, 2.6, [hi[Math.floor(rng() * hi.length)]], 0.36 - k * 0.03, { opt: k === 2 }));
+            const spots = [0.5, 1, 1.5, 2, 2.5, 3].filter(p => p < len - 0.25).sort(() => rng() - 0.5).slice(0, 2 + (rng() < 0.5 ? 1 : 0)).sort((a, b) => a - b);
+            spots.forEach((p, k) => put(at(s + p + jit()), 2.6, [pick(hi)], 0.34 - k * 0.03, { opt: k === 2 }));
+        } else {
+            // glissement parallèle bref : trois accords arpégés qui montent ou descendent d'un degré, puis le dernier tenu
+            const V = ceVoiceNear(pcs, center - 2, 3, low + 12, 27);
+            const dir = rng() < 0.6 ? 1 : -1;
+            const rhy = len >= 4 ? pick([[0, 1, 1.5], [0, 0.75, 1.5], [0.5, 1.5, 2]]) : [0, len / 3, 2 * len / 3];
+            let cur = V;
+            rhy.forEach((p, k) => {
+                const lastC = k === rhy.length - 1;
+                put(at(s + p), lastC ? e - s - p + 0.5 : 0.9, cur, 0.34 - k * 0.03, { roll: 0.035 + rng() * 0.03 });
+                cur = cur.map(x => ceStep(cs, x, dir));
+            });
+            if (len >= 4 && rng() < 0.6) put(at(s + 3 + jit()), 1.4, [pool[idxNear(V[V.length - 1] + 5)]], 0.3, { opt: true });
         }
     },
 
