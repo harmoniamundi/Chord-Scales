@@ -19,7 +19,16 @@ const { chordRootName: med_chordRootName, bassNoteName: med_bassNoteName, chordI
     cbStructIntervals: med_cbStructIntervals, CB_EXT_ORDER: MED_EXT_ORDER, CB_EXT: MED_EXT, CB_EXT_LABEL: MED_EXT_LABEL,
     getSpelledChordNotes: med_getSpelledChordNotes, chordTypes: med_chordTypes, scalesDb: med_scalesDb } = MED_T;
 
-const MEASURE_EDITOR_BUILD = '2026-11-21-c'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
+const MEASURE_EDITOR_BUILD = '2026-11-21-d'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
+
+// Indications Droit / Swing et tempo d'un bloc en texte : « Droit ♩=60 · 1x ♩=80 · 2x Swing ♩=160 ».
+function medMarksText(st) {
+    const one = (o) => [o.feel === 'straight' ? 'Droit' : (o.feel === 'swing' ? 'Swing' : ''),
+        Number.isInteger(o.tempo) ? '\u2669=' + o.tempo : (o.tempo === 'base' ? 'a tempo' : '')].filter(Boolean).join(' ');
+    const parts = [one(st)];
+    if (st.byPass) Object.keys(st.byPass).sort().forEach(k => { const t = one(st.byPass[k] || {}); if (t) parts.push(k + 'x ' + t); });
+    return parts.filter(Boolean).join(' · ');
+}
 
 function editorHtml(v) {
     const { m, step, isHalf, cur, half, rootLabels, isFolded, findChordObj, halfLabelText, halfTitleText } = v;
@@ -78,14 +87,25 @@ function editorHtml(v) {
                     chip(step.volta === 1, 'data-act="rp-v1" title="1re fin : jouée au premier passage seulement"', '1re fin'),
                     chip(step.volta === 2, 'data-act="rp-v2" title="2e fin : jouée au second passage"', '2e fin')
                 ].join('');
+                // Passage visé par les indications Droit / Swing et tempo : « Tous » ou un passage de la reprise (1x, 2x…),
+                // comme les consignes « 1st X / 2nd X » d'un lead sheet. Proposé quand la mesure est dans une reprise (v.passCount ≥ 2).
+                const pass = (v.pass >= 1 && v.pass <= 4) ? v.pass : 0;
+                const first = m.measureInStep === 1;
+                const tgt = !first ? {} : (pass ? ((step.byPass && step.byPass[pass]) || {}) : step);
+                const passOf = (p) => p ? `au ${p === 1 ? '1er' : p + 'e'} passage` : 'à tous les passages';
+                const passRow = (v.passCount >= 2 || pass) ? `<div class="jm-row jm-pass-row">
+                        ${chip(!pass, 'data-act="pass" data-v="0" title="Les indications ci-dessous valent à tous les passages de la reprise"', 'Tous')}
+                        ${Array.from({ length: Math.max(v.passCount || 0, pass, 2) }, (_, k) => k + 1).map(p =>
+                            chip(pass === p, `data-act="pass" data-v="${p}" title="Indications jouées seulement ${passOf(p)} de la reprise"`, `${p}x`)).join('')}
+                    </div>` : '';
                 // Indication de jeu des croches à partir de cette mesure, jusqu'à la prochaine indication (re-cliquer la retire)
-                const feel = m.measureInStep === 1 ? step.feel : '';
+                const feel = tgt.feel || '';
                 const feels = [
                     chip(feel === 'straight', 'data-act="feel" data-v="straight" title="Droit : croches droites à partir de cette mesure, jusqu\'à l\'indication « Swing » suivante (re-cliquer pour retirer)"', 'Droit'),
                     chip(feel === 'swing', 'data-act="feel" data-v="swing" title="Swing : retour au swing général de la grille à partir de cette mesure (re-cliquer pour retirer)"', 'Swing')
                 ].join('');
                 // Tempo à partir de cette mesure, jusqu'à la prochaine indication : ♩ = N (champ, − / +) ou « a tempo » (tempo général)
-                const tmk = m.measureInStep === 1 ? step.tempo : undefined;
+                const tmk = tgt.tempo;
                 const tnum = Number.isInteger(tmk) ? tmk : '';
                 const tempoRow = `<div class="jm-row jm-tempo-row">
                         ${chip(false, 'data-act="tempo-step" data-v="-5" title="Ralentir de 5 à partir de cette mesure"', '−')}
@@ -94,7 +114,7 @@ function editorHtml(v) {
                         ${chip(tmk === 'base', `data-act="tempo-base" title="a tempo : retour au tempo général (\u2669 = ${v.baseBpm || ''}) à partir de cette mesure (re-cliquer pour retirer)"`, 'a tempo')}
                         ${tnum !== '' ? chip(false, 'data-act="tempo-clear" title="Retirer l\'indication de tempo de cette mesure"', '✕') : ''}
                     </div>`;
-                const rpBody = `<div class="jm-row">${marks}</div><div class="jm-sub-t">Croches</div><div class="jm-row">${feels}</div><div class="jm-sub-t">Tempo</div>${tempoRow}`;
+                const rpBody = `<div class="jm-row">${marks}</div>${passRow ? `<div class="jm-sub-t">Swing et tempo : pour quel passage ?</div>${passRow}` : ''}<div class="jm-sub-t">Croches${pass ? ` <em>(${pass}x)</em>` : ''}</div><div class="jm-row">${feels}</div><div class="jm-sub-t">Tempo${pass ? ` <em>(${pass}x)</em>` : ''}</div>${tempoRow}`;
 
                 const durSeg = `
                     <div class="jm-row">
@@ -164,8 +184,7 @@ function editorHtml(v) {
                 };
                 const bassSummary = (Number.isInteger(cur.bassRootIndex) && cur.bassRootIndex !== rootPc) ? `/${med_bassNoteName(cur.rootIndex, cur.chordId, cur.bassRootIndex, rootLabels)}` : '';
                 const rpSummary = [step.repeatStart && m.measureInStep === 1 ? '|:' : '', rpEnd ? `:|×${rpEnd}` : '', step.volta ? `${step.volta}${step.volta === 1 ? 're' : 'e'} fin` : '',
-                    feel === 'straight' ? 'Droit' : (feel === 'swing' ? 'Swing' : ''),
-                    Number.isInteger(tmk) ? '\u2669=' + tmk : (tmk === 'base' ? 'a tempo' : '')].filter(Boolean).join(' ');
+                    first ? medMarksText(step) : ''].filter(Boolean).join(' ');
                 const modeBar = `<div class="jm-mode">
                         ${chip(mode === 'build', 'data-act="mode" data-v="build" title="Choisir la fondamentale, la qualité, puis les tensions"', 'Construire')}
                         ${chip(mode === 'cat', 'data-act="mode" data-v="cat" title="Liste d\'accords prédéfinis"', 'Catalogue')}

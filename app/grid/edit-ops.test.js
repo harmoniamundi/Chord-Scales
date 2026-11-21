@@ -307,6 +307,21 @@ describe('signes de reprise', () => {
         E.setMeasureTempo(g, 2, 'base');
         assert.deepEqual(g.map(x => [x.measures, x.tempo]), [[4, undefined]]);
     });
+    test('indications par passage : posées, cumulées, retirées proprement', () => {
+        const g = [st(0, 'maj7', 2)];
+        E.markMeasure(g, 1, 'straight', 1);
+        E.setMeasureTempo(g, 1, 80, 1);
+        E.markMeasure(g, 1, 'swing', 2);
+        E.setMeasureTempo(g, 1, 160, 2);
+        assert.deepEqual(g[0].byPass, { 1: { feel: 'straight', tempo: 80 }, 2: { feel: 'swing', tempo: 160 } });
+        assert.equal(g[0].feel, undefined); assert.equal(g[0].tempo, undefined);
+        assert.deepEqual(E.measureItems(g, 1, 1)[0].byPass, g[0].byPass);
+        E.markMeasure(g, 1, 'straight', 1); E.setMeasureTempo(g, 1, null, 1);
+        assert.deepEqual(g[0].byPass, { 2: { feel: 'swing', tempo: 160 } });
+        E.markMeasure(g, 1, 'swing', 2); E.setMeasureTempo(g, 1, null, 2);
+        assert.equal(g[0].byPass, undefined);
+        assert.equal(g.length, 1); assert.equal(g[0].measures, 2); // refusionné
+    });
     test('indication Droit : gardée au début du bloc éclaté, copiée avec la mesure, pas dupliquée', () => {
         const g = [st(0, 'maj7', 3, { feel: 'straight' })];
         E.isolateMeasure(g, 2);

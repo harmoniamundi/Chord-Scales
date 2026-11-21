@@ -221,3 +221,31 @@ describe('indication de tempo (tempoByStep, playedSeconds)', () => {
         assert.equal(P.playedSeconds(g, 4, 120), 2 + 4 + 4 + 2);
     });
 });
+
+describe('indications par passage (byPass)', () => {
+    // |: m1 (1x Droit ♩=60 · 2x Swing ♩=180) m2 :| ×2, puis m3
+    const g = () => [blk(0, 1, { repeatStart: true, byPass: { 1: { feel: 'straight', tempo: 60 }, 2: { feel: 'swing', tempo: 180 } } }),
+        blk(1, 1, { repeatEnd: 2 }), blk(2, 1)];
+    test('marksAt : le passage remplace les indications de tous les passages', () => {
+        const st = { feel: 'straight', tempo: 100, byPass: { 2: { tempo: 150 } } };
+        assert.deepEqual(P.marksAt(st, 1), { feel: 'straight', tempo: 100 });
+        assert.deepEqual(P.marksAt(st, 2), { feel: 'straight', tempo: 150 });
+    });
+    test('passOfStep suit les compteurs de reprise', () => {
+        assert.equal(P.passOfStep(g(), 0, {}), 1);
+        assert.equal(P.passOfStep(g(), 1, { 1: 2 }), 2);
+        assert.equal(P.passOfStep(g(), 2, { 1: 2 }), 1); // hors reprise
+    });
+    test('markStateAt : état au 1er puis au 2e passage', () => {
+        assert.deepEqual(P.markStateAt(g(), 1, {}), { feel: 'straight', tempo: 60 });
+        assert.deepEqual(P.markStateAt(g(), 1, { 1: 2 }), { feel: null, tempo: 180 });
+    });
+    test('durée : 1er passage à 60, 2e à 180, la suite garde le dernier tempo', () => {
+        // 4/4 : à 60 une mesure = 4 s, à 180 = 4/3 s. Mesures : m1 m2 (60), m1 m2 (180), m3 (180)
+        assert.ok(Math.abs(P.playedSeconds(g(), 4, 120) - (8 + 3 * 4 / 3)) < 1e-9);
+    });
+    test('2e fin : jouée au dernier passage de la reprise', () => {
+        const h = [blk(0, 1, { repeatStart: true }), blk(1, 1, { volta: 1, repeatEnd: 2 }), blk(2, 1, { volta: 2 })];
+        assert.equal(P.passOfStep(h, 2, {}), 2);
+    });
+});

@@ -353,6 +353,19 @@ function sanitizeImportedGrid(raw) {
         if (item.feel === 'straight' || item.feel === 'swing') step.feel = item.feel;
         // Indication de tempo à partir de ce bloc : ♩ = 30 à 300, ou « a tempo » (retour au tempo général)
         if (item.tempo === 'base' || (Number.isInteger(item.tempo) && item.tempo >= 30 && item.tempo <= 300)) step.tempo = item.tempo;
+        // Indications propres à un passage de la reprise (1 à 4) : { feel?, tempo? } avec les mêmes valeurs
+        if (item.byPass && typeof item.byPass === 'object' && !Array.isArray(item.byPass)) {
+            const bp = {};
+            for (let n = 1; n <= 4; n++) {
+                const src = item.byPass[n];
+                if (!src || typeof src !== 'object') continue;
+                const o = {};
+                if (src.feel === 'straight' || src.feel === 'swing') o.feel = src.feel;
+                if (src.tempo === 'base' || (Number.isInteger(src.tempo) && src.tempo >= 30 && src.tempo <= 300)) o.tempo = src.tempo;
+                if (Object.keys(o).length) bp[n] = o;
+            }
+            if (Object.keys(bp).length) step.byPass = bp;
+        }
         clean.push(step);
     }
     return clean;

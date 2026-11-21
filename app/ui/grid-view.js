@@ -67,8 +67,7 @@ function measureCellModel(v, m) {
     const stp = v.grid[m.stepIndex];
     const hasRS = !!stp.repeatStart && m.measureInStep === 1;
     const hasRE = !!stp.repeatEnd && m.measureInStep === stp.measures;
-    const feel = (m.measureInStep === 1 && (stp.feel === 'straight' || stp.feel === 'swing')) ? stp.feel : ''; // indication Droit / Swing
-    const tempo = m.measureInStep === 1 ? tempoMarkHtml(stp.tempo) : ''; // indication de tempo (♩ = N, a tempo)
+    const marks = m.measureInStep === 1 ? marksHtml(stp) : ''; // indications Droit / Swing et tempo (tous passages, puis 1x, 2x…)
     let voltaFirst = false;
     const sv = v.effV[m.stepIndex]; // 1re / 2e fin effective (la 1re fin va jusqu'au :|)
     if (sv) {
@@ -78,7 +77,7 @@ function measureCellModel(v, m) {
     const selected = !!(v.sel && m.measureNumber >= v.sel.from && m.measureNumber <= v.sel.to);
     return {
         measureNumber: m.measureNumber, isActive, repeat, showSplit, activeHalf, scaleLabel, centerHtml, bottomHtml,
-        hasRS, hasRE, sv, voltaFirst, repeatEnd: stp.repeatEnd, feel, tempo, selected,
+        hasRS, hasRE, sv, voltaFirst, repeatEnd: stp.repeatEnd, marks, selected,
         ts3: showSplit && v.bpb === 3 && !v.aksak, editBarOpen: !!v.editBarOpen
     };
 }
@@ -92,6 +91,20 @@ function tempoMarkText(t) {
 function tempoMarkHtml(t) {
     const txt = tempoMarkText(t);
     return txt.charAt(0) === '\u2669' ? '<span class="jam-qn">\u2669</span>' + txt.slice(1) : txt;
+}
+
+// Indications d'un bloc en HTML, comme sur un lead sheet : « Droit ♩=60 » (tous les passages), puis par passage de la reprise
+// « 1x Droit ♩=80 · 2x Swing ♩=160 » ; '' s'il n'y en a pas.
+function marksHtml(st) {
+    if (!st) return '';
+    const one = (o) => [o.feel === 'straight' ? 'Droit' : (o.feel === 'swing' ? 'Swing' : ''), tempoMarkHtml(o.tempo)].filter(Boolean).join(' ');
+    const parts = [];
+    const base = one(st);
+    if (base) parts.push(base);
+    if (st.byPass && typeof st.byPass === 'object') {
+        Object.keys(st.byPass).sort().forEach(k => { const t = one(st.byPass[k] || {}); if (t) parts.push(`<b class="jam-pass">${k}x</b> ${t}`); });
+    }
+    return parts.join(' · ');
 }
 
 // Classes ajoutées à la case en plus de cellClassName.
@@ -109,7 +122,7 @@ function cellExtraClasses(c) {
 function cellInnerHtml(c) {
     return `
                             <div class="jam-cell-top flex justify-between items-center text-[9px] font-mono ${c.isActive ? 'text-blue-200 font-bold' : 'text-slate-400'}">
-                                <span class="jam-cell-tl">${c.voltaFirst ? `<b class="rp-vtxt" title="${c.sv === 1 ? '1re' : '2e'} fin">${c.sv}.</b>` : ''}|${c.measureNumber}${c.editBarOpen ? '<span class="jam-edit-btn" role="button" aria-label="Éditer la mesure" title="Éditer cette mesure">✎</span>' : ''}${c.feel ? `<span class="jam-feel" title="${c.feel === 'straight' ? 'Croches droites à partir de cette mesure' : 'Retour au swing général à partir de cette mesure'}">${c.feel === 'straight' ? 'Droit' : 'Swing'}</span>` : ''}${c.tempo ? `<span class="jam-feel jam-tempo" title="${c.tempo === 'a tempo' ? 'Retour au tempo général à partir de cette mesure' : 'Tempo à partir de cette mesure'}">${c.tempo}</span>` : ''}</span>
+                                <span class="jam-cell-tl">${c.voltaFirst ? `<b class="rp-vtxt" title="${c.sv === 1 ? '1re' : '2e'} fin">${c.sv}.</b>` : ''}|${c.measureNumber}${c.editBarOpen ? '<span class="jam-edit-btn" role="button" aria-label="Éditer la mesure" title="Éditer cette mesure">✎</span>' : ''}${c.marks ? `<span class="jam-feel" title="À partir de cette mesure : ${c.marks.replace(/<[^>]*>/g, '')}">${c.marks}</span>` : ''}</span>
                                 ${(c.hasRE && c.repeatEnd > 2) ? `<span class="rp-xn" title="Reprise jouée ${c.repeatEnd} fois">×${c.repeatEnd}</span>` : ''}
                                 <span class="text-[8px] text-emerald-400 font-medium truncate max-w-[60px]">${c.scaleLabel}</span>
                             </div>
@@ -160,13 +173,8 @@ function printMarks(grid, effV, m, flat) {
     const sv = effV[m.stepIndex];
     const svFirst = !!sv && (!flat[m.measureNumber - 2] || effV[flat[m.measureNumber - 2].stepIndex] !== sv);
     // Indications Droit / Swing et de tempo : en haut à gauche de la case (après le « 1. » d'une 1re / 2e fin)
-    if (m.measureInStep === 1) {
-        const marks = [];
-        if (st.feel === 'straight' || st.feel === 'swing') marks.push(`<span class="jam-print-feel">${st.feel === 'straight' ? 'Droit' : 'Swing'}</span>`);
-        const tt = tempoMarkHtml(st.tempo);
-        if (tt) marks.push(`<span class="jam-print-tempo">${tt}</span>`);
-        if (marks.length) { cls += ' has-feel' + (svFirst ? ' has-feel-v' : ''); html += `<span class="jam-print-marks">${marks.join(' ')}</span>`; }
-    }
+    const mk = m.measureInStep === 1 ? marksHtml(st) : '';
+    if (mk) { cls += ' has-feel' + (svFirst ? ' has-feel-v' : ''); html += `<span class="jam-print-marks">${mk}</span>`; }
     if (sv) {
         const first = svFirst;
         html += '<span class="jam-print-vo"></span>';

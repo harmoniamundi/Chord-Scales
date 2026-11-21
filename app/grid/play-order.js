@@ -221,39 +221,79 @@ function peekNextDisplayIndex(grid, i, opts) {
     return n;
 }
 
-// Indication de jeu des croches en vigueur sur chaque bloc, dans l'ordre écrit de la grille (comme sur une partition) :
-// un bloc qui porte feel = 'straight' (« Droit ») ou 'swing' (« Swing », retour au swing général) la pose, et elle vaut
-// jusqu'à la suivante. Renvoie un tableau parallèle à la grille : 'straight', 'swing' ou null (aucune indication avant ce bloc).
+// ===== Indications de jeu : croches (Droit / Swing) et tempo (♩ = N, a tempo) =====
+// Un bloc peut porter, au début de sa première mesure :
+//   feel  = 'straight' (« Droit ») | 'swing' (« Swing » : retour au swing général)       pour tous les passages
+//   tempo = 30 à 300 (♩ = N) | 'base' (« a tempo » : retour au tempo général)             pour tous les passages
+//   byPass = { 1: { feel?, tempo? }, 2: { … }, … } : indications propres à un passage de la reprise (« 1x Droit ♩=80 · 2x Swing »),
+//            comme sur un lead sheet ; elles remplacent, pour ce passage, celles écrites pour tous les passages.
+// Une indication vaut jusqu'à la suivante rencontrée en jouant (comme un musicien qui lit la grille).
+const TEMPO_MARK_MIN = 30, TEMPO_MARK_MAX = 300, PASS_MARK_MAX = 4;
+function isTempoMark(v) { return v === 'base' || (Number.isInteger(v) && v >= TEMPO_MARK_MIN && v <= TEMPO_MARK_MAX); }
+function isFeelMark(v) { return v === 'straight' || v === 'swing'; }
+
+// Indications d'un bloc pour le passage `pass` (1 = premier) : { feel?, tempo? }.
+function marksAt(st, pass) {
+    const out = {};
+    if (!st) return out;
+    if (isFeelMark(st.feel)) out.feel = st.feel;
+    if (isTempoMark(st.tempo)) out.tempo = st.tempo;
+    const bp = st.byPass && typeof st.byPass === 'object' ? st.byPass[pass] : null;
+    if (bp) {
+        if (isFeelMark(bp.feel)) out.feel = bp.feel;
+        if (isTempoMark(bp.tempo)) out.tempo = bp.tempo;
+    }
+    return out;
+}
+
+// Passage en cours (1, 2…) de la reprise qui contient le bloc i, d'après les compteurs de lecture `passes` (voir nextStepInfo).
+// Hors reprise : 1. Un bloc de 2e fin (après le :|) est joué au dernier passage de la reprise qui le précède.
+function passOfStep(grid, i, passes) {
+    const regions = repeatRegions(grid);
+    for (const rg of regions) if ((i >= rg.start && i <= rg.end) || rg.owned.has(i)) return (passes && passes[rg.end]) || 1;
+    if (effectiveVolta(grid)[i] === 2) {
+        let prev = null;
+        for (const rg of regions) if (rg.end < i) prev = rg;
+        if (prev) return prev.times;
+    }
+    return 1;
+}
+
+// Applique des indications à un état de jeu { feel: 'straight' | null, tempo: N | null } (null = réglage général).
+function applyMarks(state, mk) {
+    if (mk.feel) state.feel = mk.feel === 'straight' ? 'straight' : null;
+    if (mk.tempo !== undefined) state.tempo = mk.tempo === 'base' ? null : mk.tempo;
+    return state;
+}
+
+// État de jeu en arrivant sur le bloc i, en relisant la grille dans l'ordre écrit jusqu'à lui avec les compteurs de reprise en cours.
+function markStateAt(grid, i, passes) {
+    const s = { feel: null, tempo: null };
+    for (let j = 0; j <= i && j < grid.length; j++) applyMarks(s, marksAt(grid[j], passOfStep(grid, j, passes || {})));
+    return s;
+}
+
+// Indication de croches en vigueur sur chaque bloc au premier passage, dans l'ordre écrit : 'straight', 'swing' ou null (aucune).
 function feelByStep(grid) {
     let cur = null;
-    return (grid || []).map(st => {
-        if (st && (st.feel === 'straight' || st.feel === 'swing')) cur = st.feel;
-        return cur;
-    });
+    return (grid || []).map(st => { const mk = marksAt(st, 1); if (mk.feel) cur = mk.feel; return cur; });
 }
 
-// Indication de tempo d'un bloc : un nombre entier de 30 à 300 (♩ = N) ou 'base' (« a tempo » : retour au tempo général).
-const TEMPO_MARK_MIN = 30, TEMPO_MARK_MAX = 300;
-function isTempoMark(v) { return v === 'base' || (Number.isInteger(v) && v >= TEMPO_MARK_MIN && v <= TEMPO_MARK_MAX); }
-
-// Tempo en vigueur sur chaque bloc, dans l'ordre écrit (même règle que feelByStep) : un nombre (♩ = N) ou null (tempo général,
-// avant toute indication ou après « a tempo »).
+// Tempo en vigueur sur chaque bloc au premier passage, dans l'ordre écrit : un nombre (♩ = N) ou null (tempo général).
 function tempoByStep(grid) {
     let cur = null;
-    return (grid || []).map(st => {
-        if (st && isTempoMark(st.tempo)) cur = st.tempo === 'base' ? null : st.tempo;
-        return cur;
-    });
+    return (grid || []).map(st => { const mk = marksAt(st, 1); if (mk.tempo !== undefined) cur = mk.tempo === 'base' ? null : mk.tempo; return cur; });
 }
 
-// Durée en secondes d'une lecture complète (reprises comprises, sans boucle) : chaque mesure à son tempo.
+// Durée en secondes d'une lecture complète (reprises comprises, sans boucle) : chaque mesure à son tempo, passage par passage.
 // barUnits = noires (ou pulsations) par mesure ; baseBpm = tempo général de la grille.
 function playedSeconds(grid, barUnits, baseBpm) {
-    const tempos = tempoByStep(grid);
+    const state = { feel: null, tempo: null };
     let total = 0, i = 0, guard = 0;
     const passes = {};
     while (grid.length && i >= 0 && i < grid.length && guard++ < 100000) {
-        total += Math.max(1, grid[i].measures || 1) * barUnits * 60 / (tempos[i] || baseBpm);
+        applyMarks(state, marksAt(grid[i], passOfStep(grid, i, passes)));
+        total += Math.max(1, grid[i].measures || 1) * barUnits * 60 / (state.tempo || baseBpm);
         const nx = nextStepInfo(grid, i, passes);
         if (nx.wrapped) break;
         i = nx.idx;
@@ -262,6 +302,6 @@ function playedSeconds(grid, barUnits, baseBpm) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { feelByStep, tempoByStep, isTempoMark, playedSeconds, TEMPO_MARK_MIN, TEMPO_MARK_MAX, flatMeasureList, stepStartMeasure, effectiveVolta, repeatRegions, stepSpan, stepOfMeasure,
+    module.exports = { feelByStep, tempoByStep, isTempoMark, isFeelMark, marksAt, passOfStep, applyMarks, markStateAt, playedSeconds, TEMPO_MARK_MIN, TEMPO_MARK_MAX, PASS_MARK_MAX, flatMeasureList, stepStartMeasure, effectiveVolta, repeatRegions, stepSpan, stepOfMeasure,
         computePlayRange, nextStepInfo, playedMeasureCount, peekNextIndex, sameChordStep, peekNextDisplayIndex };
 }

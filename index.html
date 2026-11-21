@@ -620,6 +620,7 @@
                 // Métronome (hors sauvegardes / export / import) : intro d'une mesure toujours jouée ; clic pendant la grille seulement si activé
                 this.metronomeEnabled = false;
                 this.metronomeSubdivision = false; // clic léger sur les croches, en plus des temps (réglage du métronome)
+                this._markState = null; // état de jeu pendant la lecture (croches, tempo), voir _syncMarkState
                 this._planBpm = 0; // tempo de la mesure en cours de calcul (buildBandPlan), 0 hors calcul
                 this._feelStraight = false; // vrai pendant le calcul d'une mesure placée sous l'indication « Droit » (buildBandPlan)
                 // Les trois clics du métronome : le même enregistrement de métronome mécanique, joué à des vitesses et des niveaux
@@ -3883,9 +3884,21 @@
             }
 
             // Tempo joué sur un bloc : indication ♩ = N en vigueur (ordre écrit, grid/play-order.js), sinon tempo général.
+            // Pendant la lecture, le bloc joué suit l'état de jeu (_markState), qui tient compte du passage dans les reprises.
             _tempoAtIndex(i) {
+                if (this.isPlaying && this._markState && i === this.currentStepIndex) return this._markState.tempo || this.bpm;
                 const t = (i >= 0 && i < this.grid.length) ? tempoByStep(this.grid)[i] : null;
                 return t || this.bpm;
+            }
+
+            // État de jeu (croches, tempo) au temps programmé : établi en relisant la grille au départ (ou après une remise à zéro des
+            // passages), puis mis à jour au premier temps de chaque bloc avec ses indications pour le passage en cours (1x, 2x…).
+            _syncMarkState() {
+                const i = this.currentStepIndex;
+                const st = this.grid[i];
+                if (!st) return;
+                if (!this._markState) this._markState = markStateAt(this.grid, i, this._passes);
+                else if (this.currentBeat === 0) applyMarks(this._markState, marksAt(st, passOfStep(this.grid, i, this._passes)));
             }
             _tempoOfStep(step) { return this._tempoAtIndex(this.grid.indexOf(step)); }
             // Tempo vu par les orchestres : celui de la mesure en cours de calcul (buildBandPlan), sinon le tempo général.
@@ -3894,6 +3907,7 @@
             // Indication « Droit » / « Swing » en vigueur sur un bloc de la grille (ordre écrit, grid/play-order.js) ; null = aucune.
             _feelAtStep(step) {
                 const i = this.grid.indexOf(step);
+                if (this.isPlaying && this._markState && i === this.currentStepIndex) return this._markState.feel;
                 return i >= 0 ? feelByStep(this.grid)[i] : null;
             }
 
@@ -4842,7 +4856,7 @@
             _nextStepInfo(i, commit = false) {
                 const passes = commit ? this._passes : { ...this._passes };
                 const info = nextStepInfo(this.grid, i, passes);
-                if (commit && info.wrapped && this.grid.length) this._passes = {}; // fin de grille : les compteurs repartent à zéro
+                if (commit && info.wrapped && this.grid.length) { this._passes = {}; this._markState = null; } // fin de grille : les compteurs repartent à zéro
                 return info;
             }
 
@@ -4907,7 +4921,7 @@
                 this.currentStepIndex = -1;
                 this.currentBeat = 0;
                 this.activeSlot = 0;
-                this._passes = {};
+                this._passes = {}; this._markState = null;
                 if (this.isPlaying) this._playRange = null;
             }
 
@@ -5287,7 +5301,7 @@
                 const ed = this._editor;
                 if (!ed) return;
                 ed.touched = true;
-                this.withUndo(() => markMeasure(this.grid, ed.measureNumber, kind));
+                this.withUndo(() => markMeasure(this.grid, ed.measureNumber, kind, ed.pass || 0)); // Droit / Swing : pour le passage choisi (0 = tous)
                 this._editorSelect();
             }
 
@@ -5296,15 +5310,25 @@
                 const ed = this._editor;
                 if (!ed) return;
                 ed.touched = true;
-                this.withUndo(() => setMeasureTempo(this.grid, ed.measureNumber, val));
+                this.withUndo(() => setMeasureTempo(this.grid, ed.measureNumber, val, ed.pass || 0));
                 this._editorSelect();
             }
+            // Nombre de passages de la reprise qui contient le bloc i (une 2e fin compte ceux de la reprise qui la précède) ; 0 hors reprise.
+            _passCountOfStep(i) {
+                const regions = repeatRegions(this.grid);
+                for (const rg of regions) if ((i >= rg.start && i <= rg.end) || rg.owned.has(i)) return rg.times;
+                if (this._effectiveVolta()[i] === 2) { let prev = null; regions.forEach(rg => { if (rg.end < i) prev = rg; }); if (prev) return prev.times; }
+                return 0;
+            }
+
             // Boutons − / + : ±5 à partir du tempo en vigueur sur la mesure (indication posée sinon tempo général)
             _editorTempoStep(d) {
                 const ed = this._editor;
                 if (!ed || !d) return;
                 const m = this.getFlatMeasureList().find(x => x.measureNumber === ed.measureNumber);
-                const cur = m ? this._tempoAtIndex(m.stepIndex) : this.bpm;
+                const st = m ? this.grid[m.stepIndex] : null;
+                const own = st && m.measureInStep === 1 ? (ed.pass ? marksAt({ byPass: st.byPass }, ed.pass).tempo : st.tempo) : undefined;
+                const cur = Number.isInteger(own) ? own : (m ? this._tempoAtIndex(m.stepIndex) : this.bpm);
                 this._editorTempo(Math.round(cur / 5) * 5 + d);
             }
 
@@ -5722,7 +5746,7 @@
                 this.currentStepIndex = pos.stepIndex;
                 this.currentBeat = pos.beat;
                 if (this.isPlaying) {
-                    this._passes = {};
+                    this._passes = {}; this._markState = null;
                     this._playRange = playRangeAfterClick(this._playRange, m.measureNumber);
                 }
                 const step = this.grid[m.stepIndex];
@@ -6154,6 +6178,7 @@
                     case 'tempo-base': this._editorTempo('base'); break;
                     case 'tempo-step': this._editorTempoStep(parseInt(v, 10) || 0); break;
                     case 'tempo-clear': this._editorTempo(null); break;
+                    case 'pass': ed.pass = parseInt(v, 10) || 0; this._editorSelect(); break;
                     case 'close': ed.touched = true; this.closeMeasureEditor(); break;   // OK : on garde
                     case 'cancel': this.closeMeasureEditor(); break;                       // ✕ : une mesure ajoutée vierge est annulée
                 }
@@ -6213,7 +6238,7 @@
                 const t = this._editorTarget();
                 if (!t) return true;
                 if (key === 'bass') return !Number.isInteger(t.cur.bassRootIndex);
-                if (key === 'rp') return !(t.step.repeatStart || t.step.repeatEnd || t.step.volta || t.step.feel || t.step.tempo !== undefined);
+                if (key === 'rp') return !(t.step.repeatStart || t.step.repeatEnd || t.step.volta || t.step.feel || t.step.tempo !== undefined || t.step.byPass);
                 return true;
             }
 
@@ -6358,7 +6383,8 @@
                     degrees: this.getDiatonicDegrees({ triads: this._degreeTriads }), degreeTriads: this._degreeTriads, rootLabels, symbol: (c) => this.getChordSymbol(c),
                     jazz: (id) => this.getJazzChordNotation(id), findChordObj: (id) => this.findChordObj(id),
                     halfLabelText: (h) => this.halfLabelText(h), halfTitleText: () => this.halfTitleText(),
-                    tempoHere: this._tempoAtIndex(m.stepIndex), baseBpm: this.bpm // tempo en vigueur sur la mesure et tempo général
+                    tempoHere: this._tempoAtIndex(m.stepIndex), baseBpm: this.bpm, // tempo en vigueur sur la mesure et tempo général
+                    pass: ed.pass || 0, passCount: this._passCountOfStep(m.stepIndex) // passage visé par Droit / Swing et tempo ; passages de la reprise
                 });
                 ed.el.scrollTop = prevScroll;
             }
@@ -8916,7 +8942,7 @@
                 this.closeFunctionEditor();
                 this._selMode = false;
                 this._selPhase = null;
-                this._passes = {};
+                this._passes = {}; this._markState = null;
                 this.app.stopAllSounds();
                 this.app.stopLoop();
                 
@@ -8953,7 +8979,7 @@
                     if (rs && resume.beat < rs.measures * this.getBeatsPerBar()) {
                         this.currentStepIndex = resume.idx;
                         this.currentBeat = resume.beat;
-                        this._passes = resume.passes || {};
+                        this._passes = resume.passes || {}; this._markState = null;
                         const total = this._totalMeasures();
                         this._playRange = resume.range && resume.range.to <= total ? resume.range : null;
                     }
@@ -9007,7 +9033,7 @@
                 this.timer = null;
                 this._beatAudio = null;
                 this._beatAudioTime = null;
-                this._passes = {};
+                this._passes = {}; this._markState = null;
                 this._playRange = null;
                 this._perfPrev = null; this._perfLog = []; this._scalesSig = null;
                 this.currentStepIndex = -1;
@@ -9136,6 +9162,7 @@
                 const splitBeat = this.getSplitBeat();
                 // Durée de CE temps : une noire (une pulsation en mesure composée) ; en aksak, 1 ou 1,5 noire selon le groupe de croches
                 const beatIdx = this._countInBeats > 0 ? bpb - this._countInBeats : this.currentBeat % bpb;
+                this._syncMarkState(); // indications Droit / Swing et tempo du bloc joué, selon le passage
                 // Tempo du bloc joué (indication ♩ = N en vigueur, sinon tempo général) ; pendant l'intro, celui du bloc de départ.
                 const intervalSec = 60 / this._tempoAtIndex(this.currentStepIndex) * this._beatUnitsAt(beatIdx);
                 // Grille de temps en secondes AUDIO : premier temps, ou recalage après un retard de plus d'un temps.
@@ -9217,7 +9244,7 @@
                 this.currentStepIndex = adv.currentStepIndex;
                 this.currentBeat = adv.currentBeat;
                 this.activeSlot = adv.activeSlot;
-                if (adv.resetPasses) this._passes = {};
+                if (adv.resetPasses) { this._passes = {}; this._markState = null; }
 
                 if (adv.kind === 'stop') {
                     // Fin de plage / de grille sans boucle : le dernier temps sonne jusqu'au bout, puis la jam s'arrête.
@@ -10839,7 +10866,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-21-c';
+        var BUILD = '2026-11-21-d';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }
@@ -10852,8 +10879,8 @@
             };
             // Fichiers nouveaux de la version : s'ils sont absents (mal placés ou pas envoyés), ils ne définissent pas leur fonction.
             var needed = {
-                'app/grid/play-order.js': typeof feelByStep === 'function' && typeof tempoByStep === 'function' && typeof playedSeconds === 'function',
-                'app/ui/grid-view.js': (function () { try { return printMarks([{ feel: 'straight', tempo: 90, measures: 1 }], {}, { stepIndex: 0, measureInStep: 1, measureNumber: 1 }, []).html.indexOf('jam-print-tempo') >= 0; } catch (e) { return false; } })(),
+                'app/grid/play-order.js': typeof feelByStep === 'function' && typeof tempoByStep === 'function' && typeof playedSeconds === 'function' && typeof markStateAt === 'function',
+                'app/ui/grid-view.js': (function () { try { return printMarks([{ byPass: { 2: { feel: 'swing' } }, measures: 1 }], {}, { stepIndex: 0, measureInStep: 1, measureNumber: 1 }, []).html.indexOf('jam-pass') >= 0; } catch (e) { return false; } })(),
                 'app/ui/scale-harmony.js': typeof scaleHarmonyHtml === 'function' && typeof scaleHarmony === 'function',
                 'app/ui/scale-map.js': typeof scaleMapEntries === 'function' && typeof scaleMapHtml === 'function' && typeof trainingMapCards === 'function',
                 'app/ui/chord-picker.js': typeof chordPickerHtml === 'function' && typeof chordPickerBuild === 'function' && typeof chordPickerParseRoot === 'function',
