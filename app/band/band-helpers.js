@@ -601,10 +601,52 @@ function lineDensify(ev, o) {
     });
 }
 
+// ===== Point d'orgue final (𝄐, « last x » des Real Book) =====
+// Dernière mesure de la grille quand elle porte un point d'orgue : à partir de `fp` (temps où commence le dernier accord : 0, ou le
+// temps du second accord d'une mesure à deux accords), l'orchestre attaque ensemble et tient. Fonction pure, valable pour tous
+// les orchestres (elle ne lit que pos / dur des frappes) :
+//  - harmonie (plan.piano) : les frappes du dernier accord sont regroupées sur `fp` (sans doublons, 6 au plus, légèrement égrenées),
+//    tenues `holdBeats` temps ; un arpège devient ainsi un accord. Aucune frappe sur cet accord : `fallback` (accord de piano) la remplace ;
+//  - basse : sa première note sur cet accord, ramenée sur `fp` et tenue ;
+//  - batterie / percussions : seulement les coups qui tombent sur l'attaque.
+// Ce qui précède `fp` (premier accord d'une mesure à deux accords) est joué normalement, mais s'arrête à `fp`. Le plan reçoit fermata = { pos, hold }.
+function fermataPlan(plan, fp, holdBeats, fallback) {
+    if (!plan) return plan;
+    const EPS = 1e-6;
+    const keyOf = (e) => { const c = { ...e }; ['pos', 'dur', 'vel', 'lay', 'roll', 'noteVels', 'gainMul'].forEach(k => { delete c[k]; }); return JSON.stringify(c); };
+    const gather = (arr, max, stagger) => {
+        const list = Array.isArray(arr) ? arr : [];
+        // le premier accord d'une mesure à deux accords s'arrête là où le point d'orgue commence (pas de note tenue dessous)
+        const before = list.filter(e => e.pos < fp - EPS).map(e => (e.dur > fp - e.pos + 0.08 ? { ...e, dur: fp - e.pos + 0.08 } : e));
+        const seg = list.filter(e => e.pos >= fp - EPS).sort((a, b) => a.pos - b.pos);
+        const uniq = [];
+        const seen = new Map();
+        seg.forEach(e => {
+            const k = keyOf(e);
+            if (seen.has(k)) { const u = seen.get(k); u.vel = Math.max(u.vel, e.vel || 0); return; }
+            if (uniq.length >= max) return;
+            const u = { ...e };
+            seen.set(k, u);
+            uniq.push(u);
+        });
+        const held = uniq.map((e, k) => ({ ...e, pos: fp + k * stagger, dur: holdBeats - k * stagger, vel: Math.max(0.55, e.vel || 0) }));
+        return { before, held };
+    };
+    const out = { ...plan };
+    const pn = gather(plan.piano, 6, 0.015);
+    if (!pn.held.length && fallback) pn.held.push({ ...fallback, pos: fp, dur: holdBeats, fermataPiano: true });
+    out.piano = pn.before.concat(pn.held);
+    const bs = gather(plan.bass, 1, 0);
+    out.bass = bs.before.concat(bs.held);
+    out.drums = (Array.isArray(plan.drums) ? plan.drums : []).filter(e => e.pos < fp + 0.25); // avant l'attaque, et l'attaque elle-même
+    out.fermata = { pos: fp, hold: holdBeats };
+    return out;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { lineDensify, popFoldBass, bassPc, bassNear, popBassTones, popBassApproach, popScaleNotes, popLineNote, popRun, latBassTones,
         jamChordPlaybackNotes, popVoicing, popSusVoicing, latThumb, latVary, latDetach,
         brassParts, isSplit, isSplitEffective, getStepHalves,
         aksakWarp, stretchPlanToGroups, aksakBeatWindow, bandSwing, defaultBandSwing, BAND_SWING_DEFAULTS, GROOVE_SWING_DEFAULTS, swingWarp, swingPlan, swingPos, pickWeighted, meterKey, patternLib, pianoGuideInterval, pianoHitIntervals,
-        clsVoicing, clsLowNote, clsMutate };
+        clsVoicing, clsLowNote, clsMutate, fermataPlan };
 }

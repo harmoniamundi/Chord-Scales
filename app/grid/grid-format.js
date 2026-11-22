@@ -350,7 +350,7 @@ function sanitizeImportedGrid(raw) {
         const vo = Number(item.volta);
         if (vo === 1 || vo === 2) step.volta = vo;
         // Signes de renvoi (Real Book) : 𝄋 et ⊕ au début du bloc, To Coda, Fine et D.C. / D.S. à la fin
-        ['segno', 'coda', 'toCoda', 'fine'].forEach(k => { if (item[k] === true) step[k] = true; });
+        ['segno', 'coda', 'toCoda', 'fine', 'fermata'].forEach(k => { if (item[k] === true) step[k] = true; });
         if (['dc', 'dcFine', 'dcCoda', 'ds', 'dsFine', 'dsCoda'].includes(item.jump)) step.jump = item.jump;
         // Indication de jeu des croches à partir de ce bloc : « Droit » ou retour au « Swing » général
         if (item.feel === 'straight' || item.feel === 'swing') step.feel = item.feel;

@@ -10,6 +10,7 @@
 // Signes de renvoi, façon Real Book (voir « Signes de renvoi » plus bas) :
 //   segno, coda  posés au début du bloc (𝄋 renvoi, ⊕ début de la coda)
 //   toCoda, fine, jump ('dc', 'dcFine', 'dcCoda', 'ds', 'dsFine', 'dsCoda')  posés à la fin du bloc
+//   fermata      point d'orgue 𝄐 sur le dernier accord du bloc (« last x » : seulement quand la lecture s'y termine)
 
 // Sous Node, isSplit se charge ; en navigateur c'est un global (band/band-helpers.js).
 if (typeof isSplit === 'undefined' && typeof require === 'function') {
@@ -99,13 +100,15 @@ function repeatRegions(grid) {
 // Fin de bloc   : toCoda (« To Coda ⊕ »), fine (« Fine ») et jump, le renvoi lui-même :
 //   'dc' D.C. (retour au début)      'dcFine' D.C. al Fine      'dcCoda' D.C. al Coda
 //   'ds' D.S. (retour au 𝄋)          'dsFine' D.S. al Fine      'dsCoda' D.S. al Coda
+// Jeu (tempo, croches) : après un renvoi, il est relu au point d'arrivée, comme sur une partition (« Slow 4 » en tête de grille
+// après un D.C., l'indication en vigueur au Segno après un D.S.) : un « double time » des solos ne déborde pas sur le thème.
 // Lecture : au premier passage, Fine et To Coda sont ignorés ; arrivé au bout du bloc qui porte le renvoi (après ses reprises),
 // on retourne au début ou au 𝄋. Ce renvoi n'est pris qu'une fois. Ensuite, comme sur un Real Book, les reprises ne sont plus
 // refaites (on joue directement la dernière fin) ; « al Fine » (ou D.C. / D.S. seuls) s'arrête au Fine, « al Coda » saute du
 // « To Coda » au ⊕. L'état du renvoi est rangé dans `passes` sous la clé NAV_KEY (remis à zéro avec les compteurs de reprise).
 const NAV_KEY = 'nav';
 const NAV_START_KEYS = ['segno', 'coda'];
-const NAV_END_KEYS = ['toCoda', 'fine', 'jump'];
+const NAV_END_KEYS = ['toCoda', 'fine', 'jump', 'fermata']; // fermata : point d'orgue sur le dernier accord, joué seulement à la fin de la lecture
 const NAV_JUMPS = {
     dc: { target: 'start', until: 'fine', label: 'D.C.' },
     dcFine: { target: 'start', until: 'fine', label: 'D.C. al Fine' },
@@ -347,13 +350,17 @@ function tempoByStep(grid) {
 // Durée en secondes d'une lecture complète (reprises comprises, sans boucle) : chaque mesure à son tempo, passage par passage.
 // barUnits = noires (ou pulsations) par mesure ; baseBpm = tempo général de la grille.
 function playedSeconds(grid, barUnits, baseBpm) {
-    const state = { feel: null, tempo: null };
-    let total = 0, i = 0, guard = 0;
+    let state = { feel: null, tempo: null };
+    let total = 0, i = 0, guard = 0, reread = false;
     const passes = {};
     while (grid.length && i >= 0 && i < grid.length && guard++ < 100000) {
-        applyMarks(state, marksAt(grid[i], passOfStep(grid, i, passes)));
+        // Après un renvoi, le jeu est relu au point d'arrivée (voir markStateAt), comme le fait le moteur.
+        if (reread) { state = markStateAt(grid, i, passes); reread = false; }
+        else applyMarks(state, marksAt(grid[i], passOfStep(grid, i, passes)));
         total += Math.max(1, grid[i].measures || 1) * barUnits * 60 / (state.tempo || baseBpm);
+        const navBefore = passes[NAV_KEY];
         const nx = nextStepInfo(grid, i, passes);
+        if (passes[NAV_KEY] !== navBefore) reread = true;
         if (nx.wrapped) break;
         i = nx.idx;
     }

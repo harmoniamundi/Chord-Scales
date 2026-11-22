@@ -315,4 +315,14 @@ describe('signes de renvoi (D.C., D.S., Fine, To Coda, Coda)', () => {
         assert.equal(P.hasNavMarks(blk(A, 1, { jump: 'xx' })), false);
         assert.equal(P.hasNavMarks(blk(A, 1, { fine: true })), true);
     });
+    test('jeu relu au point d\'arrivée du renvoi : le double time des solos ne déborde pas sur le thème (Django)', () => {
+        // Thème (tempo général 60) A B(Fine) | solos ♩=120 C D(D.C. al Fine)
+        const g = [blk(A), blk(B, 1, { fine: true }), blk(C, 1, { tempo: 120, feel: 'swing' }), blk(D, 1, { jump: 'dcFine' })];
+        // A, B à 60 ; C, D à 120 ; puis A, B de nouveau à 60 (4 temps par mesure)
+        assert.equal(P.playedSeconds(g, 4, 60), 4 + 4 + 2 + 2 + 4 + 4);
+        // D.S. : on reprend l'indication en vigueur au Segno
+        const h = [blk(A, 1, { tempo: 90 }), blk(B, 1, { segno: true }), blk(C, 1, { tempo: 120 }), blk(D, 1, { jump: 'ds' })];
+        const sec = 60 / 90 * 4;
+        assert.equal(Math.round(P.playedSeconds(h, 4, 60) * 1000), Math.round((sec + sec + 2 + 2 + sec + 2 + 2) * 1000));
+    });
 });

@@ -477,3 +477,38 @@ describe('mesures aksak : étirement d\'un plan en pulsations égales', () => {
         assert.deepEqual(H.aksakBeatWindow([2, 2, 3, 2, 2], 4), { s: 4.5, len: 1 });
     });
 });
+
+describe('point d\'orgue final (fermataPlan)', () => {
+    const H = require('./band-helpers.js');
+    test('arpège regroupé en accord tenu, basse ramenée sur l\'attaque, batterie coupée après l\'attaque', () => {
+        const plan = {
+            piano: [0, 0.5, 1, 1.5, 2, 2.5].map((pos, k) => ({ pos, dur: 0.5, vel: 0.5, rootIndex: 0, intervals: [k % 3 * 4] })),
+            bass: [{ pos: 0, dur: 1, vel: 0.8, abs: -5 }, { pos: 1, dur: 1, vel: 0.8, abs: -3 }],
+            drums: [{ pos: 0, type: 'kick' }, { pos: 1, type: 'hat' }, { pos: 2, type: 'snare' }],
+            guitar: true
+        };
+        const f = H.fermataPlan(plan, 0, 8);
+        assert.equal(f.piano.length, 3, 'doublons retirés');
+        assert.ok(f.piano.every(e => e.pos < 0.1 && e.dur > 7.9));
+        assert.equal(f.bass.length, 1);
+        assert.equal(f.bass[0].abs, -5);
+        assert.equal(f.bass[0].dur, 8);
+        assert.deepEqual(f.drums.map(d => d.type), ['kick']);
+        assert.equal(f.guitar, true);
+        assert.deepEqual(f.fermata, { pos: 0, hold: 8 });
+    });
+    test('mesure à deux accords : le premier est joué normalement, le point d\'orgue porte sur le second', () => {
+        const plan = { piano: [{ pos: 0, dur: 1.9, vel: 0.6, rootIndex: 0, intervals: [0] }, { pos: 0.5, dur: 3.5, vel: 0.6, rootIndex: 0, intervals: [4] }, { pos: 2.5, dur: 1, vel: 0.6, rootIndex: 7, intervals: [0] }], bass: [{ pos: 0, dur: 2, abs: 0 }, { pos: 2, dur: 2, abs: 7 }], drums: [{ pos: 0 }, { pos: 2 }, { pos: 3 }] };
+        const f = H.fermataPlan(plan, 2, 6);
+        assert.deepEqual(f.piano.map(e => [e.pos, +e.dur.toFixed(2)]), [[0, 1.9], [0.5, 1.58], [2, 6]]);
+        assert.deepEqual(f.bass.map(e => e.abs), [0, 7]);
+        assert.equal(f.drums.length, 2);
+    });
+    test('aucune frappe d\'harmonie sur le dernier accord : accord de secours', () => {
+        const f = H.fermataPlan({ piano: [], bass: [], drums: [] }, 0, 6, { rootIndex: 7, intervals: [0, 3, 7], vel: 0.7 });
+        assert.equal(f.piano.length, 1);
+        assert.equal(f.piano[0].fermataPiano, true);
+        assert.equal(f.piano[0].dur, 6);
+        assert.equal(H.fermataPlan(null, 0, 4), null);
+    });
+});

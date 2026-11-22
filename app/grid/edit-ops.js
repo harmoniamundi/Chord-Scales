@@ -469,7 +469,7 @@ function setMeasureTempo(grid, measureNumber, val, pass) {
 
 // ===== Signes de renvoi (𝄋, ⊕, To Coda, Fine, D.C. / D.S.) =====
 // Chaque signe n'existe qu'une fois dans la grille (comme sur un Real Book) : le poser sur une mesure le retire d'ailleurs.
-// kind = 'segno' | 'coda' (début de la mesure), 'toCoda' | 'fine' (fin de la mesure) : posé, ou retiré s'il y était déjà ;
+// kind = 'segno' | 'coda' (début de la mesure), 'toCoda' | 'fine' | 'fermata' (fin de la mesure) : posé, ou retiré s'il y était déjà ;
 // kind = 'jump' avec value = 'dc' | 'dcFine' | 'dcCoda' | 'ds' | 'dsFine' | 'dsCoda' (fin de la mesure) : posé, retiré si identique,
 // ou retiré avec value vide. Une mesure au milieu d'un bloc est isolée. Renvoie true si le signe est maintenant posé.
 function setNavMark(grid, measureNumber, kind, value) {
@@ -509,16 +509,16 @@ function clearNavMarks(grid, from, to) {
 function navMarksOf(grid, from, to) {
     const flat = flatMeasureList(grid);
     const a = flat[from - 1], b = flat[to - 1];
-    const out = { segno: false, coda: false, toCoda: false, fine: false, jump: '' };
+    const out = { segno: false, coda: false, toCoda: false, fine: false, jump: '', fermata: false };
     if (!a || !b) return out;
     const sa = grid[a.stepIndex], sb = grid[b.stepIndex];
     if (a.measureInStep === 1) { out.segno = !!sa.segno; out.coda = !!sa.coda; }
-    if (b.measureInStep === sb.measures) { out.toCoda = !!sb.toCoda; out.fine = !!sb.fine; out.jump = EO_isNavJump(sb.jump) ? sb.jump : ''; }
+    if (b.measureInStep === sb.measures) { out.toCoda = !!sb.toCoda; out.fine = !!sb.fine; out.jump = EO_isNavJump(sb.jump) ? sb.jump : ''; out.fermata = !!sb.fermata; }
     return out;
 }
 // Où se trouve chaque signe dans la grille : { segno: n° de mesure | 0, coda, toCoda, fine, jump: { measure, kind } | null }.
 function navMarksSummary(grid) {
-    const out = { segno: 0, coda: 0, toCoda: 0, fine: 0, jump: null };
+    const out = { segno: 0, coda: 0, toCoda: 0, fine: 0, jump: null, fermata: 0 };
     let first = 1;
     grid.forEach(st => {
         const last = first + st.measures - 1;
@@ -526,6 +526,7 @@ function navMarksSummary(grid) {
         if (st.coda && !out.coda) out.coda = first;
         if (st.toCoda && !out.toCoda) out.toCoda = last;
         if (st.fine && !out.fine) out.fine = last;
+        if (st.fermata && !out.fermata) out.fermata = last;
         if (EO_isNavJump(st.jump) && !out.jump) out.jump = { measure: last, kind: st.jump };
         first = last + 1;
     });

@@ -753,8 +753,8 @@ describe('signes de renvoi : pose, unicité et conservation', () => {
         assert.equal(f[1].measureInStep, 1);
         assert.equal(g[f[7].stepIndex].jump, 'dsCoda');
         assert.equal(total(g), 8);
-        assert.deepEqual(E.navMarksOf(g, 2, 2), { segno: true, coda: false, toCoda: false, fine: false, jump: '' });
-        assert.deepEqual(E.navMarksSummary(g), { segno: 2, coda: 0, toCoda: 0, fine: 0, jump: { measure: 8, kind: 'dsCoda' } });
+        assert.deepEqual(E.navMarksOf(g, 2, 2), { segno: true, coda: false, toCoda: false, fine: false, jump: '', fermata: false });
+        assert.deepEqual(E.navMarksSummary(g), { segno: 2, coda: 0, toCoda: 0, fine: 0, jump: { measure: 8, kind: 'dsCoda' }, fermata: 0 });
     });
     test('un seul de chaque signe : le poser ailleurs le déplace, re-cliquer le retire, les blocs se refusionnent', () => {
         const g = [st(0, 'maj7', 4)];
@@ -804,7 +804,7 @@ describe('signes de renvoi : pose, unicité et conservation', () => {
         E.appendCopyOfLast(g);
         assert.equal(g[g.length - 1].jump, undefined);
         E.clearNavMarks(g, 1, total(g));
-        assert.deepEqual(E.navMarksSummary(g), { segno: 0, coda: 0, toCoda: 0, fine: 0, jump: null });
+        assert.deepEqual(E.navMarksSummary(g), { segno: 0, coda: 0, toCoda: 0, fine: 0, jump: null, fermata: 0 });
     });
     test('import / sauvegarde : signes valides gardés, valeurs inconnues ignorées', () => {
         const g = F.sanitizeImportedGrid([st(0, 'maj7', 1, { segno: true, coda: 'oui', jump: 'dsCoda' }), st(2, 'm7', 1, { toCoda: true, fine: true, jump: 'xx' })]);
@@ -813,5 +813,16 @@ describe('signes de renvoi : pose, unicité et conservation', () => {
         assert.equal(g[0].jump, 'dsCoda');
         assert.equal(g[1].toCoda && g[1].fine, true);
         assert.equal(g[1].jump, undefined);
+    });
+    test('point d\'orgue : posé en fin de mesure, gardé à l\'import, un seul dans la grille', () => {
+        const g = [st(0, 'maj7', 4)];
+        assert.equal(E.setNavMark(g, 4, 'fermata'), true);
+        assert.equal(g[g.length - 1].fermata, true);
+        assert.equal(E.navMarksSummary(g).fermata, 4);
+        assert.equal(E.navMarksOf(g, 4, 4).fermata, true);
+        E.setNavMark(g, 2, 'fermata');
+        assert.equal(E.navMarksSummary(g).fermata, 2);
+        assert.equal(g.filter(x => x.fermata).length, 1);
+        assert.equal(F.sanitizeImportedGrid([st(0, 'maj7', 1, { fermata: true })])[0].fermata, true);
     });
 });

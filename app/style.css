@@ -777,6 +777,7 @@
         .jrp-pop .jm-chip .nav-glyph { display: inline; vertical-align: -3px; }
         .jrp-pop .jrp-nav2 { flex: 1 1 auto; display: flex; gap: 4px; }
         .jrp-pop .jrp-nav2 .jm-chip { flex: 1 1 0; }
+        .jrp-pop .jrp-nav2 .jm-chip[data-v="fermata"] { flex: 0 0 48px; }
         .jrp-pop .jrp-navj { flex: 1 1 auto; display: flex; flex-direction: column; gap: 4px; }
         .jrp-pop .jrp-nav3 { display: flex; gap: 4px; }
         .jrp-pop .jrp-nav3 .jm-chip { flex: 1 1 0; padding-left: 3px; padding-right: 3px; white-space: nowrap; }

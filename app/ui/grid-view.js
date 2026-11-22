@@ -30,6 +30,7 @@ function layoutRows(flat, partLabelOf, breakBefore) {
 // Les symboles sont dessinés en SVG (les caractères musicaux 𝄋 𝄌 manquent dans beaucoup de polices, sur iPhone notamment).
 const NAV_SEGNO_SVG = '<svg class="nav-glyph" viewBox="0 0 20 24" width="0.95em" height="1.15em" aria-hidden="true"><path d="M14.5 6.2C14.2 3 6.2 2.6 6 7c-.2 4.6 8.4 4.4 8.4 9.6 0 4.8-8.6 5-9-.6" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/><path d="M4 21.5 16 2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="4.6" cy="11.2" r="1.7" fill="currentColor"/><circle cx="15.4" cy="12.8" r="1.7" fill="currentColor"/></svg>';
 const NAV_CODA_SVG = '<svg class="nav-glyph" viewBox="0 0 20 20" width="1em" height="1em" aria-hidden="true"><circle cx="10" cy="10" r="5.6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 .8v18.4M.8 10h18.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+const NAV_FERMATA_SVG = '<svg class="nav-glyph" viewBox="0 0 22 14" width="1.25em" height="0.85em" aria-hidden="true"><path d="M1.5 12.5C2 4.8 6 1.6 11 1.6s9 3.2 9.5 10.9C18.6 7.4 15.4 4.6 11 4.6S3.4 7.4 1.5 12.5z" fill="currentColor"/><circle cx="11" cy="11.2" r="1.9" fill="currentColor"/></svg>';
 const NAV_LABELS = { dc: 'D.C.', dcFine: 'D.C. al Fine', dcCoda: 'D.C. al Coda', ds: 'D.S.', dsFine: 'D.S. al Fine', dsCoda: 'D.S. al Coda' };
 const NAV_TITLES = {
     dc: 'Da capo : retour au début', dcFine: 'Da capo al Fine : retour au début, jusqu\'au Fine', dcCoda: 'Da capo al Coda : retour au début, puis du To Coda à la coda ⊕',
@@ -49,6 +50,7 @@ function navEndHtml(st) {
     const out = [];
     if (st.toCoda) out.push(`<span class="nav-it" title="To Coda : après le renvoi, saut à la coda ⊕"><span class="nav-w">To Coda</span>${NAV_CODA_SVG}</span>`);
     if (st.fine) out.push('<span class="nav-it" title="Fine : après le renvoi, la grille s\'arrête ici"><span class="nav-w">Fine</span></span>');
+    if (st.fermata) out.push(`<span class="nav-it" title="Point d'orgue sur le dernier accord : tenu quand la lecture se termine ici (dernier passage)">${NAV_FERMATA_SVG}</span>`);
     if (NAV_LABELS[st.jump]) out.push(`<span class="nav-it" title="${NAV_TITLES[st.jump]}"><span class="nav-w">${NAV_LABELS[st.jump]}</span></span>`);
     return out.join(' ');
 }
@@ -212,7 +214,8 @@ function navPopSection(v, chip) {
     const start = chip(h.segno, `data-act="nav" data-v="segno" title="${t('segno', `𝄋 Segno au début de la mesure ${n.startMeasure} : point de retour du D.S.`)}"`, `${NAV_SEGNO_SVG} Segno`)
         + chip(h.coda, `data-act="nav" data-v="coda" title="${t('coda', `⊕ Coda au début de la mesure ${n.startMeasure} : on y saute depuis le To Coda`)}"`, `${NAV_CODA_SVG} Coda`);
     const end = chip(h.toCoda, `data-act="nav" data-v="toCoda" title="${t('toCoda', `To Coda à la fin de la mesure ${n.endMeasure} : après le renvoi, saut à la coda ⊕`)}"`, `To Coda ${NAV_CODA_SVG}`)
-        + chip(h.fine, `data-act="nav" data-v="fine" title="${t('fine', `Fine à la fin de la mesure ${n.endMeasure} : après le renvoi, la grille s'arrête ici`)}"`, 'Fine');
+        + chip(h.fine, `data-act="nav" data-v="fine" title="${t('fine', `Fine à la fin de la mesure ${n.endMeasure} : après le renvoi, la grille s'arrête ici`)}"`, 'Fine')
+        + chip(h.fermata, `data-act="nav" data-v="fermata" title="${t('fermata', `Point d'orgue sur le dernier accord de la mesure ${n.endMeasure} : tenu quand la lecture se termine ici (« last x »), joué normalement aux autres passages`)}"`, `${NAV_FERMATA_SVG}`);
     const jumpChip = (k) => chip(h.jump === k, `data-act="navjump" data-v="${k}" title="${NAV_TITLES[k]}, à la fin de la mesure ${n.endMeasure}${sm.jump && sm.jump.measure !== n.endMeasure ? ` (remplace le ${NAV_LABELS[sm.jump.kind]} de la mesure ${sm.jump.measure})` : ''} (re-cliquer pour retirer)"`, NAV_LABELS[k]);
     const jumps = `<div class="jm-seg jrp-nav3">${['dc', 'dcFine', 'dcCoda'].map(jumpChip).join('')}</div><div class="jm-seg jrp-nav3">${['ds', 'dsFine', 'dsCoda'].map(jumpChip).join('')}</div>`;
     // État de la grille et ce qui manque pour que le renvoi se joue comme écrit
@@ -222,6 +225,7 @@ function navPopSection(v, chip) {
     if (sm.fine) parts.push(`Fine m. ${sm.fine}`);
     if (sm.jump) parts.push(`${NAV_LABELS[sm.jump.kind]} m. ${sm.jump.measure}`);
     if (sm.coda) parts.push(`${NAV_CODA_SVG} m. ${sm.coda}`);
+    if (sm.fermata) parts.push(`${NAV_FERMATA_SVG} m. ${sm.fermata}`);
     const warn = [];
     if (sm.jump) {
         const k = sm.jump.kind;
@@ -231,7 +235,7 @@ function navPopSection(v, chip) {
         if (/Fine$/.test(k) && !sm.fine) warn.push('il manque le Fine (la grille sera jouée jusqu\'au bout)');
         if (sm.coda && sm.coda <= sm.jump.measure && /Coda$/.test(k)) warn.push('la Coda se place en général après le renvoi');
     } else if (sm.segno || sm.coda || sm.toCoda || sm.fine) warn.push('ajoutez un renvoi D.C. ou D.S. pour que ces signes soient joués');
-    const any = h.segno || h.coda || h.toCoda || h.fine || h.jump;
+    const any = h.segno || h.coda || h.toCoda || h.fine || h.jump || h.fermata;
     const single = n.startMeasure === n.endMeasure;
     return `<div class="jm-sec jrp-navsec"><div class="jm-sec-t">Renvois (Real Book)</div>
             <div class="jrp-line"><span class="jrp-lab">${single ? 'Début' : `Début m.${n.startMeasure}`}</span><div class="jm-seg jrp-nav2">${start}</div></div>
@@ -513,7 +517,7 @@ function scrollTargetFor(containerTop, clientHeight, rowTop, rowHeight) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         layoutRows, cellClassName, measureCellModel, cellExtraClasses, cellInnerHtml, cellMarksHtml, sequenceFingerprint, printMarks, printGridHtml, printInfoParts, measureNoteTitle,
-        repeatPopHtml, navPopSection, navStartHtml, navEndHtml, navRowBreak, NAV_LABELS, NAV_SEGNO_SVG, NAV_CODA_SVG, marksHtml, marksText, tempoMarkText, tempoMarkHtml,
+        repeatPopHtml, navPopSection, navStartHtml, navEndHtml, navRowBreak, NAV_LABELS, NAV_SEGNO_SVG, NAV_CODA_SVG, NAV_FERMATA_SVG, marksHtml, marksText, tempoMarkText, tempoMarkHtml,
         currentMeasureNumber, selectionFix, gutterMark, partBanner, isBoxPart, rowFillers, needsAddRow, clickPosition, playRangeAfterClick, halfToHighlight, neighborMeasure, neighborStop, scrollTargetFor,
     };
 }

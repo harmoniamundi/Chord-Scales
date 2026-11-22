@@ -3998,8 +3998,25 @@
                 this._feelStraight = feel === 'straight';
                 this._feelSwing = feel === 'swing';
                 this._planBpm = this._tempoOfStep(step); // indication de tempo : les orchestres qui suivent le tempo s'y adaptent
-                try { return this._buildBandPlanFeel(step, nextStep, measureInStep, isLastMeasureOfStep); }
+                try {
+                    const plan = this._buildBandPlanFeel(step, nextStep, measureInStep, isLastMeasureOfStep);
+                    return (step.fermata && !nextStep && isLastMeasureOfStep) ? this._fermataPlan(plan, step) : plan;
+                }
                 finally { this._feelStraight = false; this._feelSwing = false; this._planBpm = 0; }
+            }
+
+            // Point d'orgue (𝄐) sur la dernière mesure jouée (« last x ») : l'orchestre attaque le dernier accord ensemble et le tient
+            // le reste de la mesure puis environ une mesure de plus (calcul : fermataPlan, band/band-helpers.js) ; le métronome se tait
+            // sur la tenue et la jam ne s'arrête qu'une fois l'accord éteint (voir tick). N'agit pas si la lecture continue (boucle, passage suivant).
+            _fermataExtraBeats() { return Math.max(2, this.getBeatsPerBar()); }
+            _fermataPlan(plan, step) {
+                const bpb = this.getBeatsPerBar();
+                const split = this.isSplitEffective(step);
+                const fp = split ? this.getSplitBeat() : 0;
+                const cs = split ? step.split : step;
+                const co = this.findChordObj(cs.chordId);
+                const fallback = co ? { vel: 0.72, rootIndex: cs.rootIndex, intervals: stackIntervalsUp(co.notes), roll: 0.03 } : null;
+                return fermataPlan(plan, fp, (bpb - fp) + this._fermataExtraBeats(), fallback);
             }
 
             _buildBandPlanFeel(step, nextStep, measureInStep, isLastMeasureOfStep) {
@@ -4625,7 +4642,7 @@
                 plan.drums.filter(inBeat).forEach(e => this.playBandDrum(e, at(e)));
                 const bassAs = this._instChoice('bass');   // autre instrument choisi pour la basse ('' : chemin d'origine)
                 plan.bass.filter(inBeat).forEach(e => bassAs ? this._playBassAs(bassAs, e, at(e), beatSec) : plan.piazzolla ? this.playPiazzollaBass(e, at(e), beatSec) : plan.brass ? this.playTubaAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), e.art) : this.playBassAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), !!e.wide, !!plan.upright, e.gainMul || 1));
-                plan.piano.filter(inBeat).forEach(e => plan.africa ? this.playAfricaHit(e, at(e), beatSec) : plan.rock ? this.playRockHit(e, at(e), beatSec) : plan.classicalGuitar ? this.playClassicalGuitarHit(e, at(e), beatSec) : plan.piazzolla ? this.playPiazzollaHit(e, at(e), beatSec) : plan.brass ? this.playBrassHit(e, at(e), beatSec) : (plan.accordion ? this.playAccordionHit(e, at(e), beatSec) : (plan.guitar ? this.playGuitarHit(e, at(e), beatSec) : this.playPianoHit(e, at(e), beatSec))));
+                plan.piano.filter(inBeat).forEach(e => e.fermataPiano ? this.playPianoHit(e, at(e), beatSec) : plan.africa ? this.playAfricaHit(e, at(e), beatSec) : plan.rock ? this.playRockHit(e, at(e), beatSec) : plan.classicalGuitar ? this.playClassicalGuitarHit(e, at(e), beatSec) : plan.piazzolla ? this.playPiazzollaHit(e, at(e), beatSec) : plan.brass ? this.playBrassHit(e, at(e), beatSec) : (plan.accordion ? this.playAccordionHit(e, at(e), beatSec) : (plan.guitar ? this.playGuitarHit(e, at(e), beatSec) : this.playPianoHit(e, at(e), beatSec))));
             }
 
 
@@ -4861,8 +4878,12 @@
             // false : simple consultation (accord suivant affiché, basse), sans rien modifier.
             _nextStepInfo(i, commit = false) {
                 const passes = commit ? this._passes : { ...this._passes };
+                const navBefore = passes[NAV_KEY];
                 const info = nextStepInfo(this.grid, i, passes);
                 if (commit && info.wrapped && this.grid.length) { this._passes = {}; this._markState = null; } // fin de grille : les compteurs repartent à zéro
+                // Renvoi (D.C., D.S., saut à la coda) : comme sur un Real Book, le jeu (tempo, croches) est relu au point d'arrivée :
+                // « Slow 4 » en tête de grille après un D.C., l'indication en vigueur au Segno après un D.S.
+                else if (commit && passes[NAV_KEY] !== navBefore) this._markState = null;
                 return info;
             }
 
@@ -6511,6 +6532,7 @@
                     if (h.toCoda) parts.push('To Coda');
                     if (h.fine) parts.push('Fine');
                     if (h.jump) parts.push(NAV_LABELS[h.jump]);
+                    if (h.fermata) parts.push(NAV_FERMATA_SVG);
                 }
                 el.innerHTML = parts.join(' · ');
                 el.title = parts.length ? 'Sélection : ' + el.textContent : '';
@@ -9430,7 +9452,8 @@
                 const totalBeatsInStep = step.measures * bpb;
 
                 // Le clic est programmé EN PREMIER, à l'instant exact du temps.
-                if (this.metronomeEnabled && !this._exporting) {
+                const fermataHold = !!(this._bandPlan && this._bandPlan.fermata && beat % bpb > this._bandPlan.fermata.pos + 1e-6); // tenue du point d'orgue : plus de clic
+                if (this.metronomeEnabled && !this._exporting && !fermataHold) {
                     this.playMetronomeClick(beat % bpb === 0, t);
                     this._metronomeSubdivide(t, intervalSec, beat % bpb);
                 }
@@ -9482,7 +9505,8 @@
                     // Fin de plage / de grille sans boucle : le dernier temps sonne jusqu'au bout, puis la jam s'arrête.
                     // À l'export du son, on attend en plus la queue de réverbération pour qu'elle soit enregistrée.
                     if (this._exportRec) this._exportRec.ended = true;
-                    this._runAtAudioTime(t + intervalSec + (this._exportRec ? this._EXPORT_TAIL : 0), runId, () => this.stop());
+                    const holdSec = (this._bandPlan && this._bandPlan.fermata) ? this._fermataExtraBeats() * intervalSec + 1.5 : 0; // point d'orgue : on laisse l'accord s'éteindre
+                    this._runAtAudioTime(t + intervalSec + holdSec + (this._exportRec ? this._EXPORT_TAIL : 0), runId, () => this.stop());
                     return;
                 }
                 if (adv.kind !== 'continue') {
@@ -11113,6 +11137,7 @@
             var needed = {
                 'app/grid/play-order.js': typeof feelByStep === 'function' && typeof tempoByStep === 'function' && typeof playedSeconds === 'function' && typeof markStateAt === 'function' && typeof navTargetIndex === 'function' && typeof codaIndex === 'function',
                 'app/ui/grid-view.js': (function () { try { return printMarks([{ byPass: { 2: { feel: 'swing' } }, measures: 1 }], {}, { stepIndex: 0, measureInStep: 1, measureNumber: 1 }, []).html.indexOf('jam-pass') >= 0 && typeof repeatPopHtml === 'function'; } catch (e) { return false; } })(),
+                'app/band/band-helpers.js': typeof fermataPlan === 'function',
                 'app/ui/scale-harmony.js': typeof scaleHarmonyHtml === 'function' && typeof scaleHarmony === 'function',
                 'app/ui/scale-map.js': typeof scaleMapEntries === 'function' && typeof scaleMapHtml === 'function' && typeof trainingMapCards === 'function',
                 'app/ui/chord-picker.js': typeof chordPickerHtml === 'function' && typeof chordPickerBuild === 'function' && typeof chordPickerParseRoot === 'function',
