@@ -6995,9 +6995,12 @@
                         systemRow.appendChild(mBox);
                         // Renvois (Segno, Coda, To Coda, Fine, D.C. / D.S.) : étiquettes rangées dans la ligne, sur la colonne de la case,
                         // pour qu'elles débordent au-dessus de la case sans être coupées (la case masque ce qui dépasse pendant la jam).
+                        // « / span 1 » obligatoire : pour un élément en position absolue, une ligne de fin « auto » désigne le bord
+                        // de la grille (et non la colonne suivante) ; sans elle, un signe de fin de mesure (To Coda, Fine, D.C., point
+                        // d'orgue) collé à droite partait au bout de la ligne quand la case n'était pas dans la dernière colonne.
                         mBox.querySelectorAll('.nav-tag').forEach((tag) => {
-                            tag.style.gridColumn = String(colIdx + 1 + (gridWrapper.classList.contains('jam-has-parts') ? 1 : 0));
-                            tag.style.gridRow = '1';
+                            tag.style.gridColumn = `${colIdx + 1 + (gridWrapper.classList.contains('jam-has-parts') ? 1 : 0)} / span 1`;
+                            tag.style.gridRow = '1 / span 1';
                             systemRow.appendChild(tag);
                         });
                     });
