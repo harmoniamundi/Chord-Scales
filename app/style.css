@@ -766,12 +766,13 @@
 
         /* ===== Signes de renvoi (Segno, Coda, To Coda, Fine, D.C., D.S.) : étiquettes à cheval sur le bord haut de la case,
            au-dessus de la portée comme sur un Real Book (début de mesure à gauche, fin de mesure à droite) ===== */
-        #jam-chord-sequence-display .jam-cell .nav-tag { position: absolute; top: -8px; z-index: 4; display: inline-flex; align-items: center; gap: 4px; height: 15px; padding: 0 4px; border-radius: 5px; background: #ffffff; border: 1px solid #94a3b8; color: #000000; font-family: "Kalam", cursive; font-size: 12px; font-weight: 700; line-height: 1; white-space: nowrap; pointer-events: auto; cursor: default; }
-        #jam-chord-sequence-display .jam-cell .nav-tag-s { left: 4px; }
-        #jam-chord-sequence-display .jam-cell .nav-tag-e { right: 4px; }
-        #jam-chord-sequence-display .jam-cell .nav-tag .nav-it { display: inline-flex; align-items: center; gap: 2px; }
-        #jam-chord-sequence-display .jam-cell .nav-tag .nav-glyph { display: block; flex: 0 0 auto; }
-        #jam-chord-sequence-display .jam-cell .nav-tag .nav-w { padding-top: 2px; }
+        #jam-chord-sequence-display .jam-row { position: relative; }
+        #jam-chord-sequence-display .nav-tag { position: absolute; top: -8px; z-index: 11; display: inline-flex; align-items: center; gap: 4px; height: 15px; padding: 0 4px; border-radius: 5px; background: #ffffff; border: 1px solid #94a3b8; color: #000000; font-family: "Kalam", cursive; font-size: 12px; font-weight: 700; line-height: 1; white-space: nowrap; pointer-events: auto; cursor: default; }
+        #jam-chord-sequence-display .nav-tag-s { left: 4px; }
+        #jam-chord-sequence-display .nav-tag-e { right: 4px; }
+        #jam-chord-sequence-display .nav-tag .nav-it { display: inline-flex; align-items: center; gap: 2px; }
+        #jam-chord-sequence-display .nav-tag .nav-glyph { display: block; flex: 0 0 auto; }
+        #jam-chord-sequence-display .nav-tag .nav-w { padding-top: 2px; }
         .jam-eb-sum .nav-glyph { display: inline; vertical-align: -2px; }
         .jrp-pop .jm-chip .nav-glyph { display: inline; vertical-align: -3px; }
         .jrp-pop .jrp-nav2 { flex: 1 1 auto; display: flex; gap: 4px; }
@@ -1599,7 +1600,7 @@ button.kb-key:hover { border-color: #60a5fa; }
 .kb-btn-primary:hover { background: #3b82f6; }
 @media print { .kb-modal { display: none !important; } }
 @media (max-width: 639px) {
-    #jam-chord-sequence-display .jam-cell .nav-tag { top: -7px; height: 13px; font-size: 10px; padding: 0 3px; gap: 3px; }
-    #jam-chord-sequence-display .jam-cell .nav-tag-s { left: 2px; }
-    #jam-chord-sequence-display .jam-cell .nav-tag-e { right: 2px; }
+    #jam-chord-sequence-display .nav-tag { top: -7px; height: 13px; font-size: 10px; padding: 0 3px; gap: 3px; }
+    #jam-chord-sequence-display .nav-tag-s { left: 2px; }
+    #jam-chord-sequence-display .nav-tag-e { right: 2px; }
 }

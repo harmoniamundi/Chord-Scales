@@ -6915,7 +6915,7 @@
                     }
                     systemRow.appendChild(gutter);
 
-                    systemMeasures.forEach((m) => {
+                    systemMeasures.forEach((m, colIdx) => {
                         const c = measureCellModel(view, m);
                         const showSplit = c.showSplit;
                         const mBox = document.createElement('div');
@@ -6971,6 +6971,13 @@
                         const marksHtml = cellMarksHtml(c);
                         if (marksHtml) mBox.insertAdjacentHTML('beforeend', marksHtml);
                         systemRow.appendChild(mBox);
+                        // Renvois (Segno, Coda, To Coda, Fine, D.C. / D.S.) : étiquettes rangées dans la ligne, sur la colonne de la case,
+                        // pour qu'elles débordent au-dessus de la case sans être coupées (la case masque ce qui dépasse pendant la jam).
+                        mBox.querySelectorAll('.nav-tag').forEach((tag) => {
+                            tag.style.gridColumn = String(colIdx + 1 + (gridWrapper.classList.contains('jam-has-parts') ? 1 : 0));
+                            tag.style.gridRow = '1';
+                            systemRow.appendChild(tag);
+                        });
                     });
 
                     rowFillers(systemMeasures.length, sysIdx, systems.length, this._editBarOpen && !this.isPlaying).forEach((kind) => {
