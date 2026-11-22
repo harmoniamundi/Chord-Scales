@@ -7,6 +7,9 @@
 //   repeatStart  début de reprise |:
 //   repeatEnd    nombre de passages (2 à 4), porté par le bloc qui finit la reprise :|
 //   volta        1 (1re fin) ou 2 (2e fin)
+// Signes de renvoi, façon Real Book (voir « Signes de renvoi » plus bas) :
+//   segno, coda  posés au début du bloc (𝄋 renvoi, ⊕ début de la coda)
+//   toCoda, fine, jump ('dc', 'dcFine', 'dcCoda', 'ds', 'dsFine', 'dsCoda')  posés à la fin du bloc
 
 // Sous Node, isSplit se charge ; en navigateur c'est un global (band/band-helpers.js).
 if (typeof isSplit === 'undefined' && typeof require === 'function') {
@@ -91,6 +94,41 @@ function repeatRegions(grid) {
     return regions;
 }
 
+// ===== Signes de renvoi (usage Real Book) =====
+// Début de bloc : segno (𝄋, point de retour du D.S.) et coda (⊕, début de la coda).
+// Fin de bloc   : toCoda (« To Coda ⊕ »), fine (« Fine ») et jump, le renvoi lui-même :
+//   'dc' D.C. (retour au début)      'dcFine' D.C. al Fine      'dcCoda' D.C. al Coda
+//   'ds' D.S. (retour au 𝄋)          'dsFine' D.S. al Fine      'dsCoda' D.S. al Coda
+// Lecture : au premier passage, Fine et To Coda sont ignorés ; arrivé au bout du bloc qui porte le renvoi (après ses reprises),
+// on retourne au début ou au 𝄋. Ce renvoi n'est pris qu'une fois. Ensuite, comme sur un Real Book, les reprises ne sont plus
+// refaites (on joue directement la dernière fin) ; « al Fine » (ou D.C. / D.S. seuls) s'arrête au Fine, « al Coda » saute du
+// « To Coda » au ⊕. L'état du renvoi est rangé dans `passes` sous la clé NAV_KEY (remis à zéro avec les compteurs de reprise).
+const NAV_KEY = 'nav';
+const NAV_START_KEYS = ['segno', 'coda'];
+const NAV_END_KEYS = ['toCoda', 'fine', 'jump'];
+const NAV_JUMPS = {
+    dc: { target: 'start', until: 'fine', label: 'D.C.' },
+    dcFine: { target: 'start', until: 'fine', label: 'D.C. al Fine' },
+    dcCoda: { target: 'start', until: 'coda', label: 'D.C. al Coda' },
+    ds: { target: 'segno', until: 'fine', label: 'D.S.' },
+    dsFine: { target: 'segno', until: 'fine', label: 'D.S. al Fine' },
+    dsCoda: { target: 'segno', until: 'coda', label: 'D.S. al Coda' },
+};
+function isNavJump(v) { return typeof v === 'string' && Object.prototype.hasOwnProperty.call(NAV_JUMPS, v); }
+function hasNavMarks(st) { return !!st && (!!st.segno || !!st.coda || !!st.toCoda || !!st.fine || isNavJump(st.jump)); }
+// Bloc de retour d'un renvoi posé sur le bloc i : début de la grille (D.C.), ou le 𝄋 le plus proche avant lui (sinon le premier).
+function navTargetIndex(grid, i, kind) {
+    if (NAV_JUMPS[kind].target === 'start') return 0;
+    for (let k = Math.min(i, grid.length - 1); k >= 0; k--) if (grid[k].segno) return k;
+    const f = grid.findIndex(st => st.segno);
+    return f >= 0 ? f : 0;
+}
+// Bloc qui ouvre la coda (⊕) : le premier après le bloc i, sinon le premier de la grille ; -1 s'il n'y en a pas.
+function codaIndex(grid, i) {
+    for (let k = i + 1; k < grid.length; k++) if (grid[k].coda) return k;
+    return grid.findIndex(st => st.coda);
+}
+
 // ===== Lecture d'une plage de mesures sélectionnée =====
 // Premier / dernier numéro de mesure (1-based) du bloc idx
 function stepSpan(grid, idx) {
@@ -143,6 +181,17 @@ function nextStepInfo(grid, i, passes) {
         return j;
     };
 
+    // Après un renvoi (D.C. / D.S.) : Fine termine la grille, To Coda saute au ⊕.
+    const st = grid[i] || {};
+    const nav = passes[NAV_KEY] || null;
+    if (nav) {
+        if (nav.until === 'fine' && st.fine) return wrap();
+        if (nav.until === 'coda' && st.toCoda) {
+            const c = codaIndex(grid, i);
+            if (c >= 0 && c !== i) { passes[NAV_KEY] = { ...nav, coda: true }; return { idx: c, wrapped: false }; }
+        }
+    }
+
     // Fin de reprise : on retourne au début tant que tous les passages ne sont pas faits
     const r = regions.find(rg => rg.end === i);
     if (r) {
@@ -153,6 +202,15 @@ function nextStepInfo(grid, i, passes) {
             return back >= len ? wrap() : { idx: back, wrapped: false };
         }
         passes[r.end] = 1;
+    }
+
+    // Renvoi D.C. / D.S. (pris une seule fois, reprises du bloc terminées) : les reprises ne sont plus refaites ensuite,
+    // chacune est marquée « dernier passage » (sa 1re fin sera sautée).
+    if (!nav && isNavJump(st.jump)) {
+        passes[NAV_KEY] = { from: i, until: NAV_JUMPS[st.jump].until };
+        regions.forEach(rg => { passes[rg.end] = rg.times; });
+        const back = skipFirstEnding(navTargetIndex(grid, i, st.jump));
+        return back >= len ? wrap() : { idx: back, wrapped: false };
     }
     let j = i + 1;
     if (j >= len) return wrap();
@@ -304,5 +362,5 @@ function playedSeconds(grid, barUnits, baseBpm) {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { feelByStep, tempoByStep, isTempoMark, isFeelMark, marksAt, passOfStep, applyMarks, markStateAt, playedSeconds, TEMPO_MARK_MIN, TEMPO_MARK_MAX, PASS_MARK_MAX, flatMeasureList, stepStartMeasure, effectiveVolta, repeatRegions, stepSpan, stepOfMeasure,
-        computePlayRange, nextStepInfo, playedMeasureCount, peekNextIndex, sameChordStep, peekNextDisplayIndex };
+        computePlayRange, nextStepInfo, NAV_KEY, NAV_START_KEYS, NAV_END_KEYS, NAV_JUMPS, isNavJump, hasNavMarks, navTargetIndex, codaIndex, playedMeasureCount, peekNextIndex, sameChordStep, peekNextDisplayIndex };
 }

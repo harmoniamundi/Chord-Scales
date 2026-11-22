@@ -388,6 +388,13 @@
             #jam-print-area .jam-print-cell.has-rs .jam-print-marks { left: 21pt; }
             #jam-print-area .jam-print-cell.has-feel-v .jam-print-marks { top: 9pt; left: 18pt; } /* sous le trait de 1re / 2e fin, après « 1. » */
             #jam-print-area .jam-print-cell.has-rs.has-feel-v .jam-print-marks { left: 34pt; }
+            /* Signes de renvoi : au-dessus de la case (début à gauche, fin à droite), la ligne prend la place qu'il faut */
+            #jam-print-area .jam-print-line.has-nav { padding-top: 12pt; }
+            #jam-print-area .jam-print-nav { position: absolute; top: -15pt; display: inline-flex; align-items: center; gap: 5pt; font: 700 12pt "Kalam", cursive; color: #000000; line-height: 1; white-space: nowrap; }
+            #jam-print-area .jam-print-nav-s { left: 0; }
+            #jam-print-area .jam-print-nav-e { right: 0; }
+            #jam-print-area .jam-print-nav .nav-it { display: inline-flex; align-items: center; gap: 2pt; }
+            #jam-print-area .jam-print-nav .nav-glyph { display: block; width: 13pt; height: 15pt; }
 
             /* Annotations (export PDF) : après la grille, celle de la grille puis celles des mesures */
             #jam-print-area .jam-pdf-notes { margin-top: 14mm; }
@@ -415,7 +422,7 @@
         #jam-chord-sequence-display .jam-cell-top > span:last-child { min-width: 0; }
         #jam-chord-sequence-display .jam-add-cell { align-self: stretch; min-height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 1.5px dashed #2f6f57; background: rgba(16,185,129,.06); color: #34d399; font-size: 24px; line-height: 1; cursor: pointer; user-select: none; transition: background .12s, border-color .12s; }
         #jam-chord-sequence-display .jam-add-cell:hover { background: rgba(16,185,129,.16); border-color: #34d399; }
-        :root { --cs-build: '2026-11-21-f'; } /* numéro de version lu par la page */
+        :root { --cs-build: '2026-11-22-a'; } /* numéro de version lu par la page */
         .jm-pop { position: fixed; z-index: 2000; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #1f1f21; border: 1px solid #3a3a3c; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); color: #e2e8f0; padding: 10px 12px 12px; font-size: 12px; }
         .jm-pop.jm-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-width: none; border-radius: 14px 14px 0 0; max-height: 62vh; }
         /* Pop-up « Orchestre » : fenêtre flottante à gauche de l'écran, sans voile, déplaçable par sa barre de titre */
@@ -756,6 +763,27 @@
         #jam-chord-sequence-display .jam-cell.rp-has-l .jam-half-fn[style*="left"] { left: 46px !important; }
         #jam-chord-sequence-display .jam-cell.rp-has-r .jam-half-fn[style*="right"] { right: 24px !important; }
         #jam-chord-sequence-display .jam-cell.rp-has-r .jam-cell-bottom { right: 24px; }
+
+        /* ===== Signes de renvoi (Segno, Coda, To Coda, Fine, D.C., D.S.) : étiquettes à cheval sur le bord haut de la case,
+           au-dessus de la portée comme sur un Real Book (début de mesure à gauche, fin de mesure à droite) ===== */
+        #jam-chord-sequence-display .jam-cell .nav-tag { position: absolute; top: -8px; z-index: 4; display: inline-flex; align-items: center; gap: 4px; height: 15px; padding: 0 4px; border-radius: 5px; background: #ffffff; border: 1px solid #94a3b8; color: #000000; font-family: "Kalam", cursive; font-size: 12px; font-weight: 700; line-height: 1; white-space: nowrap; pointer-events: auto; cursor: default; }
+        #jam-chord-sequence-display .jam-cell .nav-tag-s { left: 4px; }
+        #jam-chord-sequence-display .jam-cell .nav-tag-e { right: 4px; }
+        #jam-chord-sequence-display .jam-cell .nav-tag .nav-it { display: inline-flex; align-items: center; gap: 2px; }
+        #jam-chord-sequence-display .jam-cell .nav-tag .nav-glyph { display: block; flex: 0 0 auto; }
+        #jam-chord-sequence-display .jam-cell .nav-tag .nav-w { padding-top: 2px; }
+        .jam-eb-sum .nav-glyph { display: inline; vertical-align: -2px; }
+        .jrp-pop .jm-chip .nav-glyph { display: inline; vertical-align: -3px; }
+        .jrp-pop .jrp-nav2 { flex: 1 1 auto; display: flex; gap: 4px; }
+        .jrp-pop .jrp-nav2 .jm-chip { flex: 1 1 0; }
+        .jrp-pop .jrp-navj { flex: 1 1 auto; display: flex; flex-direction: column; gap: 4px; }
+        .jrp-pop .jrp-nav3 { display: flex; gap: 4px; }
+        .jrp-pop .jrp-nav3 .jm-chip { flex: 1 1 0; padding-left: 3px; padding-right: 3px; white-space: nowrap; }
+        .jrp-pop .jrp-line-top { align-items: flex-start; }
+        .jrp-pop .jrp-line-top .jrp-lab { padding-top: 6px; }
+        .jrp-pop .jrp-navsum { margin-top: 6px; color: #cbd5e1; }
+        .jrp-pop .jrp-navsum .nav-glyph { display: inline; vertical-align: -2px; }
+        .jrp-pop .jrp-navwarn { color: #fbbf24; }
 
         /* ===== Bouton « édition » (crayon) et panneau d'édition de grille repliable ===== */
         .jam-edit-toggle { display: inline-flex; align-items: center; justify-content: center; padding: 3px 5px; border-radius: 6px; border: 1px solid transparent; background: transparent; color: #94a3b8; cursor: pointer; -webkit-tap-highlight-color: transparent; }
@@ -1570,3 +1598,8 @@ button.kb-key:hover { border-color: #60a5fa; }
 .kb-btn-primary { background: #2563eb; border-color: #2563eb; color: #fff; }
 .kb-btn-primary:hover { background: #3b82f6; }
 @media print { .kb-modal { display: none !important; } }
+@media (max-width: 639px) {
+    #jam-chord-sequence-display .jam-cell .nav-tag { top: -7px; height: 13px; font-size: 10px; padding: 0 3px; gap: 3px; }
+    #jam-chord-sequence-display .jam-cell .nav-tag-s { left: 2px; }
+    #jam-chord-sequence-display .jam-cell .nav-tag-e { right: 2px; }
+}

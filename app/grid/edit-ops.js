@@ -3,7 +3,7 @@
 // poser des signes de reprise, enregistrer une fonction tonale, repères de partie automatiques.
 // Toutes les fonctions reçoivent le tableau `grid` (liste de blocs) et le MODIFIENT en place, comme le faisait le moteur ;
 // sélection, pile d'annulation et rafraîchissement de l'écran restent dans index.html.
-// Un bloc : { rootIndex, chordId, scaleId, measures, split?, bassRootIndex?, repeatStart?, repeatEnd?, volta?, feel?, tempo?, byPass?, partStart?, fnLabel?, modKey?, note?, noteSpan? }
+// Un bloc : { rootIndex, chordId, scaleId, measures, split?, bassRootIndex?, repeatStart?, repeatEnd?, volta?, segno?, coda?, toCoda?, fine?, jump?, feel?, tempo?, byPass?, partStart?, fnLabel?, modKey?, note?, noteSpan? }
 // Les mesures sont numérotées à partir de 1 (comme flatMeasureList). Chargé par index.html via <script src="grid/edit-ops.js">
 // (après grid/play-order.js et grid/grid-format.js) et testé par grid/edit-ops.test.js.
 
@@ -25,6 +25,14 @@ const EDIT_CLEAN_NOTE = (typeof sanitizeNoteHtml !== 'undefined') ? sanitizeNote
 if (typeof marksAt === 'undefined' && typeof require === 'function') {
     var { marksAt } = require('./play-order.js');
 }
+// Signes de renvoi (grid/play-order.js) : constantes globales en navigateur, reprises sous des noms propres à ce fichier.
+const { NAV_START_KEYS: EO_NAV_START, NAV_END_KEYS: EO_NAV_END, isNavJump: EO_isNavJump } = (typeof NAV_JUMPS !== 'undefined')
+    ? { NAV_START_KEYS, NAV_END_KEYS, isNavJump }
+    : require('./play-order.js');
+// Signes de renvoi d'un bloc (𝄋 ⊕ au début, To Coda / Fine / D.C. / D.S. à la fin) : copie et retrait.
+function copyNavStart(from, to) { EO_NAV_START.forEach(k => { if (from[k]) to[k] = from[k]; }); }
+function copyNavEnd(from, to) { EO_NAV_END.forEach(k => { if (from[k]) to[k] = from[k]; }); }
+function deleteNav(st) { EO_NAV_START.concat(EO_NAV_END).forEach(k => { delete st[k]; }); }
 if (typeof isSplit === 'undefined' && typeof require === 'function') {
     var { isSplit } = require('../band/band-helpers.js');
 }
@@ -32,7 +40,7 @@ if (typeof romanDegByRank === 'undefined' && typeof require === 'function') {
     var { romanDegByRank, fnMinorRef } = require('./generation.js');
 }
 
-const EDIT_OPS_BUILD = '2026-11-21-f'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
+const EDIT_OPS_BUILD = '2026-11-22-a'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
 const cloneStep = (o) => JSON.parse(JSON.stringify(o));
 
 // Repère de partie porté par la mesure m (liste à plat), seulement si elle ouvre son bloc ; '' sinon.
@@ -55,6 +63,8 @@ function measureItems(grid, from, to) {
         if (stp.byPass && m.measureInStep === 1) it.byPass = cloneStep(stp.byPass);
         if (stp.partStart && m.measureInStep === 1) it.partStart = stp.partStart;
         if (stp.repeatEnd && m.measureInStep === stp.measures) it.repeatEnd = stp.repeatEnd;
+        if (m.measureInStep === 1) copyNavStart(stp, it);
+        if (m.measureInStep === stp.measures) copyNavEnd(stp, it);
         if (effVolta[m.stepIndex]) it.volta = effVolta[m.stepIndex];
         if (stp.fnLabel) it.fnLabel = stp.fnLabel;
         if (stp.modKey) it.modKey = { ...stp.modKey };
@@ -90,7 +100,8 @@ function isolateMeasure(grid, measureNumber) {
     parts.push({ ...base, measures: 1 });
     if (after > 0) parts.push({ ...base, measures: after });
     // Début de reprise : seulement sur la première partie ; fin de reprise : seulement sur la dernière.
-    parts.forEach(pt => { delete pt.repeatStart; delete pt.repeatEnd; delete pt.noteSpan; delete pt.feel; delete pt.tempo; delete pt.byPass; });
+    parts.forEach(pt => { delete pt.repeatStart; delete pt.repeatEnd; delete pt.noteSpan; delete pt.feel; delete pt.tempo; delete pt.byPass; deleteNav(pt); });
+    copyNavStart(s, parts[0]); copyNavEnd(s, parts[parts.length - 1]); // renvois : 𝄋 ⊕ au début du bloc, To Coda / Fine / D.S. à la fin
     if (s.noteSpan) parts[0].noteSpan = s.noteSpan; // durée de l'annotation : elle part du début du bloc
     if (s.repeatStart) parts[0].repeatStart = true;
     if (s.feel) parts[0].feel = s.feel; // indications Droit / Swing et tempo : posées au début du bloc
@@ -120,7 +131,8 @@ function splitBeforeMeasure(grid, n) {
     delete base.split;
     const before = m.measureInStep - 1;
     const parts = [{ ...base, measures: before }, { ...base, measures: st.measures - before }];
-    parts.forEach(pt => { delete pt.repeatStart; delete pt.repeatEnd; delete pt.noteSpan; delete pt.feel; delete pt.tempo; delete pt.byPass; });
+    parts.forEach(pt => { delete pt.repeatStart; delete pt.repeatEnd; delete pt.noteSpan; delete pt.feel; delete pt.tempo; delete pt.byPass; deleteNav(pt); });
+    copyNavStart(st, parts[0]); copyNavEnd(st, parts[1]);
     if (st.noteSpan) parts[0].noteSpan = st.noteSpan;
     if (st.repeatStart) parts[0].repeatStart = true;
     if (st.feel) parts[0].feel = st.feel;
@@ -137,13 +149,17 @@ function mergeAround(grid, i0, i1) {
     // Le repère de partie ne compte pas dans la comparaison, mais un bloc qui ouvre une partie
     // n'est jamais absorbé par le précédent (sinon son repère serait perdu).
     // Même règle pour les indications Droit / Swing et de tempo : elles restent au début du bloc qui les porte.
-    const strip = (o) => { const c = { ...o }; delete c.measures; delete c.partStart; delete c.feel; delete c.tempo; delete c.byPass; return JSON.stringify(c); };
+    // Renvois : un bloc qui commence par 𝄋 / ⊕ n'est pas absorbé, un bloc qui finit par To Coda / Fine / D.C. / D.S. n'absorbe pas
+    // le suivant ; sinon ils ne comptent pas dans la comparaison (le début reste au début, la fin passe à la fin du bloc fusionné).
+    const strip = (o) => { const c = { ...o }; delete c.measures; delete c.partStart; delete c.feel; delete c.tempo; delete c.byPass; deleteNav(c); return JSON.stringify(c); };
     let i = Math.max(0, i0 - 1);
     let end = Math.min(grid.length - 1, i1 + 1);
     while (i < end && i < grid.length - 1) {
         const a = grid[i], b = grid[i + 1];
-        if (!a.split && !b.split && !b.partStart && !b.feel && b.tempo === undefined && !b.byPass && !a.noteSpan && !b.noteSpan && strip(a) === strip(b)) {
+        const navBlocks = EO_NAV_START.some(k => b[k]) || EO_NAV_END.some(k => a[k]);
+        if (!a.split && !b.split && !b.partStart && !b.feel && b.tempo === undefined && !b.byPass && !a.noteSpan && !b.noteSpan && !navBlocks && strip(a) === strip(b)) {
             a.measures += b.measures;
+            copyNavEnd(b, a);
             grid.splice(i + 1, 1);
             end--;
         } else i++;
@@ -196,7 +212,7 @@ function duplicateMeasureAfter(grid, measureNumber) {
     const idx = isolateMeasure(grid, measureNumber);
     if (idx < 0) return -1;
     const cp = cloneStep(grid[idx]);
-    delete cp.repeatStart; delete cp.repeatEnd; delete cp.volta; delete cp.partStart; delete cp.noteSpan; delete cp.feel; delete cp.tempo; delete cp.byPass;
+    delete cp.repeatStart; delete cp.repeatEnd; delete cp.volta; delete cp.partStart; delete cp.noteSpan; delete cp.feel; delete cp.tempo; delete cp.byPass; deleteNav(cp);
     grid.splice(idx + 1, 0, cp);
     return idx;
 }
@@ -205,7 +221,7 @@ function duplicateMeasureAfter(grid, measureNumber) {
 function appendCopyOfLast(grid) {
     const last = cloneStep(grid[grid.length - 1]);
     if (last.measures !== 1) delete last.split;
-    delete last.repeatStart; delete last.repeatEnd; delete last.volta; delete last.feel; delete last.tempo; delete last.byPass; delete last.fnLabel; delete last.modKey; delete last.partStart; delete last.note; delete last.noteSpan;
+    delete last.repeatStart; delete last.repeatEnd; delete last.volta; delete last.feel; delete last.tempo; delete last.byPass; delete last.fnLabel; delete last.modKey; delete last.partStart; delete last.note; delete last.noteSpan; deleteNav(last);
     last.measures = 1;
     grid.push(last);
 }
@@ -451,7 +467,72 @@ function setMeasureTempo(grid, measureNumber, val, pass) {
     mergeAround(grid, idx - 1, idx + 1);
 }
 
-// ===== Popup « Reprise et jeu » (barre d'édition) =====
+// ===== Signes de renvoi (𝄋, ⊕, To Coda, Fine, D.C. / D.S.) =====
+// Chaque signe n'existe qu'une fois dans la grille (comme sur un Real Book) : le poser sur une mesure le retire d'ailleurs.
+// kind = 'segno' | 'coda' (début de la mesure), 'toCoda' | 'fine' (fin de la mesure) : posé, ou retiré s'il y était déjà ;
+// kind = 'jump' avec value = 'dc' | 'dcFine' | 'dcCoda' | 'ds' | 'dsFine' | 'dsCoda' (fin de la mesure) : posé, retiré si identique,
+// ou retiré avec value vide. Une mesure au milieu d'un bloc est isolée. Renvoie true si le signe est maintenant posé.
+function setNavMark(grid, measureNumber, kind, value) {
+    if (!EO_NAV_START.includes(kind) && !EO_NAV_END.includes(kind)) return false;
+    const flat = flatMeasureList(grid);
+    const m = flat[measureNumber - 1];
+    if (!m) return false;
+    const st0 = grid[m.stepIndex];
+    const atStart = EO_NAV_START.includes(kind);
+    const here = atStart ? m.measureInStep === 1 : m.measureInStep === st0.measures;
+    const cur = here ? st0[kind] : undefined;
+    const want = kind === 'jump' ? (EO_isNavJump(value) && value !== cur ? value : undefined) : (cur ? undefined : true);
+    // Un signe posé est retiré d'ailleurs dans la grille (un seul de chaque) ; les blocs touchés sont refusionnés à la fin (par n° de mesure).
+    const touched = [];
+    let first = 1;
+    grid.forEach((st, i) => {
+        if (want !== undefined && st[kind] && !(here && i === m.stepIndex)) { delete st[kind]; touched.push(first); }
+        first += st.measures;
+    });
+    let on = false;
+    if (want !== undefined || cur) {
+        const idx = isolateMeasure(grid, measureNumber);
+        if (idx >= 0) {
+            if (want === undefined) delete grid[idx][kind]; else grid[idx][kind] = want;
+            on = want !== undefined;
+            touched.push(measureNumber);
+        }
+    }
+    touched.forEach(n => { const fm = flatMeasureList(grid)[n - 1]; if (fm) mergeAround(grid, fm.stepIndex - 1, fm.stepIndex + 1); });
+    return on;
+}
+// Retire tous les signes de renvoi des mesures from..to.
+function clearNavMarks(grid, from, to) {
+    withIsolatedRange(grid, from, to, (i0, i1) => { for (let i = i0; i <= i1; i++) deleteNav(grid[i]); });
+}
+// Signes de renvoi portés par les mesures from..to : { segno, coda (au début de from), toCoda, fine, jump (à la fin de to) }.
+function navMarksOf(grid, from, to) {
+    const flat = flatMeasureList(grid);
+    const a = flat[from - 1], b = flat[to - 1];
+    const out = { segno: false, coda: false, toCoda: false, fine: false, jump: '' };
+    if (!a || !b) return out;
+    const sa = grid[a.stepIndex], sb = grid[b.stepIndex];
+    if (a.measureInStep === 1) { out.segno = !!sa.segno; out.coda = !!sa.coda; }
+    if (b.measureInStep === sb.measures) { out.toCoda = !!sb.toCoda; out.fine = !!sb.fine; out.jump = EO_isNavJump(sb.jump) ? sb.jump : ''; }
+    return out;
+}
+// Où se trouve chaque signe dans la grille : { segno: n° de mesure | 0, coda, toCoda, fine, jump: { measure, kind } | null }.
+function navMarksSummary(grid) {
+    const out = { segno: 0, coda: 0, toCoda: 0, fine: 0, jump: null };
+    let first = 1;
+    grid.forEach(st => {
+        const last = first + st.measures - 1;
+        if (st.segno && !out.segno) out.segno = first;
+        if (st.coda && !out.coda) out.coda = first;
+        if (st.toCoda && !out.toCoda) out.toCoda = last;
+        if (st.fine && !out.fine) out.fine = last;
+        if (EO_isNavJump(st.jump) && !out.jump) out.jump = { measure: last, kind: st.jump };
+        first = last + 1;
+    });
+    return out;
+}
+
+// ===== Popup « Reprises » (reprises, renvois et jeu) (barre d'édition) =====
 // Reprise sur les mesures from..to : times = 2 à 4 pose |: sur la première et :| ×times sur la dernière (les signes déjà posés
 // à l'intérieur sont retirés) ; times = 0 retire reprises et 1re / 2e fins de la plage.
 function setRepeatRange(grid, from, to, times) {
@@ -601,5 +682,5 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = { partLabelOfMeasure, measureItems, isolateMeasure, isolateRange, splitBeforeMeasure, mergeAround, deleteRange,
         deleteMeasureAt, insertItemsAfter, duplicateMeasureAfter, appendCopyOfLast, setMeasureSplit, transposeRange, setFunctionLabel, setMeasureNote, noteCoverage, noteOwnerAt, measureNotes, setMeasureNoteSpan,
         chordPositions, laterChordOccurrences, applyFunctionLabelToLater, chordSuggestionsForRoot, rememberChord,
-        withIsolatedRange, toggleRepeatStart, cycleRepeatEnd, toggleVolta, clearRepeats, markMeasure, setMeasureTempo, setRepeatRange, setPlayMark, clearPlayMarks, setReturnMarks, assignAutoParts, diatonicDegrees, qualityTargetChord };
+        withIsolatedRange, setNavMark, clearNavMarks, navMarksOf, navMarksSummary, toggleRepeatStart, cycleRepeatEnd, toggleVolta, clearRepeats, markMeasure, setMeasureTempo, setRepeatRange, setPlayMark, clearPlayMarks, setReturnMarks, assignAutoParts, diatonicDegrees, qualityTargetChord };
 }

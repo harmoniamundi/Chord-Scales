@@ -349,6 +349,9 @@ function sanitizeImportedGrid(raw) {
         if (Number.isInteger(re) && re >= 2 && re <= 4) step.repeatEnd = re;
         const vo = Number(item.volta);
         if (vo === 1 || vo === 2) step.volta = vo;
+        // Signes de renvoi (Real Book) : 𝄋 et ⊕ au début du bloc, To Coda, Fine et D.C. / D.S. à la fin
+        ['segno', 'coda', 'toCoda', 'fine'].forEach(k => { if (item[k] === true) step[k] = true; });
+        if (['dc', 'dcFine', 'dcCoda', 'ds', 'dsFine', 'dsCoda'].includes(item.jump)) step.jump = item.jump;
         // Indication de jeu des croches à partir de ce bloc : « Droit » ou retour au « Swing » général
         if (item.feel === 'straight' || item.feel === 'swing') step.feel = item.feel;
         // Indication de tempo à partir de ce bloc : ♩ = 30 à 300, ou « a tempo » (retour au tempo général)

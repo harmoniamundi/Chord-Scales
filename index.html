@@ -351,7 +351,7 @@
                         <div class="flex items-center gap-2 justify-self-start">
                             <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
                             <span class="text-xs font-bold text-blue-400 uppercase tracking-wider">Grille d'accords</span>
-                            <button type="button" id="jam-edit-toggle" class="jam-edit-toggle" onclick="app.jam.toggleEditBar()" title="Outils d'édition : sélection, copier/coller, reprises" aria-label="Outils d'édition de la grille" aria-pressed="false">
+                            <button type="button" id="jam-edit-toggle" class="jam-edit-toggle" onclick="app.jam.toggleEditBar()" title="Outils d'édition : sélection, copier/coller, reprises et renvois" aria-label="Outils d'édition de la grille" aria-pressed="false">
                                 <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
                             </button>
                         </div>
@@ -396,8 +396,8 @@
                             <span id="jam-sel-info" class="jam-eb-info" role="status" aria-live="polite"></span>
                         </div>
                         <div class="flex items-center gap-1.5 flex-wrap">
-                            <button type="button" id="jam-eb-rp" class="jam-eb" onclick="app.jam.toggleRepeatPop()" aria-haspopup="true" title="Reprise de la sélection (×2, ×3, ×4, 1re / 2e fin), croches droites ou swing et tempo, passage par passage"><svg width="16" height="14" viewBox="0 0 16 14" fill="currentColor" aria-hidden="true" style="display:inline;vertical-align:-2px;margin-right:4px"><rect x="0.5" y="0" width="1.8" height="14"/><rect x="3.4" y="0" width="0.8" height="14"/><circle cx="6.4" cy="4.8" r="1.2"/><circle cx="6.4" cy="9.2" r="1.2"/><circle cx="9.6" cy="4.8" r="1.2"/><circle cx="9.6" cy="9.2" r="1.2"/><rect x="11.8" y="0" width="0.8" height="14"/><rect x="13.7" y="0" width="1.8" height="14"/></svg>Reprise et jeu</button>
-                            <span id="jam-eb-rp-sum" class="jam-eb-sum" title="Reprise et jeu de la sélection"></span>
+                            <button type="button" id="jam-eb-rp" class="jam-eb" onclick="app.jam.toggleRepeatPop()" aria-haspopup="true" title="Reprise de la sélection (×2, ×3, ×4, 1re / 2e fin), renvois (Segno, Coda, To Coda, Fine, D.C., D.S.), croches droites ou swing et tempo, passage par passage"><svg width="16" height="14" viewBox="0 0 16 14" fill="currentColor" aria-hidden="true" style="display:inline;vertical-align:-2px;margin-right:4px"><rect x="0.5" y="0" width="1.8" height="14"/><rect x="3.4" y="0" width="0.8" height="14"/><circle cx="6.4" cy="4.8" r="1.2"/><circle cx="6.4" cy="9.2" r="1.2"/><circle cx="9.6" cy="4.8" r="1.2"/><circle cx="9.6" cy="9.2" r="1.2"/><rect x="11.8" y="0" width="0.8" height="14"/><rect x="13.7" y="0" width="1.8" height="14"/></svg>Reprises</button>
+                            <span id="jam-eb-rp-sum" class="jam-eb-sum" title="Reprises de la sélection"></span>
                             <span class="jam-eb-sep"></span>
                             <button type="button" id="jam-eb-part" class="jam-eb" onclick="app.jam.gridPartStart(event)" aria-haspopup="true" title="Repère de partie sur la première mesure de la sélection : ouvre un menu (in, A à G, A' à G', out, ou un nom libre : Couplet, Refrain…). Re-choisir le repère actif le retire"><span class="jam-part-btn-ico">A</span>Partie</button>
                             <span class="jam-eb-sep"></span>
@@ -6483,14 +6483,14 @@
             _partLabelOfMeasure(m) { return partLabelOfMeasure(this.grid, m); }
 
             // Découpe la liste des mesures en lignes : 4 mesures au plus, avec un saut de ligne avant toute mesure qui ouvre une partie.
-            _layoutRows(flat) { return layoutRows(flat, (m) => this._partLabelOfMeasure(m)); }
+            _layoutRows(flat) { return layoutRows(flat, (m) => this._partLabelOfMeasure(m), (m) => navRowBreak(this.grid, m)); } // la coda ⊕ commence une ligne
 
             // Grilles générées : un repère de partie à chaque changement de section du style (A, A2, A3 → « A »).
             // Posé après compactGridRepeats / _annotateModulations pour ne figurer que sur le premier bloc de chaque partie.
             // Aucun repère si la grille n'a qu'une seule section (une lettre unique n'apporterait rien).
             _assignAutoParts() { assignAutoParts(this.grid); }
 
-            // ===== Popup « Reprise et jeu » (barre d'édition) =====
+            // ===== Popup « Reprises » (reprises, renvois et jeu) (barre d'édition) =====
             // Sur la sélection : reprise en un clic (Aucune, ×2, ×3, ×4) et 1re / 2e fin ; puis le jeu à partir de sa première mesure
             // (croches Droit / Swing, tempo ♩ = N ou a tempo), une ligne par passage quand la mesure est reprise ; et le retour au jeu
             // général sur la mesure qui suit. Les calculs sont dans grid/edit-ops.js, le contenu dans ui/grid-view.js (repeatPopHtml).
@@ -6504,6 +6504,14 @@
                 if (v && v.times) parts.push(`<b>×${v.times}</b>`);
                 if (v && v.volta) parts.push(v.volta === 1 ? '1re fin' : '2e fin');
                 if (v && v.firstStep) { const t = marksHtml(v.firstStep); if (t) parts.push(t); }
+                if (v && v.nav) {
+                    const h = v.nav.here;
+                    if (h.segno) parts.push(NAV_SEGNO_SVG);
+                    if (h.coda) parts.push(NAV_CODA_SVG);
+                    if (h.toCoda) parts.push('To Coda');
+                    if (h.fine) parts.push('Fine');
+                    if (h.jump) parts.push(NAV_LABELS[h.jump]);
+                }
                 el.innerHTML = parts.join(' · ');
                 el.title = parts.length ? 'Sélection : ' + el.textContent : '';
             }
@@ -6554,7 +6562,9 @@
                 const jeuTitle = mode === 'region'
                     ? `Jeu de chaque passage de la reprise (mesures ${rgBounds.from} à ${rgBounds.to})`
                     : (single ? `Jeu à partir de la mesure ${r.from}` : `Jeu des mesures ${r.from} à ${r.to}`) + (N >= 2 ? ', passage par passage' : '');
-                return { from: r.from, to: r.to, single, repStart, repEnd, times, region, volta, rows, N, target, mode, jeuTitle,
+                // Renvois (𝄋 ⊕ au début de la sélection ; To Coda, Fine, D.C. / D.S. à sa fin) et où ils sont dans la grille
+                const nav = { here: navMarksOf(this.grid, r.from, r.to), summary: navMarksSummary(this.grid), startMeasure: r.from, endMeasure: r.to };
+                return { from: r.from, to: r.to, single, repStart, repEnd, times, region, volta, rows, N, target, mode, jeuTitle, nav,
                     firstStep: tA.measureInStep === 1 ? this.grid[tA.stepIndex] : null, after, total, atRegionStart, prior,
                     hasMarks: !!(f.feel || f.tempo !== undefined || f.byPass), tempoHere: this._tempoAtIndex(tA.stepIndex), baseBpm: this.bpm };
             }
@@ -6659,6 +6669,10 @@
                         case 'rstart': withIsolatedRange(g, v.from, v.from, (i0) => toggleRepeatStart(g[i0])); break;
                         case 'rend': withIsolatedRange(g, v.from, v.from, (i0) => { const n = parseInt(val, 10) || 0; if (n >= 2 && n <= 4) g[i0].repeatEnd = n; else delete g[i0].repeatEnd; }); break;
                         case 'volta': withIsolatedRange(g, v.from, v.to, (i0, i1) => toggleVolta(g, i0, i1, parseInt(val, 10) === 2 ? 2 : 1)); break;
+                        // Renvois : 𝄋 / ⊕ au début de la sélection, To Coda / Fine et D.C. / D.S. à sa fin (un seul de chaque dans la grille)
+                        case 'nav': setNavMark(g, (val === 'segno' || val === 'coda') ? v.from : v.to, val); break;
+                        case 'navjump': setNavMark(g, v.to, 'jump', val); break;
+                        case 'navclear': clearNavMarks(g, v.from, v.to); break;
                         case 'feel': {
                             const nv = row.feel === val ? undefined : (val === 'swing' ? 'swing' : 'straight');
                             setPlayMark(g, v.target, 'feel', p, nv, v.N, v.atRegionStart);
@@ -11077,7 +11091,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-21-f';
+        var BUILD = '2026-11-22-a';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }
@@ -11090,7 +11104,7 @@
             };
             // Fichiers nouveaux de la version : s'ils sont absents (mal placés ou pas envoyés), ils ne définissent pas leur fonction.
             var needed = {
-                'app/grid/play-order.js': typeof feelByStep === 'function' && typeof tempoByStep === 'function' && typeof playedSeconds === 'function' && typeof markStateAt === 'function',
+                'app/grid/play-order.js': typeof feelByStep === 'function' && typeof tempoByStep === 'function' && typeof playedSeconds === 'function' && typeof markStateAt === 'function' && typeof navTargetIndex === 'function' && typeof codaIndex === 'function',
                 'app/ui/grid-view.js': (function () { try { return printMarks([{ byPass: { 2: { feel: 'swing' } }, measures: 1 }], {}, { stepIndex: 0, measureInStep: 1, measureNumber: 1 }, []).html.indexOf('jam-pass') >= 0 && typeof repeatPopHtml === 'function'; } catch (e) { return false; } })(),
                 'app/ui/scale-harmony.js': typeof scaleHarmonyHtml === 'function' && typeof scaleHarmony === 'function',
                 'app/ui/scale-map.js': typeof scaleMapEntries === 'function' && typeof scaleMapHtml === 'function' && typeof trainingMapCards === 'function',
@@ -11099,7 +11113,7 @@
                 'app/ui/staff-notes.js': typeof SN_MINOR_KEY_NAMES !== 'undefined' && typeof splitStaffClips === 'function' && typeof parseBlockAt === 'function' && typeof staffMakeTuplet === 'function' && typeof staffSetPickup === 'function' && typeof setStaffSwing === 'function' && typeof staffInsertEvents === 'function' && typeof staffToggleTies === 'function' && typeof shiftEvents === 'function',
                 'app/grid/saved-sync.js': typeof svsMerge === 'function' && typeof ghsSyncCycle === 'function',
                 'app/grid/saved-library.js': typeof slBuildView === 'function' && typeof slMergeBackup === 'function' && typeof slHighlight === 'function',
-                'app/grid/grid-format.js': typeof NOTE_FONTS !== 'undefined' && !!NOTE_FONTS.menlo && typeof sanitizeNoteHtml === 'function' && sanitizeNoteHtml('<div class="annot-frame" data-frame="200" data-at="5,5" data-border="0">x</div>', 300).indexOf('data-border') >= 0,
+                'app/grid/grid-format.js': typeof NOTE_FONTS !== 'undefined' && !!NOTE_FONTS.menlo && typeof sanitizeNoteHtml === 'function' && sanitizeNoteHtml('<div class="annot-frame" data-frame="200" data-at="5,5" data-border="0">x</div>', 300).indexOf('data-border') >= 0 && (function () { try { var g = sanitizeImportedGrid([{ rootIndex: 0, chordId: 'maj7', measures: 1, segno: true, jump: 'dsCoda' }]); return !!(g && g[0].segno && g[0].jump === 'dsCoda'); } catch (e) { return false; } })(),
                 'app/ui/staff-editor.js': typeof nseKeyValue === 'function' && typeof nseToolState === 'function' && typeof nseBlocksToClipText === 'function' && typeof NoteStaffView === 'function' && typeof NoteStaffView.prototype.setBorder === 'function' && typeof NoteStaffView.prototype._setTuplet === 'function' && typeof nseSwingOptions === 'function' && typeof NoteStaffView.prototype._toggleTie === 'function' && typeof NoteStaffView.prototype._startMarquee === 'function',
                 'app/ui/text-frame.js': typeof NoteFrameView === 'function' && typeof NoteFrameView.prototype.setBorder === 'function',
                 'app/ui/annot-canvas.js': typeof AnnotCanvas === 'function' && typeof acZoomOffset === 'function' && typeof acEmptySpot === 'function' && typeof AC_GUTTER === 'number',
@@ -11107,7 +11121,7 @@
                 'app/ui/draw-notes.js': typeof drawParse === 'function' && typeof drawStubHtml === 'function' && typeof drawEraseAt === 'function' && typeof drawVarPathD === 'function' && typeof drawFillAt === 'function',
                 'app/ui/chord-block.js': typeof ChordBlockView === 'function' && typeof hydrateChordBlocks === 'function' && typeof annotBlocksToClipText === 'function' && typeof CHB_ARP_ICON === 'string',
                 'app/ui/draw-block.js': typeof DrawBlockView === 'function' && typeof hydrateDrawBlocks === 'function' && typeof DrawBlockView.prototype._touchLock === 'function',
-                'app/ui/grid-view.js': typeof measureNoteTitle === 'function' && typeof printGridHtml === 'function',
+                'app/ui/grid-view.js': typeof measureNoteTitle === 'function' && typeof printGridHtml === 'function' && typeof navPopSection === 'function' && typeof navRowBreak === 'function',
                 'app/ui/annot-bar.js': typeof ANNOT_FONT_DEFAULT_CSS !== 'undefined' && typeof annotToolsHtml === 'function' && typeof annotModeHtml === 'function' && typeof ANNOT_DELETE_ICON === 'string'
             };
             Object.keys(needed).forEach(function (f) { seen[f] = needed[f] ? BUILD : ''; });

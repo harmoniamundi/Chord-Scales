@@ -249,3 +249,70 @@ describe('indications par passage (byPass)', () => {
         assert.equal(P.passOfStep(h, 2, {}), 2);
     });
 });
+
+describe('signes de renvoi (D.C., D.S., Fine, To Coda, Coda)', () => {
+    test('D.C. : retour au début, joué une seule fois', () => {
+        assert.deepEqual(play([blk(A), blk(B), blk(C, 1, { jump: 'dc' })]), [A, B, C, A, B, C]);
+    });
+    test('D.C. al Fine : arrêt au Fine au second passage seulement', () => {
+        assert.deepEqual(play([blk(A), blk(B, 1, { fine: true }), blk(C), blk(D, 1, { jump: 'dcFine' })]), [A, B, C, D, A, B]);
+    });
+    test('D.S. al Coda : retour au Segno, saut du To Coda à la Coda', () => {
+        const g = [blk(A), blk(B, 1, { segno: true }), blk(C, 1, { toCoda: true }), blk(D, 1, { jump: 'dsCoda' }), blk(E, 1, { coda: true })];
+        assert.deepEqual(play(g), [A, B, C, D, B, C, E]);
+    });
+    test('D.S. sans Segno : repart du début', () => {
+        assert.deepEqual(play([blk(A), blk(B, 1, { jump: 'ds' })]), [A, B, A, B]);
+    });
+    test('al Coda sans To Coda : joue jusqu\'au bout (la coda placée après le renvoi est jouée ensuite)', () => {
+        assert.deepEqual(play([blk(A), blk(B, 1, { jump: 'dcCoda' }), blk(C, 1, { coda: true })]), [A, B, A, B, C]);
+    });
+    test('reprises terminées avant le renvoi, puis plus refaites : on prend directement la 2e fin', () => {
+        // |: A B(1re fin) :| C(2e fin) D(D.S. al Fine)  avec 𝄋 sur A et Fine sur C
+        const g = [blk(A, 1, { repeatStart: true, segno: true }), blk(B, 1, { volta: 1, repeatEnd: 2 }), blk(C, 1, { volta: 2, fine: true }), blk(D, 1, { jump: 'dsFine' })];
+        assert.deepEqual(play(g), [A, B, A, C, D, A, C]);
+    });
+    test('renvoi posé sur une fin de reprise : les passages sont faits d\'abord', () => {
+        const g = [blk(A, 1, { repeatStart: true }), blk(B, 1, { repeatEnd: 2, jump: 'dc' })];
+        assert.deepEqual(play(g), [A, B, A, B, A, B]);
+    });
+    test('au premier passage, Fine et To Coda sont ignorés', () => {
+        const g = [blk(A, 1, { fine: true }), blk(B, 1, { toCoda: true }), blk(C)];
+        assert.deepEqual(play(g), [A, B, C]);
+    });
+    test('passage après le renvoi = dernier passage de la reprise (indications « 2x »)', () => {
+        const g = [blk(A, 1, { repeatStart: true }), blk(B, 1, { repeatEnd: 2 }), blk(C, 1, { jump: 'dc' })];
+        const passes = {};
+        let cur = 0;
+        const seen = [];
+        for (let k = 0; k < 6; k++) { const nx = P.nextStepInfo(g, cur, passes); cur = nx.idx; seen.push(P.passOfStep(g, cur, passes)); }
+        // B(1) → A(2) → B(2) → C → A(dernier passage : 2) → B(2)
+        assert.deepEqual(seen.slice(-2), [2, 2]);
+    });
+    test('mesures jouées et durée tiennent compte des renvois', () => {
+        const g = [blk(A, 2, { segno: true }), blk(B, 1, { toCoda: true }), blk(C, 1, { jump: 'dsCoda' }), blk(D, 2, { coda: true })];
+        assert.equal(P.playedMeasureCount(g), 2 + 1 + 1 + 2 + 1 + 2);
+        assert.equal(P.playedSeconds(g, 4, 60), 9 * 4);
+    });
+    test('une consultation (copie des compteurs) ne prend pas le renvoi pour de bon', () => {
+        const g = [blk(A), blk(B, 1, { jump: 'dc' })];
+        const passes = {};
+        P.nextStepInfo(g, 1, { ...passes });
+        assert.equal(passes[P.NAV_KEY], undefined);
+        assert.equal(P.peekNextIndex(g, 1, { playRange: null, loopEnabled: false, passes }), 0);
+    });
+    test('plage sélectionnée : un renvoi qui sortirait de la plage est ignoré', () => {
+        const g = [blk(A), blk(B), blk(C, 1, { jump: 'dc' }), blk(D)];
+        assert.equal(P.peekNextIndex(g, 2, { playRange: { from: 2, to: 4 }, loopEnabled: false, passes: {} }), 3);
+    });
+    test('cibles : Segno le plus proche avant le renvoi, Coda après lui', () => {
+        const g = [blk(A, 1, { segno: true }), blk(B, 1, { coda: true }), blk(C, 1, { jump: 'ds' }), blk(D, 1, { coda: true })];
+        assert.equal(P.navTargetIndex(g, 2, 'ds'), 0);
+        assert.equal(P.navTargetIndex(g, 2, 'dc'), 0);
+        assert.equal(P.codaIndex(g, 2), 3);
+        assert.equal(P.codaIndex(g, 3), 1);
+        assert.equal(P.hasNavMarks(blk(A)), false);
+        assert.equal(P.hasNavMarks(blk(A, 1, { jump: 'xx' })), false);
+        assert.equal(P.hasNavMarks(blk(A, 1, { fine: true })), true);
+    });
+});

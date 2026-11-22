@@ -382,3 +382,43 @@ describe('popup « Reprise et jeu » et indications', () => {
         assert.equal(V.marksText({}), '');
     });
 });
+
+describe('signes de renvoi : affichage', () => {
+    test('étiquettes au-dessus du début et de la fin de la mesure', () => {
+        assert.equal(V.navStartHtml(blk()), '');
+        assert.equal(V.navEndHtml(blk()), '');
+        assert.match(V.navStartHtml(blk({ segno: true, coda: true })), /Coda/);
+        const e = V.navEndHtml(blk({ toCoda: true, fine: true, jump: 'dsCoda' }));
+        assert.match(e, /To Coda/);
+        assert.match(e, /Fine/);
+        assert.match(e, /D\.S\. al Coda/);
+        const c = V.cellMarksHtml({ navStart: 'S', navEnd: 'E' });
+        assert.match(c, /nav-tag-s">S</);
+        assert.match(c, /nav-tag-e">E</);
+    });
+    test('la coda commence une nouvelle ligne', () => {
+        const grid = [blk(), blk(), blk({ coda: true }), blk()];
+        const flat = flatten(grid);
+        const rows = V.layoutRows(flat, () => '', (m) => V.navRowBreak(grid, m));
+        assert.deepEqual(rows.map(r => r.length), [2, 2]);
+        assert.deepEqual(V.layoutRows(flat, () => '').map(r => r.length), [4]);
+    });
+    test('impression : signes au-dessus de la case et place réservée sur la ligne', () => {
+        const grid = [blk({ segno: true }), blk({ jump: 'dc' })];
+        const flat = flatten(grid);
+        const pm = V.printMarks(grid, [0, 0], flat[1], flat);
+        assert.match(pm.cls, /has-nav/);
+        assert.match(pm.html, /jam-print-nav-e/);
+        const html = V.printGridHtml({ grid, flat, effV: [0, 0], bpb: 4, partLabelOf: () => '', measureKey: (m) => String(m.measureNumber), chordSymbol: () => 'C' });
+        assert.match(html, /jam-print-line has-nav/);
+    });
+    test('popup : section Renvois, état de la grille et ce qui manque', () => {
+        const chip = (on, attrs, inner) => `<button ${attrs}${on ? ' on' : ''}>${inner}</button>`;
+        const v = { nav: { here: { segno: false, coda: false, toCoda: false, fine: false, jump: 'dsCoda' }, summary: { segno: 0, coda: 0, toCoda: 0, fine: 0, jump: { measure: 8, kind: 'dsCoda' } }, startMeasure: 8, endMeasure: 8 } };
+        const html = V.navPopSection(v, chip);
+        assert.match(html, /data-act="navjump" data-v="dsCoda"[^>]*on>/);
+        assert.match(html, /posez le Segno/);
+        assert.match(html, /il manque le To Coda/);
+        assert.match(html, /Effacer les renvois/);
+    });
+});

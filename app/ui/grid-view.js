@@ -14,15 +14,47 @@
 //   partLabelOf(m)  repère de partie qui ouvre la mesure (lettre ou nom libre, ou null)    measureKey(m)  clé d'égalité de deux mesures
 
 // Découpe la liste à plat en lignes de 4 mesures ; une nouvelle partie commence toujours une nouvelle ligne.
-function layoutRows(flat, partLabelOf) {
+// breakBefore(m) (facultatif) : autre raison de commencer une ligne (la coda ⊕, comme sur un Real Book).
+function layoutRows(flat, partLabelOf, breakBefore) {
     const rows = [];
     let cur = [];
     flat.forEach((m) => {
-        if (cur.length && (cur.length === 4 || partLabelOf(m))) { rows.push(cur); cur = []; }
+        if (cur.length && (cur.length === 4 || partLabelOf(m) || (breakBefore && breakBefore(m)))) { rows.push(cur); cur = []; }
         cur.push(m);
     });
     if (cur.length) rows.push(cur);
     return rows;
+}
+
+// ===== Signes de renvoi (Real Book) : 𝄋 et ⊕ au-dessus du début de la mesure, To Coda / Fine / D.C. / D.S. au-dessus de sa fin =====
+// Les symboles sont dessinés en SVG (les caractères musicaux 𝄋 𝄌 manquent dans beaucoup de polices, sur iPhone notamment).
+const NAV_SEGNO_SVG = '<svg class="nav-glyph" viewBox="0 0 20 24" width="0.95em" height="1.15em" aria-hidden="true"><path d="M14.5 6.2C14.2 3 6.2 2.6 6 7c-.2 4.6 8.4 4.4 8.4 9.6 0 4.8-8.6 5-9-.6" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/><path d="M4 21.5 16 2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="4.6" cy="11.2" r="1.7" fill="currentColor"/><circle cx="15.4" cy="12.8" r="1.7" fill="currentColor"/></svg>';
+const NAV_CODA_SVG = '<svg class="nav-glyph" viewBox="0 0 20 20" width="1em" height="1em" aria-hidden="true"><circle cx="10" cy="10" r="5.6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 .8v18.4M.8 10h18.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+const NAV_LABELS = { dc: 'D.C.', dcFine: 'D.C. al Fine', dcCoda: 'D.C. al Coda', ds: 'D.S.', dsFine: 'D.S. al Fine', dsCoda: 'D.S. al Coda' };
+const NAV_TITLES = {
+    dc: 'Da capo : retour au début', dcFine: 'Da capo al Fine : retour au début, jusqu\'au Fine', dcCoda: 'Da capo al Coda : retour au début, puis du To Coda à la coda ⊕',
+    ds: 'Dal segno : retour au signe', dsFine: 'Dal segno al Fine : retour au signe, jusqu\'au Fine', dsCoda: 'Dal segno al Coda : retour au signe, puis du To Coda à la coda ⊕'
+};
+// Signes du début du bloc (𝄋, ⊕ Coda) en HTML ; '' s'il n'y en a pas.
+function navStartHtml(st) {
+    if (!st) return '';
+    const out = [];
+    if (st.segno) out.push(`<span class="nav-it" title="Segno : point de retour du D.S.">${NAV_SEGNO_SVG}</span>`);
+    if (st.coda) out.push(`<span class="nav-it" title="Coda : on y saute depuis le To Coda, après le renvoi">${NAV_CODA_SVG}<span class="nav-w">Coda</span></span>`);
+    return out.join(' ');
+}
+// Signes de la fin du bloc (To Coda ⊕, Fine, D.C. / D.S.) en HTML ; '' s'il n'y en a pas.
+function navEndHtml(st) {
+    if (!st) return '';
+    const out = [];
+    if (st.toCoda) out.push(`<span class="nav-it" title="To Coda : après le renvoi, saut à la coda ⊕"><span class="nav-w">To Coda</span>${NAV_CODA_SVG}</span>`);
+    if (st.fine) out.push('<span class="nav-it" title="Fine : après le renvoi, la grille s\'arrête ici"><span class="nav-w">Fine</span></span>');
+    if (NAV_LABELS[st.jump]) out.push(`<span class="nav-it" title="${NAV_TITLES[st.jump]}"><span class="nav-w">${NAV_LABELS[st.jump]}</span></span>`);
+    return out.join(' ');
+}
+// La mesure m ouvre-t-elle la coda ? (elle commence alors une nouvelle ligne, comme sur un Real Book)
+function navRowBreak(grid, m) {
+    return !!m && m.measureInStep === 1 && !!(grid[m.stepIndex] || {}).coda;
 }
 
 // Classes de la case selon qu'elle est en cours de lecture ou non.
@@ -75,7 +107,10 @@ function measureCellModel(v, m) {
         voltaFirst = !prevM || v.effV[prevM.stepIndex] !== sv;
     }
     const selected = !!(v.sel && m.measureNumber >= v.sel.from && m.measureNumber <= v.sel.to);
+    const navStart = m.measureInStep === 1 ? navStartHtml(stp) : '';
+    const navEnd = m.measureInStep === stp.measures ? navEndHtml(stp) : '';
     return {
+        navStart, navEnd,
         measureNumber: m.measureNumber, isActive, repeat, showSplit, activeHalf, scaleLabel, centerHtml, bottomHtml,
         hasRS, hasRE, sv, voltaFirst, repeatEnd: stp.repeatEnd, marks, selected,
         ts3: showSplit && v.bpb === 3 && !v.aksak, editBarOpen: !!v.editBarOpen
@@ -110,7 +145,7 @@ function marksHtml(st) {
 // Mêmes indications en texte simple (résumé de la barre d'édition, info-bulles).
 function marksText(st) { return marksHtml(st).replace(/<[^>]*>/g, ''); }
 
-// Popup « Reprise et jeu » de la barre d'édition (sélection from..to). v :
+// Popup « Reprises » (reprises, renvois et jeu) de la barre d'édition (sélection from..to). v :
 //   from, to             plage sélectionnée (numéros de mesure)
 //   times                reprise posée exactement sur la sélection (2 à 4), 0 sinon
 //   region               { from, to, times } reprise qui contient la sélection sans être elle (affichée pour information), ou null
@@ -151,19 +186,60 @@ function repeatPopHtml(v) {
     const after = v.after && v.after.possible
         ? `<label class="jrp-after" title="Rétablit, à la mesure ${v.after.measure}, le jeu (croches et tempo) d'avant la sélection"><input type="checkbox" data-act="after"${v.after.on ? ' checked' : ''}${v.hasMarks || v.after.on ? '' : ' disabled'}> Reprendre le jeu d'avant à la mesure ${v.after.measure}</label>` : '';
     const multi = v.rows.length > 1;
+    const navSec = v.nav ? navPopSection(v, chip) : '';
     return `
         <div class="jm-head" title="Glisser pour déplacer">
-            <span class="jm-title">Reprise et jeu · ${range}</span>
+            <span class="jm-title">Reprises · ${range}</span>
             <button type="button" class="jm-btn" data-act="close" title="Fermer (Échap)">✕</button>
         </div>
         <div class="jm-sec"><div class="jm-sec-t">Reprise</div>
             ${v.single ? singleRep : `<div class="jm-seg jrp-rep">${reps}</div>`}${regionNote}
             <div class="jm-row jrp-voltas">${voltas}</div>
         </div>
+        ${navSec}
         <div class="jm-sec"><div class="jm-sec-t">${v.jeuTitle || `Jeu à partir de la mesure ${v.from}${multi ? ', passage par passage' : ''}`}</div>
             ${v.rows.map(row).join('')}
             ${after}
             ${v.hasMarks ? `<button type="button" class="jm-chip jrp-clear" data-act="clearplay" title="Retire les indications de croches et de tempo de la mesure ${v.target || v.from}">Effacer le jeu</button>` : ''}
+        </div>`;
+}
+
+// Section « Renvois » du popup : v.nav = { here (navMarksOf : signes de la sélection), summary (navMarksSummary : où est chaque
+// signe dans la grille), startMeasure, endMeasure }. Début de la sélection : 𝄋 / ⊕ ; fin : To Coda / Fine et le renvoi.
+function navPopSection(v, chip) {
+    const n = v.nav, h = n.here, sm = n.summary;
+    const t = (k, base) => base + (sm[k] && !h[k] ? ` — déjà en mesure ${sm[k]}, il y sera déplacé` : '') + ' (re-cliquer pour retirer)';
+    const start = chip(h.segno, `data-act="nav" data-v="segno" title="${t('segno', `𝄋 Segno au début de la mesure ${n.startMeasure} : point de retour du D.S.`)}"`, `${NAV_SEGNO_SVG} Segno`)
+        + chip(h.coda, `data-act="nav" data-v="coda" title="${t('coda', `⊕ Coda au début de la mesure ${n.startMeasure} : on y saute depuis le To Coda`)}"`, `${NAV_CODA_SVG} Coda`);
+    const end = chip(h.toCoda, `data-act="nav" data-v="toCoda" title="${t('toCoda', `To Coda à la fin de la mesure ${n.endMeasure} : après le renvoi, saut à la coda ⊕`)}"`, `To Coda ${NAV_CODA_SVG}`)
+        + chip(h.fine, `data-act="nav" data-v="fine" title="${t('fine', `Fine à la fin de la mesure ${n.endMeasure} : après le renvoi, la grille s'arrête ici`)}"`, 'Fine');
+    const jumpChip = (k) => chip(h.jump === k, `data-act="navjump" data-v="${k}" title="${NAV_TITLES[k]}, à la fin de la mesure ${n.endMeasure}${sm.jump && sm.jump.measure !== n.endMeasure ? ` (remplace le ${NAV_LABELS[sm.jump.kind]} de la mesure ${sm.jump.measure})` : ''} (re-cliquer pour retirer)"`, NAV_LABELS[k]);
+    const jumps = `<div class="jm-seg jrp-nav3">${['dc', 'dcFine', 'dcCoda'].map(jumpChip).join('')}</div><div class="jm-seg jrp-nav3">${['ds', 'dsFine', 'dsCoda'].map(jumpChip).join('')}</div>`;
+    // État de la grille et ce qui manque pour que le renvoi se joue comme écrit
+    const parts = [];
+    if (sm.segno) parts.push(`${NAV_SEGNO_SVG} m. ${sm.segno}`);
+    if (sm.toCoda) parts.push(`To Coda m. ${sm.toCoda}`);
+    if (sm.fine) parts.push(`Fine m. ${sm.fine}`);
+    if (sm.jump) parts.push(`${NAV_LABELS[sm.jump.kind]} m. ${sm.jump.measure}`);
+    if (sm.coda) parts.push(`${NAV_CODA_SVG} m. ${sm.coda}`);
+    const warn = [];
+    if (sm.jump) {
+        const k = sm.jump.kind;
+        if (k.indexOf('ds') === 0 && !sm.segno) warn.push('posez le Segno (sinon le D.S. repart du début)');
+        if (/Coda$/.test(k) && !sm.toCoda) warn.push('il manque le To Coda');
+        if (/Coda$/.test(k) && !sm.coda) warn.push('il manque la Coda ⊕');
+        if (/Fine$/.test(k) && !sm.fine) warn.push('il manque le Fine (la grille sera jouée jusqu\'au bout)');
+        if (sm.coda && sm.coda <= sm.jump.measure && /Coda$/.test(k)) warn.push('la Coda se place en général après le renvoi');
+    } else if (sm.segno || sm.coda || sm.toCoda || sm.fine) warn.push('ajoutez un renvoi D.C. ou D.S. pour que ces signes soient joués');
+    const any = h.segno || h.coda || h.toCoda || h.fine || h.jump;
+    const single = n.startMeasure === n.endMeasure;
+    return `<div class="jm-sec jrp-navsec"><div class="jm-sec-t">Renvois (Real Book)</div>
+            <div class="jrp-line"><span class="jrp-lab">${single ? 'Début' : `Début m.${n.startMeasure}`}</span><div class="jm-seg jrp-nav2">${start}</div></div>
+            <div class="jrp-line"><span class="jrp-lab">${single ? 'Fin' : `Fin m.${n.endMeasure}`}</span><div class="jm-seg jrp-nav2">${end}</div></div>
+            <div class="jrp-line jrp-line-top"><span class="jrp-lab">Renvoi</span><div class="jrp-navj">${jumps}</div></div>
+            ${parts.length ? `<div class="jrp-note jrp-navsum">Grille : ${parts.join(' · ')}</div>` : ''}
+            ${warn.length ? `<div class="jrp-note jrp-navwarn">${warn.join(' ; ')}.</div>` : ''}
+            ${any ? `<button type="button" class="jm-chip jrp-clear" data-act="navclear" title="Retire les signes de renvoi de la sélection">Effacer les renvois</button>` : ''}
         </div>`;
 }
 
@@ -202,6 +278,9 @@ function cellMarksHtml(c) {
         marksHtml += '<span class="rp-vl"></span>';
         if (c.voltaFirst) marksHtml += '<span class="rp-vt"></span>';
     }
+    // Renvois : étiquettes posées à cheval sur le bord haut de la case (au-dessus de la portée, comme sur un Real Book)
+    if (c.navStart) marksHtml += `<span class="nav-tag nav-tag-s">${c.navStart}</span>`;
+    if (c.navEnd) marksHtml += `<span class="nav-tag nav-tag-e">${c.navEnd}</span>`;
     return marksHtml;
 }
 
@@ -240,6 +319,12 @@ function printMarks(grid, effV, m, flat) {
         html += '<span class="jam-print-vo"></span>';
         if (first) html += `<span class="jam-print-vt"></span><span class="jam-print-vl">${sv}.</span>`;
     }
+    // Renvois : au-dessus de la case (début : 𝄋 ⊕ ; fin : To Coda, Fine, D.C. / D.S.)
+    const ns = m.measureInStep === 1 ? navStartHtml(st) : '';
+    const ne = m.measureInStep === st.measures ? navEndHtml(st) : '';
+    if (ns) html += `<span class="jam-print-nav jam-print-nav-s">${ns}</span>`;
+    if (ne) html += `<span class="jam-print-nav jam-print-nav-e">${ne}</span>`;
+    if (ns || ne) cls += ' has-nav';
     return { cls, html };
 }
 
@@ -247,7 +332,7 @@ function printMarks(grid, effV, m, flat) {
 // v : grid, flat, effV, bpb, partLabelOf, measureKey, chordSymbol(chord) (texte) ;
 //     fnHtml(chord, flat, index, half) (facultatif) : chiffrage de fonction en HTML, imprimé sous l'accord (export PDF avec l'analyse).
 function printGridHtml(v) {
-    const systems = layoutRows(v.flat, v.partLabelOf);
+    const systems = layoutRows(v.flat, v.partLabelOf, (m) => navRowBreak(v.grid, m));
     const hasParts = v.flat.some(m => isBoxPart(v.partLabelOf(m)));   // gouttière seulement pour les repères courts
     let rowsHtml = '';
     systems.forEach((systemMeasures) => {
@@ -281,7 +366,8 @@ function printGridHtml(v) {
         const gutterHtml = hasParts ? `<div class="jam-print-gutter">${box ? `<span class="jam-print-part${rowPart.length > 1 ? ' jam-part-long' : ''}${rowPart.length > 2 ? ' jam-part-l3' : ''}">${escPart(rowPart)}</span>` : ''}</div>` : '';
         const bannerHtml = (rowPart && !box) ? `<div class="jam-print-partname${hasParts ? ' with-gutter' : ''}">${escPart(rowPart)}</div>` : '';
         // Ligne enveloppée dans un bloc simple : Safari ne sait pas éviter de couper une ligne en grille / en flex entre deux pages
-        rowsHtml += `<div class="jam-print-line">${bannerHtml}<div class="jam-print-row">${gutterHtml}${cellsHtml}</div></div>`;
+        const rowNav = cellsHtml.indexOf(' has-nav') >= 0; // place au-dessus de la ligne pour les renvois
+        rowsHtml += `<div class="jam-print-line${rowNav ? ' has-nav' : ''}">${bannerHtml}<div class="jam-print-row">${gutterHtml}${cellsHtml}</div></div>`;
     });
     return `
                     <div class="jam-print-title"></div>
@@ -427,7 +513,7 @@ function scrollTargetFor(containerTop, clientHeight, rowTop, rowHeight) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         layoutRows, cellClassName, measureCellModel, cellExtraClasses, cellInnerHtml, cellMarksHtml, sequenceFingerprint, printMarks, printGridHtml, printInfoParts, measureNoteTitle,
-        repeatPopHtml, marksHtml, marksText, tempoMarkText, tempoMarkHtml,
+        repeatPopHtml, navPopSection, navStartHtml, navEndHtml, navRowBreak, NAV_LABELS, NAV_SEGNO_SVG, NAV_CODA_SVG, marksHtml, marksText, tempoMarkText, tempoMarkHtml,
         currentMeasureNumber, selectionFix, gutterMark, partBanner, isBoxPart, rowFillers, needsAddRow, clickPosition, playRangeAfterClick, halfToHighlight, neighborMeasure, neighborStop, scrollTargetFor,
     };
 }

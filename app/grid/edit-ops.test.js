@@ -742,3 +742,76 @@ describe('annotations de mesure (export PDF)', () => {
         assert.deepEqual(E.measureNotes([st(0, 'maj7')]), []);
     });
 });
+
+describe('signes de renvoi : pose, unicité et conservation', () => {
+    test('Segno au début, D.S. al Coda à la fin d\'une sélection', () => {
+        const g = [st(0, 'maj7', 4), st(5, 'maj7', 4)];
+        assert.equal(E.setNavMark(g, 2, 'segno'), true);
+        assert.equal(E.setNavMark(g, 8, 'jump', 'dsCoda'), true);
+        const f = flatMeasureList(g);
+        assert.equal(g[f[1].stepIndex].segno, true);
+        assert.equal(f[1].measureInStep, 1);
+        assert.equal(g[f[7].stepIndex].jump, 'dsCoda');
+        assert.equal(total(g), 8);
+        assert.deepEqual(E.navMarksOf(g, 2, 2), { segno: true, coda: false, toCoda: false, fine: false, jump: '' });
+        assert.deepEqual(E.navMarksSummary(g), { segno: 2, coda: 0, toCoda: 0, fine: 0, jump: { measure: 8, kind: 'dsCoda' } });
+    });
+    test('un seul de chaque signe : le poser ailleurs le déplace, re-cliquer le retire, les blocs se refusionnent', () => {
+        const g = [st(0, 'maj7', 4)];
+        E.setNavMark(g, 2, 'segno');
+        assert.equal(g.length, 2);
+        E.setNavMark(g, 3, 'segno');
+        assert.deepEqual(E.navMarksSummary(g).segno, 3);
+        assert.equal(g.filter(x => x.segno).length, 1);
+        assert.equal(E.setNavMark(g, 3, 'segno'), false);
+        assert.equal(g.length, 1);
+        assert.equal(g[0].measures, 4);
+    });
+    test('renvoi : changer de type le remplace, le même le retire ; valeur vide sans effet ailleurs', () => {
+        const g = [st(0, 'maj7', 1), st(2, 'm7', 1)];
+        E.setNavMark(g, 2, 'jump', 'dc');
+        E.setNavMark(g, 2, 'jump', 'dsFine');
+        assert.equal(g[1].jump, 'dsFine');
+        E.setNavMark(g, 1, 'jump', '');
+        assert.equal(g[1].jump, 'dsFine');
+        E.setNavMark(g, 2, 'jump', 'dsFine');
+        assert.equal(g[1].jump, undefined);
+        assert.equal(E.setNavMark(g, 1, 'nimporte'), false);
+    });
+    test('un bloc éclaté garde le début (𝄋 ⊕) sur sa 1re partie et la fin (To Coda, Fine, renvoi) sur la dernière', () => {
+        const g = [st(0, 'maj7', 4, { segno: true, coda: true, toCoda: true, fine: true, jump: 'dc' })];
+        E.isolateMeasure(g, 2);
+        assert.equal(g.length, 3);
+        assert.equal(g[0].segno && g[0].coda, true);
+        assert.equal(!!(g[0].toCoda || g[0].fine || g[0].jump), false);
+        assert.equal(g[2].toCoda && g[2].fine && g[2].jump, 'dc');
+        assert.equal(!!(g[1].segno || g[1].jump), false);
+        E.mergeAround(g, 0, 2);
+        assert.equal(g.length, 1, 'refusion : le début reste au début, la fin à la fin');
+        assert.equal(g[0].measures, 4);
+        assert.equal(g[0].segno && g[0].coda && g[0].toCoda && g[0].fine && g[0].jump, 'dc');
+        const h = [st(0, 'maj7', 1, { jump: 'dc' }), st(0, 'maj7', 1), st(0, 'maj7', 1, { segno: true })];
+        E.mergeAround(h, 0, 2);
+        assert.equal(h.length, 3, 'un renvoi ne passe jamais au milieu d\'un bloc');
+    });
+    test('copier / dupliquer / effacer', () => {
+        const g = [st(0, 'maj7', 1, { segno: true }), st(2, 'm7', 1, { jump: 'ds' })];
+        const items = E.measureItems(g, 1, 2);
+        assert.equal(items[0].segno, true);
+        assert.equal(items[1].jump, 'ds');
+        E.duplicateMeasureAfter(g, 1);
+        assert.equal(g[1].segno, undefined);
+        E.appendCopyOfLast(g);
+        assert.equal(g[g.length - 1].jump, undefined);
+        E.clearNavMarks(g, 1, total(g));
+        assert.deepEqual(E.navMarksSummary(g), { segno: 0, coda: 0, toCoda: 0, fine: 0, jump: null });
+    });
+    test('import / sauvegarde : signes valides gardés, valeurs inconnues ignorées', () => {
+        const g = F.sanitizeImportedGrid([st(0, 'maj7', 1, { segno: true, coda: 'oui', jump: 'dsCoda' }), st(2, 'm7', 1, { toCoda: true, fine: true, jump: 'xx' })]);
+        assert.equal(g[0].segno, true);
+        assert.equal(g[0].coda, undefined);
+        assert.equal(g[0].jump, 'dsCoda');
+        assert.equal(g[1].toCoda && g[1].fine, true);
+        assert.equal(g[1].jump, undefined);
+    });
+});
