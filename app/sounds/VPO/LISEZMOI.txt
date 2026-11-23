@@ -23,3 +23,7 @@ d'égaliseur (eq1/eq2 des .sfz du violon aigu) et de volume sont appliqués dans
 (jusqu'à 6 dB d'écart à la contrebasse) et un facteur commun évite l'écrêtage ; leur spectre est à moins de 3 dB (violon) et 5 dB
 (contrebasse) des anciens sons : aucun filtre de timbre (VPO_TONE_LOWPASS à null). Sources : No Budget Orchestra (violon, CC BY-SA 4.0)
 et VSCO 2 Community Edition (contrebasse, CC0).
+
+Violon, notes longues (audio/vpo-brass.js, option xfade) : les boucles du violon ne durent souvent que 0,2 à 1 s ; répétées, elles
+sonnaient mécaniques (le même coup de vibrato à l'identique). Une note plus longue que l'enregistrement est désormais jouée en
+passages successifs pris au hasard dans la partie tenue de l'échantillon, enchaînés en fondu. Les fichiers ne changent pas.

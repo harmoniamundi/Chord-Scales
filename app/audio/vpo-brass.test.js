@@ -204,3 +204,31 @@ describe('instrument (play)', () => {
         try { await assert.rejects(V.vpoLoadBrass(fakeCtx(), 'trumpet'), /introuvable/); } finally { cleanup(); }
     });
 });
+
+describe('violon : notes longues sans boucle courte, profil d\'archet', () => {
+    const seeded = (seed) => { let a = seed >>> 0; return () => { a = (a * 1664525 + 1013904223) >>> 0; return a / 4294967296; }; };
+    test('vpoGrainPlan : des passages enchaînés couvrent toute la note, pris dans la partie tenue, avec des fondus qui se recouvrent', () => {
+        for (const [dur, ls, rate, total] of [[1.54, 1.357, 1.06, 5.4], [2.99, 2.795, 0.94, 9], [4.8, 2.15, 1, 2]]) {
+            const p = V.vpoGrainPlan(dur, ls, rate, 0, total, seeded(3));
+            assert.equal(p[0].at, 0); assert.equal(p[0].from, 0); assert.equal(p[0].fadeIn, 0);
+            const last = p[p.length - 1];
+            assert.ok(last.at + last.len >= total, `${last.at + last.len} < ${total}`);
+            for (let k = 1; k < p.length; k++) {
+                const prev = p[k - 1], g = p[k];
+                assert.ok(Math.abs(prev.at + prev.len - prev.fadeOut - g.at) < 1e-9);   // le passage entre pendant que le précédent s'éteint
+                assert.ok(g.from >= 0.3 - 1e-9 && g.from + g.len * rate <= dur + 1e-9);  // après l'attaque, dans l'échantillon
+                assert.ok(g.len >= g.fadeIn + g.fadeOut);
+                assert.ok(Math.abs(g.cents) <= 3);
+            }
+        }
+    });
+    test('vpoEnvelope swell : pas de pic à l\'attaque, le son s\'ouvre puis se retire ; sans swell, rien ne change', () => {
+        const base = { gain: 1, attack: 0.1, decay: 0.2, sustain: 0.9, release: 0.3, duration: 2 };
+        const flat = V.vpoEnvelope(base), sw = V.vpoEnvelope({ ...base, swell: 1 });
+        assert.deepEqual(flat.points, V.vpoEnvelope({ ...base, swell: 0 }).points);
+        const v = sw.points.map(p => p.v);
+        assert.ok(v[1] < 1 && v[3] > v[2] && v[4] < v[3]);
+        assert.ok(Math.max(...v) <= 1);
+        assert.equal(sw.releaseAt, 2);
+    });
+});

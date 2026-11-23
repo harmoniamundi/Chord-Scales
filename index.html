@@ -4546,17 +4546,56 @@
                     const chain = filters.concat([c, makeup]);
                     for (let k = 0; k + 1 < chain.length; k++) chain[k].connect(chain[k + 1]);
                     makeup.connect(vol);
+                    (this._pzTaps || (this._pzTaps = {}))[key] = makeup;   // sortie égalisée (départ de la salle du violon)
                     return chain[0];
                 };
                 this._pzBuses = {
                     // bandonéon : anches nasales (bosse vers 1,4 kHz), graves nettoyés, aigus adoucis
                     bandoneon: build('bandoneon', [f('highpass', 110, undefined, 0.7), f('peaking', 1400, 3, 0.9), f('lowshelf', 280, 1.5), f('highshelf', 5000, -5), f('lowpass', 7000, undefined, 0.5)], [-24, 2.5, 1.3]),
-                    // violon : un peu de présence (3 kHz), aigus adoucis (moins de « scie »)
-                    violin: build('violin', [f('highpass', 190, undefined, 0.7), f('peaking', 3000, 1.5, 0.9), f('highshelf', 6500, -4), f('lowpass', 9000, undefined, 0.5)], [-26, 2, 1.25]),
+                    // violon : chaleur (corps du violon vers 280 et 550 Hz), le « nasal » de 1,6 kHz et l'aigreur de 2,5 à 4 kHz
+                    // retirés, aigus doux ; compression légère (l'archet garde ses nuances)
+                    violin: build('violin', [f('highpass', 160, undefined, 0.7), f('peaking', 280, 2, 1.1), f('peaking', 550, 1.5, 1.2), f('peaking', 1600, -1.5, 1.4), f('peaking', 3100, -3, 1), f('highshelf', 5500, -5), f('lowpass', 8000, undefined, 0.6)], [-24, 1.6, 1.25]),
                     // guitare électrique (son clair de jazz) : corps vers 200 Hz, médium présent, aigus tamisés
                     guitar: build('guitar', [f('highpass', 85, undefined, 0.7), f('peaking', 220, 2, 1), f('peaking', 2200, 2.5, 0.9), f('highshelf', 4500, -6), f('lowpass', 6500, undefined, 0.5)], [-24, 2.5, 1.3])
                 };
+                if (this.perfTier < 2) this._addViolinRoom(this._pzTaps && this._pzTaps.violin);
                 return this._pzBuses;
+            }
+
+            // Petite salle propre au violon, en parallèle du son direct : premières réflexions et queue courte (0,6 s), assourdies
+            // dans l'aigu, légèrement différentes à gauche et à droite. Le violon échantillonné, enregistré de très près, sonne
+            // ainsi joué dans une pièce, plus rond et moins « collé » à l'oreille. La réverbération générale de l'orchestre s'y ajoute.
+            _addViolinRoom(input) {
+                const ctx = this.app.audioCtx;
+                const vol = this.bandGains.violin;
+                if (!ctx || !input || !vol || typeof ctx.createConvolver !== 'function') return;
+                try {
+                    const sr = ctx.sampleRate, len = Math.floor(sr * 0.6);
+                    const ir = ctx.createBuffer(2, len, sr);
+                    for (let ch = 0; ch < 2; ch++) {
+                        const data = ir.getChannelData(ch);
+                        let lp = 0;
+                        for (let i = 0; i < len; i++) {
+                            const t = i / sr;
+                            const k = 0.25 + 0.6 * Math.exp(-t / 0.08);          // l'aigu meurt plus vite que le grave
+                            lp += k * ((Math.random() * 2 - 1) - lp);
+                            data[i] = lp * Math.exp(-t / 0.16) * (t < 0.004 ? t / 0.004 : 1);
+                        }
+                        // premières réflexions (murs proches), décalées entre les deux oreilles
+                        [[0.011, 0.5], [0.019, 0.38], [0.027, 0.3], [0.041, 0.22]].forEach(([d, g], n) => {
+                            const at = Math.floor(sr * (d + (ch ? 0.0025 * (n + 1) : 0)));
+                            if (at < len) data[at] += g * (n % 2 === ch ? 1 : 0.7);
+                        });
+                    }
+                    const conv = ctx.createConvolver();
+                    conv.normalize = true;
+                    conv.buffer = ir;
+                    const tone = ctx.createBiquadFilter();
+                    tone.type = 'lowpass'; tone.frequency.value = 5000; tone.Q.value = 0.5;
+                    const wet = ctx.createGain();
+                    wet.gain.value = 0.32;
+                    input.connect(conv); conv.connect(tone); tone.connect(wet); wet.connect(vol);
+                } catch (err) {}
             }
 
             // Charge bandonéon (accordéon « tango »), violon, guitare électrique claire et contrebasse à l'archet. Violon (tenu et spiccato)

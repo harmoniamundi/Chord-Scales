@@ -264,6 +264,15 @@ describe('piazzollaNotes', () => {
         assert.deepEqual([o('stab').attack, o('stab').release], [0.01, 0.06]);
         assert.deepEqual([o('zz').attack, o('zz').release], [0.045, 0.12]);
     });
+    test('violon : passages enchaînés, profil d\'archet sur les notes longues, notes liées sans nouvelle attaque', () => {
+        const o = (x) => N.piazzollaNotes(env(), { ...e, intervals: [0], ...x }, 0, 1, 'violin')[0].opts;
+        assert.equal(o({ art: 'lyr', dur: 2 }).xfade, true);
+        assert.equal(o({ art: 'lyr', dur: 2 }).swell, 1);
+        assert.equal(o({ art: 'line', dur: 0.4 }).swell, undefined);
+        assert.equal(o({ art: 'line', dur: 0.4, legato: true }).offset, 0.1);
+        assert.equal(o({ art: 'stab' }).xfade, undefined);
+        assert.equal(N.piazzollaNotes(env(), e, 0, 1, 'bandoneon')[0].opts.xfade, undefined);
+    });
     test('la voix aiguë chante un peu plus', () => {
         const n = N.piazzollaNotes(env(), e, 0, 1, 'guitar');
         assert.ok(n[1].opts.gain > n[0].opts.gain);

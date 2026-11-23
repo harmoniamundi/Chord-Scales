@@ -283,7 +283,7 @@ function accordionNotes(env, e, time, beatSec) {
     return notes;
 }
 
-// Tango nuevo : bandonéon, violon, guitare électrique (attaque / release selon l'articulation).
+// Tango nuevo : bandonéon, violon, guitare électrique (attaque / release selon l'articulation). Violon aussi du Jazz manouche.
 const PZ_ART = {
     bandoneon: { stab: [0.008, 0.05], line: [0.03, 0.09], sus: [0.07, 0.16], grace: [0.004, 0.03], lyr: [0.11, 0.24] },
     violin:    { stab: [0.01, 0.06],  line: [0.045, 0.12], sus: [0.1, 0.22], grace: [0.01, 0.04], lyr: [0.14, 0.3] },
@@ -305,13 +305,18 @@ function piazzollaNotes(env, e, time, beatSec, who) {
             const noteStr = playNoteName(env.instrumentKey, e.rootIndex || 0, iv, OCT);
             const tilt = (n > 1 && idx === n - 1) ? 1.08 : (n > 1 ? 0.92 : 1);   // la voix aiguë chante un peu plus
             const when = Math.max(env.currentTime, time + idx * 0.004 + k * 0.002 + rand() * 0.004);
-            notes.push({
-                noteStr, when,
-                opts: {
-                    duration: dur, gain: base * tilt * (layers.length > 1 ? 0.75 : 1), attack: att, release: rel,
-                    cents: cents + (rand() - 0.5) * 4
-                }
-            });
+            const opts = {
+                duration: dur, gain: base * tilt * (layers.length > 1 ? 0.75 : 1), attack: att, release: rel,
+                cents: cents + (rand() - 0.5) * 4
+            };
+            if (who === 'violin' && e.art !== 'stab' && e.art !== 'grace') {
+                // violon (échantillons VPO) : note longue en passages enchaînés plutôt qu'en boucle courte, profil d'archet sur
+                // les notes longues ; note liée (e.legato) : sans nouvelle attaque, un peu plus fondue dans la précédente
+                opts.xfade = true;
+                if (dur >= 0.7) opts.swell = e.art === 'sus' ? 0.8 : 1;
+                if (e.legato) { opts.offset = 0.1; opts.attack = Math.max(0.03, att * 0.6); }
+            }
+            notes.push({ noteStr, when, opts });
         });
     });
     return notes;

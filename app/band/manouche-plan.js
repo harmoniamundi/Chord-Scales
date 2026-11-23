@@ -270,7 +270,8 @@ function mnPick(list, rng) {
 // Une idée dure une à deux mesures et demie, se termine sur une note longue (tierce, 6te, 7e, 9e) puis laisse respirer ;
 // les temps tombent sur des notes de l'accord, les contretemps avancent par degrés conjoints de la gamme, chromatismes de
 // passage ; avant chaque changement d'accord, la ligne approche par demi-ton (ou broderie) une note guide du nouvel accord.
-// phraseEnd : dernière mesure de la phrase, l'idée se termine dans la mesure (avant le temps c.stopAt s'il est donné). Renvoie [{ pos, dur, m, vel, art, noSwing, oct }].
+// phraseEnd : dernière mesure de la phrase, l'idée se termine dans la mesure (avant le temps c.stopAt s'il est donné).
+// Renvoie [{ pos, dur, m, vel, art, noSwing, oct, leg }] (leg : note liée à la précédente, sans nouvelle attaque d'archet).
 function mnSoloLine(env, voice, ls, c) {
     const { segs, bpb, ternary, nextStep, changeNext, rng, d, I, bpm, phraseEnd, splitAt } = c;
     const P = MN_SOLO[voice];
@@ -281,6 +282,7 @@ function mnSoloLine(env, voice, ls, c) {
     const restLen = () => g ? 1 + Math.floor(rng() * (3 - 2 * d)) : 2 + Math.floor(rng() * (3 - 1.5 * d));
     // ---- rythme ----
     const slots = [];
+    const wasInIdea = ls.idea > 0 && ls.rest === 0;   // l'idée de la mesure précédente continue : première note liée
     // fin de phrase : l'idée se termine dans la mesure (avant stopAt quand l'autre soliste répond sur les derniers temps)
     const stopAt = phraseEnd ? Math.max(1, Math.min(bpb, Number.isFinite(c.stopAt) ? c.stopAt : bpb)) : bpb;
     if (phraseEnd && ls.idea > 0) ls.idea = Math.min(ls.idea, stopAt, rng() < 0.5 ? 2 : bpb);
@@ -373,7 +375,9 @@ function mnSoloLine(env, voice, ls, c) {
             ? (s.end ? 0.74 : (onBeat ? 0.7 : 0.6)) + (s.arp && s.k === 0 ? 0.05 : 0) + 0.06 * I + 0.005 * (m - P.center)
             : (s.end || dur >= 0.9 ? 0.52 : 0.47) + 0.1 * I + 0.004 * (m - P.center) + (s.fresh ? -0.06 : 0);
         vel += (rng() - 0.5) * 0.08;
-        out.push({ pos: s.pos, dur, m, vel: Math.max(0.12, Math.min(0.95, vel)),
+        const prevN = out[out.length - 1];
+        const leg = !s.fresh && (prevN ? prevN.pos + prevN.dur >= s.pos - 0.03 : (k === 0 && wasInIdea && s.pos < eps));
+        out.push({ pos: s.pos, dur, m, vel: Math.max(0.12, Math.min(0.95, vel)), leg,
             art: g ? ((s.end || dur >= 0.9) ? 'target' : 'pick') : (dur >= 0.85 ? 'lyr' : 'line'),
             noSwing: s.noSwing || undefined, oct: g && ls.oct && m - 12 >= MN_UP_LO });
     });
@@ -595,7 +599,7 @@ function buildManouchePlan(env, bpb, ternary, step, nextStep, isLastMeasureOfSte
     if (R.solo === 'vln' && d > 0.05) {
         // chant lyrique, legato, qui respire entre les idées
         mnSoloLine(env, 'vln', st.vl, { ...lineCtx, stopAt: R.fill ? bpb - Math.min(2, bpb - 1) : bpb }).forEach(n => {
-            piano.push({ inst: 'violin', art: n.art, pos: n.pos, dur: n.dur, vel: clampV(n.vel), rootIndex: 0, intervals: [W(n.m)], noSwing: n.noSwing, lay: 0.008 });
+            piano.push({ inst: 'violin', art: n.art, pos: n.pos, dur: n.dur, vel: clampV(n.vel), rootIndex: 0, intervals: [W(n.m)], noSwing: n.noSwing, legato: n.leg || undefined, lay: 0.008 });
             st.vh = { m: n.m, until: absM * bpb + n.pos + n.dur };
         });
     } else if (R.pad) {
