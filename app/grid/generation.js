@@ -13,6 +13,9 @@
 const GEN_THEORY = (typeof scalesDb !== 'undefined')
     ? { scalesDb, lookupChord, chordInfo, chordTypes, triadizeItem, TRIAD_STYLES, scaleFits }
     : require('../theory.js');
+if (typeof styleGenProfile === 'undefined' && typeof require === 'function') {
+    var { styleGenProfile, styleBars } = require('../styles/style-registry.js');
+}
 
 // Générateur pseudo-aléatoire déterministe (PCG-like), seedé par le compteur de
 // génération et le style : reproductible pour un même clic, mais différent à chaque
@@ -37,69 +40,8 @@ function gridSignature(grid) {
 // dominantes secondaires, substitutions de triton, accords diminués de passage, turnarounds…), on écarte celles qui
 // enfreignent les règles musicales, puis on retient une proposition qui diffère nettement de la précédente
 // (au moins 35 % de mesures différentes) et des dernières grilles produites.
-function styleProfile(styleKey) {
-    const jazz = { turn: true, alt: true, w: { iiV: 3, secDom: 2, tritone: 2.5, backdoor: 1, dim: 1.5, colour: 3, sus: 1.2, subdom: 1.5, chrom: 0.8 } };
-    const light = { turn: false, alt: true, w: { iiV: 2, secDom: 1, tritone: 2, dim: 0.8, colour: 3, sus: 1.5, subdom: 1, chrom: 0.8 } };
-    const classical = { turn: false, w: { secDom: 3, subdom: 2, dim: 1, colour: 1, iiV: 0.8 } };
-    const table = {
-        'ii-v-i': jazz, anatole: jazz, swing: jazz, hardbop: jazz, 'i-got-rythm': jazz,
-        // BeBop : harmonie dense (ii-V enchaînés, substitutions de triton, diminués de passage)
-        bebop: { turn: true, alt: true, w: { iiV: 4.5, secDom: 2.5, tritone: 3.5, backdoor: 1, dim: 2, colour: 2.5, sus: 0.4, subdom: 1, chrom: 1.5 } },
-        // Tango, Piazzolla, Samba
-        tango: { turn: false, w: { secDom: 3, subdom: 2, dim: 1.5, colour: 1.5, iiV: 1 } },
-        piazzolla: { turn: false, alt: true, w: { secDom: 2.5, dim: 2, colour: 3, tritone: 1.5, sus: 1.5, chrom: 1.5, iiV: 1.5 } },
-        // Milonga lyrique : harmonie douce et colorée, peu de tritons, couleurs et dominantes secondaires
-        milongalyrique: { turn: false, alt: true, w: { colour: 2.5, iiV: 1.2, secDom: 1.5, dim: 1.2, sus: 1.2, chrom: 1.2, tritone: 0.5, subdom: 1 } },
-        samba: { turn: false, alt: true, w: { iiV: 2, secDom: 1, tritone: 1.5, colour: 3, sus: 1, subdom: 1 } },
-        ballad: light, bossa: light, latin: light,
-        baroque: classical, mozart: classical, trad: classical,
-        chansonsimple: { turn: false, w: {} }, // triades seules : aucune réharmonisation
-        dixieland: { turn: false, w: { secDom: 3, subdom: 2, dim: 1.2 } }, // jazz New Orleans : dominantes en chaîne, pas de ii-V ni de couleurs modernes
-        blues: { turn: false, w: { colour: 4, tritone: 2, sus: 2 } },
-        pop: { turn: false, w: { colour: 4 } }, funk: { turn: false, w: { colour: 4 } }, modal: { turn: false, w: { colour: 4 } },
-        fusion: { turn: false, w: { colour: 3, tritone: 1 } },
-        valsejazz: jazz, afro68: { turn: false, w: { colour: 1.2, sus: 0.6, secDom: 0.4 } }, blues128: { turn: false, w: { colour: 4, tritone: 2, sus: 2 } },
-        ballad128: { turn: false, alt: true, w: { iiV: 2, secDom: 1, tritone: 2, dim: 0.8, colour: 5, sus: 1, subdom: 1 } },
-        valsemusette: classical, valseviennoise: { turn: false, w: { secDom: 1.5, subdom: 1 } }, menuet: { turn: false, w: { secDom: 2, subdom: 1.5 } },
-        barcarolle: classical, tarentelle: classical,
-        valsecountry: { turn: false, w: { secDom: 1, subdom: 1 } }, jig: { turn: false, w: { secDom: 1.5, subdom: 1 } }, slipjig: { turn: false, w: { secDom: 1.5, subdom: 1 } },
-        gospel: { turn: false, w: { secDom: 2, subdom: 1, colour: 3 } },
-        // Brass band : harmonie de triades et de dominantes, dominantes secondaires et sous-dominantes, aucune couleur de jazz
-        brasshymn: { turn: false, w: { secDom: 2, subdom: 1.5 } },
-        brasscantique: { turn: false, w: { secDom: 1.5, subdom: 1.5 } },
-        // Balkans : triades et dominante V7(b9), aucune réharmonisation (la couleur est dans le mode, pas dans les accords)
-        balkan: { turn: false, w: {} }, balkan98: { turn: false, w: {} }, balkansevdah: { turn: false, w: {} }, balkantsifte: { turn: false, w: {} },
-        balkan58: { turn: false, w: {} }, balkan78: { turn: false, w: {} }, balkan78r: { turn: false, w: {} }, balkan118: { turn: false, w: {} },
-        // Cumbia : triades et dominante V7, boucles courtes, aucune réharmonisation
-        cumbia: { turn: false, w: {} },
-        // Rock : triades (la guitare joue des accords de puissance) et dominantes septièmes, aucune réharmonisation
-        rockroll: { turn: false, w: {} }, rockclassic: { turn: false, w: {} }, hardrock: { turn: false, w: {} }, punk: { turn: false, w: {} },
-        rockballad: { turn: false, w: {} }, bluesrock: { turn: false, w: {} }, indierock: { turn: false, w: {} },
-        // Afro-cubains : son, guajira, danzón et guaguancó en triades et V7 (peu de réharmonisation) ; cha-cha-chá et bolero plus colorés
-        sonmontuno: { turn: false, w: { secDom: 0.6 } }, guajira: { turn: false, w: {} }, guaguanco: { turn: false, w: {} },
-        danzon: { turn: false, w: { secDom: 1.5, subdom: 1 } },
-        chachacha: { turn: false, alt: true, w: { iiV: 1.5, secDom: 1, colour: 1.5, subdom: 0.6 } },
-        bolerocubano: { turn: false, alt: true, w: { iiV: 2, secDom: 1.5, tritone: 0.8, dim: 1, colour: 2.5, sus: 0.6, subdom: 1, chrom: 0.6 } },
-        // Afrique : triades, dominantes septièmes et m7 du vamp de l'afrobeat ; aucune réharmonisation (« Générer » renouvelle la forme)
-        afrobeat: { turn: false, w: {} }, highlife: { turn: false, w: {} }, rumbacongo: { turn: false, w: {} },
-        soukous: { turn: false, w: {} }, benga: { turn: false, w: {} }, mbaqanga: { turn: false, w: {} },
-        // Musique classique, époques : chaque style garde son propre vocabulaire. Renaissance, basse obstinée et minimalisme :
-        // aucune réharmonisation (« Générer » renouvelle la forme et les cellules) ; romantisme : dominantes secondaires,
-        // septièmes diminuées de passage, sous-dominantes ; impressionnisme et Satie : couleurs (neuvièmes, sixtes), glissements
-        // chromatiques parallèles ; néoclassique : glissements d'un demi-ton (« fausses notes ») et quelques dominantes secondaires.
-        renaissance: { turn: false, w: {} }, chaconne: { turn: false, w: {} }, minimalisme: { turn: false, w: {} },
-        nocturne: { turn: false, w: { secDom: 1.5, dim: 1.2, subdom: 1 } },
-        romantique: { turn: false, w: { dim: 1.5, secDom: 1.5, chrom: 1, subdom: 0.6 } },
-        impressionnisme: { turn: false, w: { colour: 2, chrom: 1.2, sus: 0.6 } },
-        gymnopedie: { turn: false, w: { colour: 1 } },
-        neoclassique: { turn: false, w: { chrom: 1.5, secDom: 0.8 } },
-        // Jazz manouche : diminués de passage et dominantes secondaires (V7 de V, I7 vers iv), quelques ii-V et approches
-        // chromatiques ; ni substitutions de triton ni couleurs modernes (les accords sont ramenés au vocabulaire du style)
-        manouche: { turn: false, w: { dim: 2.5, secDom: 2.2, iiV: 1, chrom: 0.4, subdom: 0.6 } },
-        valsemanouche: { turn: false, w: { dim: 2, secDom: 2, iiV: 0.6, chrom: 0.3 } }
-    };
-    return table[styleKey] || { turn: false, w: { colour: 3 } };
-}
+// Le profil de chaque style est dans sa fiche (champ gen, styles/style-registry.js).
+function styleProfile(styleKey) { return styleGenProfile(styleKey); }
 
 // Styles de musique classique par époque (Renaissance, basse obstinée, nocturne, romantisme tardif, impressionnisme, Satie,
 // néoclassicisme, minimalisme) : leur grille vient entièrement des modèles de style-builders.js ; la variation de secours de
@@ -837,25 +779,7 @@ function compactGridRepeats(grid) {
 }
 
 function normalizeGeneratedGrid(template, styleKey) {
-    const targetMeasures = {
-        'ii-v-i': 4, 'anatole': 8, 'i-got-rythm': 32, 'blues': 12, 'bebop': 32, 'swing': 32,
-        'modal': 16, 'bossa': 32, 'pop': 16, 'ballad': 32, 'funk': 16,
-        'hardbop': 16, 'dixieland': 32, 'latin': 16, 'fusion': 16,
-        'baroque': 16, 'mozart': 16, 'trad': 16, 'chansonsimple': 16,
-        'valsejazz': 32, 'valsemusette': 32, 'valseviennoise': 32, 'menuet': 32, 'valsecountry': 16,
-        'jig': 32, 'afro68': 16, 'barcarolle': 16, 'tarentelle': 16, 'slipjig': 16,
-        'blues128': 12, 'gospel': 16, 'ballad128': 32,
-        'samba': 32, 'tango': 32, 'piazzolla': 16, 'milongalyrique': 32,
-        'brasshymn': 16, 'brasscantique': 16,
-        'balkan': 32, 'balkan98': 16, 'balkansevdah': 16, 'balkantsifte': 16,
-        'balkan58': 16, 'balkan78': 16, 'balkan78r': 16, 'balkan118': 16, 'cumbia': 16,
-        'rockroll': 12, 'rockclassic': 16, 'hardrock': 16, 'punk': 16, 'rockballad': 16, 'bluesrock': 12, 'indierock': 16,
-        'sonmontuno': 16, 'chachacha': 16, 'bolerocubano': 16, 'guajira': 16, 'danzon': 32, 'guaguanco': 16,
-        'afrobeat': 16, 'highlife': 16, 'rumbacongo': 16, 'soukous': 16, 'benga': 16, 'mbaqanga': 16,
-        'renaissance': 16, 'chaconne': 32, 'nocturne': 16, 'romantique': 16, 'impressionnisme': 16, 'gymnopedie': 16,
-        'neoclassique': 16, 'minimalisme': 16,
-        'manouche': 32, 'valsemanouche': 32
-    }[styleKey] || 16;
+    const targetMeasures = styleBars(styleKey); // longueur de la grille : champ bars de la fiche du style (16 par défaut)
     if (!template.length) return template;
 
     let normalized = [];

@@ -9,154 +9,28 @@
 if (typeof chordFamily === 'undefined' && typeof require === 'function') {
     var { chordFamily } = require('../grid/generation.js');
 }
+if (typeof styleField === 'undefined' && typeof require === 'function') {
+    var { styleField } = require('./style-registry.js');
+}
 
-// Profil de gammes par style : 'jazz' (1re gamme de l'accord), 'blues', 'funk', 'classic' (mode diatonique du degré), 'balkan'.
-const STYLE_SCALE_PROFILE = {
-    'ii-v-i':'jazz', anatole:'jazz', 'i-got-rythm':'jazz', bebop:'jazz', swing:'jazz', hardbop:'jazz', ballad:'jazz', ballad128:'jazz',
-    valsejazz:'jazz', fusion:'jazz', modal:'jazz', bossa:'jazz', latin:'jazz', samba:'jazz', piazzolla:'jazz', milongalyrique:'jazz', afro68:'jazz', salsa:'jazz',
-    blues:'blues', blues128:'blues', funk:'funk',
-    baroque:'classic', mozart:'classic', trad:'classic', chansonsimple:'classic', menuet:'classic', valseviennoise:'classic',
-    valsemusette:'classic', barcarolle:'classic', tarentelle:'classic', dixieland:'classic', tango:'classic', brasshymn:'classic',
-    brasscantique:'classic', pop:'classic', gospel:'classic', jig:'classic', slipjig:'classic', valsecountry:'classic',
-    balkan:'balkan', balkan98:'balkan', balkansevdah:'balkan', balkantsifte:'balkan', balkan58:'balkan', balkan78:'balkan', balkan118:'balkan',
-    balkan78r:'classic',
-    cumbia:'classic',
-    rockroll:'blues', rockclassic:'classic', hardrock:'classic', punk:'classic', rockballad:'classic', bluesrock:'blues', indierock:'classic',
-    flamencosolea:'flamenco', flamencobulerias:'flamenco', flamencotangos:'flamenco',
-    sonmontuno:'classic', chachacha:'jazz', bolerocubano:'jazz', guajira:'classic', danzon:'classic', guaguanco:'classic',
-    // Afrique : mode diatonique du degré (l'afrobeat est en dorien, voir styleTonality)
-    afrobeat:'classic', highlife:'classic', rumbacongo:'classic', soukous:'classic', benga:'classic', mbaqanga:'classic',
-    // Musique classique par époque : mode du degré pour les styles tonals ; les styles modaux (impressionnisme, Satie,
-    // minimalisme) gardent les gammes écrites par le style (dorien, lydien, par tons…), comme le jazz
-    renaissance:'classic', chaconne:'classic', nocturne:'classic', romantique:'classic', neoclassique:'classic',
-    impressionnisme:'jazz', gymnopedie:'jazz', minimalisme:'jazz',
-    // Jazz manouche : les gammes sont écrites par le style (mineur mélodique sur m6, phrygien dominant sur V7…)
-    manouche:'jazz', valsemanouche:'jazz'
-};
+// Tables par style, déduites des fiches de styles/style-registry.js (un seul endroit à modifier pour un nouveau style).
+// Profil de gammes : 'jazz' (1re gamme de l'accord), 'blues', 'funk', 'classic' (mode diatonique du degré), 'balkan', 'flamenco'.
+const STYLE_SCALE_PROFILE = styleField('scales');
 
 // Orchestre proposé pour chaque style (modifiable ensuite dans la fenêtre « Orchestre »).
-const STYLE_BAND = {
-    'ii-v-i': 'swing', anatole: 'swing', 'i-got-rythm': 'swing', bebop: 'swing', swing: 'swing', hardbop: 'swing',
-    ballad: 'swing', modal: 'swing', blues: 'swing', dixieland: 'swing',
-    bossa: 'latin', latin: 'pop',
-    pop: 'pop', funk: 'pop', fusion: 'pop',
-    baroque: 'classic', mozart: 'classic', trad: 'classic', chansonsimple: 'pop',
-    valsejazz: 'swing', valsemusette: 'pop', valseviennoise: 'classic', menuet: 'classic', valsecountry: 'pop',
-    jig: 'pop', afro68: 'cuba', salsa: 'cuba', barcarolle: 'classic', tarentelle: 'classic', slipjig: 'pop',
-    blues128: 'swing', gospel: 'pop', ballad128: 'swing',
-    samba: 'latin', tango: 'piazzolla', piazzolla: 'piazzolla', milongalyrique: 'piazzolla',
-    brasshymn: 'brass', brasscantique: 'brass',
-    balkan: 'balkan', balkan98: 'balkan', balkansevdah: 'balkan', balkantsifte: 'balkan',
-    balkan58: 'balkan', balkan78: 'balkan', balkan78r: 'balkan', balkan118: 'balkan',
-    cumbia: 'cumbia',
-    rockroll: 'pop', rockclassic: 'pop', hardrock: 'pop', punk: 'pop', rockballad: 'pop', bluesrock: 'pop', indierock: 'pop',
-    flamencosolea: 'guitar', flamencobulerias: 'guitar', flamencotangos: 'guitar',
-    sonmontuno: 'cuba', chachacha: 'cuba', bolerocubano: 'cuba', guajira: 'cuba', danzon: 'cuba', guaguanco: 'cuba',
-    afrobeat: 'africa', highlife: 'africa', rumbacongo: 'africa', soukous: 'africa', benga: 'africa', mbaqanga: 'africa',
-    renaissance: 'classic', chaconne: 'classic', nocturne: 'classic', romantique: 'classic', impressionnisme: 'classic',
-    gymnopedie: 'classic', neoclassique: 'classic', minimalisme: 'classic',
-    manouche: 'manouche', valsemanouche: 'manouche'
-};
+const STYLE_BAND = styleField('band');
 
 // Rythme imposé par certains styles à l'orchestre proposé (sinon chaque orchestre a son jeu par défaut). Les rythmes que sait
 // jouer chaque orchestre sont dans band/band-catalog.js (BAND_FORMATIONS).
-const STYLE_GROOVE = { baroque: 'c-baroque', bossa: 'bossa', samba: 'samba', tango: 'lyrique', piazzolla: 'piazzolla', milongalyrique: 'lyrique', afro68: 'afro', salsa: 'salsa', brasshymn: 'b-chorale', brasscantique: 'b-chorale',
-    flamencosolea: 'f-solea', flamencobulerias: 'f-bulerias', flamencotangos: 'f-tangos',
-    balkansevdah: 'bk-sevdah', balkantsifte: 'bk-tsifte',
-    rockroll: 'r-roll', rockclassic: 'r-classic', hardrock: 'r-hard', punk: 'r-punk', rockballad: 'r-ballad', bluesrock: 'r-blues', indierock: 'r-indie',
-    sonmontuno: 'cu-son', chachacha: 'cu-chacha', bolerocubano: 'cu-bolero', guajira: 'cu-guajira', danzon: 'cu-danzon', guaguanco: 'cu-guaguanco',
-    afrobeat: 'af-afrobeat', highlife: 'af-highlife', rumbacongo: 'af-rumba', soukous: 'af-soukous', benga: 'af-benga', mbaqanga: 'af-mbaqanga',
-    renaissance: 'c-renaissance', chaconne: 'c-chaconne', nocturne: 'c-nocturne', romantique: 'c-romantic', impressionnisme: 'c-impression',
-    gymnopedie: 'c-satie', neoclassique: 'c-neoclassic', minimalisme: 'c-minimal' };
+const STYLE_GROOVE = styleField('groove');
 
 // Les entrées du menu Orchestre (couples orchestre + rythme : Rock, Flamenco, Brasil, Cuba, Afrique) sont décrites dans
 // band/band-catalog.js (BAND_MENU).
 
 // Tempo (noires par minute ; pulsations ♩. en mesure composée) et signature proposés pour chaque style.
 // Valeurs modifiables ensuite avec le curseur de tempo et le sélecteur « Mesure ».
-const STYLE_TEMPO_METER = {
-    'ii-v-i':      { bpm: 120, meter: '4/4' },
-    anatole:       { bpm: 130, meter: '4/4' },
-    'i-got-rythm': { bpm: 170, meter: '4/4' },
-    bebop:         { bpm: 200, meter: '4/4' },
-    swing:         { bpm: 140, meter: '4/4' },
-    hardbop:       { bpm: 160, meter: '4/4' },
-    ballad:        { bpm: 60,  meter: '4/4' },
-    modal:         { bpm: 128, meter: '4/4' },
-    blues:         { bpm: 112, meter: '4/4' },
-    bossa:         { bpm: 132, meter: '4/4' },
-    latin:         { bpm: 160, meter: '4/4' },
-    pop:           { bpm: 112, meter: '4/4' },
-    funk:          { bpm: 100, meter: '4/4' },
-    fusion:        { bpm: 124, meter: '4/4' },
-    dixieland:     { bpm: 180, meter: '2/4' }, // « cut time » : une mesure = deux noires
-    baroque:       { bpm: 84,  meter: '4/4' },
-    mozart:        { bpm: 108, meter: '4/4' },
-    trad:          { bpm: 100, meter: '4/4' },
-    chansonsimple: { bpm: 100, meter: '4/4' },
-    valsejazz:     { bpm: 168, meter: '3/4' },
-    valsemusette:  { bpm: 150, meter: '3/4' },
-    valseviennoise:{ bpm: 174, meter: '3/4' },
-    menuet:        { bpm: 116, meter: '3/4' },
-    valsecountry:  { bpm: 96,  meter: '3/4' },
-    jig:           { bpm: 116, meter: '6/8' },
-    afro68:        { bpm: 96,  meter: '6/8' },
-    barcarolle:    { bpm: 56,  meter: '6/8' },
-    tarentelle:    { bpm: 132, meter: '6/8' },
-    slipjig:       { bpm: 108, meter: '9/8' },
-    blues128:      { bpm: 64,  meter: '12/8' },
-    gospel:        { bpm: 60,  meter: '12/8' },
-    ballad128:     { bpm: 50,  meter: '12/8' },
-    samba:         { bpm: 104, meter: '2/4' },
-    tango:         { bpm: 116, meter: '2/4' },
-    piazzolla:     { bpm: 132, meter: '4/4' },
-    milongalyrique:{ bpm: 66,  meter: '4/4' },
-    brasshymn:     { bpm: 72,  meter: '4/4' },
-    brasscantique: { bpm: 66,  meter: '3/4' },
-    balkan:        { bpm: 128, meter: '2/4' },
-    balkan98:      { bpm: 100, meter: '9/8' },
-    balkansevdah:  { bpm: 60,  meter: '4/4' },   // ballade lente : noire autour de 60
-    balkantsifte:  { bpm: 100, meter: '4/4' },   // tsifteteli / čoček de bal : noire autour de 100
-    // Danses aksak : le BPM compte le temps court (2 croches) ; croches par seconde = BPM / 30
-    balkan58:      { bpm: 140, meter: '5/8' },   // paidouchko / paidushko (2+3) : mesure d'environ 1,1 s
-    balkan78:      { bpm: 120, meter: '7/8' },   // lesnoto (3+2+2) : allure de marche chantée
-    balkan78r:     { bpm: 150, meter: '7/8b' },  // račenica (2+2+3) : vive
-    balkan118:     { bpm: 150, meter: '11/8' },  // kopanica (2+2+3+2+2)
-    cumbia:        { bpm: 98,  meter: '4/4' },    // cumbia colombienne : 85-110 à la noire
-    rockroll:      { bpm: 160, meter: '4/4' },    // rock'n'roll des années 50 (swingué à 62 %)
-    rockclassic:   { bpm: 118, meter: '4/4' },
-    hardrock:      { bpm: 132, meter: '4/4' },
-    punk:          { bpm: 145, meter: '4/4' },
-    rockballad:    { bpm: 68,  meter: '4/4' },
-    bluesrock:     { bpm: 100, meter: '4/4' },    // shuffle (swing à 67 %)
-    indierock:     { bpm: 124, meter: '4/4' },
-    flamencosolea:    { bpm: 52,  meter: '12/8' }, // 12 temps : un compás = 4 pulsations ♩. (≈ 4,6 s)
-    flamencobulerias: { bpm: 88,  meter: '12/8' }, // compás de ≈ 2,7 s
-    flamencotangos:   { bpm: 108, meter: '4/4' },
-    salsa:            { bpm: 180, meter: '4/4' }, // salsa dansée : noire autour de 180 (clave sur deux mesures ≈ 2,7 s)
-    sonmontuno:       { bpm: 104, meter: '4/4' }, // son montuno de septeto
-    chachacha:        { bpm: 116, meter: '4/4' }, // cha-cha-chá dansé : 110-125
-    bolerocubano:     { bpm: 72,  meter: '4/4' },
-    guajira:          { bpm: 92,  meter: '4/4' },
-    danzon:           { bpm: 112, meter: '2/4' }, // danzón : noire autour de 110, cinquillo en doubles croches
-    guaguanco:        { bpm: 108, meter: '4/4' },
-    afrobeat:         { bpm: 112, meter: '4/4' }, // Fela Kuti / Tony Allen : 100-125
-    highlife:         { bpm: 120, meter: '4/4' },
-    rumbacongo:       { bpm: 116, meter: '4/4' },
-    soukous:          { bpm: 144, meter: '4/4' }, // sebene dansé : 135-155
-    benga:            { bpm: 132, meter: '4/4' }, // Shirati Jazz, D.O. Misiani : 125-140
-    mbaqanga:         { bpm: 126, meter: '4/4' },
-    renaissance:      { bpm: 76,  meter: '4/4' }, // pavane / passamezzo : allure de marche lente
-    chaconne:         { bpm: 72,  meter: '3/4' }, // chaconne, passacaille, folia : 3/4 grave
-    nocturne:         { bpm: 58,  meter: '4/4' }, // Lento / Andante sostenuto
-    romantique:       { bpm: 66,  meter: '4/4' },
-    impressionnisme:  { bpm: 60,  meter: '4/4' }, // « Lent et rêveur »
-    gymnopedie:       { bpm: 72,  meter: '3/4' }, // « Lent et douloureux »
-    neoclassique:     { bpm: 126, meter: '4/4' }, // Allegro
-    minimalisme:      { bpm: 120, meter: '4/4' }, // croches continues de l'ostinato
-    manouche:         { bpm: 180, meter: '4/4' }, // swing manouche (Minor Swing, Les Yeux noirs) : 170-220 ; 180 laisse la place d'improviser
-    valsemanouche:    { bpm: 160, meter: '3/4' }  // valse manouche : une mesure par pulsation, vive
-};
+const STYLE_TEMPO_METER = {};
+{ const meters = styleField('meter'); Object.entries(styleField('bpm')).forEach(([k, bpm]) => { STYLE_TEMPO_METER[k] = { bpm, meter: meters[k] }; }); }
 
 // Recherche par clé propre : une clé inattendue (« constructor »…) ne renvoie jamais un membre hérité d'Object.
 const styleMetaLookup = (table, key) => (typeof key === 'string' && Object.prototype.hasOwnProperty.call(table, key)) ? table[key] : null;

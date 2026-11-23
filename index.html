@@ -508,6 +508,7 @@
     <script src="app/audio/local-soundfonts.js"></script>
     <script src="app/audio/vpo-brass.js"></script>
     <script src="app/theory.js"></script>
+    <script src="app/styles/style-registry.js"></script>
     <script src="app/band-patterns.js"></script>
     <script src="app/audio-config.js"></script>
     <script src="app/band/band-helpers.js"></script>
@@ -985,17 +986,13 @@
 
             changeStyle(styleKey) {
                 if (styleKey === 'custom') return;
-                const BRASS_KEYS = { brasshymn: 5, brasscantique: 3, balkan: 2, balkan98: 9, balkansevdah: 9, balkantsifte: 2, balkan58: 9, balkan78: 2, balkan78r: 7, balkan118: 4, cumbia: 7, milongalyrique: 2, flamencosolea: 9, flamencobulerias: 9, flamencotangos: 9, rockroll: 9, rockclassic: 2, hardrock: 4, punk: 7, rockballad: 7, bluesrock: 9, indierock: 0, afrobeat: 2, highlife: 5, rumbacongo: 9, soukous: 4, benga: 7, mbaqanga: 0, manouche: 9, valsemanouche: 2 }; // + Jazz manouche : la mineur (Minor Swing), valse en ré mineur ; + Afrique : ré dorien (afrobeat), fa (highlife), la (rumba), mi (soukous), sol (benga), do (mbaqanga) ; + Rock : la (rock'n'roll, blues rock), ré (classique), mi mineur (hard rock), sol (punk, ballade), do (indie) ; + Balkans : ré mineur (kolo), la mineur (aksak), la mineur (sevdah), ré mineur (tsifteteli) ; Milonga lyrique : ré mineur (Oblivion) ; Flamenco : la (cadence andalouse La m - Sol - Fa - Mi)
                 this.withUndo(() => {
-                    if (styleKey === 'i-got-rythm') {
+                    // Tonalité habituelle du répertoire (si bémol pour I Got Rhythm, fa pour l'hymne de brass band, la mineur pour le
+                    // jazz manouche…) : champ key de la fiche du style (styles/style-registry.js) ; sans fiche ni champ, la tonalité reste.
+                    const styleKeyRootValue = styleKeyRoot(styleKey);
+                    if (styleKeyRootValue !== null) {
                         const prevKey = this.mainKey;
-                        this.mainKey = 10;
-                        this._refreshSpelling(prevKey);
-                    }
-                    // Tonalités habituelles du répertoire : brass band (fa pour l'hymne, mi bémol pour le cantique), Balkans (ré mineur, la mineur)
-                    if (BRASS_KEYS[styleKey] !== undefined) {
-                        const prevKey = this.mainKey;
-                        this.mainKey = BRASS_KEYS[styleKey];
+                        this.mainKey = styleKeyRootValue;
                         this._refreshSpelling(prevKey);
                     }
                     this._fnConvention = null; // un nouveau style revient au chiffrage qui lui convient

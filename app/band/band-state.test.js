@@ -5,19 +5,14 @@ const S = require('./band-state.js');
 
 describe('bandVoiceState', () => {
     test('toutes les mémoires de voix sont vides ou à leur valeur neutre', () => {
-        assert.deepEqual(S.bandVoiceState(), {
-            _bandPhrase: null, _bandPlan: null,
-            _latVoice: null, _latTie: false, _latRunAt: -9,
-            _meterVoice: null, _popVoice: null, _popRunAt: -9,
-            _brassVoice: null, _brassPrevKey: null, _brassLines: null,
-            _balkanVoice: null, _balkanMel: null,
-            _cumbiaVoice: null, _cumbiaMel: null,
-            _africaVoice: null, _africaLead: null, _africaKeys: null,
-            _pzState: null,
-            _mnState: null,
-            _gtrVoice: null,
-            _rockStrV: null, _rockPad: null, _rockGtrHold: null,
+        // toutes les mémoires commencent par « _ » et sont vides, sauf les compteurs et drapeaux neutres ci-dessous
+        const NEUTRAL = { _latTie: false, _latRunAt: -9, _popRunAt: -9 };
+        const st = S.bandVoiceState();
+        Object.entries(st).forEach(([k, v]) => {
+            assert.ok(k.startsWith('_'), k);
+            assert.equal(v, k in NEUTRAL ? NEUTRAL[k] : null, k);
         });
+        ['_bandPhrase', '_bandPlan', '_cumbiaVoice', '_pzState', '_mnState', '_rockGtrHold'].forEach(k => assert.ok(k in st, k));
     });
     test('un nouvel objet à chaque appel', () => {
         assert.notEqual(S.bandVoiceState(), S.bandVoiceState());

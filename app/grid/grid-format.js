@@ -14,7 +14,7 @@ const GF_STAFF = (typeof parseStaff !== 'undefined')
 const GF_CHORDS = (typeof chordsCanon !== 'undefined') ? { chordsCanon } : require('../ui/chord-notes.js');
 // Cadres de dessin libre (ui/draw-notes.js) : « data-draw » est relu (traits compris) et réécrit sous sa forme canonique.
 const GF_DRAW = (typeof drawCanon !== 'undefined') ? { drawCanon } : require('../ui/draw-notes.js');
-const GF_BAND = (typeof bandSanitizeInstruments !== 'undefined') ? { bandSanitizeInstruments } : require('../band/band-catalog.js');
+const GF_BAND = (typeof bandSanitizeInstruments !== 'undefined') ? { bandSanitizeInstruments, BAND_FORMATIONS, bandAllGrooves } : require('../band/band-catalog.js');
 
 // Repères de partie proposés par le menu « Partie » ; les lettres A–Z restent acceptées (anciennes grilles, parties auto)
 const PART_LABELS = ['in', 'A', 'B', 'C', 'D', 'E', 'F', 'G', "A'", "B'", "C'", "D'", "E'", "F'", "G'", 'out'];
@@ -28,12 +28,8 @@ function cleanPartLabel(v) {
 }
 const isPartLabel = (v) => typeof v === 'string' && (PART_LABELS.includes(v) || /^[A-Z]$/.test(v) || (v.length > 0 && cleanPartLabel(v) === v));
 
-// Rythmes imposés par un style (samba, tango…), valables dans un fichier importé.
-const IMPORT_GROOVES = ['bossa', 'samba', 'salsa', 'tango', 'piazzolla', 'lyrique', 'afro', 'b-chorale', 'bk-sevdah', 'bk-tsifte', 'f-solea', 'f-bulerias', 'f-tangos',
-    'r-roll', 'r-classic', 'r-hard', 'r-punk', 'r-ballad', 'r-blues', 'r-indie', 'c-baroque',
-    'c-renaissance', 'c-chaconne', 'c-nocturne', 'c-romantic', 'c-impression', 'c-satie', 'c-neoclassic', 'c-minimal',
-    'cu-son', 'cu-chacha', 'cu-bolero', 'cu-guajira', 'cu-danzon', 'cu-guaguanco',
-    'af-afrobeat', 'af-highlife', 'af-rumba', 'af-soukous', 'af-benga', 'af-mbaqanga'];
+// Rythmes imposés valables dans un fichier importé : tous ceux du catalogue des orchestres (band/band-catalog.js).
+const IMPORT_GROOVES = GF_BAND.bandAllGrooves();
 
 // Densité de notes par orchestre (curseur « Densité » du pop-up Orchestre, 0 à 1) et valeur par défaut :
 // Guitare 60 % (un peu plus fourni que l'écriture d'origine, vers 35 %) ; autres orchestres 50 % = l'écriture d'origine.
@@ -397,7 +393,7 @@ function sanitizeImportedSettings(data) {
     const o = data.orchestration;
     if (o && typeof o === 'object') {
         const orch = {};
-        if (['swing', 'pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'cumbia', 'piazzolla', 'africa', 'manouche'].includes(o.style)) orch.style = o.style;
+        if (typeof o.style === 'string' && Object.prototype.hasOwnProperty.call(GF_BAND.BAND_FORMATIONS, o.style)) orch.style = o.style;   // formations du catalogue (band/band-catalog.js)
         // anciens fichiers : le mode « Arpèges » est devenu le style « Classique »
         if (o.mode === 'arpeges') orch.style = 'classic';
         if (IMPORT_GROOVES.includes(o.groove)) orch.groove = o.groove; // rythme imposé par le style

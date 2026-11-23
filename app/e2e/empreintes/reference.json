@@ -20065,22 +20065,22 @@
      "strings": 0.4
     }
    },
-   "grille": "9:minTriadx1 2:minTriadx1 9:minTriadx2 2:minTriadx2 9:minTriadx2 5:majTriadx1 4:7x1 9:minTriadx2",
-   "grilleEmpreinte": "7b6b9f4000ac3f41",
+   "grille": "9:minTriadx4 2:minTriadx2 9:minTriadx1 5:majTriadx1 4:7x1 2:minTriadx1 9:minTriadx1/4:7 9:minTriadx1",
+   "grilleEmpreinte": "1145f5dd899cf92a",
    "mesures": [
     "e3b0c44298fc1c14",
-    "30bd470b10215969",
-    "6219068ce6042c40",
-    "6feb574910d506ae",
-    "07d383005cc99aea",
-    "a0fe995478eab944",
-    "492180a7e28168ff",
-    "640614a3abda6804",
-    "eb92fdce8ed6ca7b",
-    "bb90edd82d4b1337",
-    "2a58f411537d4323",
-    "8a71395c6af4cdfd",
-    "bbaa9fcc75b674dc"
+    "27bb7cc57a96dab7",
+    "bba3080c9395dbe6",
+    "fa6fd8060bce7536",
+    "a2b3a8f4ecb2b9f1",
+    "6b94f830356b6ef1",
+    "fba4d0542cbe8c6f",
+    "e1c7ec326ccc0268",
+    "00af82f6c898f756",
+    "a23d0200718c1be3",
+    "5fd6a905af039827",
+    "8ce4fdab5ba1425a",
+    "8a1e5138de5d9c0e"
    ]
   },
   "style:bluesrock#graine2": {
@@ -28105,22 +28105,22 @@
      "strings": 0.4
     }
    },
-   "grille": "9:7x4 2:7x2 9:7x2 4:7x1 2:7x1 9:7x2",
-   "grilleEmpreinte": "b046bc8f07a794f0",
+   "grille": "9:7x1 2:7x1 9:7x1 9:7x1 2:7x2 9:7x1 6:7x1 11:7x1 4:7x1 9:7x2",
+   "grilleEmpreinte": "ab89128877198528",
    "mesures": [
     "e3b0c44298fc1c14",
-    "addad521a3710fe9",
-    "3f8b5373b814cab2",
-    "fdb8224bf10994e5",
-    "9d7c02caaad0d910",
-    "6d3ad1dc6548a01c",
-    "878a932b0d46327c",
-    "b67b10210c566fb9",
-    "eff298b6f5c556e2",
-    "3cb89b57953c4e23",
-    "863dcd743ee5a10b",
-    "9cf35e2f2f886776",
-    "a07938b2696c8d1d"
+    "beb5be1e3ce2d101",
+    "1159646c0f27cf88",
+    "7315c13da84dd21c",
+    "788f9332ec7b9732",
+    "16a0d4cef5868bf8",
+    "2a597454a2684409",
+    "59e9f3fba6b68e27",
+    "4090182e694a6950",
+    "067852b29cb103ee",
+    "6894b2bdae8f3321",
+    "ee60231424b9c74c",
+    "5948b91f8b0490bd"
    ]
   },
   "style:rockroll#graine2": {

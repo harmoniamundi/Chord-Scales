@@ -36,6 +36,7 @@ const SHELL_FILES = [
     'app/audio/vpo-brass.js',
     'app/offline.js',
     'app/theory.js',
+    'app/styles/style-registry.js',
     'app/band-patterns.js',
     'app/audio-config.js',
     'app/band/band-helpers.js',

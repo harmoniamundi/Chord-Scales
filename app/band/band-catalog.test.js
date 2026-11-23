@@ -13,9 +13,11 @@ const HTML = fs.readFileSync(path.join(__dirname, '..', '..', 'index.html'), 'ut
 const unesc = (s) => s.replace(/&amp;/g, '&').replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"');
 
 describe('band-catalog : catalogue des orchestres', () => {
-    test('formations : les douze orchestres du moteur, dans l\'ordre d\'origine (Jazz manouche ajouté à la fin)', () => {
-        assert.deepEqual(Object.keys(C.BAND_FORMATIONS), ['swing', 'pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'cumbia', 'piazzolla', 'africa', 'manouche']);
-        assert.deepEqual(C.BAND_FORMATIONS.manouche.grooves, []);
+    test('formations : liste, ordre d\'origine, libellés de chacune', () => {
+        // l'ordre d'origine des onze premières est conservé ; les formations ajoutées viennent ensuite
+        assert.deepEqual(Object.keys(C.BAND_FORMATIONS).slice(0, 11), ['swing', 'pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'cumbia', 'piazzolla', 'africa']);
+        assert.deepEqual(C.BAND_FORMATION_ORDER.slice().sort(), Object.keys(C.BAND_FORMATIONS).sort());
+        Object.keys(C.BAND_FORMATIONS).forEach(b => { assert.ok(C.BAND_FORMATION_LABELS[b], b); assert.ok(b in C.BAND_AUTO_LABELS, b); });
         assert.deepEqual(C.BAND_FORMATIONS.pop.grooves, ROCK_GROOVES);
         assert.deepEqual(C.BAND_FORMATIONS.cuba.grooves, ['afro', 'salsa'].concat(AFRO_GROOVES));
         assert.deepEqual(C.BAND_FORMATIONS.africa.grooves, AFRICA_GROOVES);
@@ -158,10 +160,16 @@ describe('band-catalog : catalogue des orchestres', () => {
 
     test('instruments : pupitre d\'origine de chaque formation, null quand il n\'est pas réglable', () => {
         const N = (b, g, r) => C.bandNativeInstrument(b, g, r);
-        assert.deepEqual(C.BAND_FORMATION_ORDER.map(b => N(b, null, 'harmony')),
-            ['piano', null, 'piano', 'guitar', 'piano', 'piano', 'guitar', null, 'accordion', 'accordion', null, null]);   // Jazz manouche : section (pompe, solo, violon)
-        assert.deepEqual(C.BAND_FORMATION_ORDER.map(b => N(b, null, 'bass')),
-            ['upright', 'upright', 'electric', 'upright', 'upright', null, null, 'tuba', 'upright', 'electric', 'electric', 'upright']);
+        const HARM = { swing: 'piano', pop: 'piano', latin: 'guitar', cuba: 'piano', classic: 'piano', guitar: 'guitar', brass: null,
+            balkan: 'accordion', cumbia: 'accordion', africa: null, piazzolla: null, manouche: null };
+        const BASS = { swing: 'upright', pop: 'electric', latin: 'upright', cuba: 'upright', classic: null, guitar: null, brass: 'tuba',
+            balkan: 'upright', cumbia: 'electric', africa: 'electric', piazzolla: 'upright', manouche: 'upright' };
+        Object.keys(HARM).forEach(b => { assert.equal(N(b, null, 'harmony'), HARM[b], b); assert.equal(N(b, null, 'bass'), BASS[b], b); });
+        // toute formation (y compris une nouvelle) : instrument connu ou null
+        Object.keys(C.BAND_FORMATIONS).forEach(b => ['harmony', 'bass'].forEach(r => {
+            const v = N(b, null, r);
+            assert.ok(v === null || Object.prototype.hasOwnProperty.call(C.BAND_INSTRUMENTS[r], v), `${b} ${r} ${v}`);
+        }));
         assert.equal(N('cuba', 'cu-son', 'harmony'), 'guitar');      // tres
         assert.equal(N('cuba', 'cu-chacha', 'harmony'), 'piano');
         assert.equal(N('pop', 'r-roll', 'bass'), 'upright');        // rock'n'roll : la contrebasse mène
