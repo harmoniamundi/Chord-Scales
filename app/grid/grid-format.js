@@ -37,7 +37,7 @@ const IMPORT_GROOVES = ['bossa', 'samba', 'salsa', 'tango', 'piazzolla', 'lyriqu
 
 // Densité de notes par orchestre (curseur « Densité » du pop-up Orchestre, 0 à 1) et valeur par défaut :
 // Guitare 60 % (un peu plus fourni que l'écriture d'origine, vers 35 %) ; autres orchestres 50 % = l'écriture d'origine.
-const BAND_DENSITY_DEFAULTS = { guitar: 0.6, classic: 0.5, piazzolla: 0.5, balkan: 0.5, cumbia: 0.5, brass: 0.5 };
+const BAND_DENSITY_DEFAULTS = { guitar: 0.6, classic: 0.5, piazzolla: 0.5, balkan: 0.5, cumbia: 0.5, brass: 0.5, manouche: 0.5 };
 
 // Annotations libres (onglet « Annotations » du mode Jam) : une par mesure (jusqu'à 2000 signes de texte) et une pour toute la grille (40000).
 // Le texte est mis en forme (gras, taille, couleur…) : il est gardé sous forme de HTML RESTREINT, nettoyé par sanitizeNoteHtml.
@@ -397,7 +397,7 @@ function sanitizeImportedSettings(data) {
     const o = data.orchestration;
     if (o && typeof o === 'object') {
         const orch = {};
-        if (['swing', 'pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'cumbia', 'piazzolla', 'africa'].includes(o.style)) orch.style = o.style;
+        if (['swing', 'pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'cumbia', 'piazzolla', 'africa', 'manouche'].includes(o.style)) orch.style = o.style;
         // anciens fichiers : le mode « Arpèges » est devenu le style « Classique »
         if (o.mode === 'arpeges') orch.style = 'classic';
         if (IMPORT_GROOVES.includes(o.groove)) orch.groove = o.groove; // rythme imposé par le style

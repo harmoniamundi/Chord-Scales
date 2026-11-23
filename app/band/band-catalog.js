@@ -38,7 +38,8 @@ const BAND_FORMATIONS = {
     balkan:    { name: 'Balkans',     grooves: ['bk-sevdah', 'bk-tsifte'] },
     cumbia:    { name: 'Cumbia',      grooves: [] },
     piazzolla: { name: 'Tango nuevo', grooves: ['lyrique'] },
-    africa:    { name: 'Highlife',    grooves: BC_AFRICA.AFRICA_GROOVES }   // sans rythme, l'orchestre Afrique joue le highlife
+    africa:    { name: 'Highlife',    grooves: BC_AFRICA.AFRICA_GROOVES },  // sans rythme, l'orchestre Afrique joue le highlife
+    manouche:  { name: 'Jazz manouche', grooves: [] }                       // pompe, contrebasse, guitare solo, violon (band/manouche-plan.js)
 };
 
 // Nom affiché sur le bouton quand un rythme est imposé (sinon le nom de la formation). Un rythme absent garde le nom de la formation.
@@ -52,15 +53,16 @@ const BAND_GROOVE_NAMES = {
 };
 
 // Liste « Formation » du pop-up Orchestre : ordre et libellés.
-const BAND_FORMATION_ORDER = ['swing', 'pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'cumbia', 'africa', 'piazzolla'];
-const BAND_FORMATION_LABELS = { swing: 'Jazz', pop: 'Pop-Rock', latin: 'Brasil', cuba: 'Cuba', classic: 'Classique (piano)', guitar: 'Guitare',
+const BAND_FORMATION_ORDER = ['swing', 'manouche', 'pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'cumbia', 'africa', 'piazzolla'];
+const BAND_FORMATION_LABELS = { swing: 'Jazz', manouche: 'Jazz manouche', pop: 'Pop-Rock', latin: 'Brasil', cuba: 'Cuba', classic: 'Classique (piano)', guitar: 'Guitare',
     brass: 'Brass band', balkan: 'Balkans', cumbia: 'Cumbia', africa: 'Afrique', piazzolla: 'Quinteto de tango' };
 
 // Liste « Rythme » : ce que joue la formation sans rythme imposé (première ligne, valeur ''). null : pas de choix « Auto »
 // (l'orchestre Afrique joue alors le highlife, montré comme tel). Formation sans rythme : la liste est grisée.
 const BAND_AUTO_LABELS = { swing: 'Swing', pop: 'Pop-Rock (couches selon la phrase)', latin: 'Auto : bossa ou samba selon le tempo',
     cuba: 'Afro-cubain (clave, montuno)', classic: 'Piano classique', guitar: 'Guitare classique (arpèges)',
-    brass: 'Auto : marche, fanfare ou choral', balkan: 'Auto : danse (selon la mesure)', cumbia: 'Cumbia', africa: null, piazzolla: 'Tango nuevo' };
+    brass: 'Auto : marche, fanfare ou choral', balkan: 'Auto : danse (selon la mesure)', cumbia: 'Cumbia', africa: null, piazzolla: 'Tango nuevo',
+    manouche: 'La pompe (swing manouche)' };
 
 // Libellés des rythmes dans la liste « Rythme ». Un rythme sans libellé n'y figure pas : 'afro' (c'est déjà le jeu par défaut
 // de Cuba), 'tango' et 'piazzolla' (anciens rythmes de l'orchestre Brasil, gardés pour relire les anciens fichiers).
@@ -89,6 +91,7 @@ const BAND_GROOVE_LABELS = {
 // le rythme sans toucher au tempo ni à la mesure (leur jeu s'adapte à toutes les signatures).
 const BAND_MENU = [
     { value: 'swing',            label: 'Jazz', band: 'swing' },
+    { value: 'manouche',         label: 'Jazz manouche', band: 'manouche' },
     { value: 'pop',              label: 'Pop-Rock', band: 'pop' },
     { value: 'rockroll',         label: "Rock : rock'n'roll années 50", band: 'pop', groove: 'r-roll', tempo: true },
     { value: 'rockclassic',      label: 'Rock : classique (années 70)', band: 'pop', groove: 'r-classic', tempo: true },
@@ -208,7 +211,8 @@ const BAND_INSTRUMENTS = {
 };
 
 // Instrument d'origine de chaque pupitre, ou null quand le pupitre n'est pas réglable : sections de plusieurs instruments
-// (Brass band, quinteto de tango, Afrique : cuivres et guitares) pour l'harmonie, formations sans basse (Classique, Guitare).
+// (Brass band, quinteto de tango, Afrique : cuivres et guitares ; Jazz manouche : pompe, guitare solo et violon) pour l'harmonie,
+// formations sans basse (Classique, Guitare).
 function bandNativeInstrument(band, groove, role) {
     const b = bandFormation(band);
     if (role === 'harmony') {
@@ -220,7 +224,7 @@ function bandNativeInstrument(band, groove, role) {
     }
     if (role === 'bass') {
         if (b === 'classic' || b === 'guitar') return null;
-        if (b === 'brass') return 'tuba';
+        if (b === 'brass') return 'tuba';   // (Jazz manouche : contrebasse, comme le cas général)
         if (b === 'pop') return groove === 'r-roll' ? 'upright' : 'electric';   // rock'n'roll des années 50 : la contrebasse mène
         if (b === 'cumbia' || b === 'africa') return 'electric';
         return 'upright';

@@ -13,8 +13,9 @@ const HTML = fs.readFileSync(path.join(__dirname, '..', '..', 'index.html'), 'ut
 const unesc = (s) => s.replace(/&amp;/g, '&').replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"');
 
 describe('band-catalog : catalogue des orchestres', () => {
-    test('formations : les onze orchestres du moteur, dans l\'ordre d\'origine', () => {
-        assert.deepEqual(Object.keys(C.BAND_FORMATIONS), ['swing', 'pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'cumbia', 'piazzolla', 'africa']);
+    test('formations : les douze orchestres du moteur, dans l\'ordre d\'origine (Jazz manouche ajouté à la fin)', () => {
+        assert.deepEqual(Object.keys(C.BAND_FORMATIONS), ['swing', 'pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'cumbia', 'piazzolla', 'africa', 'manouche']);
+        assert.deepEqual(C.BAND_FORMATIONS.manouche.grooves, []);
         assert.deepEqual(C.BAND_FORMATIONS.pop.grooves, ROCK_GROOVES);
         assert.deepEqual(C.BAND_FORMATIONS.cuba.grooves, ['afro', 'salsa'].concat(AFRO_GROOVES));
         assert.deepEqual(C.BAND_FORMATIONS.africa.grooves, AFRICA_GROOVES);
@@ -158,9 +159,9 @@ describe('band-catalog : catalogue des orchestres', () => {
     test('instruments : pupitre d\'origine de chaque formation, null quand il n\'est pas réglable', () => {
         const N = (b, g, r) => C.bandNativeInstrument(b, g, r);
         assert.deepEqual(C.BAND_FORMATION_ORDER.map(b => N(b, null, 'harmony')),
-            ['piano', 'piano', 'guitar', 'piano', 'piano', 'guitar', null, 'accordion', 'accordion', null, null]);
+            ['piano', null, 'piano', 'guitar', 'piano', 'piano', 'guitar', null, 'accordion', 'accordion', null, null]);   // Jazz manouche : section (pompe, solo, violon)
         assert.deepEqual(C.BAND_FORMATION_ORDER.map(b => N(b, null, 'bass')),
-            ['upright', 'electric', 'upright', 'upright', null, null, 'tuba', 'upright', 'electric', 'electric', 'upright']);
+            ['upright', 'upright', 'electric', 'upright', 'upright', null, null, 'tuba', 'upright', 'electric', 'electric', 'upright']);
         assert.equal(N('cuba', 'cu-son', 'harmony'), 'guitar');      // tres
         assert.equal(N('cuba', 'cu-chacha', 'harmony'), 'piano');
         assert.equal(N('pop', 'r-roll', 'bass'), 'upright');        // rock'n'roll : la contrebasse mène

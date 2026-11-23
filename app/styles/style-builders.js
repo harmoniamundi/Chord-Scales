@@ -47,6 +47,106 @@ function flamencoForm(t, palo) {
     return template;
 }
 
+// ============ Jazz manouche ============
+// Joués par l'orchestre « Jazz manouche » (pompe, contrebasse, guitare solo, violon : band/manouche-plan.js). Le vocabulaire est celui
+// du répertoire de Django Reinhardt : tonique mineure en accord de sixte (Lam6, sur le mineur mélodique), iv6 (Rém6), dominante
+// V7 sur le phrygien dominant, ♭VI7 qui glisse sur V7 (Fa7 - Mi7), V7 de V (Si7 - Mi7), I7 qui mène au iv (La7 - Rém6) ;
+// en majeur : I6 (ou 6/9), diminué de passage (Do6 - Do#°7 - Rém7), chaîne de dominantes I6 - VI7 - II7 - V7. Les accords
+// durent souvent deux mesures. Formes de 32 mesures : grille de 16 mesures jouée deux fois (dans l'esprit de « Minor Swing »),
+// AABA mineur ou AABA majeur (pont en dominantes, ou au relatif majeur avec modulation).
+// Cellule : [nom, mesures, nom de l'accord de la 2e moitié de mesure (facultatif)].
+function manoucheKit(t) {
+    const { abs, keyRoot } = t;
+    const M6 = 'x:m:P:6:-';
+    const C = {
+        i: [0, M6, 'melodicMinor', 'tonic'], iv: [5, M6, 'dorian', 'predominant'],
+        V: [7, '7', 'phrygianDominant', 'dominant'], Vb9: [7, '7b9', 'phrygianDominant', 'dominant'],
+        bVI7: [8, '7', 'lydianDominant', 'predominant'], II7: [2, '7', 'mixolydian', 'secondaryDominant'],
+        iio: [2, 'm7b5', 'locrianSharp2', 'predominant'], I7: [0, '7', 'phrygianDominant', 'secondaryDominant'],
+        bVII7: [10, '7', 'mixolydian', 'secondaryDominant'], bIII: [3, '6', 'ionian', 'color'],
+        // majeur
+        I: [0, '6', 'ionian', 'tonic'], I69: [0, 'x:M:P:6:9', 'ionian', 'tonic'], sI0: [1, 'dim7', 'wholeHalfDim', 'color'],
+        ii: [2, 'm7', 'dorian', 'predominant'], Vm: [7, '7', 'mixolydian', 'dominant'], V9: [7, '9', 'mixolydian', 'dominant'],
+        VI7: [9, '7', 'mixolydianFlat13', 'secondaryDominant'], III7: [4, '7', 'mixolydianFlat13', 'secondaryDominant'],
+        IV: [5, '6', 'lydian', 'predominant'], ivm: [5, M6, 'melodicMinor', 'predominant'],
+        I7M: [0, '7', 'mixolydian', 'secondaryDominant'], II7M: [2, '7', 'mixolydian', 'secondaryDominant']
+    };
+    // kc : tonalité traversée (décalage de la tonique) pour les cellules du pont au relatif majeur
+    const row = (spec, sec, phr, kcs) => spec.map(([nm, m = 1, half], k) => {
+        const [off, c, sc, fn] = C[nm];
+        const it = abs(off, c, m, sc, sec, phr, fn);
+        if (half) { const h = C[half]; it.split = { r: (keyRoot + h[0] + 12) % 12, c: h[1], s: h[2] }; }
+        if (kcs) it.kc = kcs[k];
+        return it;
+    });
+    return { C, row };
+}
+function manoucheForm(t) {
+    const { R, pick, join, twinOf } = t;
+    const { row } = manoucheKit(t);
+    // A mineur de 8 mesures (part de i, finit sur i), seconde moitié de la grille de 16 (part de iv ou de I7, finit sur i), ponts (finissent sur V7)
+    const MA = [
+        [['i', 2], ['iv', 2], ['V', 2], ['i', 2]],                                   // « Minor Swing »
+        [['i', 2], ['V', 4], ['i', 2]],                                              // « Les Yeux noirs »
+        [['i', 1], ['I7', 1], ['iv', 2], ['iio', 1, 'V'], ['V', 1], ['i', 2]],
+        [['i', 2], ['bVI7', 1], ['V', 1], ['i', 2], ['iio', 1, 'Vb9'], ['i', 1]]
+    ];
+    const MC = [
+        [['iv', 2], ['i', 2], ['V', 2], ['i', 2]],
+        [['iv', 2], ['i', 2], ['bVI7', 1], ['V', 1], ['i', 2]],
+        [['I7', 2], ['iv', 2], ['i', 1], ['V', 1], ['i', 2]],
+        [['iv', 2], ['i', 2], ['II7', 1], ['V', 1], ['i', 2]]
+    ];
+    const MB = [
+        { s: [['I7', 2], ['iv', 2], ['II7', 2], ['V', 2]] },
+        { s: [['bVII7', 2], ['bIII', 2], ['II7', 2], ['V', 2]], kc: [3, 3, 0, 0] },  // au relatif majeur
+        { s: [['iv', 2], ['i', 2], ['II7', 2], ['V', 2]] }
+    ];
+    // Majeur : A ouvert (finit sur V7), A fermé (finit sur I), ponts
+    const JA = [
+        { o: [['I', 1], ['sI0', 1], ['ii', 1], ['Vm', 1], ['I', 1], ['VI7', 1], ['II7M', 1], ['Vm', 1]],
+          c: [['I', 1], ['sI0', 1], ['ii', 1], ['Vm', 1], ['I', 1], ['VI7', 1], ['ii', 1, 'Vm'], ['I69', 1]] },
+        { o: [['I', 2], ['VI7', 2], ['II7M', 2], ['Vm', 2]],
+          c: [['I', 2], ['VI7', 2], ['II7M', 1], ['V9', 1], ['I', 2]] },
+        { o: [['I', 1], ['VI7', 1], ['ii', 1], ['Vm', 1], ['III7', 1], ['VI7', 1], ['II7M', 1], ['Vm', 1]],
+          c: [['I', 1], ['VI7', 1], ['ii', 1], ['Vm', 1], ['III7', 1], ['VI7', 1], ['ii', 1, 'Vm'], ['I69', 1]] }
+    ];
+    const JB = [
+        [['III7', 2], ['VI7', 2], ['II7M', 2], ['Vm', 2]],
+        [['I7M', 2], ['IV', 1], ['ivm', 1], ['I', 1], ['VI7', 1], ['II7M', 1], ['Vm', 1]]
+    ];
+    const kind = R ? R() : 0;
+    if (kind < 0.4) {
+        // grille de 16 mesures jouée deux fois (la reprise s'écrit avec des signes de reprise)
+        const A = join(row(pick(MA), 'A', 'A1'), row(pick(MC), 'A', 'A2'));
+        return join(A, twinOf(A, 'A2'));
+    }
+    if (kind < 0.7) {
+        const a = pick(MA);
+        const A = row(a, 'A', 'A1');
+        const b = pick(MB);
+        const a3 = R() < 0.6 ? a : pick(MA);
+        return join(A, twinOf(A, 'A2'), row(b.s, 'B', 'B1', b.kc), row(a3, 'A3', 'A3'));
+    }
+    const ja = pick(JA);
+    return join(row(ja.o, 'A', 'A1'), row(ja.c, 'A2', 'A2'), row(pick(JB), 'B', 'B1'), row(ja.c, 'A3', 'A3'));
+}
+// Valse manouche (3/4), 32 mesures : A mineur (16), puis B au relatif majeur qui revient au mineur (16).
+function valseManoucheForm(t) {
+    const { pick, join } = t;
+    const { row } = manoucheKit(t);
+    const VA = [
+        [['i', 2], ['V', 2], ['V', 2], ['i', 2], ['iv', 2], ['i', 2], ['II7', 1], ['V', 1], ['i', 2]],
+        [['i', 2], ['iv', 2], ['V', 2], ['i', 2], ['I7', 2], ['iv', 2], ['V', 2], ['i', 2]]
+    ];
+    const VB = [
+        { s: [['bVII7', 2], ['bIII', 2], ['bVII7', 2], ['bIII', 2], ['iv', 2], ['i', 2], ['V', 2], ['i', 2]], kc: [3, 3, 3, 3, 0, 0, 0, 0] },
+        { s: [['bIII', 2], ['bVII7', 2], ['bIII', 2], ['iio', 1], ['V', 1], ['iv', 2], ['i', 2], ['V', 2], ['i', 2]], kc: [3, 3, 3, 0, 0, 0, 0, 0, 0] }
+    ];
+    const b = pick(VB);
+    return join(row(pick(VA), 'A', 'A1'), row(b.s, 'B', 'B1', b.kc));
+}
+
 // ============ Afrique : cellules ============
 // Cellule = liste de [nom d'accord du toolkit, décalage depuis la tonique, mesures, nom de l'accord de la 2e moitié, son décalage,
 // basse (décalage depuis la tonique)]. Les trois derniers sont facultatifs (null pour ne rien changer) : une mesure peut porter deux
@@ -1756,6 +1856,9 @@ const STYLE_BUILDERS = {
         return join(cells(pick(A1),'A','A1'), cells(pick(A2),'A','A2'), cells(pick(B1),'B','B1'), cells(pick(B2),'B','B2'));
     },
     // ============ Flamenco ============
+    // ============ Jazz manouche ============
+    manouche: (t) => manoucheForm(t),
+    valsemanouche: (t) => valseManoucheForm(t),
     flamencosolea: (t) => flamencoForm(t, 'solea'),
     flamencobulerias: (t) => flamencoForm(t, 'bulerias'),
     flamencotangos: (t) => flamencoForm(t, 'tangos'),

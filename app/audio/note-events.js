@@ -317,6 +317,41 @@ function piazzollaNotes(env, e, time, beatSec, who) {
     return notes;
 }
 
+// Jazz manouche : guitare rythmique (la pompe) et guitare solo, cordes métal attaquées au médiator (orchestre band/manouche-plan.js).
+//   pompe  e.art : 'boom' (coup descendant bref, cordes graves), 'chick' (accord entier aussitôt étouffé), 'ghost' (coup remonté
+//          étouffé, presque muet), 'slide' (accord glissé, étouffé comme un « tchac »), 'ballad' (coup doux qui sonne un peu) ;
+//          un coup descendant va du grave à l'aigu (e.dir < 0 : coup remonté), avec un léger retard aléatoire entre les cordes ;
+//   lead   e.art : 'pick' (note de phrase, attaque franche) ou 'target' (note d'arrivée, laissée sonner un peu).
+// Le volume vient du bus de chaque guitare (curseurs « Pompe » et « Guit. solo ») : pas de facteur de volume ici.
+const MN_ART = {
+    boom:   { a: 0.002, r: 0.06, max: 0.22, g: 0.82 },
+    chick:  { a: 0.001, r: 0.035, max: 0.12, g: 1 },
+    slide:  { a: 0.001, r: 0.04, max: 0.14, g: 0.95 },
+    ghost:  { a: 0.001, r: 0.02, max: 0.04, g: 0.5 },
+    ballad: { a: 0.003, r: 0.25, max: 1.2, g: 0.85 },
+    pick:   { a: 0.0015, r: 0.07, max: 0.5, g: 1 },
+    target: { a: 0.0015, r: 0.3, max: 1.4, g: 1 }
+};
+function manoucheNotes(env, e, time, beatSec) {
+    const rand = randOf(env);
+    const art = MN_ART[e.art] || MN_ART.pick;
+    const vel = e.vel * (0.94 + rand() * 0.12);
+    const n = e.intervals.length;
+    const roll = n > 1 ? (e.roll !== undefined ? e.roll : 0.008) : 0;
+    const dur = Math.max(0.03, Math.min(art.max, e.dur * beatSec));
+    const off = env.transOffset || 0;
+    return e.intervals.map((interval, idx) => {
+        const order = e.dir < 0 ? (n - 1 - idx) : idx;
+        const midi = 48 + interval + off;
+        const tilt = e.inst === 'lead' ? 1 : 1 - 0.012 * Math.min(20, Math.max(0, midi - 52));   // pompe : cordes aiguës un peu moins fortes
+        return {
+            noteStr: playNoteName(env.instrumentKey, e.rootIndex || 0, interval, OCT),
+            when: Math.max(env.currentTime, time + order * roll * (0.85 + rand() * 0.3)),
+            opts: { duration: dur, gain: Math.min(1.25, (0.3 + 0.9 * vel) * art.g * tilt), attack: art.a, release: art.r, cents: (rand() - 0.5) * 4 }
+        };
+    });
+}
+
 // Contrebasse à l'archet (tango) ; dur et vel sont déjà calculés par le moteur.
 function arcoNote(env, abs, time, dur, vel) {
     return {
@@ -327,5 +362,5 @@ function arcoNote(env, abs, time, dur, vel) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { playNoteName, bassNote, pianoNotes, rockNotes, guitarNotes, classicalGuitarNotes, brassNotes, tubaNote, accordionNotes, piazzollaNotes, arcoNote };
+    module.exports = { playNoteName, bassNote, pianoNotes, rockNotes, guitarNotes, classicalGuitarNotes, brassNotes, tubaNote, accordionNotes, piazzollaNotes, arcoNote, manoucheNotes };
 }

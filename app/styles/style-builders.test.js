@@ -19,8 +19,8 @@ const STYLES = Object.keys(STYLE_BUILDERS);
 const bars = (tpl) => tpl.reduce((s, x) => s + x.m, 0);
 
 describe('catalogue des styles', () => {
-    test('78 styles (dont sept styles rock, quatre danses aksak, six styles afro-cubains, six styles africains et huit styles classiques par époque), dont les alias blues128, ballad128 et balkan98', () => {
-        assert.equal(STYLES.length, 78);
+    test('80 styles (dont sept styles rock, quatre danses aksak, six styles afro-cubains, six styles africains, huit styles classiques par époque et deux styles manouches), dont les alias blues128, ballad128 et balkan98', () => {
+        assert.equal(STYLES.length, 80);
         assert.equal(STYLE_BUILDERS.blues128, STYLE_BUILDERS.blues);
         assert.equal(STYLE_BUILDERS.ballad128, STYLE_BUILDERS.ballad);
         assert.equal(STYLE_BUILDERS.balkan98, STYLE_BUILDERS.balkan);
@@ -426,6 +426,43 @@ describe('styles africains', () => {
                 const a = tpl[k - 1], b = tpl[k];
                 if (!a.split && !b.split && a.r === b.r && a.c === b.c) assert.equal(Number.isInteger(a.bassRootIndex), Number.isInteger(b.bassRootIndex));
             }
+        }
+    });
+});
+
+describe('jazz manouche : vocabulaire de Django Reinhardt', () => {
+    const M6 = 'x:m:P:6:-';
+    const OK = new Set([M6, '6', 'x:M:P:6:9', '7', '7b9', '9', 'm7', 'm7b5', 'dim7']);
+    test('forme de référence : grille de 16 mesures en mineur (Minor Swing) jouée deux fois, tonique en m6', () => {
+        for (const key of [9, 2, 0]) {
+            const t = build('manouche', key);
+            assert.equal(bars(t), 32);
+            assert.equal(t[0].r, key);
+            assert.equal(t[0].c, M6);
+            assert.equal(t[0].s, 'melodicMinor');
+            assert.ok(t.some(x => x.c === '7' && x.r === (key + 7) % 12 && x.s === 'phrygianDominant'));
+            const half = (sec) => t.filter(x => x.section === sec).map(x => `${x.r}:${x.c}:${x.m}`);
+            assert.deepEqual(half('A'), half('A2'));
+        }
+    });
+    test('renouvellements : 32 mesures, accords du style, parfois en majeur (I6, diminué de passage, chaîne de dominantes)', () => {
+        let major = 0;
+        for (let seed = 1; seed <= 120; seed++) {
+            const t = build('manouche', seed % 12, seeded(seed));
+            assert.equal(bars(t), 32);
+            t.forEach(x => { assert.ok(OK.has(x.c), x.c); if (x.split) assert.ok(OK.has(x.split.c), x.split.c); });
+            if (t[0].c === '6') major++;
+        }
+        assert.ok(major > 15 && major < 70, `majeur ${major}`);
+    });
+    test('valse manouche : 32 mesures, A mineur puis B au relatif majeur (marqué kc) qui revient au mineur', () => {
+        for (let seed = 0; seed <= 20; seed++) {
+            const t = build('valsemanouche', 2, seed ? seeded(seed) : null);
+            assert.equal(bars(t), 32);
+            assert.equal(t[0].c, M6);
+            assert.ok(t.some(x => x.kc === 3));
+            assert.equal(t[t.length - 1].kc, 0);
+            assert.equal(t[t.length - 1].c, M6);
         }
     });
 });

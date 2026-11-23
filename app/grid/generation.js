@@ -92,7 +92,11 @@ function styleProfile(styleKey) {
         romantique: { turn: false, w: { dim: 1.5, secDom: 1.5, chrom: 1, subdom: 0.6 } },
         impressionnisme: { turn: false, w: { colour: 2, chrom: 1.2, sus: 0.6 } },
         gymnopedie: { turn: false, w: { colour: 1 } },
-        neoclassique: { turn: false, w: { chrom: 1.5, secDom: 0.8 } }
+        neoclassique: { turn: false, w: { chrom: 1.5, secDom: 0.8 } },
+        // Jazz manouche : diminués de passage et dominantes secondaires (V7 de V, I7 vers iv), quelques ii-V et approches
+        // chromatiques ; ni substitutions de triton ni couleurs modernes (les accords sont ramenés au vocabulaire du style)
+        manouche: { turn: false, w: { dim: 2.5, secDom: 2.2, iiV: 1, chrom: 0.4, subdom: 0.6 } },
+        valsemanouche: { turn: false, w: { dim: 2, secDom: 2, iiV: 0.6, chrom: 0.3 } }
     };
     return table[styleKey] || { turn: false, w: { colour: 3 } };
 }
@@ -466,6 +470,7 @@ function renewTemplate(ctx, styleKey, buildTemplate, keyRoot, canonical) {
         if (isBrassStyle(styleKey) || styleKey === 'dixieland') simplifyBrass(S);
         if (isTriadStyle(styleKey)) simplifyTriads(S);
         if (isRockStyle(styleKey)) simplifyRock(S);
+        if (isManoucheStyle(styleKey)) simplifyManouche(S);
         if (validateSlots(S).length) continue;
         const out = norm(templateFromSlots(S));
         const keys = keysOf(out);
@@ -514,6 +519,20 @@ function simplifyRock(S) {
         ch.s = (ch.s === 'altered' || ch.s === 'phrygianDominant') ? 'mixolydianFlat13' : (GEN_THEORY.scaleFits(ch.s, '7') ? ch.s : 'mixolydian');
     };
     S.forEach(sl => { dom(sl); if (sl.split) dom(sl.split); });
+}
+
+// Jazz manouche : les accords ajoutés ou colorés par « Générer » sont ramenés au vocabulaire de Django Reinhardt : sixtes plutôt
+// que septièmes majeures (Do6, Lam6), dominantes 7 / 9 / 7(♭9) sans altérations modernes.
+const MANOUCHE_STYLES = ['manouche', 'valsemanouche'];
+function isManoucheStyle(styleKey) { return MANOUCHE_STYLES.includes(styleKey); }
+function simplifyManouche(S) {
+    const fix = (ch) => {
+        if (['maj7', 'maj9', 'maj7sharp11', 'maj7sharp5'].includes(ch.c)) { ch.c = '6'; if (!GEN_THEORY.scaleFits(ch.s, '6')) ch.s = 'ionian'; }
+        else if (['m9', 'm11'].includes(ch.c)) { ch.c = 'm7'; if (!GEN_THEORY.scaleFits(ch.s, 'm7')) ch.s = 'dorian'; }
+        else if (ch.c === 'mmaj7') { ch.c = 'x:m:P:6:-'; ch.s = 'melodicMinor'; }
+        else if (['7alt', '7sharp5'].includes(ch.c)) { ch.c = '7b9'; ch.s = (ch.s === 'phrygianDominant') ? ch.s : 'halfWholeDim'; }
+    };
+    S.forEach(sl => { fix(sl); if (sl.split) fix(sl.split); });
 }
 
 function rememberGenerated(recent, styleKey, generated) {
@@ -834,7 +853,8 @@ function normalizeGeneratedGrid(template, styleKey) {
         'sonmontuno': 16, 'chachacha': 16, 'bolerocubano': 16, 'guajira': 16, 'danzon': 32, 'guaguanco': 16,
         'afrobeat': 16, 'highlife': 16, 'rumbacongo': 16, 'soukous': 16, 'benga': 16, 'mbaqanga': 16,
         'renaissance': 16, 'chaconne': 32, 'nocturne': 16, 'romantique': 16, 'impressionnisme': 16, 'gymnopedie': 16,
-        'neoclassique': 16, 'minimalisme': 16
+        'neoclassique': 16, 'minimalisme': 16,
+        'manouche': 32, 'valsemanouche': 32
     }[styleKey] || 16;
     if (!template.length) return template;
 
@@ -955,7 +975,7 @@ function convertRomanLabel(label, convention, minor) { return convertRomanText(l
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { makeVariationRng, gridSignature, styleProfile, resolveEnding, withResolvedEnding, slotsFromTemplate, templateFromSlots,
-        tagTwinSlots, copyTwinSlots, validateSlots, reharmonize, renewTemplate, isBrassStyle, ROCK_STYLES, isRockStyle, simplifyBrass, isTriadStyle, simplifyTriads, rememberGenerated,
+        tagTwinSlots, copyTwinSlots, validateSlots, reharmonize, renewTemplate, isBrassStyle, ROCK_STYLES, isRockStyle, MANOUCHE_STYLES, isManoucheStyle, simplifyManouche, simplifyBrass, isTriadStyle, simplifyTriads, rememberGenerated,
         createStyleVariation, CLASSIC_ERA_STYLES, isClassicEraStyle, FREE_ENDING_STYLES, styleFreeEnding, findTwinSections, applyTwinCopies, compactGridRepeats, normalizeGeneratedGrid, enforceChordRepeatLimits,
         chordFamily, romanDeg, romanDegByRank, convertRomanText, convertRomanLabel, fnConventionForStyle, fnMinorRef, FN_MINOR_MODES, FN_MODE_SCALES };
 }

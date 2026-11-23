@@ -153,6 +153,7 @@
                                 <option value="modal">Modal</option>
                                 <option value="latin">Latin Jazz</option>
                                 <option value="fusion">Fusion / Moderne</option>
+                                <option value="manouche">Jazz manouche (swing gitan)</option>
                             </optgroup>
                             <optgroup label="Blues">
                                 <option value="blues">Blues traditionnel</option>
@@ -192,6 +193,7 @@
                             <optgroup label="Valses (3/4)">
                                 <option value="valsejazz">Valse jazz</option>
                                 <option value="valsemusette">Valse musette</option>
+                                <option value="valsemanouche">Valse manouche</option>
                                 <option value="valseviennoise">Valse viennoise</option>
                                 <option value="valsecountry">Valse country</option>
                             </optgroup>
@@ -516,6 +518,7 @@
     <script src="app/band/latin-plan.js"></script>
     <script src="app/band/balkan-plan.js"></script>
     <script src="app/band/cumbia-plan.js"></script>
+    <script src="app/band/manouche-plan.js"></script>
     <script src="app/band/africa-plan.js"></script>
     <script src="app/band/cuban-plan.js"></script>
     <script src="app/band/salsa-plan.js"></script>
@@ -604,7 +607,7 @@
                 this.gainNode = null;
                 this.instrumentKey = 'Bb';
 
-                // Style de la bande son de la jam : swing, pop, latin, cuba, classique (arpèges au piano), guitare (guitare classique seule), brass, balkan, cumbia ou piazzolla.
+                // Style de la bande son de la jam : swing, pop, latin, cuba, classique (arpèges au piano), guitare (guitare classique seule), brass, balkan, cumbia, piazzolla, africa ou manouche.
                 this.bandStyle = 'swing';
                 this.bandVolumes = { piano: 0.5, bass: 0.85, drums: 0.25, bandoneon: 0.7, violin: 0.6, guitar: 0.5, rguitar: 0.6, organ: 0.35, strings: 0.4 }; // bandoneon, violin, guitar : style Tango nuevo ; rguitar, organ, strings : couches du Pop-Rock et des styles Rock
                 this.bandReverb = 0.25;
@@ -674,6 +677,7 @@
                 this.brassInst = {}; this._brassLoading = {}; // style Brass band
                 this.accordionInstrument = null; this._accordionLoading = false; this._accordionBus = null; // style Balkans
                 this.pzInst = {}; this._pzLoading = {}; this._pzFail = {}; this._pzBuses = null; // style Tango nuevo
+                this.mnInst = {}; this._mnLoading = {}; this._mnFail = {}; this._mnBuses = null; // style Jazz manouche (pompe, guitare solo)
                 this._guitarLoading = false;
                 this.rockGtr = null; this._rockGtrLoading = false; this._rockBuses = null; this._organInsts = {}; this._stringsInst = null; this._epianoInst = null; // guitare électrique, orgue, cordes (Pop-Rock et Rock), piano électrique (rumba)
 
@@ -981,7 +985,7 @@
 
             changeStyle(styleKey) {
                 if (styleKey === 'custom') return;
-                const BRASS_KEYS = { brasshymn: 5, brasscantique: 3, balkan: 2, balkan98: 9, balkansevdah: 9, balkantsifte: 2, balkan58: 9, balkan78: 2, balkan78r: 7, balkan118: 4, cumbia: 7, milongalyrique: 2, flamencosolea: 9, flamencobulerias: 9, flamencotangos: 9, rockroll: 9, rockclassic: 2, hardrock: 4, punk: 7, rockballad: 7, bluesrock: 9, indierock: 0, afrobeat: 2, highlife: 5, rumbacongo: 9, soukous: 4, benga: 7, mbaqanga: 0 }; // + Afrique : ré dorien (afrobeat), fa (highlife), la (rumba), mi (soukous), sol (benga), do (mbaqanga) ; + Rock : la (rock'n'roll, blues rock), ré (classique), mi mineur (hard rock), sol (punk, ballade), do (indie) ; + Balkans : ré mineur (kolo), la mineur (aksak), la mineur (sevdah), ré mineur (tsifteteli) ; Milonga lyrique : ré mineur (Oblivion) ; Flamenco : la (cadence andalouse La m - Sol - Fa - Mi)
+                const BRASS_KEYS = { brasshymn: 5, brasscantique: 3, balkan: 2, balkan98: 9, balkansevdah: 9, balkantsifte: 2, balkan58: 9, balkan78: 2, balkan78r: 7, balkan118: 4, cumbia: 7, milongalyrique: 2, flamencosolea: 9, flamencobulerias: 9, flamencotangos: 9, rockroll: 9, rockclassic: 2, hardrock: 4, punk: 7, rockballad: 7, bluesrock: 9, indierock: 0, afrobeat: 2, highlife: 5, rumbacongo: 9, soukous: 4, benga: 7, mbaqanga: 0, manouche: 9, valsemanouche: 2 }; // + Jazz manouche : la mineur (Minor Swing), valse en ré mineur ; + Afrique : ré dorien (afrobeat), fa (highlife), la (rumba), mi (soukous), sol (benga), do (mbaqanga) ; + Rock : la (rock'n'roll, blues rock), ré (classique), mi mineur (hard rock), sol (punk, ballade), do (indie) ; + Balkans : ré mineur (kolo), la mineur (aksak), la mineur (sevdah), ré mineur (tsifteteli) ; Milonga lyrique : ré mineur (Oblivion) ; Flamenco : la (cadence andalouse La m - Sol - Fa - Mi)
                 this.withUndo(() => {
                     if (styleKey === 'i-got-rythm') {
                         const prevKey = this.mainKey;
@@ -1429,6 +1433,7 @@
                 if (s === 'cumbia') return !!this.accordionInstrument && !!this.bassInstrumentPop;
                 if (s === 'africa') return !!this.rockGtr && !!this.bassInstrumentPop;
                 if (s === 'piazzolla') return !!(this.pzInst && Object.keys(this.pzInst).filter(k => k !== 'violin_stc').length > 1);
+                if (s === 'manouche') return !!(this.mnInst && this.mnInst.pompe) && !!this.bassInstrument;
                 if (s === 'latin') return !!this.guitarInstrument && !!this.bassInstrument;
                 if (s === 'guitar') return !!this.guitarInstrument;
                 if (s === 'cuba' && this._cubaGuitar()) return !!this.guitarInstrument && !!this.bassInstrument;
@@ -2769,9 +2774,10 @@
                 this.updateBandInstrumentLabel();
                 // En « Classique » (piano seul) et en « Guitare » (guitare seule) : la basse et la batterie de l'orchestre ne servent pas.
                 // Exception : en Flamenco (orchestre Guitare + rythme d'un palo) le curseur « Percus. » règle cajón, palmas et pitos.
+                // Jazz manouche : pas de batterie (la pompe tient le tempo).
                 const solo = this.bandStyle === 'classic' || this.bandStyle === 'guitar';
                 const flamPerc = this.bandStyle === 'guitar' && !!this._flamencoGroove();
-                [['band-vol-bass', solo], ['band-vol-drums', solo && !flamPerc]].forEach(([id, off]) => {
+                [['band-vol-bass', solo], ['band-vol-drums', (solo && !flamPerc) || this.bandStyle === 'manouche']].forEach(([id, off]) => {
                     const el = document.getElementById(id);
                     if (!el) return;
                     el.disabled = off;
@@ -2977,7 +2983,7 @@
                 gs.replaceChildren(...st.options.map(o => { const op = document.createElement('option'); op.value = o.value; op.textContent = o.label; return op; }));
                 gs.value = st.value;
                 gs.disabled = st.disabled;
-                gs.style.opacity = st.disabled ? '0.4' : '';   // formation sans rythme à choisir (Jazz, Cumbia)
+                gs.style.opacity = st.disabled ? '0.4' : '';   // formation sans rythme à choisir (Jazz, Jazz manouche, Cumbia)
                 const ps = document.getElementById('band-preset-select');
                 if (ps) {
                     const names = Object.keys(this.getBandPresets());
@@ -3023,18 +3029,21 @@
                 const brass = this.bandStyle === 'brass';
                 const balkan = this.bandStyle === 'balkan' || this.bandStyle === 'cumbia'; // même accordéon, mêmes « Percus. »
                 const pz = this.bandStyle === 'piazzolla';
+                const mn = this.bandStyle === 'manouche';     // pompe sur le premier curseur ; violon et guitare solo sur ceux du quinteto
                 const africa = this.bandStyle === 'africa';   // guitares et orgue sur les curseurs du Rock, cuivres sur le premier
                 const el = document.getElementById('band-vol-piano-label');
-                if (el) el.textContent = (brass || africa) ? 'Cuivres' : (balkan ? 'Accordéon' : ((this.bandStyle === 'latin' || this.bandStyle === 'guitar' || this._cubaGuitar()) ? 'Guitare' : 'Piano'));
+                if (el) el.textContent = mn ? 'Pompe' : (brass || africa) ? 'Cuivres' : (balkan ? 'Accordéon' : ((this.bandStyle === 'latin' || this.bandStyle === 'guitar' || this._cubaGuitar()) ? 'Guitare' : 'Piano'));
                 const eb = document.getElementById('band-vol-bass-label');
-                if (eb) eb.textContent = brass ? 'Tubas' : (pz ? 'Contreb.' : 'Basse');
+                if (eb) eb.textContent = brass ? 'Tubas' : ((pz || mn) ? 'Contreb.' : 'Basse');
                 const ed = document.getElementById('band-vol-drums-label');
                 if (ed) ed.textContent = (brass || balkan || pz || (this.bandStyle === 'guitar' && !!this._flamencoGroove()) || (this.bandStyle === 'latin' && this.getEffectiveGroove('latin') === 'samba')) ? 'Percus.' : 'Batterie';
                 // curseurs propres au Tango nuevo (bandonéon, violon, guitare électrique)
                 ['bandoneon', 'violin', 'guitar'].forEach(k => {
                     const row = document.getElementById('band-row-pz-' + k);
-                    if (row) row.classList.toggle('hidden', !pz);
+                    if (row) row.classList.toggle('hidden', !(pz || (mn && k !== 'bandoneon')));
                 });
+                const eg = document.getElementById('band-vol-guitar-label');
+                if (eg) eg.textContent = mn ? 'Guit. solo' : 'Guit. élec.';
                 // curseurs propres au Pop-Rock et aux styles Rock (guitare électrique, orgue, cordes) ; l'orchestre Afrique utilise
                 // ceux des guitares et de l'orgue
                 ['rguitar', 'organ', 'strings'].forEach(k => {
@@ -3187,7 +3196,7 @@
             }
 
             // Densité de notes de l'orchestre actif (curseur du pop-up Orchestre) : val = 0 à 100 ; agit dès la mesure suivante.
-            // Orchestres concernés : Guitare (60 % par défaut), puis Classique, Piazzolla, Balkans, Cumbia et Brass (50 % = l'écriture d'origine).
+            // Orchestres concernés : Guitare (60 % par défaut), puis Classique, Piazzolla, Balkans, Cumbia, Brass et Jazz manouche (50 % = l'écriture d'origine).
             setBandDensity(val) {
                 if (!(this.bandStyle in BAND_DENSITY_DEFAULTS)) return;
                 const n = parseInt(val, 10);
@@ -3202,7 +3211,7 @@
             }
 
             // Le curseur n'a de sens que là où l'orchestre a une voix libre à étoffer : Guitare seule (pas un palo de flamenco, écrit à part)
-            // et les orchestres à ligne mélodique (Classique, Piazzolla, Balkans, Cumbia, Brass) ; pas pendant le bouton « Arpèges ».
+            // et les orchestres à ligne mélodique (Classique, Piazzolla, Balkans, Cumbia, Brass, Jazz manouche) ; pas pendant le bouton « Arpèges ».
             isBandDensityAvailable() {
                 if (this._arpPrevStyle) return false;
                 if (this.bandStyle === 'guitar') return !this._flamencoGroove();
@@ -3225,6 +3234,7 @@
                     piazzolla: "Densité des lignes du violon, du bandonéon et de la guitare : 50 % = l'écriture d'origine ; en dessous, les notes brèves et les ornements disparaissent ; au-dessus, des notes de passage remplissent les lignes puis des doubles-croches s'intercalent. Accords et basse inchangés.",
                     balkan: "Densité de la ligne de l'accordéon : 50 % = l'écriture d'origine ; en dessous, les notes brèves et les ornements disparaissent ; au-dessus, des notes de passage remplissent la ligne puis des doubles-croches s'intercalent. Accords, basse et percussions inchangés.",
                     cumbia: "Densité de la mélodie de l'accordéon : 50 % = l'écriture d'origine ; en dessous, les notes brèves disparaissent ; au-dessus, des notes de passage remplissent la mélodie puis des doubles-croches s'intercalent. Accords, basse et percussions inchangés.",
+                    manouche: "Quantité de phrases de la guitare solo et du violon : à 0, la pompe et la contrebasse seules ; 50 % = une petite phrase de guitare à la fin de la plupart des phrases, le violon de temps en temps ; au-dessus, la guitare répond aussi au milieu des phrases et le violon tient des nappes presque partout. Pompe et contrebasse inchangées.",
                     brass: "Densité des notes détachées des cors et des cornets : 50 % = l'écriture d'origine ; en dessous, des frappes disparaissent ; au-dessus, des frappes brèves comblent les croches vides puis s'intercalent. Notes tenues, tubas et percussions inchangés."
                 };
                 const tip = TIPS[this.bandStyle] || TIPS.classic;
@@ -3289,6 +3299,7 @@
                 if (this.bandStyle === 'brass' || this.bandStyle === 'africa') this.loadBrass();   // Afrique : section de cuivres
                 if (this.bandStyle === 'balkan' || this.bandStyle === 'cumbia') this.loadAccordion();
                 if (this.bandStyle === 'piazzolla') this.loadPiazzolla();
+                if (this.bandStyle === 'manouche') this.loadManouche();
                 if (this.bandStyle !== 'classic' && this.bandStyle !== 'guitar' && !this.bassInstrument) this.loadBass();
                 if (this.bandStyle === 'pop' || this.bandStyle === 'cumbia' || this.bandStyle === 'africa') this.loadBassPop();   // basse électrique (doigts)
                 if (this.bandStyle === 'pop' || this.bandStyle === 'africa') this.loadRock();   // guitare électrique, orgue, cordes
@@ -4077,6 +4088,8 @@
                 if (style === 'balkan') return this.buildBalkanPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 // Cumbia colombienne : accordéon, basse électrique, guacharaca / llamador / tambora / alegre, quelle que soit la signature
                 if (style === 'cumbia') return this.buildCumbiaPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
+                // Jazz manouche : pompe, contrebasse, guitare solo et violon, quelle que soit la signature
+                if (style === 'manouche') return this.buildManouchePlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 // Afrique : guitares électriques, basse, batterie et percussions, orgue et cuivres selon le rythme, quelle que soit la signature
                 if (style === 'africa') return this.buildAfricaPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 // Tango nuevo : bandonéon, violon, piano, guitare électrique, contrebasse, quelle que soit la signature
@@ -4610,6 +4623,106 @@
                 this._playNotes(arco, [arcoNote(this._noteEnv(), e.abs, time, dur, vel)]);
             }
 
+            // ===================== Orchestration JAZZ MANOUCHE : le calcul est dans band/manouche-plan.js =====================
+            // Pompe (guitare rythmique), contrebasse, guitare solo (fins de phrase) et violon (nappes, réponses), sans batterie.
+            buildManouchePlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
+                const extra = { splitBeat: this.getSplitBeat(), bpm: this._curBpm(), density: this.getBandDensity('manouche'),
+                    measureInStep: this._bandCtx ? this._bandCtx.measureInStep : 0 };
+                return this._bandRun(['mnState'], env => buildManouchePlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), extra);
+            }
+
+            // Bus des deux guitares manouches : l'échantillon de guitare (cordes nylon, le seul de l'appli) est rendu plus proche d'une
+            // guitare Selmer à cordes métal : graves allégés, médium « nasal » vers 1,2 kHz, présence et brillance du médiator,
+            // compression courte (la pompe claque sans déborder). Pompe → curseur « Pompe » (bus du piano) ; guitare solo → curseur
+            // « Guit. solo » (bus de la guitare du quinteto, créé par _getPzBuses).
+            _getMnBuses() {
+                if (this._mnBuses) return this._mnBuses;
+                const ctx = this.app.audioCtx;
+                this._getPzBuses();   // crée les volumes « Violon » et « Guit. » (bandGains.violin / bandGains.guitar)
+                const f = (type, freq, gain, q) => {
+                    const n = ctx.createBiquadFilter();
+                    n.type = type; n.frequency.value = freq;
+                    if (gain !== undefined) n.gain.value = gain;
+                    if (q !== undefined) n.Q.value = q;
+                    return n;
+                };
+                const build = (dest, filters, comp) => {
+                    const c = ctx.createDynamicsCompressor();
+                    c.threshold.value = comp[0]; c.knee.value = 10; c.ratio.value = comp[1];
+                    c.attack.value = 0.003; c.release.value = 0.12;
+                    const makeup = ctx.createGain();
+                    makeup.gain.value = comp[2];
+                    const chain = filters.concat([c, makeup]);
+                    for (let k = 0; k + 1 < chain.length; k++) chain[k].connect(chain[k + 1]);
+                    makeup.connect(dest);
+                    return chain[0];
+                };
+                this._mnBuses = {
+                    pompe: build(this.bandGains.piano, [f('highpass', 120, undefined, 0.7), f('lowshelf', 250, -3), f('peaking', 1200, 3, 1.1), f('peaking', 3200, 4, 0.9), f('highshelf', 6000, 2), f('lowpass', 11000, undefined, 0.5)], [-22, 3, 1.5]),
+                    lead: build(this.bandGains.guitar, [f('highpass', 160, undefined, 0.7), f('peaking', 1400, 4, 1), f('peaking', 3500, 4.5, 0.9), f('highshelf', 7000, 1.5), f('lowpass', 12000, undefined, 0.5)], [-24, 2.5, 1.7])
+                };
+                return this._mnBuses;
+            }
+
+            // Charge les deux guitares (MusyngKite, repli FluidR3_GM) et le violon (Virtual Playing Orchestra, comme le quinteto).
+            // Au niveau de performance minimal, seule la pompe est chargée : ni guitare solo ni violon.
+            loadManouche() {
+                if (!this.app.audioCtx || !this.bandGains.piano) return;
+                const ctx = this.app.audioCtx;
+                const buses = this._getMnBuses();
+                this.mnInst = this.mnInst || {}; this._mnLoading = this._mnLoading || {}; this._mnFail = this._mnFail || {};
+                const banks = ['MusyngKite', 'FluidR3_GM'];
+                const loadGtr = (key, dest) => {
+                    if (this.mnInst[key] || this._mnLoading[key] || (this._mnFail[key] || 0) >= 3) return;
+                    this._mnLoading[key] = true;
+                    const attempt = (k) => Soundfont.instrument(ctx, 'acoustic_guitar_nylon', { soundfont: banks[k], destination: dest })
+                        .then(instr => { this.mnInst[key] = instr; this._mnLoading[key] = false; })
+                        .catch(() => {
+                            if (k + 1 < banks.length) return attempt(k + 1);
+                            this._mnFail[key] = (this._mnFail[key] || 0) + 1;
+                            this._mnLoading[key] = false;
+                        });
+                    attempt(0);
+                };
+                loadGtr('pompe', buses.pompe);
+                if (this.perfTier >= 2) return;
+                loadGtr('lead', buses.lead);
+                // violon : le même que celui du quinteto de tango (pzInst.violin), sur son bus
+                if (!this.pzInst.violin && !this._pzLoading.violin && !((this._pzFail.violin || 0) >= 3)) {
+                    const dest = this._getPzBuses().violin;
+                    this._pzLoading.violin = true;
+                    const fallback = () => Soundfont.instrument(ctx, 'violin', { soundfont: 'MusyngKite', destination: dest })
+                        .then(instr => { this.pzInst.violin = instr; this._pzLoading.violin = false; })
+                        .catch(() => { this._pzFail.violin = (this._pzFail.violin || 0) + 1; this._pzLoading.violin = false; });
+                    if (typeof vpoLoadBrass === 'function') {
+                        vpoLoadBrass(ctx, 'violin', { destination: dest })
+                            .then(instr => { this.pzInst.violin = instr; this._pzLoading.violin = false; })
+                            .catch(fallback);
+                    } else fallback();
+                }
+            }
+
+            // Une frappe de l'orchestre manouche. e.inst : 'pompe' | 'lead' | 'violin' (voir band/manouche-plan.js).
+            // Tant que la pompe n'est pas chargée, le piano joue sa partie ; guitare solo et violon attendent leur échantillon.
+            // Machine lente (niveau minimal) : ni guitare solo, ni violon, ni coups remontés étouffés.
+            playManoucheHit(e, time, beatSec) {
+                const ctx = this.app.audioCtx;
+                if (!ctx) return;
+                const who = e.inst || 'pompe';
+                if (this.perfTier >= 2 && (who !== 'pompe' || e.art === 'ghost')) return;
+                if (who === 'violin') {
+                    const inst = this.pzInst && this.pzInst.violin;
+                    if (inst) this._playNotes(inst, piazzollaNotes(this._noteEnv(), e, time, beatSec, 'violin'));
+                    return;
+                }
+                const inst = this.mnInst && this.mnInst[who];
+                if (!inst) {
+                    if (who === 'pompe' && e.art !== 'ghost') this.playPianoHit({ ...e, dur: Math.max(0.2, e.dur), gainMul: 0.8 }, time, beatSec);
+                    return;
+                }
+                this._playNotes(inst, manoucheNotes(this._noteEnv(), e, time, beatSec));
+            }
+
             playBandBeat(step, beatInMeasure) {
                 if (!this.app.audioCtx) return;
                 this.ensureBandAudio();
@@ -4642,7 +4755,7 @@
                 plan.drums.filter(inBeat).forEach(e => this.playBandDrum(e, at(e)));
                 const bassAs = this._instChoice('bass');   // autre instrument choisi pour la basse ('' : chemin d'origine)
                 plan.bass.filter(inBeat).forEach(e => bassAs ? this._playBassAs(bassAs, e, at(e), beatSec) : plan.piazzolla ? this.playPiazzollaBass(e, at(e), beatSec) : plan.brass ? this.playTubaAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), e.art) : this.playBassAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), !!e.wide, !!plan.upright, e.gainMul || 1));
-                plan.piano.filter(inBeat).forEach(e => e.fermataPiano ? this.playPianoHit(e, at(e), beatSec) : plan.africa ? this.playAfricaHit(e, at(e), beatSec) : plan.rock ? this.playRockHit(e, at(e), beatSec) : plan.classicalGuitar ? this.playClassicalGuitarHit(e, at(e), beatSec) : plan.piazzolla ? this.playPiazzollaHit(e, at(e), beatSec) : plan.brass ? this.playBrassHit(e, at(e), beatSec) : (plan.accordion ? this.playAccordionHit(e, at(e), beatSec) : (plan.guitar ? this.playGuitarHit(e, at(e), beatSec) : this.playPianoHit(e, at(e), beatSec))));
+                plan.piano.filter(inBeat).forEach(e => e.fermataPiano ? this.playPianoHit(e, at(e), beatSec) : plan.manouche ? this.playManoucheHit(e, at(e), beatSec) : plan.africa ? this.playAfricaHit(e, at(e), beatSec) : plan.rock ? this.playRockHit(e, at(e), beatSec) : plan.classicalGuitar ? this.playClassicalGuitarHit(e, at(e), beatSec) : plan.piazzolla ? this.playPiazzollaHit(e, at(e), beatSec) : plan.brass ? this.playBrassHit(e, at(e), beatSec) : (plan.accordion ? this.playAccordionHit(e, at(e), beatSec) : (plan.guitar ? this.playGuitarHit(e, at(e), beatSec) : this.playPianoHit(e, at(e), beatSec))));
             }
 
 
@@ -10945,6 +11058,7 @@
                     <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Formation</span>
                     <select id="band-formation-select" onchange="app.jam.chooseBandFormation(this.value)" aria-label="Formation" class="w-full bg-[#3a3a3c] hover:bg-[#48484a] text-white font-bold py-1.5 px-2 rounded-lg transition text-xs shadow cursor-pointer border border-[#4a4a4c] outline-none">
                         <option value="swing">Jazz</option>
+                        <option value="manouche">Jazz manouche</option>
                         <option value="pop">Pop-Rock</option>
                         <option value="latin">Brasil</option>
                         <option value="cuba">Cuba</option>
@@ -11028,7 +11142,7 @@
                         <input type="range" id="band-vol-violin" min="0" max="100" value="60" oninput="app.jam.setBandVolume('violin', this.value)" class="w-full accent-emerald-500">
                     </div>
                     <div id="band-row-pz-guitar" class="hidden flex items-center gap-2">
-                        <span class="text-xs font-semibold text-slate-400 w-16 shrink-0">Guit. élec.</span>
+                        <span id="band-vol-guitar-label" class="text-xs font-semibold text-slate-400 w-16 shrink-0">Guit. élec.</span>
                         <input type="range" id="band-vol-guitar" min="0" max="100" value="50" oninput="app.jam.setBandVolume('guitar', this.value)" class="w-full accent-emerald-500">
                     </div>
                     <div id="band-row-rk-rguitar" class="hidden flex items-center gap-2" title="Guitare électrique du Pop-Rock, des styles Rock et de l'orchestre Afrique">

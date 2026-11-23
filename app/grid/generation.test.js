@@ -463,3 +463,24 @@ describe('styles rock : pas de réharmonisation de jazz', () => {
         G.ROCK_STYLES.forEach(st => { const p = G.styleProfile(st); assert.equal(p.turn, false, st); assert.deepEqual(p.w, {}, st); });
     });
 });
+
+describe('jazz manouche : « Générer » garde le vocabulaire du style', () => {
+    test('simplifyManouche : sixtes au lieu des septièmes majeures, ♭9 au lieu des altérations', () => {
+        const S = [{ c: 'maj7', s: 'lydian' }, { c: 'm9', s: 'dorian' }, { c: '7alt', s: 'altered', split: { c: 'mmaj7', s: 'melodicMinor' } }, { c: '7', s: 'mixolydian' }];
+        G.simplifyManouche(S);
+        assert.deepEqual(S.map(x => x.c), ['6', 'm7', '7b9', '7']);
+        assert.equal(S[2].split.c, 'x:m:P:6:-');
+        assert.ok(G.isManoucheStyle('manouche') && G.isManoucheStyle('valsemanouche') && !G.isManoucheStyle('swing'));
+    });
+    test('propositions renouvelées : 32 mesures, pas de septième majeure ni d\'accord altéré', () => {
+        let recent = [];
+        for (let v = 1; v <= 12; v++) {
+            const c = ctx({ generationVariant: v, seedBase: v * 101, recentGrids: recent });
+            const b = (R) => buildStyleTemplate('manouche', { keyRoot: 9, mainQuality: 'aeolian', R, findChordObj });
+            const out = G.renewTemplate(c, 'manouche', b, 9, G.withResolvedEnding(c, b(null)));
+            assert.equal(bars(out), 32);
+            out.forEach(x => [x, x.split].filter(Boolean).forEach(h => assert.ok(!['maj7', 'maj9', '7alt', 'mmaj7', 'm11'].includes(h.c), h.c)));
+            recent = G.rememberGenerated(recent, 'manouche', out);
+        }
+    });
+});

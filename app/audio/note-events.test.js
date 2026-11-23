@@ -339,3 +339,27 @@ describe('rockNotes', () => {
         assert.notEqual(bb, N.rockNotes(env, hit({ intervals: [0] }), 1, 0.5)[0].noteStr);
     });
 });
+
+describe('manoucheNotes (jazz manouche)', () => {
+    const env = { instrumentKey: 'C', currentTime: 0, transOffset: 0, rand: () => 0.5 };
+    const hit = (o) => ({ inst: 'pompe', art: 'chick', vel: 0.8, dur: 0.16, rootIndex: 0, intervals: [8, 12, 16], ...o });
+    test('« tchac » étouffé : très court, plus court que le « boum » ; coup remonté presque muet', () => {
+        const ch = N.manoucheNotes(env, hit({ dur: 0.3 }), 1, 0.5)[0].opts;
+        const bo = N.manoucheNotes(env, hit({ art: 'boom', dur: 0.5 }), 1, 0.5)[0].opts;
+        const gh = N.manoucheNotes(env, hit({ art: 'ghost', dur: 0.05, vel: 0.22 }), 1, 0.33)[0].opts;
+        assert.ok(ch.duration <= 0.12 && ch.duration < bo.duration);
+        assert.ok(gh.duration <= 0.04 && gh.gain < ch.gain);
+    });
+    test('coup descendant du grave à l\'aigu, remonté de l\'aigu au grave', () => {
+        const dn = N.manoucheNotes(env, hit({ roll: 0.01 }), 1, 0.33).map(n => n.when);
+        const up = N.manoucheNotes(env, hit({ roll: 0.01, dir: -1 }), 1, 0.33).map(n => n.when);
+        assert.ok(dn[0] < dn[2] && up[0] > up[2]);
+    });
+    test('guitare solo : une note, attaque franche ; jamais dans le passé, gains bornés', () => {
+        const ns = N.manoucheNotes({ ...env, currentTime: 3 }, hit({ inst: 'lead', art: 'pick', intervals: [19], dur: 0.42 }), 1, 0.33);
+        assert.equal(ns.length, 1);
+        assert.ok(ns[0].when >= 3 && ns[0].opts.gain > 0 && ns[0].opts.gain <= 1.25);
+        assert.ok(ns[0].opts.attack < 0.005);
+        assert.match(ns[0].noteStr, /^[A-G][#b]?\d$/);
+    });
+});

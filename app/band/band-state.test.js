@@ -14,6 +14,7 @@ describe('bandVoiceState', () => {
             _cumbiaVoice: null, _cumbiaMel: null,
             _africaVoice: null, _africaLead: null, _africaKeys: null,
             _pzState: null,
+            _mnState: null,
             _gtrVoice: null,
             _rockStrV: null, _rockPad: null, _rockGtrHold: null,
         });

@@ -11902,6 +11902,322 @@
     "f5d3a685695210da"
    ]
   },
+  "orchestre:manouche@balkan78": {
+   "reglages": {
+    "tonalite": 2,
+    "mode": "aeolian",
+    "bpm": 120,
+    "mesure": "7/8",
+    "orchestre": "manouche",
+    "rythme": null,
+    "listes": [
+     "manouche",
+     ""
+    ],
+    "nom": "Orchestre Jazz manouche",
+    "swing": 0.6,
+    "densite": 0.5,
+    "curseurs": [
+     "Pompe",
+     "Contreb.",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-pz-violin",
+     "band-row-pz-guitar",
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:minTriadx2 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 9:7b9x1 2:minTriadx1 7:minTriadx1 0:majTriadx1 5:majTriadx1 10:majTriadx1 4:m7b5x1 9:7b9x1 2:minTriadx2",
+   "grilleEmpreinte": "b19a84fcde76d864",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "aa9c8f8d0b7218c6",
+    "53557e374ee23b44",
+    "7b8ce48937696ed5",
+    "d20b9ecb96f47a9d",
+    "9e4ddd62e9f0924d",
+    "290ac9504c6b302b",
+    "3a7bd5370a82c90e",
+    "ab9689c5b23a6923",
+    "132e1a4971b44217",
+    "7e8efac9d6ada924",
+    "ebd49d8324f3ad14",
+    "279e44bbb547796c",
+    "5c711ed6ef065c2d",
+    "c6e47b8d6eac62ff",
+    "0223b799bb790682",
+    "0a027b72013ac33d"
+   ]
+  },
+  "orchestre:manouche@blues128": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "mixolydian",
+    "bpm": 64,
+    "mesure": "12/8",
+    "orchestre": "manouche",
+    "rythme": null,
+    "listes": [
+     "manouche",
+     ""
+    ],
+    "nom": "Orchestre Jazz manouche",
+    "swing": 0.6,
+    "densite": 0.5,
+    "curseurs": [
+     "Pompe",
+     "Contreb.",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-pz-violin",
+     "band-row-pz-guitar",
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:7x2 0:7x2 5:7x2 0:7x2 7:7x1 5:7x1 0:7x1/7:7 0:7x1",
+   "grilleEmpreinte": "bd16204dffbf4ec8",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "9c5cfacb27a16a92",
+    "353c502324c2ee0c",
+    "fd98426a64b9b054",
+    "4d11adeb254dad75",
+    "67d19e338978f82f",
+    "7711c6c14598c441",
+    "c3c9e335d786dcee",
+    "888d0eddbed4ed0e",
+    "938d697176b93af4",
+    "0267c2ea5771366c",
+    "6ed1f8120bc52073",
+    "d133dc43b087604e"
+   ]
+  },
+  "orchestre:manouche@ii-v-i": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 120,
+    "mesure": "4/4",
+    "orchestre": "manouche",
+    "rythme": null,
+    "listes": [
+     "manouche",
+     ""
+    ],
+    "nom": "Orchestre Jazz manouche",
+    "swing": 0.6,
+    "densite": 0.5,
+    "curseurs": [
+     "Pompe",
+     "Contreb.",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-pz-violin",
+     "band-row-pz-guitar",
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:m7x1 7:7x1 0:maj7x1 0:maj7x1",
+   "grilleEmpreinte": "7229f59c72c5c062",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "b598a082d0a9ab06",
+    "2e96cffda3be1b4d",
+    "0e1d628fce10bbe2",
+    "d4771f877cb5f04a"
+   ]
+  },
+  "orchestre:manouche@jig": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 116,
+    "mesure": "6/8",
+    "orchestre": "manouche",
+    "rythme": null,
+    "listes": [
+     "manouche",
+     ""
+    ],
+    "nom": "Orchestre Jazz manouche",
+    "swing": 0.6,
+    "densite": 0.5,
+    "curseurs": [
+     "Pompe",
+     "Contreb.",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-pz-violin",
+     "band-row-pz-guitar",
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:majTriadx1 5:majTriadx1 0:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1 5:majTriadx1 7:7x1 0:majTriadx1",
+   "grilleEmpreinte": "d28cb691e2947aba",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "a1e16eb169e55cd1",
+    "8a56fe8487ed63a4",
+    "07ea3d5cbac6927c",
+    "cc22484c9fbfc648",
+    "f5510b9382669d12",
+    "8669775fc90947a2",
+    "25d32defe5b7d432",
+    "aa1edb1040bc57ee",
+    "52215833877844a1",
+    "e34e27b8548b2edb",
+    "a40f0ddc5ef17fa7",
+    "e9652a7c58024349",
+    "5b90039c305f3b40",
+    "4fad90816113dcf2",
+    "38f644afdee0940c",
+    "e406c4ffcf529bee",
+    "155cab31c20d9160",
+    "5949c5dbd8886a41",
+    "723899feb7cda9a5",
+    "ced2fac5a575ef75",
+    "f993a9c9dfca113c",
+    "cbf648b741032238",
+    "4762c2abeb035de4",
+    "e23d7efd255a53f2",
+    "223b7dab7ffe748b",
+    "54c8e6e736c8ce55",
+    "191083d4408f80d2",
+    "6d5f030375699310",
+    "357b3b92803d3988",
+    "c68f2132a70a1cf1",
+    "eca3c42372a0cb6a",
+    "d712a0952d4dfc9d"
+   ]
+  },
+  "orchestre:manouche@valsejazz": {
+   "reglages": {
+    "tonalite": 0,
+    "mode": "ionian",
+    "bpm": 168,
+    "mesure": "3/4",
+    "orchestre": "manouche",
+    "rythme": null,
+    "listes": [
+     "manouche",
+     ""
+    ],
+    "nom": "Orchestre Jazz manouche",
+    "swing": 0.6,
+    "densite": 0.5,
+    "curseurs": [
+     "Pompe",
+     "Contreb.",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-pz-violin",
+     "band-row-pz-guitar",
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1 7:7x1 4:7x2 9:7x2 2:7x2 7:7x2 0:maj7x1 9:m7x1 2:m7x1 7:7x1 0:maj7x1 9:7x1 2:m7x1/7:7 0:maj7x1",
+   "grilleEmpreinte": "d09d1a295f26dfd4",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "f18c39302c5ad974",
+    "f683ed90cab7d8f2",
+    "775662848c4ebc87",
+    "b294aca9ce7978f2",
+    "e507e7ef8c973e6c",
+    "a55cb3aa4477f011",
+    "bd4f8a84d00bd846",
+    "935938ab56516cb3",
+    "35ac01bd2ece7bda",
+    "481a5d886b05c56d",
+    "a60294b4cc1bba01",
+    "01bfe12d6e851c20",
+    "196ce531082f98b1",
+    "4f58ba546e3c1fb8",
+    "f8487cdbeaf4623e",
+    "f633bec10ef43d87",
+    "15b6d7f74bc5d888",
+    "618ee69fcb7a2182",
+    "632ecda7bb596512",
+    "9aafd11f2a163f7e",
+    "9a99462601aa288e",
+    "97690bf2aceb0824",
+    "a6bb863fa0107d91",
+    "e79f8feab7903936",
+    "f39de3baf670ed88",
+    "6e49eee504a6e350",
+    "aaa9a2854e79d6cd",
+    "749bc1be91bd60af",
+    "011ea76ad505c04e",
+    "67a3f910cb7b5769",
+    "65b5f249b5ba1fb6",
+    "17369b6993f63824"
+   ]
+  },
   "orchestre:mbaqanga@balkan78": {
    "reglages": {
     "tonalite": 2,
@@ -24896,6 +25212,234 @@
     "7c4fb6397033e140"
    ]
   },
+  "style:manouche": {
+   "reglages": {
+    "tonalite": 9,
+    "mode": "aeolian",
+    "bpm": 180,
+    "mesure": "4/4",
+    "orchestre": "manouche",
+    "rythme": null,
+    "listes": [
+     "manouche",
+     ""
+    ],
+    "nom": "Orchestre Jazz manouche",
+    "swing": 0.6,
+    "densite": 0.5,
+    "curseurs": [
+     "Pompe",
+     "Contreb.",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-pz-violin",
+     "band-row-pz-guitar",
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "9:x:m:P:6:-x2 2:x:m:P:6:-x2 4:7x2 9:x:m:P:6:-x2 2:x:m:P:6:-x2 9:x:m:P:6:-x2 4:7x2 9:x:m:P:6:-x2",
+   "grilleEmpreinte": "7e181748d93c7923",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "7dbc85c06bca26f1",
+    "26c761ea9206e352",
+    "8b47d98d6c73200e",
+    "61df4cb8119f33ca",
+    "2651ca6b9296ce5b",
+    "8f43eddb533d585f",
+    "38e13ba6b52e6775",
+    "f95065a04d7c2d09",
+    "9a29015cac451ea3",
+    "4d8f882de752e9f7",
+    "828a3834f6e2fe8d",
+    "70be25495df483f7",
+    "256eaa15c65827d4",
+    "8baf55bb7959feb7",
+    "30569d83eb218d13",
+    "7b5fa3205824be7e",
+    "5629b20a90d5aa0d",
+    "5e43fca0e4172631",
+    "1a842ececb6b629a",
+    "9eca8461efcadb2e",
+    "249da56fa7898423",
+    "a9e3300ac88e103b",
+    "5fa7e029842ef362",
+    "fc34c0d38dbaff35",
+    "2fd45c3fb52edfcc",
+    "664c20f5a242b7de",
+    "04aa41f035a98e7b",
+    "bd8e46972488447b",
+    "db4ae4ffe4a22065",
+    "4aff80758e27024e",
+    "7e75f62e33cd7e09",
+    "d3e93a9490198470"
+   ]
+  },
+  "style:manouche#generer": {
+   "reglages": {
+    "tonalite": 9,
+    "mode": "ionian",
+    "bpm": 180,
+    "mesure": "4/4",
+    "orchestre": "manouche",
+    "rythme": null,
+    "listes": [
+     "manouche",
+     ""
+    ],
+    "nom": "Orchestre Jazz manouche",
+    "swing": 0.6,
+    "densite": 0.5,
+    "curseurs": [
+     "Pompe",
+     "Contreb.",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-pz-violin",
+     "band-row-pz-guitar",
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "9:6x1 1:m7b5x1/6:7 11:m7x1 4:7x1 9:6x1 6:7x1 11:7x1 4:7x1 9:6x1 6:7x1 11:m7x1 4:7x1 9:6x1 6:7x1 11:m7x1/4:7 9:x:M:P:6:9x1 1:7x2 6:7x2 11:7x2 4:7x2 9:6x1 6:7x1 11:m7x1 4:7x1 9:6x1 6:7x1 11:m7x1/4:7 9:x:M:P:6:9x1",
+   "grilleEmpreinte": "246166aa1985108b",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "9fb9297260cb4110",
+    "c7b50e4678140aaf",
+    "b1a66fd9b5149e30",
+    "89f54b4eccc0da10",
+    "b7b8844469eb2f24",
+    "a81ed67a7e2ca6a6",
+    "021a4842bb0365cf",
+    "8e5e551bf32262d7",
+    "b1949c0fff19d64a",
+    "75494a18a534af76",
+    "d285f8468a0745d2",
+    "048f782aa948fed3",
+    "4586e321f4f9714d",
+    "dfa22151e13e92a1",
+    "757c4b74e411bc37",
+    "7d4a003eaf97c231",
+    "bf2af39c5616bb0f",
+    "9eca2345e993316b",
+    "68a2420e4e0a210d",
+    "161ff2cd007ff99c",
+    "9000569ef9d9b57f",
+    "e17ac77e1edefb25",
+    "9d45b0743dc4ee32",
+    "812bd5b5aa5c03f9",
+    "98c6a712b8f2b59b",
+    "0205adfaaed52229",
+    "f02583a5225a6962",
+    "b22745584ed8c8e4",
+    "6b951082b92ae498",
+    "b6941e92ec15365f",
+    "d439f90ed93d391d",
+    "21f49ad2a345ec72"
+   ]
+  },
+  "style:manouche#graine2": {
+   "reglages": {
+    "tonalite": 9,
+    "mode": "aeolian",
+    "bpm": 180,
+    "mesure": "4/4",
+    "orchestre": "manouche",
+    "rythme": null,
+    "listes": [
+     "manouche",
+     ""
+    ],
+    "nom": "Orchestre Jazz manouche",
+    "swing": 0.6,
+    "densite": 0.5,
+    "curseurs": [
+     "Pompe",
+     "Contreb.",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-pz-violin",
+     "band-row-pz-guitar",
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "9:x:m:P:6:-x2 2:x:m:P:6:-x2 4:7x2 9:x:m:P:6:-x2 2:x:m:P:6:-x2 9:x:m:P:6:-x2 4:7x2 9:x:m:P:6:-x2",
+   "grilleEmpreinte": "7e181748d93c7923",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "b1b57219688baeed",
+    "c4c83522b8335df2",
+    "3f28ce53d85bb4da",
+    "d5e70474b87d2352",
+    "366916f943c3998f",
+    "97185fa52326cfe1",
+    "fd9d2f3cbccdf4a5",
+    "bbcd78c5370bf31d",
+    "1320f3401bbc5b14",
+    "39e3bf6dc4f6efa5",
+    "30909f82339e5eaf",
+    "796ae48f2f461a24",
+    "f01a9d5c4435fd78",
+    "a69938b0be51c41a",
+    "449cd32d404f6f2c",
+    "12f86131f743a240",
+    "5cf016af8fc90b04",
+    "71ae95f5b3b51593",
+    "75d25114964024b9",
+    "345db56cb818bcf8",
+    "c10417d8290f766f",
+    "1f54480214d56fd6",
+    "f9b56ee60334a34d",
+    "675014a3f82eaf10",
+    "9335a64743a67c54",
+    "191ce053d467b416",
+    "50f93f1d748a51b1",
+    "abf304d18bb333f4",
+    "143496f3327e719c",
+    "7b894cd30a75d553",
+    "facaa2e6f5b44e53",
+    "c766e846c55378ae"
+   ]
+  },
   "style:mbaqanga": {
    "reglages": {
     "tonalite": 0,
@@ -30084,6 +30628,234 @@
     "41c6535384c18420",
     "304fea82cd3b9bc9",
     "a269b4d4c6f44901"
+   ]
+  },
+  "style:valsemanouche": {
+   "reglages": {
+    "tonalite": 2,
+    "mode": "aeolian",
+    "bpm": 160,
+    "mesure": "3/4",
+    "orchestre": "manouche",
+    "rythme": null,
+    "listes": [
+     "manouche",
+     ""
+    ],
+    "nom": "Orchestre Jazz manouche",
+    "swing": 0.6,
+    "densite": 0.5,
+    "curseurs": [
+     "Pompe",
+     "Contreb.",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-pz-violin",
+     "band-row-pz-guitar",
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:x:m:P:6:-x2 9:7x4 2:x:m:P:6:-x2 7:x:m:P:6:-x2 2:x:m:P:6:-x2 4:7x1 9:7x1 2:x:m:P:6:-x2 0:7x1 0:7x1 5:6x2 0:7x2 5:6x2 7:x:m:P:6:-x1 7:x:m:P:6:-x1 2:x:m:P:6:-x2 9:7x2 2:x:m:P:6:-x2",
+   "grilleEmpreinte": "0cb608a2153ae214",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "4d28c9f55a274069",
+    "564e758d30b43933",
+    "87f813b4bc09faa9",
+    "cac4814cf2042f24",
+    "8d9604cfb8b1cb1e",
+    "83652b5289803d39",
+    "7cda4ccdb9f242b8",
+    "52fd84e0dd1dcc02",
+    "8e69ab94f17dd516",
+    "b2a9944ca95df55b",
+    "55494bfa87c0adc2",
+    "d879731fcda13648",
+    "253d0619895eaa46",
+    "c0e4de88ffa57625",
+    "069cb6b7d956032a",
+    "b6083654972c5125",
+    "b3420ac4532ed048",
+    "6abddf70d4196461",
+    "454278a3e1aed8ce",
+    "08678687bbcfefbc",
+    "e0675c9244d70bd1",
+    "f0aff648a1804d7b",
+    "cdd4fbe545915f22",
+    "fcad61d1d017d550",
+    "582a86ba1a6ad5f9",
+    "a9c3f407ea0a76ec",
+    "bf521386820d13e4",
+    "c7635cb9cb130bd3",
+    "265fe78bde6360de",
+    "b8ddf855b75db099",
+    "9ff72291d390601d",
+    "2fd68f4f8c3cf94b"
+   ]
+  },
+  "style:valsemanouche#generer": {
+   "reglages": {
+    "tonalite": 2,
+    "mode": "aeolian",
+    "bpm": 160,
+    "mesure": "3/4",
+    "orchestre": "manouche",
+    "rythme": null,
+    "listes": [
+     "manouche",
+     ""
+    ],
+    "nom": "Orchestre Jazz manouche",
+    "swing": 0.6,
+    "densite": 0.5,
+    "curseurs": [
+     "Pompe",
+     "Contreb.",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-pz-violin",
+     "band-row-pz-guitar",
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:x:m:P:6:-x2 2:9x1 7:x:m:P:6:-x1 9:7x2 2:x:m:P:6:-x2 2:7x2 7:x:m:P:6:-x2 9:7x2 2:x:m:P:6:-x2 7:m7x1/0:7 5:6x1 0:7x2 5:6x2 4:m7b5x1 9:7x1 7:x:m:P:6:-x2 4:m7b5x1/9:7 2:x:m:P:6:-x1 9:7x2 2:x:m:P:6:-x2",
+   "grilleEmpreinte": "4e0c9444ea046226",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "4d28c9f55a274069",
+    "5447105eec231281",
+    "90408c24538cb782",
+    "157a809d36c67b8d",
+    "8d9604cfb8b1cb1e",
+    "83652b5289803d39",
+    "7cda4ccdb9f242b8",
+    "c36eae5c454540f6",
+    "16b1ed093878875c",
+    "c43dad317ac0bc93",
+    "e56fd7ea5a71efd2",
+    "53e7ab12fbfc23cf",
+    "242d08374d252ec5",
+    "4e2b1311494b19e9",
+    "b8958be123e44379",
+    "dd3e7d500a0a67ff",
+    "0bac98cd19490f7c",
+    "c539d542c9df831b",
+    "e7e2622b8b06a9f9",
+    "6c6be5a65ab2f3f4",
+    "02b59c78a4cfa907",
+    "75b4478ca5e28d07",
+    "74289613b2753865",
+    "ac6cb3c552867997",
+    "86ec7edaf442acca",
+    "1121a1b7877b9b2d",
+    "84384fc1a02c6fe1",
+    "3d07af3028c8d742",
+    "4a8a9f3f13237d6d",
+    "5e829b7d3048d385",
+    "174b1a82b6fb1443",
+    "42cbf05a82ad6e71"
+   ]
+  },
+  "style:valsemanouche#graine2": {
+   "reglages": {
+    "tonalite": 2,
+    "mode": "aeolian",
+    "bpm": 160,
+    "mesure": "3/4",
+    "orchestre": "manouche",
+    "rythme": null,
+    "listes": [
+     "manouche",
+     ""
+    ],
+    "nom": "Orchestre Jazz manouche",
+    "swing": 0.6,
+    "densite": 0.5,
+    "curseurs": [
+     "Pompe",
+     "Contreb.",
+     "Batterie",
+     "Orgue"
+    ],
+    "lignes": [
+     "band-row-pz-violin",
+     "band-row-pz-guitar",
+     "band-row-density"
+    ],
+    "volumes": {
+     "piano": 0.5,
+     "bass": 0.85,
+     "drums": 0.25,
+     "bandoneon": 0.7,
+     "violin": 0.6,
+     "guitar": 0.5,
+     "rguitar": 0.6,
+     "organ": 0.35,
+     "strings": 0.4
+    }
+   },
+   "grille": "2:x:m:P:6:-x2 9:7x4 2:x:m:P:6:-x2 7:x:m:P:6:-x2 2:x:m:P:6:-x2 4:7x1 9:7x1 2:x:m:P:6:-x2 0:7x1 0:7x1 5:6x2 0:7x2 5:6x2 7:x:m:P:6:-x1 7:x:m:P:6:-x1 2:x:m:P:6:-x2 9:7x2 2:x:m:P:6:-x2",
+   "grilleEmpreinte": "0cb608a2153ae214",
+   "mesures": [
+    "e3b0c44298fc1c14",
+    "6022940dff60a340",
+    "c2a23ffd17e40388",
+    "9546ca7b088480a9",
+    "dd6323c04158dfbe",
+    "7963cee9ae5adb7e",
+    "f26d00427256011c",
+    "2dc82c2c3250a396",
+    "affe4784aaa67c0d",
+    "e0ffac06ec44bbae",
+    "83eb95d330298d66",
+    "38a5876c15bba901",
+    "3a11bc4253b8e440",
+    "435f3d321ca7bf53",
+    "5159c6bc8647f7f7",
+    "1f4773c6f8b240a4",
+    "eaf96bdf63b64841",
+    "50624ba244c0312a",
+    "c9ba668d4c2f446a",
+    "54d153043be717e7",
+    "655ada9d7c1b30f8",
+    "989ff39eca3a3b18",
+    "a9284051c8120528",
+    "75f2e6666fe34679",
+    "e04910ef1b3a4c89",
+    "8a4e0f15ff9e8adc",
+    "76cb1bedde26356f",
+    "f3af539b1bcc5d52",
+    "2d28e9e9315f256c",
+    "6f6b7f3faf314621",
+    "c48d99a18ec8d7ce",
+    "71336c1dc91c5f3a",
+    "b8b5c5f27aa18d42"
    ]
   },
   "style:valsemusette": {

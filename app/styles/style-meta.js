@@ -29,7 +29,9 @@ const STYLE_SCALE_PROFILE = {
     // Musique classique par époque : mode du degré pour les styles tonals ; les styles modaux (impressionnisme, Satie,
     // minimalisme) gardent les gammes écrites par le style (dorien, lydien, par tons…), comme le jazz
     renaissance:'classic', chaconne:'classic', nocturne:'classic', romantique:'classic', neoclassique:'classic',
-    impressionnisme:'jazz', gymnopedie:'jazz', minimalisme:'jazz'
+    impressionnisme:'jazz', gymnopedie:'jazz', minimalisme:'jazz',
+    // Jazz manouche : les gammes sont écrites par le style (mineur mélodique sur m6, phrygien dominant sur V7…)
+    manouche:'jazz', valsemanouche:'jazz'
 };
 
 // Orchestre proposé pour chaque style (modifiable ensuite dans la fenêtre « Orchestre »).
@@ -52,7 +54,8 @@ const STYLE_BAND = {
     sonmontuno: 'cuba', chachacha: 'cuba', bolerocubano: 'cuba', guajira: 'cuba', danzon: 'cuba', guaguanco: 'cuba',
     afrobeat: 'africa', highlife: 'africa', rumbacongo: 'africa', soukous: 'africa', benga: 'africa', mbaqanga: 'africa',
     renaissance: 'classic', chaconne: 'classic', nocturne: 'classic', romantique: 'classic', impressionnisme: 'classic',
-    gymnopedie: 'classic', neoclassique: 'classic', minimalisme: 'classic'
+    gymnopedie: 'classic', neoclassique: 'classic', minimalisme: 'classic',
+    manouche: 'manouche', valsemanouche: 'manouche'
 };
 
 // Rythme imposé par certains styles à l'orchestre proposé (sinon chaque orchestre a son jeu par défaut). Les rythmes que sait
@@ -150,7 +153,9 @@ const STYLE_TEMPO_METER = {
     impressionnisme:  { bpm: 60,  meter: '4/4' }, // « Lent et rêveur »
     gymnopedie:       { bpm: 72,  meter: '3/4' }, // « Lent et douloureux »
     neoclassique:     { bpm: 126, meter: '4/4' }, // Allegro
-    minimalisme:      { bpm: 120, meter: '4/4' }  // croches continues de l'ostinato
+    minimalisme:      { bpm: 120, meter: '4/4' }, // croches continues de l'ostinato
+    manouche:         { bpm: 180, meter: '4/4' }, // swing manouche (Minor Swing, Les Yeux noirs) : 170-220 ; 180 laisse la place d'improviser
+    valsemanouche:    { bpm: 160, meter: '3/4' }  // valse manouche : une mesure par pulsation, vive
 };
 
 // Recherche par clé propre : une clé inattendue (« constructor »…) ne renvoie jamais un membre hérité d'Object.

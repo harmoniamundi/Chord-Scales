@@ -254,7 +254,8 @@ describe('rythme : bandSwing, swingPos, pickWeighted, meterKey, patternLib', () 
         assert.equal(H.bandSwing('inconnu', 120), 0.5);
     });
     test('BAND_SWING_DEFAULTS : un défaut pour chaque orchestre', () => {
-        assert.deepEqual(Object.keys(H.BAND_SWING_DEFAULTS).sort(), ['africa', 'balkan', 'brass', 'classic', 'cuba', 'cumbia', 'guitar', 'latin', 'piazzolla', 'pop', 'swing']);
+        assert.deepEqual(Object.keys(H.BAND_SWING_DEFAULTS).sort(), ['africa', 'balkan', 'brass', 'classic', 'cuba', 'cumbia', 'guitar', 'latin', 'manouche', 'piazzolla', 'pop', 'swing']);
+        assert.equal(H.defaultBandSwing('manouche', 200), 0.6);                 // jazz manouche : léger balancement, quel que soit le tempo
         assert.equal(H.defaultBandSwing('africa', 120, 'af-highlife'), 0.56);   // le highlife balance un peu
         assert.equal(H.defaultBandSwing('africa', 120, 'af-afrobeat'), 0.5);
         assert.equal(H.defaultBandSwing('pop', 120, 'af-highlife'), 0.5);       // un rythme ne vaut que pour son orchestre
