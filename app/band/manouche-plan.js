@@ -1,20 +1,23 @@
 // band/manouche-plan.js — orchestre « Jazz manouche » de la jam (dans l'esprit du Quintette du Hot Club de France) : guitare
-// rythmique qui joue « la pompe », contrebasse, guitare solo (petites phrases de fin de phrase, à la Django) et violon (nappes
-// et réponses, à la Grappelli). Pas de batterie : dans le swing manouche, c'est la pompe qui tient le tempo.
+// rythmique qui joue « la pompe », contrebasse, guitare solo (ligne improvisée à la Django) et violon (chant et notes tenues, à la
+// Grappelli). Pas de batterie : dans le swing manouche, c'est la pompe qui tient le tempo.
 // Chargé par index.html via <script src="app/band/manouche-plan.js"> (après band-helpers.js) et testé par band/manouche-plan.test.js.
 // Fonctions pures : tout ce qui dépendait de JamEngine (`this`) passe par l'objet `env` :
 //   env.transOffset, env.findChordObj(id)   comme dans band-helpers.js
 //   env.splitBeat      temps où la mesure se coupe en deux accords (getSplitBeat())
 //   env.bpm            tempo courant (sous 100 : jeu de ballade)
-//   env.density        curseur « Densité » (0 à 1, 0,5 par défaut) : quantité de phrases de la guitare solo et du violon
+//   env.density        curseur « Densité » (0 à 1, 0,5 par défaut) : présence des solistes et quantité de notes de leurs lignes
 //   env.measureInStep  rang de la mesure dans le bloc de la grille (un accord tenu deux mesures : 0 puis 1)
-//   env.state          mémoire entre deux mesures, modifiée en place : { mnState: { voice, lead, vln } }
-//                      (voicing de la pompe, note d'arrivée de la phrase de guitare solo, dernière note du violon)
+//   env.state          mémoire entre deux mesures, modifiée en place : { mnState: { voice, roles, gl, vl, vh, lead } }
+//                      (voicing de la pompe, rôles de la phrase, lignes de la guitare et du violon, note tenue du violon,
+//                      note d'arrivée d'une réponse de la guitare)
 // buildManouchePlan renvoie { piano, bass, drums: [], manouche: true } ; chaque frappe de « piano » porte e.inst :
 //   'pompe'  guitare rythmique, e.art = 'boom' (temps faibles de la basse : cordes graves), 'chick' (contretemps étouffé),
-//            'ghost' (coup remonté étouffé, presque muet), 'ballad' (coup égal et doux des ballades), 'slide' (accord glissé d'un demi-ton) ;
-//   'lead'   guitare solo, une note par frappe (e.art = 'pick' ; 'target' pour la note d'arrivée) ;
-//   'violin' violon, e.art = 'sus' (nappe tenue) ou 'line' (petite réponse).
+//            'ghost' (coup remonté étouffé, presque muet), 'roll' (petit coup du roulement de fin de phrase),
+//            'ballad' (coup égal et doux des ballades), 'slide' (accord glissé d'un demi-ton) ;
+//   'lead'   guitare solo, une note par frappe (deux en octaves), e.art = 'pick' ; 'target' pour une note longue ;
+//   'violin' violon, e.art = 'sus' (note guide tenue), 'lyr' (note chantée longue) ou 'line' (note de passage).
+// e.noSwing : position déjà exacte (triolets), à ne pas déformer par le réglage de swing ; e.lay : décalage en secondes.
 // Hauteurs : e.intervals sont des demi-tons écrits depuis do3 (réel = 48 + x + transOffset), basse depuis do2, comme ailleurs.
 
 if (typeof popScaleNotes === 'undefined' && typeof require === 'function') {
@@ -30,12 +33,11 @@ if (typeof popScaleNotes === 'undefined' && typeof require === 'function') {
 // Accords de la pompe : formes de guitare à 4 sons, la basse sur la 6e ou la 5e corde et trois notes au-dessus, choisies comme
 // les grilles de Django : m6 = 1-6-♭3-5, 6 = 1-3-6-5, 7 = 1-3-♭7-5, 7(♭9) = 1-3-♭7-♭9 (le son « diminué »), °7 = les quatre notes.
 // Fins de phrase : de temps en temps, le dernier « tchac » glisse d'un demi-ton au-dessus de l'accord suivant (glissando
-// d'accord typique), la guitare solo place une courte phrase (arpège diminué en triolets sur une dominante, arpège de l'accord,
-// broderie chromatique) qui retombe sur une note de l'accord suivant, la contrebasse amène l'accord suivant par une note voisine.
+// d'accord typique) ou se prolonge d'un petit roulement en triolet ; la contrebasse amène l'accord suivant par une note voisine.
 
 const MN_BASS_LO = 40;   // mi2 : corde grave de la guitare
 const MN_UP_LO = 52, MN_UP_HI = 69;   // notes du haut de la pompe : mi3 à la4
-const MN_LEAD_LO = 57, MN_LEAD_HI = 81;   // guitare solo : la3 à la5
+const MN_LEAD_LO = 57, MN_LEAD_HI = 84;   // guitare solo : la3 à do6
 const MN_VLN_LO = 62, MN_VLN_HI = 79;     // nappes du violon : ré4 à sol5
 
 const mnMod = (x) => ((x % 12) + 12) % 12;
@@ -181,20 +183,237 @@ function manoucheLick(env, cs, nextCs, from, to, kind, rng, start) {
     return { notes: notes.filter(inRange), target: t };
 }
 
-// Choix faits une fois par phrase : énergie, basse qui marche, glissandos d'accord, phrases de la guitare solo et du violon.
+// ===================== Le dialogue des solistes =====================
+// Chaque phrase de la grille (au moins 4 mesures) a un soliste : la guitare (ligne improvisée continue, à la Django), le violon
+// (chant lyrique, à la Grappelli) ou personne. Le soliste change le plus souvent d'une phrase à l'autre, comme un échange de
+// chorus ; derrière la guitare, le violon peut tenir des notes guides très douces ; quand le violon chante, la guitare lui répond
+// par une petite phrase sur la fin de la phrase. Une décision par phrase (jamais au milieu) : rien n'apparaît ni ne disparaît
+// sans raison, et chaque soliste termine son idée sur une note longue avant de laisser la place.
+
+// Profils des deux solistes : registre et centre de gravité de la ligne.
+const MN_SOLO = {
+    gtr: { lo: MN_LEAD_LO, hi: MN_LEAD_HI, center: 70 },
+    vln: { lo: 64, hi: 86, center: 76 }
+};
+
+// Classes de hauteur réelles utiles à la ligne : notes de l'accord, couleurs manouches (6te sur un accord parfait, tension notée),
+// gamme de l'accord, arpège diminué d'une dominante (3, 5, ♭7, ♭9) et notes guides (tierce, 7e ou 6te).
+function mnPcs(env, cs) {
+    const off = env.transOffset || 0;
+    const sh = mnChordShape(env, cs);
+    const R = (d) => mnMod(sh.root + d + off);
+    const chord = [0, sh.third, sh.fifth].concat(sh.sev !== null ? [sh.sev] : []).map(R);
+    const color = [];
+    if (sh.sev === null && sh.fifth === 7 && (sh.third === 3 || sh.third === 4)) color.push(R(9));
+    if (sh.ext !== null) color.push(R(sh.ext));
+    let scale = (typeof popScaleNotes === 'function') ? popScaleNotes(cs, 0, 11).map(n => mnMod(n + off)) : [];
+    if (scale.length < 5) scale = chord.concat(color);
+    const isDom = sh.third === 4 && sh.sev === 10;
+    return {
+        chord, color, scale, sh,
+        tones: chord.concat(color.filter(c => !chord.includes(c))),
+        dim: isDom ? [sh.third, sh.fifth, 10, 1].map(R) : null,
+        guide: [sh.third, sh.sev !== null ? sh.sev : (color.length ? 9 : sh.fifth)].map(R),
+        ends: [sh.third, sh.sev !== null ? sh.sev : (color.length ? 9 : sh.fifth), sh.ext !== null ? sh.ext : sh.fifth, 0].map(R)
+    };
+}
+
+// Hauteur de `pcs` la plus proche de x dans [lo, hi], dans la direction dir (+1, -1 ou 0), à au moins minStep et au plus maxStep.
+function mnNear(pcs, x, lo, hi, dir, minStep, maxStep) {
+    let best = null, bc = Infinity;
+    for (let m = lo; m <= hi; m++) {
+        if (!pcs.includes(mnMod(m))) continue;
+        const dl = m - x;
+        if (dir > 0 && dl < minStep) continue;
+        if (dir < 0 && -dl < minStep) continue;
+        if (dir === 0 && Math.abs(dl) < minStep) continue;
+        if (Math.abs(dl) > maxStep) continue;
+        if (Math.abs(dl) < bc) { bc = Math.abs(dl); best = m; }
+    }
+    return best;
+}
+
+// Cellules rythmiques (un ou deux temps) de chaque soliste. pos / dur en temps, relatifs au début de la cellule.
+// La guitare joue surtout en croches et en triolets (les arpèges de Django), avec des anticipations ; le violon chante en
+// valeurs plus longues (blanches, noires pointées), avec quelques croches.
+function mnCells(voice, ternary, d, I, bpm) {
+    const g = voice === 'gtr';
+    const fast = bpm > 210, slow = bpm < 120;
+    if (ternary) return [
+        { beats: 1, w: g ? 3 + 2 * d : 1 + d, pos: [0, 2 / 3], dur: [2 / 3, 1 / 3] },
+        { beats: 1, w: g ? 2 + 2 * d : 0.5, pos: [0, 1 / 3, 2 / 3], dur: [1 / 3, 1 / 3, 1 / 3], arp: true },
+        { beats: 1, w: g ? 1.5 : 3, pos: [0], dur: [1] },
+        { beats: 1, w: g ? 0.8 : 0.6, pos: [2 / 3], dur: [1 / 3], syn: true },
+        { beats: 2, w: g ? 0.5 : 2.6, pos: [0], dur: [2] }
+    ];
+    return [
+        { beats: 1, w: g ? 3 + 3 * d + I : 1 + 1.5 * d, pos: [0, 0.5], dur: [0.5, 0.5] },
+        { beats: 1, w: g ? (fast ? 0.25 : 1 + 1.5 * d) : 0.25, pos: [0, 1 / 3, 2 / 3], dur: [1 / 3, 1 / 3, 1 / 3], arp: true, noSwing: true },
+        { beats: 1, w: g && slow ? 0.6 + 1.2 * d : 0, pos: [0, 0.25, 0.5, 0.75], dur: [0.25, 0.25, 0.25, 0.25] },
+        { beats: 1, w: g ? 1.5 - 0.8 * d : 3, pos: [0], dur: [1] },
+        { beats: 1, w: g ? 1 : 0.7, pos: [0.5], dur: [0.5], syn: true },
+        { beats: 2, w: g ? 0.8 : 1.8, pos: [0, 1.5], dur: [1.5, 0.5] },
+        { beats: 2, w: g ? 0.4 : 2.4, pos: [0], dur: [2] }
+    ];
+}
+
+function mnPick(list, rng) {
+    const tot = list.reduce((s, c) => s + c.w, 0);
+    let r = rng() * tot;
+    for (const c of list) { r -= c.w; if (r <= 0) return c; }
+    return list[list.length - 1];
+}
+
+// Ligne d'un soliste sur une mesure ; ls = mémoire de la ligne, modifiée en place :
+//   { m: dernière hauteur, dir: direction (+1 / -1), idea: temps restants de l'idée en cours, rest: temps de silence restants,
+//     forced: note visée au premier temps de la mesure suivante (changement d'accord), oct: idée jouée en octaves (guitare) }
+// Une idée dure une à deux mesures et demie, se termine sur une note longue (tierce, 6te, 7e, 9e) puis laisse respirer ;
+// les temps tombent sur des notes de l'accord, les contretemps avancent par degrés conjoints de la gamme, chromatismes de
+// passage ; avant chaque changement d'accord, la ligne approche par demi-ton (ou broderie) une note guide du nouvel accord.
+// phraseEnd : dernière mesure de la phrase, l'idée se termine dans la mesure (avant le temps c.stopAt s'il est donné). Renvoie [{ pos, dur, m, vel, art, noSwing, oct }].
+function mnSoloLine(env, voice, ls, c) {
+    const { segs, bpb, ternary, nextStep, changeNext, rng, d, I, bpm, phraseEnd, splitAt } = c;
+    const P = MN_SOLO[voice];
+    const g = voice === 'gtr';
+    const eps = 1e-6;
+    const cells = mnCells(voice, ternary, d, I, bpm).filter(x => x.w > 0);
+    const ideaLen = () => g ? 5 + Math.floor(rng() * (3 + 7 * d)) : 4 + Math.floor(rng() * (3 + 3 * d));
+    const restLen = () => g ? 1 + Math.floor(rng() * (3 - 2 * d)) : 2 + Math.floor(rng() * (3 - 1.5 * d));
+    // ---- rythme ----
+    const slots = [];
+    // fin de phrase : l'idée se termine dans la mesure (avant stopAt quand l'autre soliste répond sur les derniers temps)
+    const stopAt = phraseEnd ? Math.max(1, Math.min(bpb, Number.isFinite(c.stopAt) ? c.stopAt : bpb)) : bpb;
+    if (phraseEnd && ls.idea > 0) ls.idea = Math.min(ls.idea, stopAt, rng() < 0.5 ? 2 : bpb);
+    let b = 0;
+    while (b < bpb) {
+        if (ls.rest > 0) { ls.rest--; b++; continue; }
+        if (phraseEnd && b >= stopAt) { b++; continue; }
+        if (ls.idea <= 0) {
+            if (phraseEnd && b >= stopAt - 1) { b++; continue; }
+            ls.idea = ideaLen();
+            if (phraseEnd) ls.idea = Math.min(ls.idea, stopAt - b);
+            ls.fresh = true;
+            ls.oct = g && I > 0.62 && rng() < 0.22 * d + 0.1;
+        }
+        let cell;
+        const room = stopAt - b;
+        if (ls.idea <= 1 || (ls.idea === 2 && room >= 2 && rng() < 0.6)) {
+            const len = Math.min(ls.idea, room);
+            cell = { beats: len, pos: [0], dur: [Math.max(0.5, len - (g ? 0.12 : 0.05))], end: true };
+        } else {
+            const ok = cells.filter(x => x.beats <= room && x.beats < ls.idea);
+            const weighted = ok.map(x => ({ ...x, w: x.w * (x.syn ? (ls.fresh ? 3 : 0.7) : 1) }));
+            cell = weighted.length ? mnPick(weighted, rng) : { beats: 1, pos: [0], dur: [1] };
+        }
+        cell.pos.forEach((p, k) => slots.push({ pos: b + p, dur: cell.dur[k], k, arp: !!cell.arp, end: !!cell.end, noSwing: !!cell.noSwing, fresh: !!ls.fresh && k === 0 }));
+        ls.fresh = false;
+        ls.idea -= cell.beats;
+        b += cell.beats;
+        if (cell.end) { ls.idea = 0; ls.rest = restLen(); }
+    }
+    // ---- hauteurs ----
+    const segOf = (pos) => (segs.length > 1 && pos >= splitAt - eps) ? 1 : 0;
+    const info = segs.map(sg => mnPcs(env, sg.cs));
+    const nextInfo = nextStep ? mnPcs(env, nextStep) : null;
+    const continues = ls.idea > 0 && ls.rest === 0;
+    let x = Number.isFinite(ls.m) ? Math.max(P.lo + 2, Math.min(P.hi - 2, ls.m)) : P.center + Math.round((rng() - 0.5) * 6);
+    let dir = ls.dir === 1 || ls.dir === -1 ? ls.dir : (x > P.center ? -1 : 1);
+    let pending = null, arpPcs = null;
+    const out = [];
+    const fit = (m) => { while (m > P.hi) m -= 12; while (m < P.lo) m += 12; return m; };
+    slots.forEach((s, k) => {
+        const inf = info[segOf(s.pos)];
+        const nx = slots[k + 1];
+        let ahead = null;
+        if (nx && segOf(nx.pos) !== segOf(s.pos)) ahead = info[segOf(nx.pos)];
+        else if (!nx && continues && changeNext && nextInfo) ahead = nextInfo;
+        const prevX = x;
+        let m;
+        if (s.arp && s.k === 0) arpPcs = (inf.dim && rng() < 0.7) ? inf.dim : inf.tones;
+        if (k === 0 && s.pos < eps && Number.isFinite(ls.forced) && !s.fresh) m = ls.forced;
+        else if (pending !== null) m = pending;
+        else if (s.fresh) {
+            // départ d'une idée : près de la dernière note, sur une note de l'accord, parfois après un saut (arpège montant)
+            dir = x > P.center + 4 ? -1 : (x < P.center - 4 ? 1 : (rng() < 0.5 ? 1 : -1));
+            const jump = rng() < 0.3 ? 5 + Math.floor(rng() * 4) : 0;
+            m = mnNear(inf.tones, x + dir * jump, P.lo + 2, P.hi - 2, 0, jump ? 0 : 1, 12);
+        } else if (ahead && !s.arp) {
+            // approche du nouvel accord : demi-ton en dessous (ou au-dessus), ou broderie depuis la gamme
+            const tgt = mnNear(ahead.guide, x + dir * 2, P.lo + 1, P.hi - 1, 0, 0, 12) ?? mnNear(ahead.chord, x, P.lo, P.hi, 0, 0, 12);
+            const r = rng();
+            if (tgt === null) m = x;
+            else if (s.dur > 0.6) m = mnNear(inf.tones, tgt, P.lo, P.hi, 0, 1, 4) ?? tgt;   // note longue : une note de l'accord voisine
+            else m = r < 0.55 ? tgt - dir : (r < 0.8 ? tgt + dir : (mnNear(inf.scale, tgt - 2 * dir, P.lo, P.hi, 0, 0, 2) ?? tgt - dir));
+            pending = tgt;
+        } else if (s.arp) {
+            m = mnNear(arpPcs || inf.tones, x, P.lo, P.hi, dir, 1, 6) ?? mnNear(arpPcs || inf.tones, x, P.lo, P.hi, -dir, 1, 6);
+            if (m !== null && (m >= P.hi - 2 || m <= P.lo + 2)) dir = -dir;
+        } else if (s.end) {
+            m = mnNear(inf.ends.slice(0, 3), x, P.lo + 1, P.hi - 1, 0, 1, 4) ?? mnNear(inf.ends, x, P.lo, P.hi, 0, 0, 12);
+        } else if (Math.abs(s.pos - Math.round(s.pos)) < eps) {
+            m = mnNear(inf.tones, x, P.lo, P.hi, dir, 1, 5) ?? mnNear(inf.tones, x, P.lo, P.hi, -dir, 1, 5);
+        } else {
+            m = rng() < 0.16 ? x + dir : (mnNear(inf.scale, x, P.lo, P.hi, dir, 1, 3) ?? x - dir);
+        }
+        if (pending !== null && m === pending) pending = null;
+        if (m === null || !Number.isFinite(m)) m = x;
+        m = fit(m);
+        // direction : rebond aux bords, retour après un saut, retour vers le centre, quelques changements libres
+        if (m >= P.hi - 3) dir = -1;
+        else if (m <= P.lo + 3) dir = 1;
+        else if (Math.abs(m - prevX) >= 5 && rng() < 0.7) dir = m > prevX ? -1 : 1;
+        else if (Math.abs(m - P.center) > 9 && rng() < 0.3) dir = m > P.center ? -1 : 1;
+        else if (rng() < (s.end ? 0.5 : 0.12)) dir = -dir;
+        x = m;
+        // durée (lié : chaque note tient jusqu'à la suivante) et nuance
+        const gap = nx ? nx.pos - s.pos : s.dur;
+        const dur = g ? Math.max(0.1, Math.min(s.dur, gap) * 0.94) : Math.max(0.15, Math.min(s.dur, gap) + (nx ? 0.06 : 0));
+        const onBeat = Math.abs(s.pos - Math.round(s.pos)) < eps;
+        let vel = g
+            ? (s.end ? 0.74 : (onBeat ? 0.7 : 0.6)) + (s.arp && s.k === 0 ? 0.05 : 0) + 0.06 * I + 0.005 * (m - P.center)
+            : (s.end || dur >= 0.9 ? 0.52 : 0.47) + 0.1 * I + 0.004 * (m - P.center) + (s.fresh ? -0.06 : 0);
+        vel += (rng() - 0.5) * 0.08;
+        out.push({ pos: s.pos, dur, m, vel: Math.max(0.12, Math.min(0.95, vel)),
+            art: g ? ((s.end || dur >= 0.9) ? 'target' : 'pick') : (dur >= 0.85 ? 'lyr' : 'line'),
+            noSwing: s.noSwing || undefined, oct: g && ls.oct && m - 12 >= MN_UP_LO });
+    });
+    ls.m = x; ls.dir = dir;
+    ls.forced = (continues && pending !== null) ? pending : null;
+    if (!continues) ls.oct = false;
+    return out;
+}
+
+// Rôles d'une phrase : { idx, solo: 'gtr' | 'vln' | 'none', pad (violon en notes guides derrière), fill (réponse de la guitare) }.
+function mnRoles(prev, rng, d, ballad, idx) {
+    let solo = 'none';
+    const pSolo = d <= 0.05 ? 0 : Math.min(1, 0.3 + 1.2 * d);
+    if (rng() < pSolo) {
+        const ps = prev ? prev.solo : null;
+        if (ps === 'gtr') solo = rng() < 0.55 ? 'vln' : 'gtr';
+        else if (ps === 'vln') solo = rng() < 0.7 ? 'gtr' : 'vln';
+        else solo = rng() < (ballad ? 0.5 : 0.38) ? 'vln' : 'gtr';
+    }
+    const keep = prev && prev.pad ? 0.2 : 0;
+    const pPad = solo === 'gtr' ? -0.15 + 1.3 * d + keep : (solo === 'none' ? 0.8 * Math.max(0, d - 0.3) + keep : 0);
+    const pad = d > 0.08 && rng() < pPad;
+    const fill = solo !== 'gtr' && d > 0.05 && rng() < 0.2 + 0.7 * d;
+    return { idx, solo, pad, fill };
+}
+
+// Choix faits une fois par phrase : énergie, basse qui marche, glissandos d'accord, coups remontés, variations de la pompe.
 function manouchePhraseExtras(rng, prev, index) {
     const pl = (prev && prev.style === 'manouche') ? prev : null;
     const prevI = (pl && typeof pl.intensity === 'number') ? pl.intensity : 0.5;
-    let I = index === 0 ? 0.4 + rng() * 0.15 : prevI + (0.64 - prevI) * 0.3 + (rng() - 0.5) * 0.42;
+    let I = index === 0 ? 0.4 + rng() * 0.15 : prevI + (0.62 - prevI) * 0.3 + (rng() - 0.5) * 0.36;
     I = Math.max(0.25, Math.min(0.95, I));
     return {
         intensity: I,
         walk: rng() < 0.15 + 0.6 * Math.max(0, I - 0.35),          // contrebasse en noires (sinon en deux temps)
         walkHalf: rng() < 0.5,                                      // ... seulement dans la seconde moitié de la phrase
-        slide: 0.25 + 0.4 * I,                                      // probabilité d'un glissando d'accord en fin de bloc
-        ghost: rng() < 0.75,                                        // coup remonté étouffé après le « tchac »
-        leadRoll: rng(), leadKind: rng(), leadMid: rng(),           // phrases de la guitare solo (comparées à la densité dans le plan)
-        vlnRoll: rng(), vlnKind: rng()                              // violon : présent ou non, nappe ou réponses
+        slide: 0.2 + 0.35 * I,                                      // probabilité d'un glissando d'accord en fin de bloc
+        ghost: rng() < 0.75,                                        // coups remontés étouffés après les « tchac »
+        leadRoll: rng(), leadKind: rng(), leadMid: rng(),           // réponse de la guitare (type de phrase)
+        vlnRoll: rng(), vlnKind: rng()
     };
 }
 
@@ -205,7 +424,7 @@ function buildManouchePlan(env, bpb, ternary, step, nextStep, isLastMeasureOfSte
     const eps = 1e-6;
     const off = env.transOffset || 0;
     const W = (real) => real - 48 - off;                 // hauteur réelle → intervalle écrit (depuis do3)
-    const st = env.state.mnState || (env.state.mnState = { voice: null, lead: null, vln: null });
+    const st = env.state.mnState || (env.state.mnState = {});
     const splitAt = env.splitBeat || Math.ceil(bpb / 2);
     const segs = halves
         ? [{ s: 0, e: splitAt, cs: halves[0] }, { s: splitAt, e: bpb, cs: halves[1] }]
@@ -216,17 +435,44 @@ function buildManouchePlan(env, bpb, ternary, step, nextStep, isLastMeasureOfSte
     const changeNext = !!nextStep && isLastMeasureOfStep && !sameChord(lastSeg.cs, nextStep);
     const segAt = (pos) => (halves && pos >= splitAt - eps) ? 1 : 0;
     const clampV = (v) => Math.max(0.08, Math.min(1, v));
-    const dyn = 0.86 + 0.2 * I;
-    const ballad = !ternary && (env.bpm || 180) < 100;
+    const jit = () => rng() - 0.5;
+    const dyn = 0.84 + 0.18 * I;
+    const bpm = env.bpm || 180;
+    const ballad = !ternary && bpm < 100;
     const valse = !ternary && bpb === 3;
+    const mis = Number.isInteger(env.measureInStep) ? env.measureInStep : 0;
     const piano = [], bass = [];
+
+    // ---- phrase et rôles des solistes ----
+    const LL = Math.max(4, L || 4);
+    const absM = Number.isInteger(m) && m >= 0 ? m : i;
+    const phraseIdx = Math.floor(absM / LL);
+    const phraseEnd = absM % LL === LL - 1;
+    if (!st.roles || st.roles.idx !== phraseIdx) {
+        const prev = st.roles || null;
+        st.roles = mnRoles(prev, rng, d, ballad, phraseIdx);
+        const fresh = (ls) => ({ m: ls ? ls.m : null, dir: ls ? ls.dir : 0, idea: 0, rest: rng() < 0.45 ? 1 : 0, forced: null, oct: false });
+        if (!prev || prev.solo !== 'gtr' || st.roles.solo !== 'gtr') st.gl = fresh(st.gl);
+        if (!prev || prev.solo !== 'vln' || st.roles.solo !== 'vln') st.vl = fresh(st.vl || (st.vh ? { m: st.vh.m } : null));
+    }
+    const R = st.roles;
+    if (!st.gl) st.gl = { m: null, dir: 0, idea: 0, rest: 0, forced: null, oct: false };
+    if (!st.vl) st.vl = { m: st.vh ? st.vh.m : null, dir: 0, idea: 0, rest: 0, forced: null, oct: false };
 
     // ---- voicings de la pompe (conduite des voix d'une mesure à l'autre) ----
     const keyOf = (cs) => cs.rootIndex + ':' + cs.chordId + ':' + (Number.isInteger(cs.bassRootIndex) ? cs.bassRootIndex : '');
     let prevV = st.voice ? st.voice.v : null;
     const V = segs.map(sg => {
         const k = keyOf(sg.cs);
-        const v = (st.voice && st.voice.key === k) ? st.voice.v : manoucheVoicing(env, sg.cs, prevV);
+        let v;
+        if (st.voice && st.voice.key === k) {
+            v = st.voice.v;
+            // accord tenu : de temps en temps, la pompe change de renversement (un peu de mouvement sans changer d'accord)
+            if (!halves && mis > 0 && rng() < 0.3) {
+                const avg = (v.up[0] + v.up[1] + v.up[2]) / 3;
+                v = manoucheVoicing(env, sg.cs, { up: v.up.map(x => x + (avg < 61 ? 5 : -5)) });
+            }
+        } else v = manoucheVoicing(env, sg.cs, prevV);
         st.voice = { key: k, v };
         prevV = v;
         return v;
@@ -234,35 +480,47 @@ function buildManouchePlan(env, bpb, ternary, step, nextStep, isLastMeasureOfSte
     const nextV = changeNext ? manoucheVoicing(env, nextStep, V[V.length - 1]) : null;
 
     // ---- la pompe ----
-    // Temps « boum » et « tchac » de la mesure
+    // Toujours un peu en retrait : le « boum » est léger, le « tchac » net mais pas claqué ; chaque coup varie un peu
+    // (nombre de cordes, vitesse du coup de médiator, nuance), le « tchac » est très légèrement en avance (la pompe pousse).
     const strokes = [];
     for (let b = 0; b < bpb; b++) {
         const kind = ballad ? 'ballad' : (valse ? (b === 0 ? 'boom' : 'chick') : (b % 2 === 0 ? 'boom' : 'chick'));
         strokes.push({ pos: b, kind });
     }
-    // un accord à l'entrée de la seconde moitié d'une mesure scindée sur un temps impair (3/4 coupé après le 1er temps…) : déjà couvert
     const slideOn = changeNext && !ballad && nextV && bpb >= 2 && rng() < ph.slide;
+    // fin de phrase : de temps en temps, le dernier « tchac » est suivi d'un petit roulement en triolet (haut-bas étouffés)
+    const rollOn = !ternary && !ballad && phraseEnd && !slideOn && bpb >= 2 && rng() < 0.15 + 0.3 * I;
     strokes.forEach(({ pos, kind }) => {
         const v = V[segAt(pos)];
         const lastStroke = pos === bpb - 1;
         if (kind === 'boom') {
-            piano.push({ inst: 'pompe', art: 'boom', pos, dur: 0.5, vel: clampV((0.5 + 0.08 * (pos === 0 ? 1 : 0)) * dyn),
-                rootIndex: 0, intervals: [v.low, v.up[0], v.up[1]].map(W), roll: 0.011 });
+            const notes = rng() < 0.3 ? [v.low, v.up[0]] : [v.low, v.up[0], v.up[1]];
+            piano.push({ inst: 'pompe', art: 'boom', pos, dur: 0.45, vel: clampV((0.4 + (pos === 0 ? 0.05 : 0) + jit() * 0.07) * dyn),
+                rootIndex: 0, intervals: notes.map(W), roll: 0.009 + rng() * 0.007 });
         } else if (kind === 'chick') {
+            const lay = -0.002 - rng() * 0.004;
             if (lastStroke && slideOn) {
                 // glissando : l'accord suivant, un demi-ton plus haut, sur le dernier contretemps
-                piano.push({ inst: 'pompe', art: 'slide', pos, dur: 0.32, vel: clampV(0.8 * dyn), rootIndex: 0,
-                    intervals: nextV.up.map(x => W(x + 1)), roll: 0.007 });
+                piano.push({ inst: 'pompe', art: 'slide', pos, dur: 0.3, vel: clampV((0.66 + jit() * 0.06) * dyn), rootIndex: 0,
+                    intervals: nextV.up.map(x => W(x + 1)), roll: 0.006 + rng() * 0.004, lay });
             } else {
-                piano.push({ inst: 'pompe', art: 'chick', pos, dur: 0.3, vel: clampV((valse && pos === 2 ? 0.66 : 0.78) * dyn), rootIndex: 0,
-                    intervals: v.up.map(W), roll: 0.007 });
+                const notes = rng() < 0.2 ? v.up.slice(1) : v.up;
+                const base = valse && pos === 2 ? 0.52 : 0.62;
+                piano.push({ inst: 'pompe', art: 'chick', pos, dur: 0.26 + rng() * 0.05, vel: clampV((base + jit() * 0.08) * dyn), rootIndex: 0,
+                    intervals: notes.map(W), roll: 0.005 + rng() * 0.005, lay });
             }
-            if (ph.ghost && !ternary) piano.push({ inst: 'pompe', art: 'ghost', pos: pos + 0.12, dur: 0.05, vel: clampV(0.22 * dyn), rootIndex: 0,
-                intervals: (lastStroke && slideOn ? nextV.up.map(x => x + 1) : v.up).slice(1).map(W), roll: 0.006, dir: -1 });
+            const up = (lastStroke && slideOn ? nextV.up.map(x => x + 1) : v.up).slice(1);
+            if (rollOn && lastStroke) {
+                piano.push({ inst: 'pompe', art: 'ghost', pos: pos + 1 / 3, dur: 0.06, vel: clampV(0.26 * dyn), rootIndex: 0, intervals: up.map(W), roll: 0.005, dir: -1, noSwing: true });
+                piano.push({ inst: 'pompe', art: 'roll', pos: pos + 2 / 3, dur: 0.12, vel: clampV(0.4 * dyn), rootIndex: 0, intervals: up.map(W), roll: 0.005, noSwing: true });
+            } else if (ph.ghost && !ternary && rng() < 0.65) {
+                piano.push({ inst: 'pompe', art: 'ghost', pos: pos + 0.12, dur: 0.05, vel: clampV((0.16 + rng() * 0.06) * dyn), rootIndex: 0,
+                    intervals: up.map(W), roll: 0.006, dir: -1 });
+            }
         } else {
-            // ballade : quatre coups égaux, un peu plus longs, l'accord entier
-            piano.push({ inst: 'pompe', art: 'ballad', pos, dur: 0.7, vel: clampV((pos === 0 ? 0.5 : 0.42) * dyn), rootIndex: 0,
-                intervals: [v.low].concat(v.up).map(W), roll: 0.02 });
+            // ballade : quatre coups égaux et doux, l'accord entier
+            piano.push({ inst: 'pompe', art: 'ballad', pos, dur: 0.7, vel: clampV((pos === 0 ? 0.44 : 0.37) * dyn + jit() * 0.04), rootIndex: 0,
+                intervals: [v.low].concat(v.up).map(W), roll: 0.018 + rng() * 0.012 });
         }
     });
 
@@ -271,7 +529,7 @@ function buildManouchePlan(env, bpb, ternary, step, nextStep, isLastMeasureOfSte
         const tones = segs.map(sg => latBassTones(env, sg.cs));
         const T = (pos) => tones[segAt(pos)];
         const hits = [];
-        const walkNow = !ballad && !valse && bpb === 4 && !ternary && ph.walk && (!ph.walkHalf || i >= Math.floor(L / 2)) && (env.bpm || 180) <= 240;
+        const walkNow = !ballad && !valse && bpb === 4 && !ternary && ph.walk && (!ph.walkHalf || i >= Math.floor(L / 2)) && bpm <= 240;
         if (walkNow && !halves) {
             const t0 = T(0);
             const third = t0.third + 12 * (t0.third < t0.root ? 1 : 0);
@@ -291,7 +549,6 @@ function buildManouchePlan(env, bpb, ternary, step, nextStep, isLastMeasureOfSte
                 hits.push([p, abs, ballad ? 1.8 : 0.9, k === 0 ? 0.9 : 0.78]);
             });
             segs.forEach(sg => { if (!hits.some(h => Math.abs(h[0] - sg.s) < eps)) hits.push([sg.s, T(sg.s).root, 0.9, 0.84]); });
-            // note de liaison vers l'accord suivant sur le dernier temps (4/4), ou sur le « et » du dernier « boum »
             if (changeNext && bpb >= 4 && !ballad && rng() < (isTurn ? 0.7 : 0.35)) {
                 const tl = tones[tones.length - 1];
                 hits.push([bpb - 1, popBassApproach(env, tl.root, nextStep, rng), 0.7, 0.68]);
@@ -307,64 +564,65 @@ function buildManouchePlan(env, bpb, ternary, step, nextStep, isLastMeasureOfSte
         });
     }
 
-    // ---- guitare solo : note d'arrivée de la phrase précédente, puis phrase de fin de phrase ----
-    let leadFrom = Infinity;
+    const lineCtx = { segs, bpb, ternary, nextStep, changeNext, rng, d, I, bpm, phraseEnd, splitAt };
+
+    // ---- guitare solo ----
+    // note d'arrivée d'une réponse de la mesure précédente
     if (st.lead && Number.isFinite(st.lead.m)) {
-        piano.push({ inst: 'lead', art: 'target', pos: 0, dur: ballad ? 1.6 : 1.1, vel: clampV(0.8 * dyn), rootIndex: 0, intervals: [W(st.lead.m)] });
+        piano.push({ inst: 'lead', art: 'target', pos: 0, dur: ballad ? 1.6 : 1.1, vel: clampV(0.74 * dyn), rootIndex: 0, intervals: [W(st.lead.m)] });
+        if (st.gl) { st.gl.m = st.lead.m; if (R.solo === 'gtr' && st.gl.idea <= 0) st.gl.rest = Math.max(st.gl.rest, 1); }
     }
-    const lastLeadNote = st.lead ? st.lead.m : null;
     st.lead = null;
-    const leadAtTurn = isTurn && L > 1 && d > 0.05 && ph.leadRoll < 0.1 + 0.8 * d;
-    const leadMid = !isTurn && changeNext && d > 0.55 && ph.leadMid < (d - 0.55) * 1.6 && rng() < 0.5;
-    if ((leadAtTurn || leadMid) && nextStep && bpb >= 2) {
-        const len = leadAtTurn ? Math.min(ballad ? 2 : 2, bpb - 1) : 1;
+    if (R.solo === 'gtr' && d > 0.05) {
+        mnSoloLine(env, 'gtr', st.gl, lineCtx).forEach(n => {
+            const ivs = n.oct ? [W(n.m - 12), W(n.m)] : [W(n.m)];
+            piano.push({ inst: 'lead', art: n.art, pos: n.pos, dur: n.dur, vel: clampV(n.vel * dyn), rootIndex: 0, intervals: ivs,
+                roll: n.oct ? 0.004 : undefined, noSwing: n.noSwing, lay: (rng() - 0.4) * 0.01 });
+        });
+    } else if (R.fill && phraseEnd && nextStep && bpb >= 2) {
+        // réponse de la guitare à la fin d'une phrase chantée par le violon (ou sans soliste) : petite phrase qui mène à l'accord suivant
+        const len = Math.min(2, bpb - 1);
         const from = bpb - len;
         const cs = segs[segAt(from)].cs;
         const kind = ph.leadKind < 0.4 ? 'dim' : (ph.leadKind < 0.75 ? 'arp' : 'chrom');
-        const lick = manoucheLick(env, cs, nextStep, from, bpb, ternary ? 'arp' : kind, rng, lastLeadNote || 67);
-        lick.notes.forEach(n => piano.push({ inst: 'lead', art: 'pick', pos: n.pos, dur: n.dur, vel: clampV(n.vel * dyn), rootIndex: 0, intervals: [W(n.m)] }));
+        const lick = manoucheLick(env, cs, nextStep, from, bpb, ternary ? 'arp' : kind, rng, (st.gl && st.gl.m) || 67);
+        lick.notes.forEach(n => piano.push({ inst: 'lead', art: 'pick', pos: n.pos, dur: n.dur, vel: clampV(n.vel * dyn), rootIndex: 0, intervals: [W(n.m)],
+            noSwing: Math.abs(n.pos * 2 - Math.round(n.pos * 2)) > eps || undefined }));
         if (lick.notes.length && Number.isFinite(lick.target)) st.lead = { m: lick.target };
-        if (lick.notes.length) leadFrom = from;
     }
 
-    // ---- violon : nappes tenues (notes guides) ou petites réponses ----
-    const vlnOn = d > 0.08 && ph.vlnRoll < (ballad ? 0.35 : 0.12) + 0.7 * d;
-    if (vlnOn) {
-        const pad = ballad || ph.vlnKind < 0.62;
-        if (pad) {
-            const mis = Number.isInteger(env.measureInStep) ? env.measureInStep : 0;
-            segs.forEach((sg, k) => {
-                // une nappe par accord, rejouée (coup d'archet) toutes les deux mesures sur un accord tenu
-                if (!halves && mis % 2 === 1) return;
-                const sh = mnChordShape(env, sg.cs);
-                const guides = [sh.third, sh.sev !== null ? sh.sev : sh.fifth].map(x => mnMod(sh.root + x + off));
-                const prevM = Number.isFinite(st.vln) ? st.vln : 69;
-                let best = null;
-                for (let mm = MN_VLN_LO; mm <= MN_VLN_HI; mm++) if (guides.includes(mnMod(mm)) && (best === null || Math.abs(mm - prevM) < Math.abs(best - prevM))) best = mm;
-                if (best === null) return;
-                st.vln = best;
-                const bars = halves ? 0 : Math.max(1, Math.min(2, (step.measures || 1) - mis));
-                const dur = halves ? sg.e - sg.s - 0.1 : bars * bpb - 0.15;
-                piano.push({ inst: 'violin', art: 'sus', pos: sg.s, dur, vel: clampV((0.4 + 0.12 * I) * (k === 0 ? 1 : 0.94)), rootIndex: 0, intervals: [W(best)] });
-            });
-        } else if (i % 2 === 1 && bpb >= 3 && !(leadFrom < bpb)) {
-            // réponse : quelques croches conjointes de la gamme qui retombent sur une note de l'accord
-            const cs = lastSeg.cs;
-            const S = popScaleNotes(cs, W(MN_VLN_LO), W(MN_VLN_HI));
-            if (S.length >= 5) {
-                const from = bpb - 2;
-                const n = ternary ? 3 : 4;
-                const prevW = Number.isFinite(st.vln) ? W(st.vln) : W(71);
-                let idx = S.reduce((b, x, k) => Math.abs(x - prevW) < Math.abs(S[b] - prevW) ? k : b, 0);
-                const dir = idx > S.length / 2 ? -1 : 1;
-                for (let k = 0; k < n; k++) {
-                    const x = S[Math.max(0, Math.min(S.length - 1, idx))];
-                    piano.push({ inst: 'violin', art: 'line', pos: from + k * (2 / n), dur: (2 / n) * (k === n - 1 ? 1.6 : 0.9), vel: clampV(0.46 + 0.06 * k), rootIndex: 0, intervals: [x] });
-                    st.vln = x + 48 + off;
-                    idx += dir;
-                }
+    // ---- violon ----
+    if (R.solo === 'vln' && d > 0.05) {
+        // chant lyrique, legato, qui respire entre les idées
+        mnSoloLine(env, 'vln', st.vl, { ...lineCtx, stopAt: R.fill ? bpb - Math.min(2, bpb - 1) : bpb }).forEach(n => {
+            piano.push({ inst: 'violin', art: n.art, pos: n.pos, dur: n.dur, vel: clampV(n.vel), rootIndex: 0, intervals: [W(n.m)], noSwing: n.noSwing, lay: 0.008 });
+            st.vh = { m: n.m, until: absM * bpb + n.pos + n.dur };
+        });
+    } else if (R.pad) {
+        // notes guides tenues, très douces : une note par accord, voisine de la précédente ; une note commune à l'accord suivant
+        // reste tenue (pas de nouveau coup d'archet), un accord tenu longtemps est repris d'un nouveau coup d'archet toutes les deux mesures
+        segs.forEach((sg, k) => {
+            const absPos = absM * bpb + sg.s;
+            const inf = mnPcs(env, sg.cs);
+            if (st.vh && st.vh.until > absPos + 0.25 && inf.chord.concat(inf.color).includes(mnMod(st.vh.m))) return;
+            const prevM = st.vh ? st.vh.m : 69;
+            let best = null;
+            for (let mm = MN_VLN_LO; mm <= MN_VLN_HI; mm++) {
+                if (!inf.guide.includes(mnMod(mm))) continue;
+                const cost = Math.abs(mm - prevM) + (mm === prevM && st.vh && st.vh.until > absPos - 0.5 ? 1.5 : 0);
+                if (best === null || cost < best.c) best = { m: mm, c: cost };
             }
-        }
+            if (!best) return;
+            let dur;
+            if (halves) dur = sg.e - sg.s - 0.08;
+            else dur = Math.max(1, Math.min(2, (step.measures || 1) - mis)) * bpb - sg.s - 0.1;
+            const isLastSeg = k === segs.length - 1;
+            const lastOfChord = halves ? isLastSeg && isLastMeasureOfStep : (step.measures || 1) - mis <= 2;
+            if (lastOfChord && isLastSeg && nextStep && !phraseEnd && mnPcs(env, nextStep).chord.includes(mnMod(best.m))) dur += bpb;
+            const entering = !st.vh || st.vh.until < absPos - bpb;
+            piano.push({ inst: 'violin', art: 'sus', pos: sg.s, dur, vel: clampV((0.3 + 0.1 * I) * (entering ? 0.85 : 1) + jit() * 0.04), rootIndex: 0, intervals: [W(best.m)], lay: 0.01 });
+            st.vh = { m: best.m, until: absPos + dur };
+        });
     }
 
     piano.sort((a, b) => a.pos - b.pos);
@@ -373,5 +631,5 @@ function buildManouchePlan(env, bpb, ternary, step, nextStep, isLastMeasureOfSte
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { manoucheVoicing, manoucheLick, manouchePhraseExtras, buildManouchePlan, mnChordShape, mnUpperDegrees };
+    module.exports = { manoucheVoicing, manoucheLick, manouchePhraseExtras, buildManouchePlan, mnChordShape, mnUpperDegrees, mnSoloLine, mnRoles, mnPcs };
 }

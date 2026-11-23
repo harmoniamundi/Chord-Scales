@@ -319,18 +319,21 @@ function piazzollaNotes(env, e, time, beatSec, who) {
 
 // Jazz manouche : guitare rythmique (la pompe) et guitare solo, cordes métal attaquées au médiator (orchestre band/manouche-plan.js).
 //   pompe  e.art : 'boom' (coup descendant bref, cordes graves), 'chick' (accord entier aussitôt étouffé), 'ghost' (coup remonté
-//          étouffé, presque muet), 'slide' (accord glissé, étouffé comme un « tchac »), 'ballad' (coup doux qui sonne un peu) ;
+//          étouffé, presque muet), 'slide' (accord glissé, étouffé comme un « tchac »), 'roll' (petit coup du roulement de fin
+//          de phrase), 'ballad' (coup doux qui sonne un peu) ;
 //          un coup descendant va du grave à l'aigu (e.dir < 0 : coup remonté), avec un léger retard aléatoire entre les cordes ;
-//   lead   e.art : 'pick' (note de phrase, attaque franche) ou 'target' (note d'arrivée, laissée sonner un peu).
+//   lead   e.art : 'pick' (note de phrase, attaque franche) ou 'target' (note longue, laissée sonner) ; deux notes = octaves.
 // Le volume vient du bus de chaque guitare (curseurs « Pompe » et « Guit. solo ») : pas de facteur de volume ici.
+// La pompe reste en retrait de la guitare solo : coups moins forts, « boum » plus sourd, « tchac » net sans claquer.
 const MN_ART = {
-    boom:   { a: 0.002, r: 0.06, max: 0.22, g: 0.82 },
-    chick:  { a: 0.001, r: 0.035, max: 0.12, g: 1 },
-    slide:  { a: 0.001, r: 0.04, max: 0.14, g: 0.95 },
-    ghost:  { a: 0.001, r: 0.02, max: 0.04, g: 0.5 },
-    ballad: { a: 0.003, r: 0.25, max: 1.2, g: 0.85 },
-    pick:   { a: 0.0015, r: 0.07, max: 0.5, g: 1 },
-    target: { a: 0.0015, r: 0.3, max: 1.4, g: 1 }
+    boom:   { a: 0.003, r: 0.07, max: 0.2, g: 0.68 },
+    chick:  { a: 0.0015, r: 0.04, max: 0.12, g: 0.84 },
+    slide:  { a: 0.0015, r: 0.045, max: 0.14, g: 0.8 },
+    ghost:  { a: 0.001, r: 0.02, max: 0.04, g: 0.42 },
+    roll:   { a: 0.0015, r: 0.035, max: 0.08, g: 0.6 },
+    ballad: { a: 0.004, r: 0.25, max: 1.2, g: 0.74 },
+    pick:   { a: 0.0015, r: 0.09, max: 0.6, g: 1 },
+    target: { a: 0.0015, r: 0.35, max: 1.8, g: 1 }
 };
 function manoucheNotes(env, e, time, beatSec) {
     const rand = randOf(env);

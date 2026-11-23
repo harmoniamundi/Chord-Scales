@@ -347,9 +347,11 @@ function swingWarp(pos, swing) {
 }
 
 // Plan (piano, basse, batterie) dont les positions et les durées suivent swingWarp ; le plan d'origine n'est pas modifié.
+// Une frappe marquée e.noSwing (triolet déjà placé exactement) garde sa position et sa durée.
 function swingPlan(plan, swing) {
     if (!plan || Math.abs(swing - 0.5) < 1e-9) return plan;
     const map = (list) => (list || []).map(e => {
+        if (e.noSwing) return { ...e };   // position déjà exacte (triolets écrits par l'orchestre)
         const out = { ...e, pos: swingWarp(e.pos, swing) };
         if (typeof e.dur === 'number' && e.dur > 0) out.dur = Math.max(0.05, swingWarp(e.pos + e.dur, swing) - out.pos);
         return out;

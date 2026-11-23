@@ -3231,7 +3231,7 @@
                     piazzolla: "Densité des lignes du violon, du bandonéon et de la guitare : 50 % = l'écriture d'origine ; en dessous, les notes brèves et les ornements disparaissent ; au-dessus, des notes de passage remplissent les lignes puis des doubles-croches s'intercalent. Accords et basse inchangés.",
                     balkan: "Densité de la ligne de l'accordéon : 50 % = l'écriture d'origine ; en dessous, les notes brèves et les ornements disparaissent ; au-dessus, des notes de passage remplissent la ligne puis des doubles-croches s'intercalent. Accords, basse et percussions inchangés.",
                     cumbia: "Densité de la mélodie de l'accordéon : 50 % = l'écriture d'origine ; en dessous, les notes brèves disparaissent ; au-dessus, des notes de passage remplissent la mélodie puis des doubles-croches s'intercalent. Accords, basse et percussions inchangés.",
-                    manouche: "Quantité de phrases de la guitare solo et du violon : à 0, la pompe et la contrebasse seules ; 50 % = une petite phrase de guitare à la fin de la plupart des phrases, le violon de temps en temps ; au-dessus, la guitare répond aussi au milieu des phrases et le violon tient des nappes presque partout. Pompe et contrebasse inchangées.",
+                    manouche: "Présence des solistes et nombre de notes de leurs lignes : à 0, la pompe et la contrebasse seules ; 50 % = la guitare et le violon se passent la parole d'une phrase à l'autre, avec des respirations ; au-dessus, des lignes plus fournies, presque toujours un soliste et le violon en notes tenues derrière la guitare. Pompe et contrebasse inchangées.",
                     brass: "Densité des notes détachées des cors et des cornets : 50 % = l'écriture d'origine ; en dessous, des frappes disparaissent ; au-dessus, des frappes brèves comblent les croches vides puis s'intercalent. Notes tenues, tubas et percussions inchangés."
                 };
                 const tip = TIPS[this.bandStyle] || TIPS.classic;
@@ -4655,7 +4655,7 @@
                     return chain[0];
                 };
                 this._mnBuses = {
-                    pompe: build(this.bandGains.piano, [f('highpass', 120, undefined, 0.7), f('lowshelf', 250, -3), f('peaking', 1200, 3, 1.1), f('peaking', 3200, 4, 0.9), f('highshelf', 6000, 2), f('lowpass', 11000, undefined, 0.5)], [-22, 3, 1.5]),
+                    pompe: build(this.bandGains.piano, [f('highpass', 120, undefined, 0.7), f('lowshelf', 250, -3), f('peaking', 1200, 2, 1.1), f('peaking', 3200, 2.5, 0.9), f('highshelf', 6000, 0.5), f('lowpass', 9500, undefined, 0.5)], [-22, 2.5, 1.15]),
                     lead: build(this.bandGains.guitar, [f('highpass', 160, undefined, 0.7), f('peaking', 1400, 4, 1), f('peaking', 3500, 4.5, 0.9), f('highshelf', 7000, 1.5), f('lowpass', 12000, undefined, 0.5)], [-24, 2.5, 1.7])
                 };
                 return this._mnBuses;
@@ -4706,7 +4706,7 @@
                 const ctx = this.app.audioCtx;
                 if (!ctx) return;
                 const who = e.inst || 'pompe';
-                if (this.perfTier >= 2 && (who !== 'pompe' || e.art === 'ghost')) return;
+                if (this.perfTier >= 2 && (who !== 'pompe' || e.art === 'ghost' || e.art === 'roll')) return;
                 if (who === 'violin') {
                     const inst = this.pzInst && this.pzInst.violin;
                     if (inst) this._playNotes(inst, piazzollaNotes(this._noteEnv(), e, time, beatSec, 'violin'));
@@ -4714,7 +4714,7 @@
                 }
                 const inst = this.mnInst && this.mnInst[who];
                 if (!inst) {
-                    if (who === 'pompe' && e.art !== 'ghost') this.playPianoHit({ ...e, dur: Math.max(0.2, e.dur), gainMul: 0.8 }, time, beatSec);
+                    if (who === 'pompe' && e.art !== 'ghost' && e.art !== 'roll') this.playPianoHit({ ...e, dur: Math.max(0.2, e.dur), gainMul: 0.8 }, time, beatSec);
                     return;
                 }
                 this._playNotes(inst, manoucheNotes(this._noteEnv(), e, time, beatSec));
