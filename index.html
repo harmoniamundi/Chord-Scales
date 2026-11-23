@@ -3026,7 +3026,7 @@
                 const brass = this.bandStyle === 'brass';
                 const balkan = this.bandStyle === 'balkan' || this.bandStyle === 'cumbia'; // même accordéon, mêmes « Percus. »
                 const pz = this.bandStyle === 'piazzolla';
-                const mn = this.bandStyle === 'manouche';     // pompe sur le premier curseur ; violon et guitare solo sur ceux du quinteto
+                const mn = this.bandStyle === 'manouche';     // pompe sur le premier curseur ; guitare solo sur celui de la guitare du quinteto
                 const africa = this.bandStyle === 'africa';   // guitares et orgue sur les curseurs du Rock, cuivres sur le premier
                 const el = document.getElementById('band-vol-piano-label');
                 if (el) el.textContent = mn ? 'Pompe' : (brass || africa) ? 'Cuivres' : (balkan ? 'Accordéon' : ((this.bandStyle === 'latin' || this.bandStyle === 'guitar' || this._cubaGuitar()) ? 'Guitare' : 'Piano'));
@@ -3037,7 +3037,7 @@
                 // curseurs propres au Tango nuevo (bandonéon, violon, guitare électrique)
                 ['bandoneon', 'violin', 'guitar'].forEach(k => {
                     const row = document.getElementById('band-row-pz-' + k);
-                    if (row) row.classList.toggle('hidden', !(pz || (mn && k !== 'bandoneon')));
+                    if (row) row.classList.toggle('hidden', !(pz || (mn && k === 'guitar')));
                 });
                 const eg = document.getElementById('band-vol-guitar-label');
                 if (eg) eg.textContent = mn ? 'Guit. solo' : 'Guit. élec.';
@@ -3231,7 +3231,7 @@
                     piazzolla: "Densité des lignes du violon, du bandonéon et de la guitare : 50 % = l'écriture d'origine ; en dessous, les notes brèves et les ornements disparaissent ; au-dessus, des notes de passage remplissent les lignes puis des doubles-croches s'intercalent. Accords et basse inchangés.",
                     balkan: "Densité de la ligne de l'accordéon : 50 % = l'écriture d'origine ; en dessous, les notes brèves et les ornements disparaissent ; au-dessus, des notes de passage remplissent la ligne puis des doubles-croches s'intercalent. Accords, basse et percussions inchangés.",
                     cumbia: "Densité de la mélodie de l'accordéon : 50 % = l'écriture d'origine ; en dessous, les notes brèves disparaissent ; au-dessus, des notes de passage remplissent la mélodie puis des doubles-croches s'intercalent. Accords, basse et percussions inchangés.",
-                    manouche: "Présence des solistes et nombre de notes de leurs lignes : à 0, la pompe et la contrebasse seules ; 50 % = la guitare et le violon se passent la parole d'une phrase à l'autre, avec des respirations ; au-dessus, des lignes plus fournies, presque toujours un soliste et le violon en notes tenues derrière la guitare. Pompe et contrebasse inchangées.",
+                    manouche: "Présence et quantité de notes de la guitare solo : à 0, la pompe et la contrebasse seules ; 50 % = la guitare improvise sur la plupart des phrases, avec des respirations et parfois une phrase laissée à la pompe ; au-dessus, des lignes plus fournies et presque sans pause. Pompe et contrebasse inchangées.",
                     brass: "Densité des notes détachées des cors et des cornets : 50 % = l'écriture d'origine ; en dessous, des frappes disparaissent ; au-dessus, des frappes brèves comblent les croches vides puis s'intercalent. Notes tenues, tubas et percussions inchangés."
                 };
                 const tip = TIPS[this.bandStyle] || TIPS.classic;
@@ -4085,7 +4085,7 @@
                 if (style === 'balkan') return this.buildBalkanPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 // Cumbia colombienne : accordéon, basse électrique, guacharaca / llamador / tambora / alegre, quelle que soit la signature
                 if (style === 'cumbia') return this.buildCumbiaPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
-                // Jazz manouche : pompe, contrebasse, guitare solo et violon, quelle que soit la signature
+                // Jazz manouche : pompe, contrebasse et guitare solo, quelle que soit la signature
                 if (style === 'manouche') return this.buildManouchePlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 // Afrique : guitares électriques, basse, batterie et percussions, orgue et cuivres selon le rythme, quelle que soit la signature
                 if (style === 'africa') return this.buildAfricaPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
@@ -4660,7 +4660,7 @@
             }
 
             // ===================== Orchestration JAZZ MANOUCHE : le calcul est dans band/manouche-plan.js =====================
-            // Pompe (guitare rythmique), contrebasse, guitare solo (fins de phrase) et violon (nappes, réponses), sans batterie.
+            // Pompe (guitare rythmique), contrebasse et guitare solo (ligne improvisée), sans violon ni batterie.
             buildManouchePlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
                 const extra = { splitBeat: this.getSplitBeat(), bpm: this._curBpm(), density: this.getBandDensity('manouche'),
                     measureInStep: this._bandCtx ? this._bandCtx.measureInStep : 0 };
@@ -4700,8 +4700,8 @@
                 return this._mnBuses;
             }
 
-            // Charge les deux guitares (MusyngKite, repli FluidR3_GM) et le violon (Virtual Playing Orchestra, comme le quinteto).
-            // Au niveau de performance minimal, seule la pompe est chargée : ni guitare solo ni violon.
+            // Charge les deux guitares (MusyngKite, repli FluidR3_GM).
+            // Au niveau de performance minimal, seule la pompe est chargée : pas de guitare solo.
             loadManouche() {
                 if (!this.app.audioCtx || !this.bandGains.piano) return;
                 const ctx = this.app.audioCtx;
@@ -4723,34 +4723,16 @@
                 loadGtr('pompe', buses.pompe);
                 if (this.perfTier >= 2) return;
                 loadGtr('lead', buses.lead);
-                // violon : le même que celui du quinteto de tango (pzInst.violin), sur son bus
-                if (!this.pzInst.violin && !this._pzLoading.violin && !((this._pzFail.violin || 0) >= 3)) {
-                    const dest = this._getPzBuses().violin;
-                    this._pzLoading.violin = true;
-                    const fallback = () => Soundfont.instrument(ctx, 'violin', { soundfont: 'MusyngKite', destination: dest })
-                        .then(instr => { this.pzInst.violin = instr; this._pzLoading.violin = false; })
-                        .catch(() => { this._pzFail.violin = (this._pzFail.violin || 0) + 1; this._pzLoading.violin = false; });
-                    if (typeof vpoLoadBrass === 'function') {
-                        vpoLoadBrass(ctx, 'violin', { destination: dest })
-                            .then(instr => { this.pzInst.violin = instr; this._pzLoading.violin = false; })
-                            .catch(fallback);
-                    } else fallback();
-                }
             }
 
-            // Une frappe de l'orchestre manouche. e.inst : 'pompe' | 'lead' | 'violin' (voir band/manouche-plan.js).
-            // Tant que la pompe n'est pas chargée, le piano joue sa partie ; guitare solo et violon attendent leur échantillon.
-            // Machine lente (niveau minimal) : ni guitare solo, ni violon, ni coups remontés étouffés.
+            // Une frappe de l'orchestre manouche. e.inst : 'pompe' | 'lead' (voir band/manouche-plan.js).
+            // Tant que la pompe n'est pas chargée, le piano joue sa partie ; la guitare solo attend son échantillon.
+            // Machine lente (niveau minimal) : ni guitare solo, ni coups remontés étouffés.
             playManoucheHit(e, time, beatSec) {
                 const ctx = this.app.audioCtx;
                 if (!ctx) return;
                 const who = e.inst || 'pompe';
                 if (this.perfTier >= 2 && (who !== 'pompe' || e.art === 'ghost' || e.art === 'roll')) return;
-                if (who === 'violin') {
-                    const inst = this.pzInst && this.pzInst.violin;
-                    if (inst) this._playNotes(inst, piazzollaNotes(this._noteEnv(), e, time, beatSec, 'violin'));
-                    return;
-                }
                 const inst = this.mnInst && this.mnInst[who];
                 if (!inst) {
                     if (who === 'pompe' && e.art !== 'ghost' && e.art !== 'roll') this.playPianoHit({ ...e, dur: Math.max(0.2, e.dur), gainMul: 0.8 }, time, beatSec);

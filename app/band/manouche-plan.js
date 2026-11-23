@@ -1,22 +1,20 @@
 // band/manouche-plan.js — orchestre « Jazz manouche » de la jam (dans l'esprit du Quintette du Hot Club de France) : guitare
-// rythmique qui joue « la pompe », contrebasse, guitare solo (ligne improvisée à la Django) et violon (chant et notes tenues, à la
-// Grappelli). Pas de batterie : dans le swing manouche, c'est la pompe qui tient le tempo.
+// rythmique qui joue « la pompe », contrebasse et guitare solo (ligne improvisée à la Django). Pas de violon ni de batterie :
+// dans le swing manouche, c'est la pompe qui tient le tempo.
 // Chargé par index.html via <script src="app/band/manouche-plan.js"> (après band-helpers.js) et testé par band/manouche-plan.test.js.
 // Fonctions pures : tout ce qui dépendait de JamEngine (`this`) passe par l'objet `env` :
 //   env.transOffset, env.findChordObj(id)   comme dans band-helpers.js
 //   env.splitBeat      temps où la mesure se coupe en deux accords (getSplitBeat())
 //   env.bpm            tempo courant (sous 100 : jeu de ballade)
-//   env.density        curseur « Densité » (0 à 1, 0,5 par défaut) : présence des solistes et quantité de notes de leurs lignes
+//   env.density        curseur « Densité » (0 à 1, 0,5 par défaut) : présence de la guitare solo et quantité de notes de sa ligne
 //   env.measureInStep  rang de la mesure dans le bloc de la grille (un accord tenu deux mesures : 0 puis 1)
-//   env.state          mémoire entre deux mesures, modifiée en place : { mnState: { voice, roles, gl, vl, vh, lead } }
-//                      (voicing de la pompe, rôles de la phrase, lignes de la guitare et du violon, note tenue du violon,
-//                      note d'arrivée d'une réponse de la guitare)
+//   env.state          mémoire entre deux mesures, modifiée en place : { mnState: { voice, roles, gl, lead } }
+//                      (voicing de la pompe, rôle de la phrase, ligne de la guitare, note d'arrivée d'une réponse)
 // buildManouchePlan renvoie { piano, bass, drums: [], manouche: true } ; chaque frappe de « piano » porte e.inst :
 //   'pompe'  guitare rythmique, e.art = 'boom' (temps faibles de la basse : cordes graves), 'chick' (contretemps étouffé),
 //            'ghost' (coup remonté étouffé, presque muet), 'roll' (petit coup du roulement de fin de phrase),
 //            'ballad' (coup égal et doux des ballades), 'slide' (accord glissé d'un demi-ton) ;
 //   'lead'   guitare solo, une note par frappe (deux en octaves), e.art = 'pick' ; 'target' pour une note longue ;
-//   'violin' violon, e.art = 'sus' (note guide tenue), 'lyr' (note chantée longue) ou 'line' (note de passage).
 // e.noSwing : position déjà exacte (triolets), à ne pas déformer par le réglage de swing ; e.lay : décalage en secondes.
 // Hauteurs : e.intervals sont des demi-tons écrits depuis do3 (réel = 48 + x + transOffset), basse depuis do2, comme ailleurs.
 
@@ -38,7 +36,6 @@ if (typeof popScaleNotes === 'undefined' && typeof require === 'function') {
 const MN_BASS_LO = 40;   // mi2 : corde grave de la guitare
 const MN_UP_LO = 52, MN_UP_HI = 69;   // notes du haut de la pompe : mi3 à la4
 const MN_LEAD_LO = 57, MN_LEAD_HI = 84;   // guitare solo : la3 à do6
-const MN_VLN_LO = 62, MN_VLN_HI = 79;     // nappes du violon : ré4 à sol5
 
 const mnMod = (x) => ((x % 12) + 12) % 12;
 
@@ -183,17 +180,14 @@ function manoucheLick(env, cs, nextCs, from, to, kind, rng, start) {
     return { notes: notes.filter(inRange), target: t };
 }
 
-// ===================== Le dialogue des solistes =====================
-// Chaque phrase de la grille (au moins 4 mesures) a un soliste : la guitare (ligne improvisée continue, à la Django), le violon
-// (chant lyrique, à la Grappelli) ou personne. Le soliste change le plus souvent d'une phrase à l'autre, comme un échange de
-// chorus ; derrière la guitare, le violon peut tenir des notes guides très douces ; quand le violon chante, la guitare lui répond
-// par une petite phrase sur la fin de la phrase. Une décision par phrase (jamais au milieu) : rien n'apparaît ni ne disparaît
-// sans raison, et chaque soliste termine son idée sur une note longue avant de laisser la place.
+// ===================== La guitare solo =====================
+// Chaque phrase de la grille (au moins 4 mesures) est décidée d'un bloc : la guitare y improvise une ligne continue (à la
+// Django), ou laisse respirer la pompe et ne place qu'une petite réponse sur la fin. Une décision par phrase (jamais au milieu) :
+// la guitare n'apparaît ni ne disparaît sans raison, et termine toujours son idée sur une note longue.
 
-// Profils des deux solistes : registre et centre de gravité de la ligne.
+// Profil du soliste : registre et centre de gravité de la ligne (le code des cellules garde une variante « voix chantée »).
 const MN_SOLO = {
-    gtr: { lo: MN_LEAD_LO, hi: MN_LEAD_HI, center: 70 },
-    vln: { lo: 64, hi: 86, center: 76 }
+    gtr: { lo: MN_LEAD_LO, hi: MN_LEAD_HI, center: 70 }
 };
 
 // Classes de hauteur réelles utiles à la ligne : notes de l'accord, couleurs manouches (6te sur un accord parfait, tension notée),
@@ -233,7 +227,7 @@ function mnNear(pcs, x, lo, hi, dir, minStep, maxStep) {
     return best;
 }
 
-// Cellules rythmiques (un ou deux temps) de chaque soliste. pos / dur en temps, relatifs au début de la cellule.
+// Cellules rythmiques (un ou deux temps) du soliste. pos / dur en temps, relatifs au début de la cellule.
 // La guitare joue surtout en croches et en triolets (les arpèges de Django), avec des anticipations ; le violon chante en
 // valeurs plus longues (blanches, noires pointées), avec quelques croches.
 function mnCells(voice, ternary, d, I, bpm) {
@@ -387,21 +381,14 @@ function mnSoloLine(env, voice, ls, c) {
     return out;
 }
 
-// Rôles d'une phrase : { idx, solo: 'gtr' | 'vln' | 'none', pad (violon en notes guides derrière), fill (réponse de la guitare) }.
+// Rôles d'une phrase : { idx, solo: 'gtr' | 'none', fill (réponse de la guitare en fin de phrase quand elle ne joue pas de ligne) }.
+// Avec la densité, la guitare improvise sur la plupart des phrases ; les autres lui laissent respirer (pompe et contrebasse seules,
+// avec souvent une petite réponse sur les derniers temps). Deux phrases sans ligne de suite sont rares.
 function mnRoles(prev, rng, d, ballad, idx) {
-    let solo = 'none';
-    const pSolo = d <= 0.05 ? 0 : Math.min(1, 0.3 + 1.2 * d);
-    if (rng() < pSolo) {
-        const ps = prev ? prev.solo : null;
-        if (ps === 'gtr') solo = rng() < 0.55 ? 'vln' : 'gtr';
-        else if (ps === 'vln') solo = rng() < 0.7 ? 'gtr' : 'vln';
-        else solo = rng() < (ballad ? 0.5 : 0.38) ? 'vln' : 'gtr';
-    }
-    const keep = prev && prev.pad ? 0.2 : 0;
-    const pPad = solo === 'gtr' ? -0.15 + 1.3 * d + keep : (solo === 'none' ? 0.8 * Math.max(0, d - 0.3) + keep : 0);
-    const pad = d > 0.08 && rng() < pPad;
-    const fill = solo !== 'gtr' && d > 0.05 && rng() < 0.2 + 0.7 * d;
-    return { idx, solo, pad, fill };
+    const pSolo = d <= 0.05 ? 0 : Math.min(0.95, 0.25 + 1.2 * d + (prev && prev.solo === 'none' ? 0.2 : 0));
+    const solo = rng() < pSolo ? 'gtr' : 'none';
+    const fill = solo !== 'gtr' && d > 0.05 && rng() < 0.3 + 0.6 * d;
+    return { idx, solo, fill };
 }
 
 // Choix faits une fois par phrase : énergie, basse qui marche, glissandos d'accord, coups remontés, variations de la pompe.
@@ -447,7 +434,7 @@ function buildManouchePlan(env, bpb, ternary, step, nextStep, isLastMeasureOfSte
     const mis = Number.isInteger(env.measureInStep) ? env.measureInStep : 0;
     const piano = [], bass = [];
 
-    // ---- phrase et rôles des solistes ----
+    // ---- phrase et rôle de la guitare solo ----
     const LL = Math.max(4, L || 4);
     const absM = Number.isInteger(m) && m >= 0 ? m : i;
     const phraseIdx = Math.floor(absM / LL);
@@ -457,11 +444,9 @@ function buildManouchePlan(env, bpb, ternary, step, nextStep, isLastMeasureOfSte
         st.roles = mnRoles(prev, rng, d, ballad, phraseIdx);
         const fresh = (ls) => ({ m: ls ? ls.m : null, dir: ls ? ls.dir : 0, idea: 0, rest: rng() < 0.45 ? 1 : 0, forced: null, oct: false });
         if (!prev || prev.solo !== 'gtr' || st.roles.solo !== 'gtr') st.gl = fresh(st.gl);
-        if (!prev || prev.solo !== 'vln' || st.roles.solo !== 'vln') st.vl = fresh(st.vl || (st.vh ? { m: st.vh.m } : null));
     }
     const R = st.roles;
     if (!st.gl) st.gl = { m: null, dir: 0, idea: 0, rest: 0, forced: null, oct: false };
-    if (!st.vl) st.vl = { m: st.vh ? st.vh.m : null, dir: 0, idea: 0, rest: 0, forced: null, oct: false };
 
     // ---- voicings de la pompe (conduite des voix d'une mesure à l'autre) ----
     const keyOf = (cs) => cs.rootIndex + ':' + cs.chordId + ':' + (Number.isInteger(cs.bassRootIndex) ? cs.bassRootIndex : '');
@@ -584,7 +569,7 @@ function buildManouchePlan(env, bpb, ternary, step, nextStep, isLastMeasureOfSte
                 roll: n.oct ? 0.004 : undefined, noSwing: n.noSwing, lay: (rng() - 0.4) * 0.01 });
         });
     } else if (R.fill && phraseEnd && nextStep && bpb >= 2) {
-        // réponse de la guitare à la fin d'une phrase chantée par le violon (ou sans soliste) : petite phrase qui mène à l'accord suivant
+        // réponse de la guitare à la fin d'une phrase où elle n'improvise pas : petite phrase qui mène à l'accord suivant
         const len = Math.min(2, bpb - 1);
         const from = bpb - len;
         const cs = segs[segAt(from)].cs;
@@ -593,40 +578,6 @@ function buildManouchePlan(env, bpb, ternary, step, nextStep, isLastMeasureOfSte
         lick.notes.forEach(n => piano.push({ inst: 'lead', art: 'pick', pos: n.pos, dur: n.dur, vel: clampV(n.vel * dyn), rootIndex: 0, intervals: [W(n.m)],
             noSwing: Math.abs(n.pos * 2 - Math.round(n.pos * 2)) > eps || undefined }));
         if (lick.notes.length && Number.isFinite(lick.target)) st.lead = { m: lick.target };
-    }
-
-    // ---- violon ----
-    if (R.solo === 'vln' && d > 0.05) {
-        // chant lyrique, legato, qui respire entre les idées
-        mnSoloLine(env, 'vln', st.vl, { ...lineCtx, stopAt: R.fill ? bpb - Math.min(2, bpb - 1) : bpb }).forEach(n => {
-            piano.push({ inst: 'violin', art: n.art, pos: n.pos, dur: n.dur, vel: clampV(n.vel), rootIndex: 0, intervals: [W(n.m)], noSwing: n.noSwing, legato: n.leg || undefined, lay: 0.008 });
-            st.vh = { m: n.m, until: absM * bpb + n.pos + n.dur };
-        });
-    } else if (R.pad) {
-        // notes guides tenues, très douces : une note par accord, voisine de la précédente ; une note commune à l'accord suivant
-        // reste tenue (pas de nouveau coup d'archet), un accord tenu longtemps est repris d'un nouveau coup d'archet toutes les deux mesures
-        segs.forEach((sg, k) => {
-            const absPos = absM * bpb + sg.s;
-            const inf = mnPcs(env, sg.cs);
-            if (st.vh && st.vh.until > absPos + 0.25 && inf.chord.concat(inf.color).includes(mnMod(st.vh.m))) return;
-            const prevM = st.vh ? st.vh.m : 69;
-            let best = null;
-            for (let mm = MN_VLN_LO; mm <= MN_VLN_HI; mm++) {
-                if (!inf.guide.includes(mnMod(mm))) continue;
-                const cost = Math.abs(mm - prevM) + (mm === prevM && st.vh && st.vh.until > absPos - 0.5 ? 1.5 : 0);
-                if (best === null || cost < best.c) best = { m: mm, c: cost };
-            }
-            if (!best) return;
-            let dur;
-            if (halves) dur = sg.e - sg.s - 0.08;
-            else dur = Math.max(1, Math.min(2, (step.measures || 1) - mis)) * bpb - sg.s - 0.1;
-            const isLastSeg = k === segs.length - 1;
-            const lastOfChord = halves ? isLastSeg && isLastMeasureOfStep : (step.measures || 1) - mis <= 2;
-            if (lastOfChord && isLastSeg && nextStep && !phraseEnd && mnPcs(env, nextStep).chord.includes(mnMod(best.m))) dur += bpb;
-            const entering = !st.vh || st.vh.until < absPos - bpb;
-            piano.push({ inst: 'violin', art: 'sus', pos: sg.s, dur, vel: clampV((0.3 + 0.1 * I) * (entering ? 0.85 : 1) + jit() * 0.04), rootIndex: 0, intervals: [W(best.m)], lay: 0.01 });
-            st.vh = { m: best.m, until: absPos + dur };
-        });
     }
 
     piano.sort((a, b) => a.pos - b.pos);

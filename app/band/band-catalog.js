@@ -39,7 +39,7 @@ const BAND_FORMATIONS = {
     cumbia:    { name: 'Cumbia',      grooves: [] },
     piazzolla: { name: 'Tango nuevo', grooves: ['lyrique'] },
     africa:    { name: 'Highlife',    grooves: BC_AFRICA.AFRICA_GROOVES },  // sans rythme, l'orchestre Afrique joue le highlife
-    manouche:  { name: 'Jazz manouche', grooves: [] }                       // pompe, contrebasse, guitare solo, violon (band/manouche-plan.js)
+    manouche:  { name: 'Jazz manouche', grooves: [] }                       // pompe, contrebasse, guitare solo (band/manouche-plan.js)
 };
 
 // Nom affiché sur le bouton quand un rythme est imposé (sinon le nom de la formation). Un rythme absent garde le nom de la formation.
@@ -211,7 +211,7 @@ const BAND_INSTRUMENTS = {
 };
 
 // Instrument d'origine de chaque pupitre, ou null quand le pupitre n'est pas réglable : sections de plusieurs instruments
-// (Brass band, quinteto de tango, Afrique : cuivres et guitares ; Jazz manouche : pompe, guitare solo et violon) pour l'harmonie,
+// (Brass band, quinteto de tango, Afrique : cuivres et guitares ; Jazz manouche : pompe et guitare solo) pour l'harmonie,
 // formations sans basse (Classique, Guitare).
 function bandNativeInstrument(band, groove, role) {
     const b = bandFormation(band);

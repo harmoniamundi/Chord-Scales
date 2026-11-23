@@ -157,7 +157,7 @@ describe('buildManouchePlan : la pompe et la contrebasse', () => {
     });
 });
 
-describe('guitare solo et violon', () => {
+describe('guitare solo', () => {
     test('manoucheLick : arpège diminué en triolets sur une dominante, note d\'arrivée sur l\'accord suivant', () => {
         const env = { transOffset: 0, findChordObj };
         const l = manoucheLick(env, E7, Am6, 2, 4, 'dim', seeded(2), 67);
@@ -193,28 +193,27 @@ describe('guitare solo et violon', () => {
     };
     const GRID = [{ ...Am6, measures: 2 }, { ...Dm6, measures: 2 }, { ...E7, measures: 2 }, { ...Am6, measures: 2 }];
 
-    test('rôles décidés une fois par phrase : le violon et la guitare ne vont et ne viennent pas au milieu d\'une phrase', () => {
+    test('rôle décidé une fois par phrase ; jamais de violon', () => {
         for (let s = 1; s <= 20; s++) {
             const r = run(s, 0.5, GRID);
             for (let k = 0; k < r.length; k++) {
                 const ph = Math.floor(r[k].m / 4);
                 const first = r.find(x => Math.floor(x.m / 4) === ph);
                 assert.deepEqual(r[k].roles, first.roles);
-                const { solo } = r[k].roles;
-                // en phrase de guitare : pas de chant de violon ; en phrase de violon : la guitare ne fait que répondre en fin de phrase
-                if (solo === 'gtr') assert.equal(of(r[k].p, 'violin').filter(e => e.art !== 'sus').length, 0);
-                if (solo === 'vln' && r[k].m % 4 !== 3) assert.equal(of(r[k].p, 'lead', 'pick').length, 0, `m${r[k].m}`);
+                assert.equal(of(r[k].p, 'violin').length, 0);
+                // phrase sans ligne : la guitare ne fait que répondre en fin de phrase
+                if (r[k].roles.solo === 'none' && r[k].m % 4 !== 3) assert.equal(of(r[k].p, 'lead', 'pick').length, 0, `m${r[k].m}`);
             }
         }
     });
-    test('les solistes se passent la parole et la guitare joue une vraie ligne (pas seulement des fins de phrase)', () => {
-        let gtr = 0, vln = 0, gtrNotes = 0, gtrBars = 0;
+    test('la guitare improvise sur la plupart des phrases, avec quelques phrases laissées à la pompe', () => {
+        let gtr = 0, none = 0, gtrNotes = 0, gtrBars = 0;
         for (let s = 1; s <= 20; s++) {
             const r = run(s, 0.5, GRID);
-            r.filter(x => x.m % 4 === 0).forEach(x => { if (x.roles.solo === 'gtr') gtr++; if (x.roles.solo === 'vln') vln++; });
+            r.filter(x => x.m % 4 === 0).forEach(x => { if (x.roles.solo === 'gtr') gtr++; else none++; });
             r.filter(x => x.roles.solo === 'gtr').forEach(x => { gtrBars++; gtrNotes += of(x.p, 'lead').length; });
         }
-        assert.ok(gtr > 20 && vln > 20, `${gtr} / ${vln}`);
+        assert.ok(gtr > none * 3 && none > 0, `${gtr} / ${none}`);
         assert.ok(gtrNotes / gtrBars > 3.5, `${gtrNotes / gtrBars} notes par mesure`);
     });
     test('ligne de guitare : conjointe le plus souvent, notes de l\'accord sur les temps, dans le registre', () => {
@@ -254,16 +253,14 @@ describe('guitare solo et violon', () => {
         assert.equal(sw.piano[0].pos, 1 + 1 / 3);
         assert.ok(Math.abs(sw.piano[1].pos - 1.6) < 1e-9);
     });
-    test('fin d\'une phrase chantée par le violon : la guitare répond, puis sa note d\'arrivée ouvre la mesure suivante', () => {
+    test('fin d\'une phrase sans ligne : la guitare répond, puis sa note d\'arrivée ouvre la mesure suivante', () => {
         let found = 0;
         for (let s = 1; s <= 60; s++) {
             const env = mkEnv({ density: 0.9 });
-            env.state.mnState = { roles: { idx: 0, solo: 'vln', pad: false, fill: true } };
+            env.state.mnState = { roles: { idx: 0, solo: 'none', fill: true } };
             const ph = mkPhrase(s);
             const p1 = plan({ seed: s, env, ph, i: 3, isTurn: true, step: E7, nextStep: Am6, last: true, m: 3 });
             const lead = of(p1, 'lead', 'pick');
-            // le violon a fini avant la réponse de la guitare
-            of(p1, 'violin').forEach(e => assert.ok(e.pos < 2, `violon ${e.pos}`));
             if (!lead.length) continue;
             found++;
             lead.forEach(e => assert.ok(e.pos >= 2 - 1e-9 && e.pos < 4));
@@ -274,13 +271,13 @@ describe('guitare solo et violon', () => {
         }
         assert.ok(found > 40, `${found}`);
     });
-    test('mnRoles : rien à densité nulle ; derrière la guitare, le violon tient souvent des notes guides à forte densité', () => {
+    test('mnRoles : rien à densité nulle ; à forte densité, la guitare revient presque toujours après une phrase sans ligne', () => {
         for (let s = 1; s <= 30; s++) assert.equal(mnRoles(null, seeded(s), 0, false, 0).solo, 'none');
-        let pad = 0, gtr = 0;
-        for (let s = 1; s <= 200; s++) { const r = mnRoles({ solo: 'vln', pad: false }, seeded(s), 1, false, 1); if (r.solo === 'gtr') { gtr++; if (r.pad) pad++; } }
-        assert.ok(gtr > 100 && pad / gtr > 0.8, `${pad}/${gtr}`);
+        let back = 0;
+        for (let s = 1; s <= 200; s++) if (mnRoles({ solo: 'none' }, seeded(s), 1, false, 1).solo === 'gtr') back++;
+        assert.ok(back >= 180, `${back}`);
     });
-    test('densité : à 0 ni guitare solo ni violon ; à 1 bien plus de phrases', () => {
+    test('densité : à 0 pas de guitare solo ; à 1 bien plus de notes', () => {
         const count = (d) => {
             let n = 0;
             for (let s = 1; s <= 60; s++) {
@@ -292,16 +289,6 @@ describe('guitare solo et violon', () => {
         assert.equal(count(0), 0);
         assert.ok(count(1) > count(0.5) && count(0.5) > 0);
     });
-    test('violon : nappes sur une note guide de l\'accord (tierce, 6te / 7e), dans son registre', () => {
-        for (let s = 1; s <= 60; s++) {
-            const p = plan({ seed: s, env: mkEnv({ density: 1 }), step: E7, nextStep: Am6 });
-            of(p, 'violin', 'sus').forEach(e => {
-                const x = real(e.intervals[0]);
-                assert.ok(x >= 62 && x <= 79);
-                assert.ok([8, 2].includes(pc(x)), `${x}`);
-            });
-        }
-    });
     test('toutes les frappes restent dans la mesure et ont une durée positive', () => {
         for (let s = 1; s <= 50; s++) {
             for (const [bpb, ternary] of [[4, false], [3, false], [2, false], [4, true], [2, true]]) {
@@ -310,7 +297,7 @@ describe('guitare solo et violon', () => {
                     assert.ok(e.pos >= 0 && e.pos < bpb, `pos ${e.pos}`);
                     assert.ok(e.dur > 0 && e.vel > 0 && e.vel <= 1);
                 });
-                p.piano.forEach(e => assert.ok(['pompe', 'lead', 'violin'].includes(e.inst)));
+                p.piano.forEach(e => assert.ok(['pompe', 'lead'].includes(e.inst)));
             }
         }
     });
