@@ -226,6 +226,11 @@
                                 <option value="bossa">Bossa Nova</option>
                                 <option value="samba">Samba (2/4)</option>
                                 <option value="afrosamba">Afro-samba (guitare, Baden Powell, 2/4)</option>
+                                <option value="choro">Choro (regional, 2/4)</option>
+                                <option value="partidoalto">Partido alto (2/4)</option>
+                                <option value="baiao">Baião / forró (2/4)</option>
+                                <option value="sambacancao">Samba-canção / MPB (4/4)</option>
+                                <option value="sambajazz">Samba-jazz (4/4)</option>
                                 <option value="cumbia">Cumbia colombienne (4/4)</option>
                                 <option value="tango">Tango à danser (2/4)</option>
                                 <option value="piazzolla">Piazzolla (nuevo tango)</option>
@@ -520,6 +525,7 @@
     <script src="app/band/latin-plan.js"></script>
     <script src="app/band/balkan-plan.js"></script>
     <script src="app/band/cumbia-plan.js"></script>
+    <script src="app/band/brasil-plan.js"></script>
     <script src="app/band/manouche-plan.js"></script>
     <script src="app/band/africa-plan.js"></script>
     <script src="app/band/cuban-plan.js"></script>
@@ -1433,6 +1439,8 @@
                 if (s === 'africa') return !!this.rockGtr && !!this.bassInstrumentPop;
                 if (s === 'piazzolla') return !!(this.pzInst && Object.keys(this.pzInst).filter(k => k !== 'violin_stc').length > 1);
                 if (s === 'manouche') return !!(this.mnInst && this.mnInst.pompe) && !!this.bassInstrument;
+                if (s === 'latin' && this._brasilGroove() === 'br-baiao') return !!this.accordionInstrument && !!this.bassInstrument;
+                if (s === 'latin' && this._brasilGroove() === 'br-sambajazz') return !!this.bandPianoInstrument && !!this.bassInstrument;
                 if (s === 'latin') return !!this.guitarInstrument && !!this.bassInstrument;
                 if (s === 'guitar') return !!this.guitarInstrument;
                 if (s === 'cuba' && this._cubaGuitar()) return !!this.guitarInstrument && !!this.bassInstrument;
@@ -3037,11 +3045,13 @@
                 const mn = this.bandStyle === 'manouche';     // pompe sur le premier curseur ; guitare solo sur celui de la guitare du quinteto
                 const africa = this.bandStyle === 'africa';   // guitares et orgue sur les curseurs du Rock, cuivres sur le premier
                 const el = document.getElementById('band-vol-piano-label');
-                if (el) el.textContent = mn ? 'Pompe' : (brass || africa) ? 'Cuivres' : (balkan ? 'Accordéon' : ((this.bandStyle === 'latin' || this.bandStyle === 'guitar' || this._cubaGuitar()) ? 'Guitare' : 'Piano'));
+                const brz = this._brasilGroove();             // choro, partido alto, baião, samba-canção, samba-jazz (band/brasil-plan.js)
+                const brzH = brz ? BR_HARMONY[brz] : null;
+                if (el) el.textContent = mn ? 'Pompe' : (brass || africa) ? 'Cuivres' : ((balkan || brzH === 'accordion') ? 'Accordéon' : (brzH === 'piano' ? 'Piano' : ((this.bandStyle === 'latin' || this.bandStyle === 'guitar' || this._cubaGuitar()) ? 'Guitare' : 'Piano')));
                 const eb = document.getElementById('band-vol-bass-label');
-                if (eb) eb.textContent = brass ? 'Tubas' : ((pz || mn) ? 'Contreb.' : 'Basse');
+                if (eb) eb.textContent = brass ? 'Tubas' : ((pz || mn) ? 'Contreb.' : ((brz && BR_NO_BASS[brz]) ? 'Violão 7' : 'Basse'));
                 const ed = document.getElementById('band-vol-drums-label');
-                if (ed) ed.textContent = (brass || balkan || pz || (this.bandStyle === 'guitar' && (!!this._flamencoGroove() || this._badenGroove())) || (this.bandStyle === 'latin' && this.getEffectiveGroove('latin') === 'samba')) ? 'Percus.' : 'Batterie';
+                if (ed) ed.textContent = (brass || balkan || pz || (this.bandStyle === 'guitar' && (!!this._flamencoGroove() || this._badenGroove())) || (this.bandStyle === 'latin' && this.getEffectiveGroove('latin') === 'samba') || (brz && brz !== 'br-sambajazz')) ? 'Percus.' : 'Batterie';
                 // curseurs propres au Tango nuevo (bandonéon, violon, guitare électrique)
                 ['bandoneon', 'violin', 'guitar'].forEach(k => {
                     const row = document.getElementById('band-row-pz-' + k);
@@ -3302,7 +3312,7 @@
                 }
                 this.loadBandPiano();
                 if (this.bandStyle === 'brass' || this.bandStyle === 'africa') this.loadBrass();   // Afrique : section de cuivres
-                if (this.bandStyle === 'balkan' || this.bandStyle === 'cumbia') this.loadAccordion();
+                if (this.bandStyle === 'balkan' || this.bandStyle === 'cumbia' || this._brasilGroove() === 'br-baiao') this.loadAccordion();   // baião : sanfona
                 if (this.bandStyle === 'piazzolla') this.loadPiazzolla();
                 if (this.bandStyle === 'manouche') this.loadManouche();
                 if (this.bandStyle !== 'classic' && this.bandStyle !== 'guitar' && !this.bassInstrument) this.loadBass();
@@ -3653,7 +3663,8 @@
                 // (moins de grave, plus de mordant dans le médium-aigu et d'air), comme une guitare de cante.
                 const flam = solo && !!this._flamencoGroove();
                 // Violão brésilien (Baden Powell) : attaque franche des ongles, médium présent, un peu moins de grave que le nylon classique
-                const bdn = solo && this._badenGroove();
+                // Choro et partido alto (orchestre Brasil sans contrebasse) : cavaquinho et violão 7 cordas, même son clair que le violão de Baden Powell
+                const bdn = (solo && this._badenGroove()) || ['br-choro', 'br-partido'].includes(this._brasilGroove());
                 // Orchestre Cuba (son, guajira, guaguancó) : la guitare imite le tres, plus clair et plus mordant ; bolero : nylon chaleureux
                 const cg = this.bandStyle === 'cuba' ? this.getEffectiveGroove('cuba') : null;
                 const tres = cg === 'cu-son' || cg === 'cu-guajira' || cg === 'cu-guaguanco';
@@ -4107,6 +4118,8 @@
                 if (cuba && style === 'latin' && ph.groove === 'salsa' && !this.isTernary() && bpbNow === 4) return this.buildSalsaPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 // Son montuno, cha-cha-chá, bolero, guajira, danzón, guaguancó (4/4 ou 2/4) : band/afrocuban-plan.js ; autres signatures : afro
                 if (cuba && style === 'latin' && AFRO_GROOVES.includes(ph.groove) && !this.isTernary() && (bpbNow === 4 || bpbNow === 2)) return this.buildAfroCubanPlan(ph.groove, bpbNow, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
+                // Choro, partido alto, baião, samba-canção, samba-jazz (orchestre Brasil, 2/4 ou 4/4) : band/brasil-plan.js ; autres signatures : jeu Brasil
+                if (!cuba && style === 'latin' && BRASIL_GROOVES.includes(ph.groove) && !this.isTernary() && (bpbNow === 2 || bpbNow === 4)) return this.buildBrasilPlan(ph.groove, bpbNow, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 // Samba (orchestre Brasil, 2/4 ou 4/4) : roda de samba (violão en batida, surdo, pandeiro, tamborim, ganzá, agogô)
                 if (!cuba && style === 'latin' && ph.groove === 'samba' && !this.isTernary() && (bpbNow === 2 || bpbNow === 4)) return this.buildSambaPlan(bpbNow, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 if (cuba && style === 'latin') return this.buildCubanPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
@@ -4169,6 +4182,17 @@
             // ===== Orchestre samba : le calcul est dans band/samba-plan.js (fonction pure) =====
             buildSambaPlan(bpb, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
                 return this._bandRun(['latVoice', 'bandLastFill'], env => buildSambaPlan(env, bpb, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat() });
+            }
+
+            // ===== Choro, partido alto, baião, samba-canção, samba-jazz : le calcul est dans band/brasil-plan.js (fonction pure) =====
+            buildBrasilPlan(groove, bpb, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
+                return this._bandRun(['brState', 'bandLastFill'], env => buildBrasilPlan(env, groove, bpb, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat() });
+            }
+
+            // Rythme brésilien de band/brasil-plan.js imposé à l'orchestre Brasil (br-choro, br-baiao…), ou null
+            _brasilGroove() {
+                const g = this.bandStyle === 'latin' ? this.getEffectiveGroove('latin') : null;
+                return (g && BRASIL_GROOVES.includes(g)) ? g : null;
             }
 
             buildLatinPlan(step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
@@ -4784,7 +4808,9 @@
                 plan.drums.filter(inBeat).forEach(e => this.playBandDrum(e, at(e)));
                 const bassAs = this._instChoice('bass');   // autre instrument choisi pour la basse ('' : chemin d'origine)
                 plan.bass.filter(inBeat).forEach(e => bassAs ? this._playBassAs(bassAs, e, at(e), beatSec) : plan.piazzolla ? this.playPiazzollaBass(e, at(e), beatSec) : plan.brass ? this.playTubaAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), e.art) : this.playBassAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), !!e.wide, !!plan.upright, e.gainMul || 1));
-                plan.piano.filter(inBeat).forEach(e => e.fermataPiano ? this.playPianoHit(e, at(e), beatSec) : plan.manouche ? this.playManoucheHit(e, at(e), beatSec) : plan.africa ? this.playAfricaHit(e, at(e), beatSec) : plan.rock ? this.playRockHit(e, at(e), beatSec) : plan.classicalGuitar ? this.playClassicalGuitarHit(e, at(e), beatSec) : plan.piazzolla ? this.playPiazzollaHit(e, at(e), beatSec) : plan.brass ? this.playBrassHit(e, at(e), beatSec) : (plan.accordion ? this.playAccordionHit(e, at(e), beatSec) : (plan.guitar ? this.playGuitarHit(e, at(e), beatSec) : this.playPianoHit(e, at(e), beatSec))));
+                // Choro, partido alto : le violão 7 cordas (basse de la formation) suit le curseur « Violão 7 » (celui de la basse)
+                const g7 = (plan.classicalGuitar && plan.bass.length === 0 && this._brasilGroove()) ? Math.min(3, this.bandVolumes.bass / Math.max(0.05, this.bandVolumes.piano)) : 0;
+                plan.piano.filter(inBeat).forEach(e0 => { const e = (g7 && e0.who === '7c') ? { ...e0, gainMul: (e0.gainMul || 1) * g7 } : e0; e.fermataPiano ? this.playPianoHit(e, at(e), beatSec) : plan.manouche ? this.playManoucheHit(e, at(e), beatSec) : plan.africa ? this.playAfricaHit(e, at(e), beatSec) : plan.rock ? this.playRockHit(e, at(e), beatSec) : plan.classicalGuitar ? this.playClassicalGuitarHit(e, at(e), beatSec) : plan.piazzolla ? this.playPiazzollaHit(e, at(e), beatSec) : plan.brass ? this.playBrassHit(e, at(e), beatSec) : (plan.accordion ? this.playAccordionHit(e, at(e), beatSec) : (plan.guitar ? this.playGuitarHit(e, at(e), beatSec) : this.playPianoHit(e, at(e), beatSec))); });
             }
 
 
@@ -11268,7 +11294,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-24-a';
+        var BUILD = '2026-11-24-b';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }
@@ -11300,12 +11326,15 @@
                 'app/ui/chord-block.js': typeof ChordBlockView === 'function' && typeof hydrateChordBlocks === 'function' && typeof annotBlocksToClipText === 'function' && typeof CHB_ARP_ICON === 'string',
                 'app/ui/draw-block.js': typeof DrawBlockView === 'function' && typeof hydrateDrawBlocks === 'function' && typeof DrawBlockView.prototype._touchLock === 'function',
                 'app/ui/grid-view.js': typeof measureNoteTitle === 'function' && typeof printGridHtml === 'function' && typeof navPopSection === 'function' && typeof navRowBreak === 'function',
+                'app/band/brasil-plan.js': typeof buildBrasilPlan === 'function' && typeof BRASIL_GROOVES !== 'undefined' && BRASIL_GROOVES.length === 5,
+                'app/audio/drum-synths.js': typeof synthTriangle === 'function' && typeof synthZabumba === 'function',
                 'app/band/baden-plan.js': typeof buildBadenPlan === 'function' && typeof BDN_FINGERS !== 'undefined' && BDN_FINGERS.length === 6,
                 'app/band/guitar-plan.js': typeof guitarPhraseExtras === 'function' && String(guitarPhraseExtras).indexOf('g-baden') >= 0,
-                'app/band/band-catalog.js': typeof BAND_MENU !== 'undefined' && JSON.stringify(BAND_MENU).indexOf('g-baden') >= 0,
-                'app/band/band-state.js': typeof bandVoiceState === 'function' && String(bandVoiceState).indexOf('_badenHold') >= 0,
-                'app/styles/style-registry.js': typeof STYLE_REGISTRY !== 'undefined' && !!STYLE_REGISTRY.afrosamba,
-                'app/styles/style-builders.js': typeof STYLE_BUILDERS !== 'undefined' && typeof STYLE_BUILDERS.afrosamba === 'function',
+                'app/band/band-catalog.js': typeof BAND_MENU !== 'undefined' && JSON.stringify(BAND_MENU).indexOf('br-choro') >= 0,
+                'app/band/band-state.js': typeof bandVoiceState === 'function' && String(bandVoiceState).indexOf('_brState') >= 0,
+                'app/styles/style-registry.js': typeof STYLE_REGISTRY !== 'undefined' && !!STYLE_REGISTRY.sambajazz,
+                'app/styles/style-builders.js': typeof STYLE_BUILDERS !== 'undefined' && typeof STYLE_BUILDERS.choro === 'function',
+                'app/styles/toolkit.js': typeof JAZZ_TONAL_STYLES !== 'undefined' && JAZZ_TONAL_STYLES.has('sambajazz'),
                 'app/audio/note-events.js': typeof classicalGuitarNotes === 'function' && String(classicalGuitarNotes).indexOf('e.mute') >= 0,
                 'app/ui/annot-bar.js': typeof ANNOT_FONT_DEFAULT_CSS !== 'undefined' && typeof annotToolsHtml === 'function' && typeof annotModeHtml === 'function' && typeof ANNOT_DELETE_ICON === 'string'
             };

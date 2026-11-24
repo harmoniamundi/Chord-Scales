@@ -88,6 +88,186 @@ function afroSambaForm(t) {
     return join(row(pick(A), 'A', 'A1'), row(pick(A), 'A', 'A2'), row(pick(B), 'B', 'B1'), row(pick(E), 'A', 'A3'));
 }
 
+// ============ Styles brésiliens joués par l'orchestre Brasil (band/brasil-plan.js) ============
+// Cellule : [nom, mesures, nom de l'accord de la 2e moitié de mesure (facultatif)] ; kcs : tonalité traversée (décalage de la tonique).
+function brKitRow(t, C) {
+    const { abs, keyRoot } = t;
+    return (spec, sec, phr, kc) => spec.map(([nm, m = 1, half]) => {
+        const [off, c, sc, fn] = C[nm];
+        const it = abs(off, c, m, sc, sec, phr, fn);
+        if (half) { const h = C[half]; it.split = { r: (keyRoot + h[0] + 12) % 12, c: h[1], s: h[2] }; }
+        if (Number.isInteger(kc)) it.kc = kc;
+        return it;
+    });
+}
+
+// Choro (2/4), 32 mesures, un accord par mesure le plus souvent. Vocabulaire du choro (Pixinguinha, Jacob do Bandolim, Waldir
+// Azevedo) : I6, chaînes de dominantes secondaires (VI7 → ii, III7 → vi, II7 → V, I7 → IV), diminués de passage (I - #I°7 - ii,
+// IV - #IV°7 - I), sous-dominante mineure empruntée (IV - iv6 - I). Formes : A A' B A' (B au relatif mineur) ou A B C A'
+// (C à la sous-dominante, comme la troisième partie d'un choro en rondeau). En mode mineur : i, iv, V7(b9), I7 vers iv, partie B au
+// relatif majeur. Cellules de quatre mesures ; une cellule « Q » finit sur V7, une cellule « R » revient à I.
+function choroForm(t) {
+    const { R, pick, join, minorQuality } = t;
+    if (minorQuality) {
+        const C = {
+            i: [0, 'minTriad', 'harmonicMinor', 'tonic'], i6: [0, 'x:m:P:6:-', 'melodicMinor', 'tonic'], iv: [5, 'minTriad', 'dorian', 'predominant'],
+            V: [7, '7b9', 'phrygianDominant', 'dominant'], vii0: [11, 'dim7', 'wholeHalfDim', 'dominant'], iio: [2, 'm7b5', 'locrianSharp2', 'predominant'],
+            I7: [0, '7b9', 'phrygianDominant', 'secondaryDominant'], bVI: [8, 'majTriad', 'lydian', 'predominant'], II7: [2, '7', 'mixolydian', 'secondaryDominant'],
+            III: [3, '6', 'ionian', 'tonic'], bVII7: [10, '7', 'mixolydian', 'secondaryDominant'], ivR: [8, 'majTriad', 'lydian', 'predominant'], iiR: [5, 'm7', 'dorian', 'predominant']
+        };
+        const row = brKitRow(t, C);
+        const Q = [ [['i', 2], ['V', 2]], [['i'], ['iv'], ['V', 2]], [['i'], ['vii0'], ['i'], ['V']], [['i'], ['I7'], ['iv'], ['V']] ];
+        const Rr = [ [['I7'], ['iv'], ['V'], ['i']], [['bVI'], ['iio'], ['V'], ['i']], [['iv'], ['i6'], ['iio', 1, 'V'], ['i']], [['II7'], ['V'], ['i', 2]] ];
+        const B = [ [['bVII7'], ['III'], ['iiR'], ['bVII7']], [['III', 2], ['ivR'], ['bVII7']], [['III'], ['bVII7'], ['III'], ['V']] ];
+        const B2 = [ [['III'], ['ivR'], ['V'], ['i']], [['III'], ['bVII7'], ['iio'], ['V']] ];
+        return join(row(pick(Q), 'A', 'A1'), row(pick(Rr), 'A', 'A2'), row(pick(B), 'B', 'B1', 3), row(pick(B2), 'B', 'B2'),
+            row(pick(Q), 'A2', 'A3'), row(pick(Rr), 'A2', 'A4'), row(pick(Q), 'A2', 'A5'), row(pick(Rr), 'A2', 'A6'));
+    }
+    const C = {
+        I: [0, '6', 'ionian', 'tonic'], IT: [0, 'majTriad', 'ionian', 'tonic'], sI0: [1, 'dim7', 'wholeHalfDim', 'color'],
+        ii: [2, 'minTriad', 'dorian', 'predominant'], ii7: [2, 'm7', 'dorian', 'predominant'], II7: [2, '7', 'mixolydian', 'secondaryDominant'],
+        III7: [4, '7b9', 'phrygianDominant', 'secondaryDominant'], IV: [5, '6', 'lydian', 'predominant'], iv6: [5, 'x:m:P:6:-', 'melodicMinor', 'predominant'],
+        sIV0: [6, 'dim7', 'wholeHalfDim', 'color'], V: [7, '7', 'mixolydian', 'dominant'], Vb9: [7, '7b9', 'mixolydianFlat9', 'dominant'],
+        VI7: [9, '7b9', 'phrygianDominant', 'secondaryDominant'], vi: [9, 'minTriad', 'harmonicMinor', 'tonic'], I7: [0, '7', 'mixolydian', 'secondaryDominant'],
+        bIII0: [3, 'dim7', 'wholeHalfDim', 'color'],
+        // partie C, à la sous-dominante (IV devient la tonique ; I7 est sa dominante)
+        cI: [5, '6', 'ionian', 'tonic'], cVI7: [2, '7b9', 'phrygianDominant', 'secondaryDominant'], cii: [7, 'minTriad', 'dorian', 'predominant'],
+        cV: [0, '7', 'mixolydian', 'dominant'], civ: [10, 'x:m:P:6:-', 'melodicMinor', 'predominant'], csI0: [6, 'dim7', 'wholeHalfDim', 'color']
+    };
+    const row = brKitRow(t, C);
+    const Q = [ [['I'], ['VI7'], ['ii'], ['V']], [['I'], ['sI0'], ['ii'], ['V']], [['I', 2], ['II7'], ['V']], [['I'], ['III7'], ['vi'], ['V']], [['I'], ['bIII0'], ['ii7'], ['V']] ];
+    const Rr = [ [['I7'], ['IV'], ['iv6'], ['I']], [['I'], ['VI7'], ['II7', 1, 'V'], ['I']], [['IV'], ['sIV0'], ['ii', 1, 'V'], ['I']], [['III7'], ['vi'], ['II7', 1, 'Vb9'], ['I']] ];
+    // B au relatif mineur : vi - III7 (sa dominante) - ii (son iv), retour par V7
+    const B = [ [['vi', 2], ['III7', 2]], [['vi'], ['ii'], ['III7', 2]], [['vi'], ['VI7'], ['ii'], ['III7']] ];
+    const B2 = [ [['vi'], ['III7'], ['vi'], ['V']], [['ii'], ['III7'], ['vi'], ['Vb9']], [['vi'], ['II7'], ['ii'], ['V']] ];
+    const Cc = [ [['cI'], ['cVI7'], ['cii'], ['cV']], [['cI', 2], ['cV', 2]], [['cI'], ['csI0'], ['cii'], ['cV']] ];
+    const C2 = [ [['cI'], ['civ'], ['I'], ['V']], [['cI'], ['cV'], ['cI'], ['V']] ];
+    const rondo = !!(R && R() < 0.4);
+    if (rondo) {
+        return join(row(pick(Q), 'A', 'A1'), row(pick(Rr), 'A', 'A2'), row(pick(B), 'B', 'B1'), row(pick(B2), 'B', 'B2'),
+            row(pick(Cc), 'C', 'C1', 5), row(pick(C2), 'C', 'C2', 5), row(pick(Q), 'A2', 'A3', 0), row(pick(Rr), 'A2', 'A4', 0));
+    }
+    return join(row(pick(Q), 'A', 'A1'), row(pick(Rr), 'A', 'A2'), row(pick(Q), 'A2', 'A3'), row(pick(Rr), 'A2', 'A4'),
+        row(pick(B), 'B', 'B1'), row(pick(B2), 'B', 'B2'), row(pick(Q), 'A3', 'A5'), row(pick(Rr), 'A3', 'A6'));
+}
+
+// Partido alto (2/4), 32 mesures : refrão cyclique (I6 - VI7 - ii - V7, iii - VI7 - ii - V7), « segunda » qui passe par la
+// sous-dominante (I7 - IV - iv6 - I), conclusion ii - V7 - I. En mode mineur : i - iv - V7 - i, ♭VI - iiø - V7, I7 vers iv.
+function partidoForm(t) {
+    const { pick, join, minorQuality } = t;
+    const C = minorQuality ? {
+        T: [0, 'm7', 'dorian', 'tonic'], T6: [0, 'x:m:P:6:-', 'melodicMinor', 'tonic'], S: [5, 'm7', 'dorian', 'predominant'],
+        D: [7, '7b9', 'phrygianDominant', 'dominant'], P: [2, 'm7b5', 'locrianSharp2', 'predominant'], SD: [0, '7b9', 'phrygianDominant', 'secondaryDominant'],
+        X: [8, 'maj7', 'lydian', 'predominant'], Y: [3, 'maj7', 'ionian', 'tonic'], Z: [10, '7', 'mixolydian', 'secondaryDominant']
+    } : {
+        T: [0, '6', 'ionian', 'tonic'], T6: [0, 'x:M:P:6:9', 'ionian', 'tonic'], S: [5, '6', 'lydian', 'predominant'],
+        D: [7, '7', 'mixolydian', 'dominant'], P: [2, 'm7', 'dorian', 'predominant'], SD: [0, '7', 'mixolydian', 'secondaryDominant'],
+        X: [9, '7b9', 'phrygianDominant', 'secondaryDominant'], Y: [4, 'm7', 'phrygian', 'tonic'], Z: [5, 'x:m:P:6:-', 'melodicMinor', 'predominant']
+    };
+    const row = brKitRow(t, C);
+    // refrão : part de T, finit sur D
+    const Q = minorQuality
+        ? [ [['T'], ['S'], ['D', 2]], [['T'], ['X'], ['P'], ['D']], [['T', 2], ['P'], ['D']], [['T'], ['SD'], ['S'], ['D']] ]
+        : [ [['T'], ['X'], ['P'], ['D']], [['Y'], ['X'], ['P'], ['D']], [['T', 2], ['P'], ['D']], [['T'], ['X'], ['P', 1, 'D'], ['D']] ];
+    // retour sur T
+    const Rr = minorQuality
+        ? [ [['X'], ['P'], ['D'], ['T']], [['S'], ['D'], ['T', 2]], [['SD'], ['S'], ['D'], ['T6']] ]
+        : [ [['P'], ['D'], ['T', 2]], [['Y'], ['X'], ['P', 1, 'D'], ['T']], [['T'], ['X'], ['P', 1, 'D'], ['T6']] ];
+    // segunda : passage par la sous-dominante
+    const B = minorQuality
+        ? [ [['SD'], ['S'], ['Z'], ['Y']], [['S', 2], ['D', 2]], [['Y'], ['Z'], ['Y'], ['D']] ]
+        : [ [['SD'], ['S'], ['Z'], ['T']], [['S'], ['Z'], ['T'], ['X']], [['SD', 2], ['S'], ['Z']] ];
+    return join(row(pick(Q), 'A', 'A1'), row(pick(Rr), 'A', 'A2'), row(pick(Q), 'A', 'A3'), row(pick(Rr), 'A', 'A4'),
+        row(pick(B), 'B', 'B1'), row(pick(Rr), 'B', 'B2'), row(pick(Q), 'A2', 'A5'), row(pick(Rr), 'A2', 'A6'));
+}
+
+// Baião (2/4), 32 mesures, dans l'esprit de Luiz Gonzaga : peu d'accords, deux mesures chacun. I - IV - V7 sur le mode
+// mixolydien (le « modo nordestino », souvent avec la quarte augmentée : lydien ♭7 sur I7), I7 qui mène à IV, ii et vi pour la
+// partie B. En mode mineur (dorien du sertão) : i - IV7 - i, ♭VII, V7. Forme A A' B A'.
+function baiaoForm(t) {
+    const { pick, join, minorQuality } = t;
+    const C = minorQuality ? {
+        I: [0, 'minTriad', 'dorian', 'tonic'], I7: [0, 'm7', 'dorian', 'tonic'], IV: [5, '7', 'mixolydian', 'predominant'], IV7: [5, '7', 'mixolydian', 'predominant'],
+        V: [7, '7', 'phrygianDominant', 'dominant'], ii: [10, 'majTriad', 'mixolydian', 'predominant'], vi: [3, 'majTriad', 'ionian', 'predominant'],
+        iv: [5, 'minTriad', 'dorian', 'predominant']
+    } : {
+        I: [0, 'majTriad', 'mixolydian', 'tonic'], I7: [0, '7', 'lydianDominant', 'tonic'], IV: [5, 'majTriad', 'mixolydian', 'predominant'],
+        IV7: [5, '7', 'mixolydian', 'predominant'], V: [7, '7', 'mixolydian', 'dominant'], ii: [2, 'minTriad', 'dorian', 'predominant'],
+        vi: [9, 'minTriad', 'aeolian', 'predominant'], iv: [5, 'minTriad', 'dorian', 'predominant']
+    };
+    const row = brKitRow(t, C);
+    const Q = [ [['I', 2], ['IV', 2], ['I', 2], ['V', 2]], [['I', 2], ['I7', 2], ['IV', 2], ['V', 2]], [['I'], ['IV'], ['I'], ['V'], ['I', 2], ['V', 2]], [['I', 4], ['V', 4]] ];
+    const Rr = [ [['I', 2], ['IV', 2], ['V', 2], ['I', 2]], [['IV', 2], ['I', 2], ['V', 2], ['I', 2]], [['I7', 2], ['IV', 2], ['V'], ['IV'], ['I', 2]], [['I', 2], ['V', 2], ['IV7', 2], ['I', 2]] ];
+    const B = minorQuality
+        ? [ [['ii', 2], ['vi', 2], ['IV', 2], ['V', 2]], [['iv', 2], ['I', 2], ['ii', 2], ['V', 2]] ]
+        : [ [['vi', 2], ['ii', 2], ['V', 2], ['I', 2]], [['IV', 2], ['IV7', 2], ['I', 2], ['V', 2]], [['ii', 2], ['V', 2], ['vi', 2], ['V', 2]] ];
+    return join(row(pick(Q), 'A', 'A1'), row(pick(Rr), 'A', 'A2'), row(pick(B), 'B', 'B1'), row(pick(Rr), 'A2', 'A3'));
+}
+
+// Samba-canção / MPB (4/4 lent) et samba-jazz (4/4 rapide), 32 mesures A A' B A''. Harmonie de Jobim, Dorival Caymmi, Johnny
+// Alf, Tamba Trio : Imaj7 - VI7(b9) - ii7 - V7, iii - VI7 - ii - V, II7 (V de V) en lydien ♭7, iv6 emprunté, ♭VII7 (backdoor),
+// ♯ivø, ♭II7 (triton), viiø - III7 vers vi. Le samba-jazz enchaîne plus vite (un accord par mesure, ii-V dans la mesure).
+// En mode mineur, la grille est transposée dans la tonalité mineure (minorizeJazz, styles de jazz tonal de styles/toolkit.js).
+function brJazzKit(t) {
+    const C = {
+        I: [0, 'maj7', 'ionian', 'tonic'], I6: [0, '6', 'ionian', 'tonic'], I69: [0, 'x:M:P:6:9', 'ionian', 'tonic'],
+        ii: [2, 'm7', 'dorian', 'predominant'], ii9: [2, 'm9', 'dorian', 'predominant'], iii: [4, 'm7', 'phrygian', 'tonic'],
+        VI7: [9, '7b9', 'phrygianDominant', 'secondaryDominant'], II7: [2, '9', 'lydianDominant', 'secondaryDominant'],
+        V7: [7, '7', 'mixolydian', 'dominant'], V9: [7, '9', 'mixolydian', 'dominant'], V13: [7, 'x:M:P:b7:13', 'mixolydian', 'dominant'],
+        Vsus: [7, '7sus4', 'mixolydian', 'dominant'], Valt: [7, '7alt', 'altered', 'dominant'],
+        IV: [5, 'maj7', 'lydian', 'predominant'], iv6: [5, 'x:m:P:6:-', 'melodicMinor', 'predominant'], bVII7: [10, '9', 'lydianDominant', 'predominant'],
+        sivo: [6, 'm7b5', 'locrianSharp2', 'predominant'], viio: [11, 'm7b5', 'locrianSharp2', 'predominant'], III7: [4, '7b9', 'phrygianDominant', 'secondaryDominant'],
+        vi: [9, 'm7', 'aeolian', 'tonic'], I7: [0, '9', 'mixolydian', 'secondaryDominant'], v: [7, 'm7', 'dorian', 'predominant'],
+        bII7: [1, '7', 'lydianDominant', 'dominant'], bVI: [8, 'maj7', 'lydian', 'color']
+    };
+    return brKitRow(t, C);
+}
+function sambaCancaoForm(t) {
+    const { pick, join } = t;
+    const row = brJazzKit(t);
+    const A = [
+        [['I', 2], ['VI7', 2], ['ii9', 2], ['V13', 2]],
+        [['I'], ['iii'], ['VI7', 2], ['ii', 2], ['V9', 2]],
+        [['I69', 2], ['bVII7', 2], ['I', 2], ['Vsus'], ['V9']],
+        [['I', 2], ['II7', 2], ['ii9', 2], ['V13', 2]]
+    ];
+    const E = [   // finit sur I
+        [['I', 2], ['VI7', 2], ['ii'], ['V9'], ['I69', 2]],
+        [['IV', 2], ['iv6', 2], ['iii'], ['VI7'], ['ii', 1, 'V13'], ['I']],
+        [['I'], ['iii'], ['VI7'], ['ii'], ['ii9'], ['Valt'], ['I69', 2]],
+        [['I', 2], ['sivo'], ['VI7'], ['ii'], ['V13'], ['I', 2]]
+    ];
+    const B = [   // part après I, finit sur V
+        [['v'], ['I7'], ['IV', 2], ['iv6', 2], ['ii'], ['V13']],
+        [['viio'], ['III7'], ['vi', 2], ['II7', 2], ['ii'], ['V9']],
+        [['IV', 2], ['sivo', 2], ['iii'], ['VI7'], ['ii'], ['Vsus']],
+        [['bVI', 2], ['bVII7', 2], ['iii'], ['VI7'], ['ii'], ['V9']]
+    ];
+    return join(row(pick(A), 'A', 'A1'), row(pick(E), 'A', 'A2'), row(pick(B), 'B', 'B1'), row(pick(E), 'A2', 'A3'));
+}
+function sambaJazzForm(t) {
+    const { pick, join } = t;
+    const row = brJazzKit(t);
+    const A = [
+        [['I6', 2], ['VI7', 2], ['ii', 2], ['V7', 2]],
+        [['I6', 2], ['II7', 2], ['ii', 2], ['V7', 2]],
+        [['I6'], ['VI7'], ['ii'], ['V7'], ['iii'], ['VI7'], ['ii'], ['V7']],
+        [['I6', 2], ['bVII7', 2], ['ii', 2], ['bII7', 2]]
+    ];
+    const E = [
+        [['I6', 2], ['VI7', 2], ['ii'], ['V7'], ['I6', 2]],
+        [['I6'], ['VI7'], ['ii'], ['V7'], ['iii'], ['VI7'], ['ii', 1, 'V7'], ['I6']],
+        [['I6'], ['iii'], ['ii'], ['bII7'], ['I69', 4]],
+        [['iii'], ['VI7'], ['ii'], ['V7'], ['ii'], ['bII7'], ['I6', 2]]
+    ];
+    const B = [
+        [['v'], ['I7'], ['IV', 2], ['iv6'], ['bVII7'], ['ii'], ['V7']],
+        [['viio'], ['III7'], ['vi', 2], ['II7', 2], ['ii'], ['V7']],
+        [['IV', 2], ['iv6', 2], ['iii'], ['VI7'], ['ii'], ['Valt']]
+    ];
+    return join(row(pick(A), 'A', 'A1'), row(pick(E), 'A', 'A2'), row(pick(B), 'B', 'B1'), row(pick(E), 'A2', 'A3'));
+}
+
 // ============ Jazz manouche ============
 // Joués par l'orchestre « Jazz manouche » (pompe, contrebasse, guitare solo, violon : band/manouche-plan.js). Le vocabulaire est celui
 // du répertoire de Django Reinhardt : tonique mineure en accord de sixte (Lam6, sur le mineur mélodique), iv6 (Rém6), dominante
@@ -1464,6 +1644,11 @@ const STYLE_BUILDERS = {
         return template;
     },
     afrosamba: afroSambaForm,
+    choro: choroForm,
+    partidoalto: partidoForm,
+    baiao: baiaoForm,
+    sambacancao: sambaCancaoForm,
+    sambajazz: sambaJazzForm,
     tango: (t) => {
         const { pick, abs, join } = t;
         let template = [];

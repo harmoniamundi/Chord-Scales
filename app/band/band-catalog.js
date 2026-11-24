@@ -30,7 +30,7 @@ const BC_ERA_GROOVES = typeof CLASSIC_ERA_GROOVES !== 'undefined' ? CLASSIC_ERA_
 const BAND_FORMATIONS = {
     swing:     { name: 'Jazz',        grooves: [] },
     pop:       { name: 'Pop-Rock',    grooves: BC_ROCK_GROOVES },
-    latin:     { name: 'Brasil',      grooves: ['bossa', 'samba', 'tango', 'piazzolla'] },
+    latin:     { name: 'Brasil',      grooves: ['bossa', 'samba', 'tango', 'piazzolla', 'br-choro', 'br-partido', 'br-baiao', 'br-cancao', 'br-sambajazz'] },   // br-… : band/brasil-plan.js
     cuba:      { name: 'Cuba',        grooves: ['afro', 'salsa'].concat(BC_AFRO.AFRO_GROOVES) },
     classic:   { name: 'Classique',   grooves: ['c-baroque'].concat(BC_ERA_GROOVES) },
     guitar:    { name: 'Guitare',     grooves: ['f-solea', 'f-bulerias', 'f-tangos', 'c-baroque', 'g-baden'] },
@@ -45,7 +45,7 @@ const BAND_FORMATIONS = {
 // Nom affiché sur le bouton quand un rythme est imposé (sinon le nom de la formation). Un rythme absent garde le nom de la formation.
 const BAND_GROOVE_NAMES = {
     pop: { 'r-roll': "Rock'n'roll", 'r-classic': 'Rock classique', 'r-hard': 'Hard rock', 'r-punk': 'Punk', 'r-ballad': 'Power ballad', 'r-blues': 'Blues rock', 'r-indie': 'Indie' },
-    latin: { bossa: 'Bossa nova', samba: 'Samba' },
+    latin: { bossa: 'Bossa nova', samba: 'Samba', 'br-choro': 'Choro', 'br-partido': 'Partido alto', 'br-baiao': 'Baião', 'br-cancao': 'Samba-canção', 'br-sambajazz': 'Samba-jazz' },
     cuba: Object.assign({ salsa: 'Salsa' }, ...BC_AFRO.AFRO_GROOVES.map(g => ({ [g]: BC_AFRO.AFRO_STYLES[g].name }))),
     guitar: { 'f-solea': 'Flamenco', 'f-bulerias': 'Flamenco', 'f-tangos': 'Flamenco', 'g-baden': 'Violão (Baden Powell)' },
     piazzolla: { lyrique: 'Milonga lyrique' },
@@ -70,6 +70,8 @@ const BAND_GROOVE_LABELS = {
     'r-roll': "Rock'n'roll années 50", 'r-classic': 'Rock classique (années 70)', 'r-hard': 'Hard rock', 'r-punk': 'Punk / pop punk',
     'r-ballad': 'Power ballad', 'r-blues': 'Blues rock (shuffle)', 'r-indie': 'Indie / britpop',
     bossa: 'Bossa nova', samba: 'Samba (2/4)',
+    'br-choro': 'Choro (regional, 2/4)', 'br-partido': 'Partido alto (roda, 2/4)', 'br-baiao': 'Baião / forró (sanfona, zabumba, 2/4)',
+    'br-cancao': 'Samba-canção / MPB (4/4)', 'br-sambajazz': 'Samba-jazz (piano trio, 4/4)',
     salsa: 'Salsa (4/4)', 'cu-son': 'Son montuno (4/4)', 'cu-chacha': 'Cha-cha-chá (4/4)', 'cu-bolero': 'Bolero (4/4)', 'cu-guajira': 'Guajira (4/4)',
     'cu-danzon': 'Danzón (2/4)', 'cu-guaguanco': 'Rumba guaguancó (4/4)',
     'c-baroque': 'Baroque',
@@ -104,6 +106,11 @@ const BAND_MENU = [
     { value: 'latin',            label: 'Brasil', band: 'latin' },
     { value: 'bossa',            label: 'Brasil : bossa nova', band: 'latin', groove: 'bossa', tempo: true },
     { value: 'samba',            label: 'Brasil : samba (2/4)', band: 'latin', groove: 'samba', tempo: true },
+    { value: 'choro',            label: 'Brasil : choro (2/4)', band: 'latin', groove: 'br-choro', tempo: true },
+    { value: 'partidoalto',      label: 'Brasil : partido alto (2/4)', band: 'latin', groove: 'br-partido', tempo: true },
+    { value: 'baiao',            label: 'Brasil : baião / forró (2/4)', band: 'latin', groove: 'br-baiao', tempo: true },
+    { value: 'sambacancao',      label: 'Brasil : samba-canção (4/4)', band: 'latin', groove: 'br-cancao', tempo: true },
+    { value: 'sambajazz',        label: 'Brasil : samba-jazz (4/4)', band: 'latin', groove: 'br-sambajazz', tempo: true },
     { value: 'cuba',             label: 'Cuba', band: 'cuba' },
     { value: 'salsa',            label: 'Cuba : salsa (4/4)', band: 'cuba', groove: 'salsa', tempo: true },
     { value: 'sonmontuno',       label: 'Cuba : son montuno (4/4)', band: 'cuba', groove: 'cu-son', tempo: true },
@@ -177,14 +184,14 @@ function bandDisplayName(band, groove) {
 
 // Choix d'une formation seule dans le menu (Jazz, Brasil, Cuba, Guitare…) : rythme mémorisé qui reste, ou null.
 // Comportement d'origine conservé tel quel : les rythmes choisis dans ce menu (bossa, samba, salsa, cubains, palos, rock,
-// Afrique, lyrique, violão brésilien) sont effacés ; le baroque n'est gardé que pour Classique ou Guitare, les écritures par époque (nocturne,
+// Afrique, lyrique, violão brésilien, rythmes brésiliens br-…) sont effacés ; le baroque n'est gardé que pour Classique ou Guitare, les écritures par époque (nocturne,
 // impressionnisme…) pour Classique ; les rythmes qui ne viennent que
 // d'un style de grille (tango, piazzolla, afro, choral, sevdah, tsifteteli) restent en mémoire.
 function bandGrooveAfterPlainChoice(groove, value) {
     const g = groove || '';
     if (g === 'lyrique' || ['bossa', 'samba', 'salsa'].includes(g) || g.startsWith('f-') || g.startsWith('r-')
         || (g.startsWith('c-') && !((g === 'c-baroque' && (value === 'guitar' || value === 'classic')) || (BC_ERA_GROOVES.includes(g) && value === 'classic')))
-        || g.startsWith('cu-') || g.startsWith('af-') || g.startsWith('g-')) return null;
+        || g.startsWith('cu-') || g.startsWith('af-') || g.startsWith('g-') || g.startsWith('br-')) return null;
     return groove;
 }
 
@@ -219,6 +226,8 @@ function bandNativeInstrument(band, groove, role) {
     const b = bandFormation(band);
     if (role === 'harmony') {
         if (b === 'swing' || b === 'pop' || b === 'classic') return 'piano';
+        if (b === 'latin' && groove === 'br-baiao') return 'accordion';   // baião : sanfona
+        if (b === 'latin' && groove === 'br-sambajazz') return 'piano';   // samba-jazz : trio avec piano
         if (b === 'latin' || b === 'guitar') return 'guitar';
         if (b === 'cuba') return afroUsesGuitar(groove) ? 'guitar' : 'piano';
         if (b === 'balkan' || b === 'cumbia') return 'accordion';
@@ -226,6 +235,7 @@ function bandNativeInstrument(band, groove, role) {
     }
     if (role === 'bass') {
         if (b === 'classic' || b === 'guitar') return null;
+        if (b === 'latin' && (groove === 'br-choro' || groove === 'br-partido')) return null;   // le violão 7 cordas tient la basse
         if (b === 'brass') return 'tuba';   // (Jazz manouche : contrebasse, comme le cas général)
         if (b === 'pop') return groove === 'r-roll' ? 'upright' : 'electric';   // rock'n'roll des années 50 : la contrebasse mène
         if (b === 'cumbia' || b === 'africa') return 'electric';

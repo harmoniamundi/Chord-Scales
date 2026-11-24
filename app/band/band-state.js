@@ -18,6 +18,7 @@ function bandVoiceState() {
         _pzState: null,
         _mnState: null,   // jazz manouche : voicing de la pompe, rôle de la phrase, ligne et note d'arrivée de la guitare solo (band/manouche-plan.js)
         _gtrVoice: null, _badenHold: null,
+        _brState: null,   // choro, partido alto, baião, samba-canção, samba-jazz : voicings de chaque pupitre (band/brasil-plan.js)
         _rockStrV: null, _rockPad: null, _rockGtrHold: null,   // cordes, nappes et accord de guitare tenu du Pop-Rock / Rock (band/rock-plan.js)
     };
 }

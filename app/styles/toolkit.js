@@ -9,7 +9,7 @@
 // Un accord de modèle est { r: tonique, c: id d'accord, m: mesures, s: gamme, section, phrase, function }.
 
 // Styles de jazz tonal : tonalité majeure ou mineure selon le mode choisi, jamais un mode d'église (voir makeStyleToolkit).
-const JAZZ_TONAL_STYLES = new Set(['ii-v-i', 'anatole', 'bebop', 'swing', 'ballad', 'ballad128', 'hardbop', 'dixieland']);
+const JAZZ_TONAL_STYLES = new Set(['ii-v-i', 'anatole', 'bebop', 'swing', 'ballad', 'ballad128', 'hardbop', 'dixieland', 'sambacancao', 'sambajazz']);
 // Styles classiques écrits en degrés : même principe (majeur ou mineur), mais mineur « classique » : sensible (V et V7 du
 // mineur harmonique), ii°, ♭III, iv, ♭VI, sans les couleurs du jazz (pas de neuvième mineure ajoutée).
 const CLASSIC_TONAL_STYLES = new Set(['baroque', 'mozart', 'trad']);
