@@ -134,6 +134,21 @@ describe('figures du genre', () => {
         });
         assert.ok(steps > 4 * leaps, `${steps} conjoints / ${leaps} sauts`);
     });
+    test('baião : la dernière note d\'une mesure tient jusqu\'à la première note de la mesure suivante (liaison par-dessus la barre)', () => {
+        let ties = 0;
+        for (let s = 1; s < 25; s++) {
+            const outs = baiaoPhrase(s);
+            for (let m = 0; m < 3; m++) {
+                const line = (o) => o.piano.filter(e => e.art === 'lin' && e.intervals.length <= 2 && Math.max(...e.intervals) >= 13).sort((a, b) => a.pos - b.pos);
+                const a = line(outs[m]), b = line(outs[m + 1]);
+                if (!a.length || !b.length) continue;
+                const last = a[a.length - 1];
+                assert.ok(last.pos + last.dur >= 2 - 0.01, 'tient au moins jusqu\'à la barre');
+                if (last.pos + last.dur > 2.08) { ties++; assert.ok(last.pos + last.dur >= 2 + b[0].pos - 0.04, 'jusqu\'à la note suivante'); }
+            }
+        }
+        assert.ok(ties > 5, `${ties} liaisons`);
+    });
     test('baião : rythmes de la mélodie variés d\'une mesure à l\'autre', () => {
         const seen = new Set();
         for (let s = 1; s < 15; s++) baiaoPhrase(s).forEach(out => {

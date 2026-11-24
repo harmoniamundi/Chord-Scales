@@ -148,7 +148,6 @@ function brasilPhraseExtras(groove, ph, rng) {
         out.thirds = 0.12 + 0.3 * I;                   // doublure à la tierce inférieure (les mélodies nordestines en tierces)
         out.orn = 0.15 + 0.2 * rng();                  // appoggiatures
         out.lh = 0.25 + 0.3 * I;                       // main gauche sous la mélodie
-        out.lastRhythm = -1;
         out.triOpen = I > 0.65 && rng() < 0.6;         // triangle plus ouvert quand la phrase s'anime
         out.zabVar = rng() < 0.35;                     // zabumba en tresillo sur le côté B
     } else if (groove === 'br-cancao') {
@@ -530,9 +529,40 @@ function buildBrasilPlan(env, groove, bpb, step, nextStep, isLastMeasureOfStep, 
         // sanfona : la main droite chante (lignes liées, motifs variés, question / réponse sur la phrase), la main gauche
         // accompagne ; les mesures d'accompagnement seul sont minoritaires (rôles choisis par phrase, BR_BAIAO_ROLES).
         const units = L * cycles;
+        const roleOf = (u) => br.roles[Math.floor(u * 4 / Math.max(1, units))] || 'mel';
+        // Rythme de la mélodie de chaque cycle, choisi d'avance (une fois par cycle, mémorisé dans la phrase) : la dernière note
+        // d'un cycle peut ainsi tenir jusqu'à la première note du cycle suivant, par-dessus la barre de mesure.
+        if (!br.rh) br.rh = {};
+        const rhythmFor = (u) => {
+            if (br.rh[u]) return br.rh[u];
+            const fill = roleOf(u) === 'fill';
+            const end = u === units - 1;
+            const pool = fill ? BR_BAIAO_FILL_RHYTHMS : (end ? BR_BAIAO_END_RHYTHMS : BR_BAIAO_RHYTHMS);
+            let idx = Math.floor(rng() * pool.length);
+            const prev = br.rh[u - 1];
+            if (!fill && !end && prev && prev.pool === pool && prev.idx === idx && pool.length > 1) idx = (idx + 1 + Math.floor(rng() * (pool.length - 1))) % pool.length;
+            br.rh[u] = { pool, idx, rhythm: pool[idx], fill };
+            return br.rh[u];
+        };
+        // Durée d'une dernière note de cycle placée en `p` (temps dans la mesure) : jusqu'à la première note du cycle suivant
+        // s'il chante (liaison), sinon jusqu'à la barre ; tenue seulement jusqu'à la barre si elle ne va pas sur l'accord suivant,
+        // et jamais au-delà du second accord d'une mesure coupée.
+        const tieDur = (u, cEnd, p, n) => {
+            let end = cEnd;
+            const nu = u + 1;
+            if (nu < units && roleOf(nu) !== 'comp') {
+                const first = rhythmFor(nu).rhythm[0][0] * slot;
+                const nextCs = cEnd >= bpb - 1e-6 ? (changeNext ? nextStep : lastSeg.cs) : segAt(cEnd).cs;
+                const t = env.findChordObj(nextCs.chordId).notes.slice(0, 4).map(x => (((nextCs.rootIndex + x) % 12) + 12) % 12);
+                if (t.includes(((n % 12) + 12) % 12)) end = cEnd + first;
+            }
+            let d = end - p + 0.05;
+            if (halves && p < splitAt - 1e-6 && p + d > splitAt) d = splitAt - p + 0.04;
+            return Math.max(0.1, d);
+        };
         for (let c = 0; c < cycles; c++) {
             const u = i * cycles + c;                       // rang du cycle dans la phrase
-            const role = br.roles[Math.floor(u * 4 / Math.max(1, units))] || 'mel';
+            const role = roleOf(u);
             const c0 = P(c, 0), c1 = c0 + cycLen;
             const lastUnit = c === cycles - 1;
             const toNext = lastUnit && changeNext ? nextStep : null;
@@ -549,18 +579,15 @@ function buildBrasilPlan(env, groove, bpb, step, nextStep, isLastMeasureOfStep, 
                 if (rng() < 0.45) {
                     const from = st.lanes.mel ? st.lanes.mel.n : null;
                     const line = brMelLine(env, segAt(P(c, 6)).cs, toNext, from, [[6, 1], [7, 1]], rng() < 0.5 ? 'up' : 'down', rng, !!toNext);
-                    line.forEach(nt => pushH(nt.p + c0, nt.d, [nt.n], 0.5, { art: 'lin', free: true }));
+                    line.forEach((nt, k) => pushH(nt.p + c0, k === line.length - 1 ? tieDur(u, c1, nt.p + c0, nt.n) : nt.d, [nt.n], 0.5, { art: 'lin', free: true }));
                     if (line.length) st.lanes.mel = { n: line[line.length - 1].n };
                 }
                 continue;
             }
             // mélodie (ou « fill » de fin de phrase, plus dense et plus souvent en tierces)
-            const fill = role === 'fill' || (phraseEnd && !!toNext);
-            const pool = fill ? BR_BAIAO_FILL_RHYTHMS : (phraseEnd ? BR_BAIAO_END_RHYTHMS : BR_BAIAO_RHYTHMS);
-            let rIdx = Math.floor(rng() * pool.length);
-            if (!fill && !phraseEnd && rIdx === br.lastRhythm && pool.length > 1) rIdx = (rIdx + 1 + Math.floor(rng() * (pool.length - 1))) % pool.length;
-            if (!fill && !phraseEnd) br.lastRhythm = rIdx;
-            const rhythm = pool[rIdx];
+            const R0 = rhythmFor(u);
+            const fill = R0.fill;
+            const rhythm = R0.rhythm;
             const contour = fill ? (rng() < 0.65 ? 'down' : 'up') : br.contours[u % br.contours.length];
             const from = st.lanes.mel ? st.lanes.mel.n : null;
             const half = (k) => segAt(c0 + k * slot).cs;
@@ -582,7 +609,7 @@ function buildBrasilPlan(env, groove, bpb, step, nextStep, isLastMeasureOfStep, 
                 }
                 const last = k === line.length - 1;
                 const vel = (strong ? 0.66 : 0.56) + (nt.peak ? 0.06 : 0) + (last && phraseEnd ? 0.04 : 0);
-                pushH(p, nt.d, notes, vel, { art: 'lin', free: last });
+                pushH(p, last ? tieDur(u, c1, p, nt.n) : nt.d, notes, vel, { art: 'lin', free: last });
             });
             if (line.length) st.lanes.mel = { n: line[line.length - 1].n };
             // main gauche discrète sous la mélodie : accords courts sur le « e » des temps

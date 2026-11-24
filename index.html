@@ -11326,7 +11326,7 @@
                 'app/ui/chord-block.js': typeof ChordBlockView === 'function' && typeof hydrateChordBlocks === 'function' && typeof annotBlocksToClipText === 'function' && typeof CHB_ARP_ICON === 'string',
                 'app/ui/draw-block.js': typeof DrawBlockView === 'function' && typeof hydrateDrawBlocks === 'function' && typeof DrawBlockView.prototype._touchLock === 'function',
                 'app/ui/grid-view.js': typeof measureNoteTitle === 'function' && typeof printGridHtml === 'function' && typeof navPopSection === 'function' && typeof navRowBreak === 'function',
-                'app/band/brasil-plan.js': typeof buildBrasilPlan === 'function' && typeof brMelLine === 'function' && typeof BRASIL_GROOVES !== 'undefined' && BRASIL_GROOVES.length === 5,
+                'app/band/brasil-plan.js': typeof buildBrasilPlan === 'function' && typeof brMelLine === 'function' && String(buildBrasilPlan).indexOf('tieDur') >= 0 && typeof BRASIL_GROOVES !== 'undefined' && BRASIL_GROOVES.length === 5,
                 'app/audio/drum-synths.js': typeof synthTriangle === 'function' && typeof synthZabumba === 'function',
                 'app/band/baden-plan.js': typeof buildBadenPlan === 'function' && typeof BDN_FINGERS !== 'undefined' && BDN_FINGERS.length === 6,
                 'app/band/guitar-plan.js': typeof guitarPhraseExtras === 'function' && String(guitarPhraseExtras).indexOf('g-baden') >= 0,
