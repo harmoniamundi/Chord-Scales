@@ -52,12 +52,40 @@ const BR_CHORO_CAV = {
 };
 // Partido alto (figure de deux mesures de 2/4) : x . . x . . x . | . x . . x . x .
 const BR_PARTIDO = { A: [0, 3, 6], B: [1, 4, 6] };
-// Sanfona du baião : accords sur la cellule du baião (0, 3, 4 / tresillo 0, 3, 6) ou en contretemps
+// Sanfona du baião, main gauche : accords sur la cellule du baião (0, 3, 4 / tresillo 0, 3, 6), en contretemps, ou tenus au soufflet
 const BR_SANFONA = {
     baiao:  { A: [[0, 2.2], [3, 0.8], [4, 1.6]], B: [[0, 2.2], [3, 0.8], [6, 1.4]] },
     tresil: { A: [[0, 2.6], [3, 2.6], [6, 1.6]], B: [[0, 2.6], [3, 2.6], [6, 1.6]] },
-    contra: { A: [[2, 1.2], [6, 1.2]], B: [[2, 1.2], [5, 0.8], [6, 1.2]] }
+    contra: { A: [[2, 1.2], [6, 1.2]], B: [[2, 1.2], [5, 0.8], [6, 1.2]] },
+    fole:   { A: [[0, 3.6], [4, 3.8]], B: [[0, 5.8], [6, 1.8]] }
 };
+// Sanfona, main droite : rythmes de la mélodie sur un cycle ([case, durée en cases]) ; longues et brèves mêlées, levées, cellule du baião
+const BR_BAIAO_RHYTHMS = [
+    [[0, 3], [3, 1], [4, 2], [6, 2]],          // cellule du baião
+    [[0, 2], [2, 2], [4, 4]],
+    [[0, 1], [1, 1], [2, 2], [4, 1], [5, 1], [6, 2]],
+    [[0, 4], [4, 2], [6, 2]],
+    [[2, 2], [4, 2], [6, 1], [7, 1]],          // départ en levée (le 1 est laissé à la main gauche)
+    [[0, 6], [6, 1], [7, 1]],                  // note tenue puis levée
+    [[0, 3], [3, 3], [6, 2]],                  // tresillo
+    [[0, 2], [2, 1], [3, 1], [4, 3], [7, 1]],
+    [[1, 1], [2, 1], [3, 1], [4, 4]],          // anacrouse vers le 2
+    [[0, 3], [3, 1], [4, 1], [5, 1], [6, 1], [7, 1]]
+];
+// Fin de phrase : la dernière note dure
+const BR_BAIAO_END_RHYTHMS = [ [[0, 2], [2, 2], [4, 4]], [[0, 1], [1, 1], [2, 2], [4, 4]], [[0, 3], [3, 5]], [[0, 8]], [[0, 2], [2, 6]] ];
+// Fill vers l'accord suivant : plus dense, mais pas toujours en doubles croches égales
+const BR_BAIAO_FILL_RHYTHMS = [
+    [[0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [5, 1], [6, 2]],
+    [[0, 2], [2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [7, 1]],
+    [[0, 3], [3, 1], [4, 1], [5, 1], [6, 2]],
+    [[2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [7, 1]]
+];
+// Rôle de la sanfona sur chaque quart de phrase : mélodie, accompagnement seul, fill vers la phrase suivante
+const BR_BAIAO_ROLES = [
+    ['mel', 'mel', 'mel', 'fill'], ['mel', 'comp', 'mel', 'mel'], ['comp', 'mel', 'mel', 'fill'], ['mel', 'mel', 'comp', 'mel'],
+    ['mel', 'mel', 'mel', 'mel'], ['comp', 'mel', 'comp', 'fill']
+];
 // Doigts du violão en samba-canção (teleco-teco ralenti ; les cases 0 et 4 sont au pouce)
 const BR_CANCAO_FING = {
     lenta:  { A: [2, 5, 7], B: [1, 3, 6] },
@@ -114,8 +142,13 @@ function brasilPhraseExtras(groove, ph, rng) {
         out.baixaria = 0.3 + 0.35 * I;
         out.resposta = rng() < 0.25 + 0.5 * I;         // surdo de resposta
     } else if (groove === 'br-baiao') {
-        out.sanfona = brPick(rng, I < 0.4 ? [['baiao', 3], ['contra', 1.5], ['tresil', 0.6]] : [['baiao', 2.5], ['tresil', 1.5], ['contra', 1]]);
-        out.frase = 0.35 + 0.4 * I;                    // probabilité d'une phrase en tierces de la sanfona
+        out.roles = brPick(rng, BR_BAIAO_ROLES.map((r, k) => [r, k < 4 ? 2 : 1]));   // rôle de chaque quart de phrase
+        out.comps = rng() < 0.5 ? ['baiao', 'contra', 'fole'] : ['fole', 'baiao', 'tresil'];
+        out.contours = [0, 1, 2, 3].map(() => brPick(rng, [['down', 2], ['arch', 2], ['up', 1.2], ['valley', 1], ['neighbor', 1.2], ['repeat', 0.8]]));
+        out.thirds = 0.12 + 0.3 * I;                   // doublure à la tierce inférieure (les mélodies nordestines en tierces)
+        out.orn = 0.15 + 0.2 * rng();                  // appoggiatures
+        out.lh = 0.25 + 0.3 * I;                       // main gauche sous la mélodie
+        out.lastRhythm = -1;
         out.triOpen = I > 0.65 && rng() < 0.6;         // triangle plus ouvert quand la phrase s'anime
         out.zabVar = rng() < 0.35;                     // zabumba en tresillo sur le côté B
     } else if (groove === 'br-cancao') {
@@ -170,27 +203,80 @@ function brBaixaria(env, cs, nextCs, len, rng) {
     return notes;
 }
 
-// Phrase de la sanfona en tierces parallèles (descente dans la gamme de l'accord), finissant sur la tierce de l'accord visé.
-// Renvoie [[haute, basse], …] (len notes) ou [].
-function brSanfonaFrase(env, cs, target, len) {
+
+// Note voisine dans la gamme de l'accord : `steps` degrés plus haut (positif) ou plus bas (négatif), ou null.
+function brScaleStep(env, cs, n, steps) {
+    const S = popScaleNotes(cs, n - 14, n + 14);
+    const k = S.indexOf(n);
+    if (k < 0) {
+        const below = S.filter(x => x < n), above = S.filter(x => x > n);
+        if (steps < 0) return below.length >= -steps ? below[below.length + steps] : null;
+        return above.length >= steps ? above[steps - 1] : null;
+    }
+    const j = k + steps;
+    return (j >= 0 && j < S.length) ? S[j] : null;
+}
+
+// Ligne mélodique de la sanfona sur un cycle : `rhythm` = [[case, durée en cases]…], `csOf(case)` = accord sous la case
+// (fonction, ou un accord), `contour` = down | up | arch | valley | neighbor | repeat. Mouvement surtout conjoint dans la
+// gamme de l'accord, quelques sauts sur les notes de l'accord ; les appuis (cases 0 et 4) tombent sur une note de l'accord ;
+// `land` : la dernière note se pose sur une note de l'accord visé (`target`, sinon l'accord en cours). Notes liées : chaque note
+// dure jusqu'à la suivante (léger chevauchement). Renvoie [{ k, p, d, n, peak }] (p, d en temps ; registre do4 - ré5 réels).
+function brMelLine(env, csOf, target, from, rhythm, contour, rng, land) {
     const off = env.transOffset;
-    const S = popScaleNotes(cs, 4 - off, 30 - off);
-    if (S.length < len + 3) return [];
-    const tn = env.findChordObj(target.chordId).notes;
-    const third = (((target.rootIndex + (tn[1] !== undefined ? tn[1] : 4)) % 12) + 12) % 12;
-    // note d'arrivée : la tierce de l'accord visé dans le médium-aigu (si3 à la4 réels)
-    let end = null;
-    for (let n = 21 - off; n >= 11 - off; n--) if ((((n % 12) + 12) % 12) === third) { end = n; break; }
-    if (end === null) return [];
-    // départ : len degrés plus haut dans la gamme de l'accord en cours
-    const above = S.filter(n => n > end);
-    if (above.length < len - 1) return [];
-    const line = above.slice(0, len - 1).reverse().concat([end]);
-    return line.map(h => {
-        const below = S.filter(n => n < h);
-        const lo = below.length >= 2 ? below[below.length - 2] : h - 4;   // tierce de la gamme sous la voix haute
-        return [h, lo];
+    const slot = 0.25;
+    const LO = 13 - off, HI = 29 - off;
+    const cs = (k) => typeof csOf === 'function' ? csOf(k) : csOf;
+    const pcsOf = (c) => {
+        const t = env.findChordObj(c.chordId).notes;
+        return t.slice(0, 4).map(x => (((c.rootIndex + x) % 12) + 12) % 12);
+    };
+    const isCT = (c, n) => pcsOf(c).includes(((n % 12) + 12) % 12);
+    const nearestCT = (c, n) => {
+        for (let d = 0; d <= 6; d++) for (const sg of [-1, 1]) { const x = n + sg * d; if (x >= LO && x <= HI && isCT(c, x)) return x; }
+        return n;
+    };
+    let n = Number.isFinite(from) ? from : nearestCT(cs(rhythm[0][0]), 21 - off);
+    if (n < LO || n > HI) n = nearestCT(cs(rhythm[0][0]), 21 - off);
+    const N = rhythm.length;
+    const out = [];
+    let peakIdx = -1, peakVal = -99;
+    rhythm.forEach(([k, len], idx) => {
+        const c = cs(k);
+        let dir;
+        if (contour === 'down') dir = -1;
+        else if (contour === 'up') dir = 1;
+        else if (contour === 'arch') dir = idx < N / 2 ? 1 : -1;
+        else if (contour === 'valley') dir = idx < N / 2 ? -1 : 1;
+        else if (contour === 'neighbor') dir = [1, -1, -1, 1][idx % 4];
+        else dir = idx % 3 === 2 ? -1 : 0;           // repeat : note répétée (cellule du baião), puis broderie
+        if (idx > 0 || !Number.isFinite(from)) {
+            if (dir !== 0) {
+                const leap = rng() < 0.2 ? 2 : 1;      // de temps en temps une tierce
+                const nx = brScaleStep(env, c, n, dir * leap);
+                n = (nx !== null && nx >= LO && nx <= HI) ? nx : (brScaleStep(env, c, n, -dir) ?? n);
+            }
+        } else if (dir !== 0) {
+            const nx = brScaleStep(env, c, n, dir);
+            if (nx !== null && nx >= LO && nx <= HI) n = nx;
+        }
+        // appui : note de l'accord
+        if (k % 4 === 0 && !isCT(c, n)) n = nearestCT(c, n);
+        // fin : note de l'accord visé, au plus près
+        if (land && idx === N - 1) {
+            const t = target || c;
+            if (!isCT(t, n)) n = nearestCT(t, n);
+        }
+        if (n > peakVal) { peakVal = n; peakIdx = idx; }
+        out.push({ k, p: k * slot, d: 0, n, len });
     });
+    out.forEach((nt, idx) => {
+        const nx = out[idx + 1];
+        nt.d = nx ? (nx.p - nt.p) + 0.04 : nt.len * slot + 0.04;   // liées : la note tient jusqu'à la suivante
+        nt.peak = idx === peakIdx;
+        delete nt.len;
+    });
+    return out;
 }
 
 function buildBrasilPlan(env, groove, bpb, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
@@ -441,28 +527,74 @@ function buildBrasilPlan(env, groove, bpb, step, nextStep, isLastMeasureOfStep, 
 
     // ======================= BAIÃO =======================
     if (groove === 'br-baiao') {
-        // sanfona : accords (main gauche) sur la cellule du baião ; une phrase en tierces annonce l'accord suivant
-        let fraseFrom = 99;
-        const fraseWanted = (changeNext || isTurn) && nextStep && rng() < (isTurn ? Math.min(0.95, br.frase + 0.3) : br.frase);
-        if (fraseWanted) {
-            const len = bpb >= 4 ? 8 : 6;
-            const line = brSanfonaFrase(env, lastSeg.cs, nextStep, len);
-            if (line.length) {
-                fraseFrom = bpb - len * 0.25;
-                if (halves && fraseFrom < splitAt) fraseFrom = 99;
-                else line.forEach(([h, lo], k) => pushH(fraseFrom + k * 0.25, 0.28, [lo, h], 0.64 + (k === line.length - 1 ? 0.1 : 0), { art: 'mel', noGinga: false }));
-            }
-        }
+        // sanfona : la main droite chante (lignes liées, motifs variés, question / réponse sur la phrase), la main gauche
+        // accompagne ; les mesures d'accompagnement seul sont minoritaires (rôles choisis par phrase, BR_BAIAO_ROLES).
+        const units = L * cycles;
         for (let c = 0; c < cycles; c++) {
+            const u = i * cycles + c;                       // rang du cycle dans la phrase
+            const role = br.roles[Math.floor(u * 4 / Math.max(1, units))] || 'mel';
+            const c0 = P(c, 0), c1 = c0 + cycLen;
+            const lastUnit = c === cycles - 1;
+            const toNext = lastUnit && changeNext ? nextStep : null;
+            const phraseEnd = u === units - 1;
             const sd = side(c);
-            BR_SANFONA[br.sanfona][sd].forEach(([k, d]) => {
-                const p = P(c, k);
-                if (p >= fraseFrom - 1e-6) return;
-                const cs = segAt(p).cs;
-                pushH(p, d * slot, accOf(cs), k === 0 ? 0.62 : 0.54, { art: d > 2 ? 'pad' : 'lin' });
+            if (role === 'comp') {
+                // accompagnement varié : cellule du baião, contretemps, accord tenu au soufflet
+                const fig = BR_SANFONA[br.comps[(u + (br.flip ? 1 : 0)) % br.comps.length]][sd];
+                fig.forEach(([k, d]) => {
+                    const p = P(c, k);
+                    pushH(p, d * slot, accOf(segAt(p).cs), k === 0 ? 0.58 : 0.5, { art: d > 2 ? 'pad' : 'lin' });
+                });
+                // petite levée liée vers la mesure suivante
+                if (rng() < 0.45) {
+                    const from = st.lanes.mel ? st.lanes.mel.n : null;
+                    const line = brMelLine(env, segAt(P(c, 6)).cs, toNext, from, [[6, 1], [7, 1]], rng() < 0.5 ? 'up' : 'down', rng, !!toNext);
+                    line.forEach(nt => pushH(nt.p + c0, nt.d, [nt.n], 0.5, { art: 'lin', free: true }));
+                    if (line.length) st.lanes.mel = { n: line[line.length - 1].n };
+                }
+                continue;
+            }
+            // mélodie (ou « fill » de fin de phrase, plus dense et plus souvent en tierces)
+            const fill = role === 'fill' || (phraseEnd && !!toNext);
+            const pool = fill ? BR_BAIAO_FILL_RHYTHMS : (phraseEnd ? BR_BAIAO_END_RHYTHMS : BR_BAIAO_RHYTHMS);
+            let rIdx = Math.floor(rng() * pool.length);
+            if (!fill && !phraseEnd && rIdx === br.lastRhythm && pool.length > 1) rIdx = (rIdx + 1 + Math.floor(rng() * (pool.length - 1))) % pool.length;
+            if (!fill && !phraseEnd) br.lastRhythm = rIdx;
+            const rhythm = pool[rIdx];
+            const contour = fill ? (rng() < 0.65 ? 'down' : 'up') : br.contours[u % br.contours.length];
+            const from = st.lanes.mel ? st.lanes.mel.n : null;
+            const half = (k) => segAt(c0 + k * slot).cs;
+            const target = toNext || (phraseEnd ? half(7) : null);
+            const line = brMelLine(env, half, target, from, rhythm, contour, rng, phraseEnd || !!toNext);
+            const thirdsP = fill ? 0.75 : br.thirds;
+            line.forEach((nt, k) => {
+                const p = c0 + nt.p;
+                const strong = nt.k % 4 === 0;
+                const notes = [nt.n];
+                if (rng() < thirdsP * (strong ? 1 : 0.6)) {
+                    const lo = brScaleStep(env, half(nt.k), nt.n, -2);
+                    if (lo !== null) notes.unshift(lo);
+                }
+                // appoggiature : petite note d'ornement juste avant une note longue (la note du dessus, dans la gamme)
+                if (strong && nt.d >= 2 * slot && p >= 0.07 && rng() < br.orn) {
+                    const up = brScaleStep(env, half(nt.k), nt.n, 1);
+                    if (up !== null) pushH(p - 0.06, 0.07, [up], 0.42, { art: 'orn', noGinga: true, free: true });
+                }
+                const last = k === line.length - 1;
+                const vel = (strong ? 0.66 : 0.56) + (nt.peak ? 0.06 : 0) + (last && phraseEnd ? 0.04 : 0);
+                pushH(p, nt.d, notes, vel, { art: 'lin', free: last });
             });
+            if (line.length) st.lanes.mel = { n: line[line.length - 1].n };
+            // main gauche discrète sous la mélodie : accords courts sur le « e » des temps
+            [2, 6].forEach(k => {
+                if (rng() > br.lh) return;
+                const p = P(c, k);
+                const V = accOf(segAt(p).cs);
+                pushH(p, 0.9 * slot, V.slice(0, 3).map(x => x - 12 >= 0 - off ? x - 12 : x), 0.34, { art: 'lin' });
+            });
+            if (c1 > bpb + 1e-6) break;
         }
-        if (halves && !harm.some(e => Math.abs(e.pos - segs[1].s) < 0.05) && segs[1].s < fraseFrom) pushH(segs[1].s, 0.5, accOf(segs[1].cs), 0.56, { art: 'lin' });
+        if (halves && !harm.some(e => e.art !== 'orn' && Math.abs(e.pos - segs[1].s) < 0.06)) pushH(segs[1].s, 0.5, accOf(segs[1].cs), 0.5, { art: 'lin' });
         // contrebasse : cellule du baião (noire pointée - double croche - noire), approche de l'accord suivant
         for (let c = 0; c < cycles; c++) {
             const tpl = BR_BASS['br-baiao'][(c === 1 || i % 2 === 1) && rng() < 0.5 ? br.bassAlt : br.bassIdx];
@@ -638,6 +770,6 @@ function buildBrasilPlan(env, groove, bpb, step, nextStep, isLastMeasureOfStep, 
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { BRASIL_GROOVES, BR_CUT, BR_HARMONY, BR_NO_BASS, BR_CHORO_CAV, BR_PARTIDO, BR_SANFONA, BR_CANCAO_FING, BR_SJ_PIANO, BR_BASS,
-        brasilPhraseExtras, brFold7, brFoldThumb, brBaixaria, brSanfonaFrase, buildBrasilPlan };
+    module.exports = { BRASIL_GROOVES, BR_CUT, BR_HARMONY, BR_NO_BASS, BR_CHORO_CAV, BR_PARTIDO, BR_SANFONA, BR_BAIAO_RHYTHMS, BR_BAIAO_END_RHYTHMS, BR_BAIAO_FILL_RHYTHMS, BR_BAIAO_ROLES, brScaleStep, brMelLine, BR_CANCAO_FING, BR_SJ_PIANO, BR_BASS,
+        brasilPhraseExtras, brFold7, brFoldThumb, brBaixaria, buildBrasilPlan };
 }

@@ -104,18 +104,52 @@ describe('figures du genre', () => {
         assert.ok(out.drums.filter(d => d.drum === 'tri').some(d => near(d.pos, 0.5)));
         assert.ok(out.drums.some(d => d.drum === 'bacal' && near(d.pos, 1)), 'bacalhau appuyé sur le 2');
     });
-    test('baião : la sanfona annonce le changement par une phrase en tierces qui finit sur la tierce du nouvel accord', () => {
-        let seen = false;
-        for (let s = 1; s < 30 && !seen; s++) {
-            const out = plan('br-baiao', { seed: s, isTurn: true, step: C6, nextStep: G7, ph: phrase(s, { intensity: 1 }) });
-            const mel = out.piano.filter(e => e.art === 'mel');
-            if (!mel.length) continue;
-            seen = true;
-            mel.forEach(e => { assert.equal(e.intervals.length, 2); const d = e.intervals[1] - e.intervals[0]; assert.ok(d >= 3 && d <= 4, 'tierce'); });
-            const last = mel[mel.length - 1].intervals[1];
-            assert.equal(((last % 12) + 12) % 12, 11, 'si, tierce de sol');
+    // Sanfona du baião sur une phrase de quatre mesures (2/4) : C - C - C - G7
+    const baiaoPhrase = (s, I = 0.6) => {
+        const env = mkEnv();
+        const ph = phrase(s, { intensity: I, fill: true });
+        const steps = [[C6, C6, false], [C6, C6, false], [C6, C6, false], [C6, G7, true]];
+        return steps.map(([st, nx, last], m) => buildPlan(env, 'br-baiao', 2, st, nx, last, null, ph, m, 4, m === 3, m));
+    };
+    const melOf = (out) => out.piano.filter(e => e.art === 'lin' && Math.max(...e.intervals) >= 13);
+    test('baião : la sanfona chante plus qu\'elle ne pompe (notes de mélodie plus nombreuses que les accords)', () => {
+        let mel = 0, chords = 0;
+        for (let s = 1; s < 30; s++) baiaoPhrase(s).forEach(out => out.piano.forEach(e => {
+            if (e.art === 'orn') return;
+            if (e.intervals.length >= 3) chords++; else mel++;
+        }));
+        assert.ok(mel > 1.5 * chords, `${mel} notes / ${chords} accords`);
+    });
+    test('baião : mélodie liée (chaque note tient jusqu\'à la suivante) et mouvement surtout conjoint', () => {
+        let steps = 0, leaps = 0;
+        for (let s = 1; s < 20; s++) baiaoPhrase(s).forEach(out => {
+            const line = out.piano.filter(e => e.art === 'lin' && e.intervals.length <= 2 && Math.max(...e.intervals) >= 13).sort((a, b) => a.pos - b.pos);
+            for (let k = 0; k + 1 < line.length; k++) {
+                const a = line[k], b = line[k + 1];
+                if (b.pos - a.pos > 0.6) continue;
+                assert.ok(a.pos + a.dur >= b.pos - 0.02, `note ${a.pos} non liée à ${b.pos}`);
+                const d = Math.abs(Math.max(...b.intervals) - Math.max(...a.intervals));
+                if (d <= 2) steps++; else if (d > 4) leaps++;
+            }
+        });
+        assert.ok(steps > 4 * leaps, `${steps} conjoints / ${leaps} sauts`);
+    });
+    test('baião : rythmes de la mélodie variés d\'une mesure à l\'autre', () => {
+        const seen = new Set();
+        for (let s = 1; s < 15; s++) baiaoPhrase(s).forEach(out => {
+            const r = melOf(out).map(e => Math.round(((e.pos * 4) % 8))).join(',');
+            if (r) seen.add(r);
+        });
+        assert.ok(seen.size >= 8, `${seen.size} figures`);
+    });
+    test('baião : en fin de phrase, la mélodie se pose sur une note du nouvel accord', () => {
+        for (let s = 1; s < 25; s++) {
+            const outs = baiaoPhrase(s);
+            const line = outs[3].piano.filter(e => e.art === 'lin' && e.intervals.length <= 2 && Math.max(...e.intervals) >= 13).sort((a, b) => a.pos - b.pos);
+            if (!line.length) continue;
+            const top = Math.max(...line[line.length - 1].intervals);
+            assert.ok([7, 11, 2, 5].includes(((top % 12) + 12) % 12), `note finale ${top}`);
         }
-        assert.ok(seen);
     });
     test('samba-jazz en 4/4 : cymbale ou charleston en croches continues, grosse caisse appuyée sur le 3', () => {
         const out = plan('br-sambajazz', { bpb: 4, nextStep: C6, step: C6, last: false });
