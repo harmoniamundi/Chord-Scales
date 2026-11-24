@@ -282,10 +282,10 @@ const menuGrooves = (band) => Object.fromEntries(BC.BAND_MENU.filter(e => e.band
 const FLAMENCO_BAND_GROOVES = menuGrooves('guitar');
 const ROCK_BAND_GROOVES = menuGrooves('pop');
 
-describe('menu Orchestre : entrées Flamenco', () => {
-    test('chaque palo du menu a le rythme, la signature et l\'orchestre Guitare du style de grille du même nom', () => {
+describe('menu Orchestre : entrées Flamenco et violão', () => {
+    test('chaque palo (et le violão de Baden Powell) du menu a le rythme, la signature et l\'orchestre Guitare du style de grille du même nom', () => {
         const keys = Object.keys(FLAMENCO_BAND_GROOVES);
-        assert.deepEqual(keys.sort(), ['flamencobulerias', 'flamencosolea', 'flamencotangos']);
+        assert.deepEqual(keys.sort(), ['afrosamba', 'flamencobulerias', 'flamencosolea', 'flamencotangos']);
         keys.forEach(k => {
             assert.equal(FLAMENCO_BAND_GROOVES[k], M.STYLE_GROOVE[k], k);
             assert.equal(M.bandStyleFor(k), 'guitar', k);
@@ -293,6 +293,7 @@ describe('menu Orchestre : entrées Flamenco', () => {
         });
         assert.equal(M.tempoMeterFor('flamencosolea').meter, '12/8');
         assert.equal(M.tempoMeterFor('flamencotangos').meter, '4/4');
+        assert.equal(M.tempoMeterFor('afrosamba').meter, '2/4');
     });
 });
 

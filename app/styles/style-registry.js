@@ -109,6 +109,7 @@ const STYLE_REGISTRY = {
     // —— Amérique Latine ——
     bossa: { band: 'latin', groove: 'bossa', bpm: 132, meter: '4/4', scales: 'jazz', bars: 32, gen: 'light' },
     samba: { band: 'latin', groove: 'samba', bpm: 104, meter: '2/4', scales: 'jazz', bars: 32, gen: { turn: false, alt: true, w: { iiV: 2, secDom: 1, tritone: 1.5, colour: 3, sus: 1, subdom: 1 } } },
+    afrosamba: { band: 'guitar', groove: 'g-baden', bpm: 100, meter: '2/4', scales: 'jazz', key: 2, bars: 32, gen: { turn: false, alt: true, w: { tritone: 1.5, colour: 2.5, iiV: 1, secDom: 0.8, chrom: 1, sus: 0.8 } } },
     cumbia: { band: 'cumbia', bpm: 98, meter: '4/4', scales: 'classic', key: 7, gen: 'none' },
     tango: { band: 'piazzolla', groove: 'lyrique', bpm: 116, meter: '2/4', scales: 'classic', bars: 32, gen: { turn: false, w: { secDom: 3, subdom: 2, dim: 1.5, colour: 1.5, iiV: 1 } } },
     piazzolla: { band: 'piazzolla', groove: 'piazzolla', bpm: 132, meter: '4/4', scales: 'jazz', gen: { turn: false, alt: true, w: { secDom: 2.5, dim: 2, colour: 3, tritone: 1.5, sus: 1.5, chrom: 1.5, iiV: 1.5 } } },

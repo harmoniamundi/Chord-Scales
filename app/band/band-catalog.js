@@ -33,7 +33,7 @@ const BAND_FORMATIONS = {
     latin:     { name: 'Brasil',      grooves: ['bossa', 'samba', 'tango', 'piazzolla'] },
     cuba:      { name: 'Cuba',        grooves: ['afro', 'salsa'].concat(BC_AFRO.AFRO_GROOVES) },
     classic:   { name: 'Classique',   grooves: ['c-baroque'].concat(BC_ERA_GROOVES) },
-    guitar:    { name: 'Guitare',     grooves: ['f-solea', 'f-bulerias', 'f-tangos', 'c-baroque'] },
+    guitar:    { name: 'Guitare',     grooves: ['f-solea', 'f-bulerias', 'f-tangos', 'c-baroque', 'g-baden'] },
     brass:     { name: 'Brass',       grooves: ['b-chorale'] },
     balkan:    { name: 'Balkans',     grooves: ['bk-sevdah', 'bk-tsifte'] },
     cumbia:    { name: 'Cumbia',      grooves: [] },
@@ -47,7 +47,7 @@ const BAND_GROOVE_NAMES = {
     pop: { 'r-roll': "Rock'n'roll", 'r-classic': 'Rock classique', 'r-hard': 'Hard rock', 'r-punk': 'Punk', 'r-ballad': 'Power ballad', 'r-blues': 'Blues rock', 'r-indie': 'Indie' },
     latin: { bossa: 'Bossa nova', samba: 'Samba' },
     cuba: Object.assign({ salsa: 'Salsa' }, ...BC_AFRO.AFRO_GROOVES.map(g => ({ [g]: BC_AFRO.AFRO_STYLES[g].name }))),
-    guitar: { 'f-solea': 'Flamenco', 'f-bulerias': 'Flamenco', 'f-tangos': 'Flamenco' },
+    guitar: { 'f-solea': 'Flamenco', 'f-bulerias': 'Flamenco', 'f-tangos': 'Flamenco', 'g-baden': 'Violão (Baden Powell)' },
     piazzolla: { lyrique: 'Milonga lyrique' },
     africa: Object.assign({}, ...BC_AFRICA.AFRICA_GROOVES.map(g => ({ [g]: BC_AFRICA.AFRICA_NAMES[g] })))
 };
@@ -78,6 +78,7 @@ const BAND_GROOVE_LABELS = {
     'c-impression': 'Impressionnisme (Debussy, Ravel)', 'c-satie': 'Satie (gymnopédie)',
     'c-neoclassic': 'Néoclassique (Stravinsky, Prokofiev)', 'c-minimal': 'Minimalisme (Glass, Reich)',
     'f-solea': 'Flamenco : soleá (12 temps)', 'f-bulerias': 'Flamenco : bulerías (12 temps)', 'f-tangos': 'Flamenco : rumba / tangos (4/4)',
+    'g-baden': 'Violão brésilien (Baden Powell, 2/4)',
     'b-chorale': 'Choral (hymne, cantique)',
     'bk-sevdah': 'Sevdah, ballade lente', 'bk-tsifte': 'Tsifteteli / čoček',
     'af-afrobeat': 'Afrobeat', 'af-highlife': 'Highlife', 'af-rumba': 'Rumba congolaise', 'af-soukous': 'Soukous / sebene', 'af-benga': 'Benga', 'af-mbaqanga': 'Mbaqanga',
@@ -116,6 +117,7 @@ const BAND_MENU = [
     { value: 'flamencosolea',    label: 'Flamenco : soleá (12 temps)', band: 'guitar', groove: 'f-solea', tempo: true },
     { value: 'flamencobulerias', label: 'Flamenco : bulerías (12 temps)', band: 'guitar', groove: 'f-bulerias', tempo: true },
     { value: 'flamencotangos',   label: 'Flamenco : rumba / tangos (4/4)', band: 'guitar', groove: 'f-tangos', tempo: true },
+    { value: 'afrosamba',        label: 'Guitare : violão brésilien (Baden Powell)', band: 'guitar', groove: 'g-baden', tempo: true },
     { value: 'brass',            label: 'Brass band', band: 'brass' },
     { value: 'balkan',           label: 'Balkans', band: 'balkan' },
     { value: 'cumbia',           label: 'Cumbia', band: 'cumbia' },
@@ -175,14 +177,14 @@ function bandDisplayName(band, groove) {
 
 // Choix d'une formation seule dans le menu (Jazz, Brasil, Cuba, Guitare…) : rythme mémorisé qui reste, ou null.
 // Comportement d'origine conservé tel quel : les rythmes choisis dans ce menu (bossa, samba, salsa, cubains, palos, rock,
-// Afrique, lyrique) sont effacés ; le baroque n'est gardé que pour Classique ou Guitare, les écritures par époque (nocturne,
+// Afrique, lyrique, violão brésilien) sont effacés ; le baroque n'est gardé que pour Classique ou Guitare, les écritures par époque (nocturne,
 // impressionnisme…) pour Classique ; les rythmes qui ne viennent que
 // d'un style de grille (tango, piazzolla, afro, choral, sevdah, tsifteteli) restent en mémoire.
 function bandGrooveAfterPlainChoice(groove, value) {
     const g = groove || '';
     if (g === 'lyrique' || ['bossa', 'samba', 'salsa'].includes(g) || g.startsWith('f-') || g.startsWith('r-')
         || (g.startsWith('c-') && !((g === 'c-baroque' && (value === 'guitar' || value === 'classic')) || (BC_ERA_GROOVES.includes(g) && value === 'classic')))
-        || g.startsWith('cu-') || g.startsWith('af-')) return null;
+        || g.startsWith('cu-') || g.startsWith('af-') || g.startsWith('g-')) return null;
     return groove;
 }
 

@@ -60,6 +60,7 @@ const SHELL_FILES = [
     'app/band/classic-eras-plan.js',
     'app/band/classic-plan.js',
     'app/band/flamenco-plan.js',
+    'app/band/baden-plan.js',
     'app/band/guitar-baroque-plan.js',
     'app/band/guitar-plan.js',
     'app/band/phrase-plan.js',

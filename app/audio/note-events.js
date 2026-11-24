@@ -153,12 +153,13 @@ function guitarNotes(env, e, time, beatSec) {
 function classicalGuitarNotes(env, e, time, beatSec) {
     const rand = randOf(env);
     const vel = e.vel * (0.95 + rand() * 0.10);
-    const dur0 = Math.max(0.12, e.dur * beatSec);
+    // e.mute : coup étouffé (« abafado » du violão brésilien) — la paume coupe les cordes presque aussitôt
+    const dur0 = e.mute ? Math.max(0.04, Math.min(0.09, e.dur * beatSec)) : Math.max(0.12, e.dur * beatSec);
     const dur = env.perfTier >= 2 ? Math.min(dur0, 1.8) : dur0; // machine lente : notes plus courtes, moins de voix à la fois
     const n = e.intervals.length;
     const roll = n > 1 ? (e.roll !== undefined ? e.roll : 0.016) : 0;
     const off = env.transOffset;
-    const release = Math.min(0.7, 0.2 + 0.18 * Math.min(2, dur)); // la corde s'éteint doucement
+    const release = e.mute ? 0.04 : Math.min(0.7, 0.2 + 0.18 * Math.min(2, dur)); // la corde s'éteint doucement
     return e.intervals.map((interval, idx) => {
         const order = e.dir < 0 ? (n - 1 - idx) : idx;
         const midi = 48 + interval + off;                           // hauteur réelle

@@ -17,7 +17,7 @@ function bandVoiceState() {
         _africaVoice: null, _africaLead: null, _africaKeys: null,   // voicing de la guitare rythmique et note de départ de la guitare solo (band/africa-plan.js)
         _pzState: null,
         _mnState: null,   // jazz manouche : voicing de la pompe, rôle de la phrase, ligne et note d'arrivée de la guitare solo (band/manouche-plan.js)
-        _gtrVoice: null,
+        _gtrVoice: null, _badenHold: null,
         _rockStrV: null, _rockPad: null, _rockGtrHold: null,   // cordes, nappes et accord de guitare tenu du Pop-Rock / Rock (band/rock-plan.js)
     };
 }

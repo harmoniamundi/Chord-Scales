@@ -32,6 +32,12 @@ if (typeof buildFlamencoPlan === 'undefined' && typeof require === 'function') {
     var { buildFlamencoPlan, flamencoPhraseExtras } = require('./flamenco-plan.js');
 }
 
+// Violão brésilien à la Baden Powell (band/baden-plan.js) : quand le rythme « g-baden » est imposé, la phrase porte `ph.baden`
+// et la mesure est écrite par buildBadenPlan (même guitare ; les outils de voicing de ce fichier lui sont passés en paramètre).
+if (typeof buildBadenPlan === 'undefined' && typeof require === 'function') {
+    var { buildBadenPlan, badenPhraseExtras } = require('./baden-plan.js');
+}
+
 // Jeu baroque (band/guitar-baroque-plan.js) : quand le style de grille Baroque impose son rythme (« c-baroque »), la phrase porte
 // `ph.gtrBaroque` et la mesure est écrite comme un prélude pour luth (basse au pouce, doubles-croches continues aux doigts).
 if (typeof buildGuitarBaroquePlan === 'undefined' && typeof require === 'function') {
@@ -278,6 +284,8 @@ function guitarPhraseExtras(ctx, rng, prev, index) {
     const base = guitarClassicalExtras(ctx, rng, prev, index);
     // Style de grille Baroque (ctx.groove = 'c-baroque') : champs du prélude baroque en plus
     if (ctx && ctx.groove === 'c-baroque') return Object.assign(base, guitarBaroqueExtras(ctx, rng, prev));
+    // Violão brésilien (ctx.groove = 'g-baden') : en mesure composée, la guitare garde son jeu classique
+    if (ctx && ctx.groove === 'g-baden') return Object.assign(base, badenPhraseExtras(ctx, rng, prev, index));
     // Rythme flamenco imposé par le style de grille (ctx.groove = 'f-solea', 'f-bulerias' ou 'f-tangos') : champs du toque flamenco en plus
     return ctx && ctx.groove ? Object.assign(base, flamencoPhraseExtras(ctx, rng, prev, index)) : base;
 }
@@ -314,6 +322,7 @@ const GTR_VEL = { B: 0.72, b: 0.58, f: 0.52, C: 0.72, c: 0.54, u: 0.46, P: 0.7, 
 
 function buildGuitarPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
     if (ph.flamenco) return buildFlamencoPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
+    if (ph.baden && !ternary) return buildBadenPlan(env, bpb, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m, { gtrVoice, GTR_BASE });
     if (ph.gtrBaroque) return buildGuitarBaroquePlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn);
     const rng = ph.rng;
     const I = ph.intensity;

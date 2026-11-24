@@ -47,6 +47,47 @@ function flamencoForm(t, palo) {
     return template;
 }
 
+// ============ Afro-samba (Baden Powell) ============
+// Joué par l'orchestre « Guitare » avec le rythme « g-baden » (violão brésilien, band/baden-plan.js), en 2/4.
+// Vocabulaire des afro-sambas et des sambas de Baden Powell et Vinicius de Moraes : vamp modal en mineur dorien i7 - IV7 (dans l'esprit
+// de « Canto de Ossanha »), longues pédales sur le i ou le IV (« Berimbau »), ligne chromatique descendante sur la tonique mineure
+// (i - i(maj7) - i7 - i6, comme dans « Samba em prelúdio »), partie B qui s'éclaire vers le relatif (iv7 - ♭VII7 - ♭IIImaj7) ou
+// glisse par ♭VI7 sur la dominante V7(b9), retour par iiø - V7(b9) ou par le triton ♭II7. Les accords durent deux mesures ou plus.
+// Forme de 32 mesures : A A' B A'', cellules de huit mesures.
+function afroSambaForm(t) {
+    const { pick, join, abs } = t;
+    const C = {
+        i7: [0, 'm7', 'dorian', 'tonic'], i9: [0, 'm9', 'dorian', 'tonic'], iT: [0, 'minTriad', 'dorian', 'tonic'],
+        iM7: [0, 'mmaj7', 'melodicMinor', 'tonic'], i6: [0, 'x:m:P:6:-', 'dorian', 'tonic'],
+        IV7: [5, '7', 'mixolydian', 'predominant'], IV9: [5, '9', 'mixolydian', 'predominant'], iv7: [5, 'm7', 'dorian', 'predominant'],
+        bVII7: [10, '7', 'mixolydian', 'secondaryDominant'], bIII: [3, 'maj7', 'ionian', 'color'], bVI: [8, 'maj7', 'lydian', 'predominant'],
+        bVI7: [8, '7', 'lydianDominant', 'predominant'], bII7: [1, '7', 'lydianDominant', 'dominant'],
+        iio: [2, 'm7b5', 'locrianSharp2', 'predominant'], V: [7, '7b9', 'phrygianDominant', 'dominant'], Vsus: [7, '7sus4', 'mixolydian', 'dominant']
+    };
+    const row = (spec, sec, phr) => spec.map(([nm, m]) => { const [off, c, sc, fn] = C[nm]; return abs(off, c, m, sc, sec, phr, fn); });
+    const A = [
+        [['i7', 2], ['IV7', 2], ['i7', 2], ['IV7', 2]],              // vamp dorien (Ossanha)
+        [['iT', 2], ['iM7', 2], ['i7', 2], ['i6', 2]],               // ligne chromatique descendante
+        [['i9', 2], ['IV9', 2], ['iio', 1], ['V', 1], ['i9', 2]],
+        [['i7', 4], ['IV7', 4]],                                     // longues pédales (Berimbau)
+        [['iT', 2], ['iM7', 2], ['i7', 2], ['IV7', 2]]
+    ];
+    const B = [
+        [['iv7', 2], ['bVII7', 2], ['bIII', 2], ['iio', 1], ['V', 1]],
+        [['iv7', 2], ['i7', 2], ['bVI7', 2], ['V', 2]],
+        [['bIII', 2], ['bVI', 2], ['iio', 2], ['V', 2]],
+        [['iv7', 2], ['bVII7', 2], ['bIII', 2], ['bVI7', 1], ['V', 1]],
+        [['bVI', 2], ['Vsus', 2], ['bVI', 2], ['V', 2]]
+    ];
+    const E = [
+        [['i7', 2], ['iv7', 2], ['bII7', 2], ['i9', 2]],
+        [['i7', 2], ['iio', 1], ['V', 1], ['i6', 4]],
+        [['iT', 2], ['iM7', 2], ['i7', 1], ['bII7', 1], ['i6', 2]],
+        [['i7', 2], ['IV7', 2], ['iio', 1], ['V', 1], ['i7', 2]]
+    ];
+    return join(row(pick(A), 'A', 'A1'), row(pick(A), 'A', 'A2'), row(pick(B), 'B', 'B1'), row(pick(E), 'A', 'A3'));
+}
+
 // ============ Jazz manouche ============
 // Joués par l'orchestre « Jazz manouche » (pompe, contrebasse, guitare solo, violon : band/manouche-plan.js). Le vocabulaire est celui
 // du répertoire de Django Reinhardt : tonique mineure en accord de sixte (Lam6, sur le mineur mélodique), iv6 (Rém6), dominante
@@ -1422,6 +1463,7 @@ const STYLE_BUILDERS = {
         template = join(A, twinOf(A,'A2'), B, A3);
         return template;
     },
+    afrosamba: afroSambaForm,
     tango: (t) => {
         const { pick, abs, join } = t;
         let template = [];

@@ -225,6 +225,7 @@
                             <optgroup label="Amérique Latine">
                                 <option value="bossa">Bossa Nova</option>
                                 <option value="samba">Samba (2/4)</option>
+                                <option value="afrosamba">Afro-samba (guitare, Baden Powell, 2/4)</option>
                                 <option value="cumbia">Cumbia colombienne (4/4)</option>
                                 <option value="tango">Tango à danser (2/4)</option>
                                 <option value="piazzolla">Piazzolla (nuevo tango)</option>
@@ -532,6 +533,7 @@
     <script src="app/band/classic-eras-plan.js"></script>
     <script src="app/band/classic-plan.js"></script>
     <script src="app/band/flamenco-plan.js"></script>
+    <script src="app/band/baden-plan.js"></script>
     <script src="app/band/guitar-baroque-plan.js"></script>
     <script src="app/band/guitar-plan.js"></script>
     <script src="app/band/phrase-plan.js"></script>
@@ -2770,10 +2772,11 @@
                 this.updateBandDensityUI();
                 this.updateBandInstrumentLabel();
                 // En « Classique » (piano seul) et en « Guitare » (guitare seule) : la basse et la batterie de l'orchestre ne servent pas.
-                // Exception : en Flamenco (orchestre Guitare + rythme d'un palo) le curseur « Percus. » règle cajón, palmas et pitos.
+                // Exception : en Flamenco (orchestre Guitare + rythme d'un palo) le curseur « Percus. » règle cajón, palmas et pitos ;
+                // avec le violão brésilien (Baden Powell), il règle l'agogô et le ganzá discrets.
                 // Jazz manouche : pas de batterie (la pompe tient le tempo).
                 const solo = this.bandStyle === 'classic' || this.bandStyle === 'guitar';
-                const flamPerc = this.bandStyle === 'guitar' && !!this._flamencoGroove();
+                const flamPerc = this.bandStyle === 'guitar' && (!!this._flamencoGroove() || this._badenGroove());
                 [['band-vol-bass', solo], ['band-vol-drums', (solo && !flamPerc) || this.bandStyle === 'manouche']].forEach(([id, off]) => {
                     const el = document.getElementById(id);
                     if (!el) return;
@@ -2925,6 +2928,11 @@
                 return (g && g.startsWith('f-')) ? g : null;
             }
 
+            // Violão brésilien à la Baden Powell imposé à l'orchestre Guitare (band/baden-plan.js)
+            _badenGroove() {
+                return this.getEffectiveGroove('guitar') === 'g-baden';
+            }
+
             // Choix dans le menu Orchestre (entrées décrites dans band/band-catalog.js, BAND_MENU).
             // Couple orchestre + rythme (« Rock : punk », « Cuba : salsa », « Flamenco : soleá », « Afrique : benga »,
             // « Milonga lyrique »…) : le rythme est imposé à la formation ; pour les entrées marquées « tempo », la signature et le
@@ -3033,7 +3041,7 @@
                 const eb = document.getElementById('band-vol-bass-label');
                 if (eb) eb.textContent = brass ? 'Tubas' : ((pz || mn) ? 'Contreb.' : 'Basse');
                 const ed = document.getElementById('band-vol-drums-label');
-                if (ed) ed.textContent = (brass || balkan || pz || (this.bandStyle === 'guitar' && !!this._flamencoGroove()) || (this.bandStyle === 'latin' && this.getEffectiveGroove('latin') === 'samba')) ? 'Percus.' : 'Batterie';
+                if (ed) ed.textContent = (brass || balkan || pz || (this.bandStyle === 'guitar' && (!!this._flamencoGroove() || this._badenGroove())) || (this.bandStyle === 'latin' && this.getEffectiveGroove('latin') === 'samba')) ? 'Percus.' : 'Batterie';
                 // curseurs propres au Tango nuevo (bandonéon, violon, guitare électrique)
                 ['bandoneon', 'violin', 'guitar'].forEach(k => {
                     const row = document.getElementById('band-row-pz-' + k);
@@ -3644,17 +3652,19 @@
                 // Guitare flamenca (style de grille Flamenco) : son plus sec, plus clair et plus incisif que le nylon classique
                 // (moins de grave, plus de mordant dans le médium-aigu et d'air), comme une guitare de cante.
                 const flam = solo && !!this._flamencoGroove();
+                // Violão brésilien (Baden Powell) : attaque franche des ongles, médium présent, un peu moins de grave que le nylon classique
+                const bdn = solo && this._badenGroove();
                 // Orchestre Cuba (son, guajira, guaguancó) : la guitare imite le tres, plus clair et plus mordant ; bolero : nylon chaleureux
                 const cg = this.bandStyle === 'cuba' ? this.getEffectiveGroove('cuba') : null;
                 const tres = cg === 'cu-son' || cg === 'cu-guajira' || cg === 'cu-guaguanco';
                 const set = (param, v) => { if (now) param.value = v; else param.setTargetAtTime(v, ctx.currentTime, 0.04); };
                 // Guitare de l'orchestre Brasil : timbre un peu plus ouvert qu'avant (elle sonnait feutrée), mais toujours plus rond que
                 // la guitare seule pour rester bien posée avec la basse et la batterie.
-                set(fx.body.gain, tres ? 1.2 : (flam ? 1 : (solo ? 2 : 3)));   // la guitare seule n'a pas besoin d'autant de corps dans le grave
-                set(fx.warm.gain, tres ? 0.5 : (flam ? 0 : (solo ? 1.5 : 2)));
-                set(fx.ping.gain, tres ? -1 : (flam ? -1.5 : (solo ? -3.5 : -3.5)));
-                set(fx.air.gain, tres ? -2.5 : (flam ? -1.5 : (solo ? -4.5 : -5.5)));
-                set(fx.lp.frequency, tres ? 9500 : (flam ? 10000 : (solo ? 8500 : 8000)));
+                set(fx.body.gain, tres ? 1.2 : (flam ? 1 : (bdn ? 1.6 : (solo ? 2 : 3))));   // la guitare seule n'a pas besoin d'autant de corps dans le grave
+                set(fx.warm.gain, tres ? 0.5 : (flam ? 0 : (bdn ? 1 : (solo ? 1.5 : 2))));
+                set(fx.ping.gain, tres ? -1 : (flam ? -1.5 : (bdn ? -2.2 : (solo ? -3.5 : -3.5))));
+                set(fx.air.gain, tres ? -2.5 : (flam ? -1.5 : (bdn ? -3 : (solo ? -4.5 : -5.5))));
+                set(fx.lp.frequency, tres ? 9500 : (flam ? 10000 : (bdn ? 9200 : (solo ? 8500 : 8000))));
             }
 
             loadGuitarLatin() {
@@ -4062,7 +4072,8 @@
                 if (!this._bandPhrase || this._bandPhrase.index !== phraseIndex || this._bandPhrase.style !== style || !!this._bandPhrase.cuba !== cuba
                     || (style === 'classic' && !!this._bandPhrase.baroque !== (this.getEffectiveGroove() === 'c-baroque'))
                     || (style === 'classic' && (this._bandPhrase.cEra || null) !== classicEraGroove(this.getEffectiveGroove()))
-                    || (style === 'guitar' && !!this._bandPhrase.gtrBaroque !== (this.getEffectiveGroove() === 'c-baroque'))) {
+                    || (style === 'guitar' && !!this._bandPhrase.gtrBaroque !== (this.getEffectiveGroove() === 'c-baroque'))
+                    || (style === 'guitar' && !!this._bandPhrase.baden !== (this.getEffectiveGroove() === 'g-baden' && !this.isTernary()))) {
                     this._bandPhrase = this.buildBandPhrase(phraseIndex, style);
                     this._bandPhrase.cuba = cuba;
                 }
@@ -4167,7 +4178,7 @@
             // ===================== Orchestration GUITARE : le calcul est dans band/guitar-plan.js =====================
             // Guitare classique seule : le pouce tient les basses, les doigts arpègent les cordes aiguës, les accords sont roulés.
             buildGuitarPlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
-                return this._bandRun(['gtrVoice'], env => buildGuitarPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat(), bpm: this._curBpm(), density: this.getBandDensity('guitar') });
+                return this._bandRun(['gtrVoice', 'badenHold'], env => buildGuitarPlan(env, bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat(), bpm: this._curBpm(), density: this.getBandDensity('guitar') });
             }
 
             // Une frappe de la guitare seule (pouce, doigts, accord roulé) sur les cordes de nylon. Sans guitare chargée, le piano prend le relais.
@@ -11257,7 +11268,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-22-a';
+        var BUILD = '2026-11-24-a';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }
@@ -11289,6 +11300,13 @@
                 'app/ui/chord-block.js': typeof ChordBlockView === 'function' && typeof hydrateChordBlocks === 'function' && typeof annotBlocksToClipText === 'function' && typeof CHB_ARP_ICON === 'string',
                 'app/ui/draw-block.js': typeof DrawBlockView === 'function' && typeof hydrateDrawBlocks === 'function' && typeof DrawBlockView.prototype._touchLock === 'function',
                 'app/ui/grid-view.js': typeof measureNoteTitle === 'function' && typeof printGridHtml === 'function' && typeof navPopSection === 'function' && typeof navRowBreak === 'function',
+                'app/band/baden-plan.js': typeof buildBadenPlan === 'function' && typeof BDN_FINGERS !== 'undefined' && BDN_FINGERS.length === 6,
+                'app/band/guitar-plan.js': typeof guitarPhraseExtras === 'function' && String(guitarPhraseExtras).indexOf('g-baden') >= 0,
+                'app/band/band-catalog.js': typeof BAND_MENU !== 'undefined' && JSON.stringify(BAND_MENU).indexOf('g-baden') >= 0,
+                'app/band/band-state.js': typeof bandVoiceState === 'function' && String(bandVoiceState).indexOf('_badenHold') >= 0,
+                'app/styles/style-registry.js': typeof STYLE_REGISTRY !== 'undefined' && !!STYLE_REGISTRY.afrosamba,
+                'app/styles/style-builders.js': typeof STYLE_BUILDERS !== 'undefined' && typeof STYLE_BUILDERS.afrosamba === 'function',
+                'app/audio/note-events.js': typeof classicalGuitarNotes === 'function' && String(classicalGuitarNotes).indexOf('e.mute') >= 0,
                 'app/ui/annot-bar.js': typeof ANNOT_FONT_DEFAULT_CSS !== 'undefined' && typeof annotToolsHtml === 'function' && typeof annotModeHtml === 'function' && typeof ANNOT_DELETE_ICON === 'string'
             };
             Object.keys(needed).forEach(function (f) { seen[f] = needed[f] ? BUILD : ''; });
