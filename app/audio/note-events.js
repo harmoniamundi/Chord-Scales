@@ -265,7 +265,9 @@ function accordionNotes(env, e, time, beatSec) {
     const n = e.intervals.length;
     const ivs = ((e.art === 'mel' || lin) && e.oct) ? e.intervals.concat(e.intervals.map(x => x - 12)) : e.intervals;
     const notes = [];
-    [-9, 9].forEach((cents, k) => {
+    // e.dry (accordéon norteño de l'orchestre Mexique) : deux anches presque accordées, la seconde plus discrète : son net, aéré
+    const reeds = e.dry ? [-3, 3] : [-9, 9];
+    reeds.forEach((cents, k) => {
         ivs.forEach((iv, idx) => {
             const noteStr = playNoteName(env.instrumentKey, e.rootIndex || 0, iv, OCT);
             const tilt = idx >= n ? 0.5 : ((n > 1 && idx === n - 1) ? 1.08 : ((e.art === 'mel' || lin) ? 1.1 : 0.94));   // la voix aiguë chante un peu plus
@@ -273,9 +275,9 @@ function accordionNotes(env, e, time, beatSec) {
             notes.push({
                 noteStr, when,
                 opts: {
-                    duration: dur, gain: base * tilt * 0.6,
+                    duration: dur, gain: base * tilt * 0.6 * (e.dry ? (k ? 0.55 : 1.15) : 1),
                     attack: grace ? 0.003 : (lin ? 0.01 : (run ? 0.006 : (soft ? 0.02 : 0.012))),
-                    release: grace ? 0.03 : (lin ? 0.085 : (run ? 0.05 : (soft ? 0.12 : 0.07))),
+                    release: e.dry ? (grace ? 0.025 : 0.045) : (grace ? 0.03 : (lin ? 0.085 : (run ? 0.05 : (soft ? 0.12 : 0.07)))),
                     cents: cents + (rand() - 0.5) * 3
                 }
             });

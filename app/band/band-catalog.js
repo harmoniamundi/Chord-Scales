@@ -40,7 +40,7 @@ const BAND_FORMATIONS = {
     piazzolla: { name: 'Tango nuevo', grooves: ['lyrique'] },
     africa:    { name: 'Highlife',    grooves: BC_AFRICA.AFRICA_GROOVES },  // sans rythme, l'orchestre Afrique joue le highlife
     manouche:  { name: 'Jazz manouche', grooves: [] },                      // pompe, contrebasse, guitare solo (band/manouche-plan.js)
-    mexico:    { name: 'Mexique',     grooves: ['mx-jarocho', 'mx-huapango', 'mx-polka', 'mx-bolero', 'mx-ranchera'] }      // band/mexico-plan.js (sans cuivres)
+    mexico:    { name: 'Mexique',     grooves: ['mx-jarocho', 'mx-huapango', 'mx-polka', 'mx-bolero', 'mx-ranchera', 'mx-mariachi'] }      // band/mexico-plan.js (sans cuivres)
 };
 
 // Nom affiché sur le bouton quand un rythme est imposé (sinon le nom de la formation). Un rythme absent garde le nom de la formation.
@@ -48,7 +48,7 @@ const BAND_GROOVE_NAMES = {
     pop: { 'r-roll': "Rock'n'roll", 'r-classic': 'Rock classique', 'r-hard': 'Hard rock', 'r-punk': 'Punk', 'r-ballad': 'Power ballad', 'r-blues': 'Blues rock', 'r-indie': 'Indie' },
     latin: { bossa: 'Bossa nova', samba: 'Samba', 'br-choro': 'Choro', 'br-partido': 'Partido alto', 'br-baiao': 'Baião', 'br-cancao': 'Samba-canção', 'br-sambajazz': 'Samba-jazz' },
     cuba: Object.assign({ salsa: 'Salsa' }, ...BC_AFRO.AFRO_GROOVES.map(g => ({ [g]: BC_AFRO.AFRO_STYLES[g].name }))),
-    mexico: { 'mx-jarocho': 'Son jarocho', 'mx-huapango': 'Huapango norteño', 'mx-polka': 'Polka norteña', 'mx-bolero': 'Bolero (trío)', 'mx-ranchera': 'Ranchera' },
+    mexico: { 'mx-jarocho': 'Son jarocho', 'mx-huapango': 'Huapango norteño', 'mx-polka': 'Polka norteña', 'mx-bolero': 'Bolero (trío)', 'mx-ranchera': 'Ranchera', 'mx-mariachi': 'Mariachi' },
     guitar: { 'f-solea': 'Flamenco', 'f-bulerias': 'Flamenco', 'f-tangos': 'Flamenco', 'g-baden': 'Violão (Baden Powell)' },
     piazzolla: { lyrique: 'Milonga lyrique' },
     africa: Object.assign({}, ...BC_AFRICA.AFRICA_GROOVES.map(g => ({ [g]: BC_AFRICA.AFRICA_NAMES[g] })))
@@ -79,6 +79,7 @@ const BAND_GROOVE_LABELS = {
     'mx-jarocho': 'Son jarocho (jaranas, requinto, zapateado, 6/8)', 'mx-huapango': 'Huapango norteño (accordéon, bajo sexto, 6/8)',
     'mx-polka': 'Polka norteña / corrido (accordéon, bajo sexto, 2/4)', 'mx-bolero': 'Bolero romántico (trío de guitares, 4/4)',
     'mx-ranchera': 'Ranchera (guitarrón, vihuela, guitares ; 3/4, 2/4 ou 4/4)',
+    'mx-mariachi': 'Mariachi sans cuivres (son jalisciense : guitare qui chante, vihuela, guitarrón, 6/8)',
     'c-baroque': 'Baroque',
     'c-renaissance': 'Renaissance (pavane, consort, luth)', 'c-chaconne': 'Basse obstinée (chaconne, folia)',
     'c-nocturne': 'Romantique : nocturne (Chopin)', 'c-romantic': 'Romantique tardif (Wagner, Franck)',
@@ -130,6 +131,7 @@ const BAND_MENU = [
     { value: 'polkanortena',     label: 'Mexique : polka norteña (2/4)', band: 'mexico', groove: 'mx-polka', tempo: true },
     { value: 'bolerotrio',       label: 'Mexique : bolero du trío (4/4)', band: 'mexico', groove: 'mx-bolero', tempo: true },
     { value: 'ranchera',         label: 'Mexique : ranchera (vals, 3/4)', band: 'mexico', groove: 'mx-ranchera', tempo: true },
+    { value: 'mariachi',         label: 'Mexique : mariachi sans cuivres (6/8)', band: 'mexico', groove: 'mx-mariachi', tempo: true },
     { value: 'classic',          label: 'Classique', band: 'classic' },
     { value: 'guitar',           label: 'Guitare', band: 'guitar' },
     { value: 'flamencosolea',    label: 'Flamenco : soleá (12 temps)', band: 'guitar', groove: 'f-solea', tempo: true },

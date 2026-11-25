@@ -27,7 +27,7 @@ const G7 = { rootIndex: 7, chordId: '7', scaleId: 'mixolydian' };
 const Am = { rootIndex: 9, chordId: 'm7', scaleId: 'aeolian' };
 const phrase = (seed, extra = {}) => ({ rng: seeded(seed), index: seed % 5, ...extra });
 // Mesures où chaque rythme se joue tel quel : [bpb, ternaire]
-const METERS = { 'mx-jarocho': [2, true], 'mx-huapango': [2, true], 'mx-polka': [2, false], 'mx-bolero': [4, false], 'mx-ranchera': [3, false] };
+const METERS = { 'mx-jarocho': [2, true], 'mx-huapango': [2, true], 'mx-polka': [2, false], 'mx-bolero': [4, false], 'mx-ranchera': [3, false], 'mx-mariachi': [2, true] };
 function plan(groove, { bpb, ternary, step = C, nextStep = G7, last = true, halves = null, seed = 1, i = 0, L = 4, isTurn = false, m = 0, env, ph } = {}) {
     const [b0, t0] = METERS[groove];
     const b = bpb || b0, t = ternary === undefined ? t0 : ternary;
@@ -52,6 +52,9 @@ describe('rythme joué selon la mesure', () => {
         assert.equal(X.mexicoGroove('', 4, false), 'mx-bolero');
         assert.equal(X.mexicoGroove(null, 3, false), 'mx-ranchera');
         assert.equal(X.mexicoGroove(null, 2, false), 'mx-ranchera');
+        assert.equal(X.mexicoGroove('mx-mariachi', 3, false), 'mx-mariachi');
+        assert.equal(X.mexicoGroove('mx-mariachi', 4, false), 'mx-bolero');
+        assert.equal(X.mexicoGroove('mx-mariachi', 2, false), 'mx-ranchera');
         // norteño reste norteño, guitares restent guitares
         for (const g of X.MEXICO_GROOVES) ALL_METERS.forEach(([b, t]) => assert.equal(!!X.MX_NORTENO[X.mexicoGroove(g, b, t)], !!X.MX_NORTENO[g], `${g} ${b} ${t}`));
     });
@@ -79,11 +82,11 @@ describe('les cinq rythmes : plans bien formés', () => {
             }
         }
     });
-    test('chaque percussion a un son (drumSpec) ; la ranchera n\'a pas de percussions', () => {
+    test('chaque percussion a un son (drumSpec) ; ranchera et mariachi n\'ont pas de percussions', () => {
         for (const g of X.MEXICO_GROOVES) for (let s = 1; s < 12; s++) {
             const out = plan(g, { seed: s, isTurn: true, i: 3 });
             out.drums.forEach(d => assert.ok(drumSpec(d), `${g} : ${d.drum}`));
-            if (g === 'mx-ranchera') assert.equal(out.drums.length, 0);
+            if (g === 'mx-ranchera' || g === 'mx-mariachi') assert.equal(out.drums.length, 0);
         }
     });
     test('aucun cuivre : seulement l\'accordéon (norteño) et les cordes pincées', () => {
@@ -139,7 +142,7 @@ describe('écriture de chaque rythme', () => {
             }
         }
         assert.ok(acc > 100, 'l\'accordéon chante');
-        assert.ok(thirds / acc > 0.3, `tierces : ${thirds}/${acc}`);
+        assert.ok(thirds / acc > 0.12 && thirds / acc < 0.45, `tierces : ${thirds}/${acc} (aéré : surtout des notes seules)`);
     });
     test('polka : grosse caisse sur les temps, caisse claire et bajo sexto sur les contretemps', () => {
         const out = plan('mx-polka', { seed: 5, last: false });
@@ -223,11 +226,11 @@ describe('catalogue et styles de grille', () => {
         assert.equal(bandNativeInstrument('mexico', null, 'bass'), 'upright');
         const sel = bandGrooveSelect('mexico', 'mx-huapango');
         assert.equal(sel.value, 'mx-huapango');
-        assert.equal(sel.options.length, 6);
+        assert.equal(sel.options.length, 7);
         assert.equal(bandGrooveAfterPlainChoice('mx-polka', 'mexico'), null);
     });
     test('chaque style mexicain : orchestre Mexique, son rythme, une entrée du menu Orchestre avec son tempo', () => {
-        const styles = { sonjarocho: 'mx-jarocho', huapango: 'mx-huapango', polkanortena: 'mx-polka', bolerotrio: 'mx-bolero', ranchera: 'mx-ranchera' };
+        const styles = { sonjarocho: 'mx-jarocho', huapango: 'mx-huapango', polkanortena: 'mx-polka', bolerotrio: 'mx-bolero', ranchera: 'mx-ranchera', mariachi: 'mx-mariachi' };
         Object.entries(styles).forEach(([k, g]) => {
             const e = STYLE_REGISTRY[k];
             assert.ok(e, k);
@@ -239,7 +242,7 @@ describe('catalogue et styles de grille', () => {
         });
     });
     test('grilles : longueur, triades et dominantes des styles populaires, accords connus, en majeur et en mineur', () => {
-        for (const k of ['sonjarocho', 'huapango', 'polkanortena', 'bolerotrio', 'ranchera']) for (const q of ['ionian', 'aeolian']) for (let s = 0; s < 12; s++) {
+        for (const k of ['sonjarocho', 'huapango', 'polkanortena', 'bolerotrio', 'ranchera', 'mariachi']) for (const q of ['ionian', 'aeolian']) for (let s = 0; s < 12; s++) {
             const R = s ? seeded(s * 13 + 1) : null;
             const tpl = buildStyleTemplate(k, { keyRoot: s % 12, mainQuality: q, R, findChordObj });
             const bars = tpl.reduce((a, x) => a + x.m, 0);
@@ -254,5 +257,102 @@ describe('catalogue et styles de grille', () => {
             // la grille commence sur la tonique et se termine sur la tonique (ou sa dominante, qui y ramène en boucle)
             assert.equal(tpl[0].r, s % 12, `${k} : départ sur la tonique`);
         }
+    });
+});
+
+// Seize mesures d'une grille qui tourne, état conservé d'une mesure à l'autre (comme dans le moteur)
+const GRID = [C, F, G7, C, Am, F, G7, C];
+function song(g, { seed = 1, bars = 16, density = 0.5, off = 0 } = {}) {
+    const [bpb, tern] = METERS[g];
+    const env = mkEnv({ transOffset: off, density, splitBeat: bpb === 3 ? 2 : bpb / 2 });
+    const out = [];
+    let ph = null;
+    for (let m = 0; m < bars; m++) {
+        const i = m % 4;
+        if (i === 0) ph = phrase(seed * 31 + m);
+        env.measureInStep = 0;
+        out.push(X.buildMexicoPlan(env, g, bpb, tern, GRID[m % 8], GRID[(m + 1) % 8], true, null, ph, i, 4, i === 3, m));
+    }
+    return { out, bpb };
+}
+const pcs = (cs) => findChordObj(cs.chordId).notes.slice(0, 4).map(x => (cs.rootIndex + x) % 12);
+
+describe('retouches : liant, détaché, consonance, adornos, mariachi', () => {
+    test('les doublures de la voix chantée sont des tierces ou des sixtes dont la note du bas est dans l\'accord', () => {
+        for (const g of X.MEXICO_GROOVES) for (let s = 1; s < 6; s++) {
+            const { out } = song(g, { seed: s });
+            out.forEach((o, m) => o.piano.forEach(e => {
+                if (e.intervals.length !== 2 || e.intervals[1] < 12) return;
+                const gap = e.intervals[1] - e.intervals[0];
+                if (e.inst === 'acc' && e.art === 'pad') return;
+                if ([3, 4, 8, 9].includes(gap) && e.intervals[1] >= X.MX_LEAD_STYLE[g].lo - 1) {
+                    const cs = e.pos >= 0 ? (o.piano === null ? null : GRID[m % 8]) : null;
+                    const anyCs = [GRID[m % 8], GRID[(m + 1) % 8]];
+                    assert.ok(anyCs.some(c => pcs(c).includes(((e.intervals[0] % 12) + 12) % 12)), `${g} m${m} : doublure ${e.intervals}`);
+                }
+            }));
+        }
+    });
+    test('accordéon norteño : anches « sèches » (son net) et notes détachées, pas de nappe', () => {
+        for (const g of ['mx-huapango', 'mx-polka']) {
+            const { out } = song(g, { seed: 3 });
+            const acc = out.flatMap(o => o.piano.filter(e => e.inst === 'acc'));
+            assert.ok(acc.length > 20);
+            assert.ok(acc.every(e => e.dry), `${g} : dry`);
+            assert.ok(!acc.some(e => e.art === 'pad'), `${g} : pas de nappe`);
+        }
+    });
+    test('son jarocho : registre moins aigu, voix chantée présente presque tout le temps, liant d\'une mesure à l\'autre', () => {
+        let ties = 0, bars = 0, maxN = -99;
+        for (let s = 1; s < 10; s++) {
+            const { out, bpb } = song('mx-jarocho', { seed: s });
+            out.forEach(o => {
+                const lead = o.piano.filter(e => e.intervals.length <= 2 && e.intervals[e.intervals.length - 1] >= 9 && !e.mute && e.roll <= 0.005);
+                if (lead.length) bars++;
+                lead.forEach(e => { maxN = Math.max(maxN, e.intervals[e.intervals.length - 1]); if (e.pos + e.dur > bpb + 0.1) ties++; });
+            });
+        }
+        assert.ok(maxN <= 28, `aigu : ${maxN}`);
+        assert.ok(bars / (9 * 16) > 0.7, `présence : ${bars}`);
+        assert.ok(ties > 8, `notes liées par-dessus la barre : ${ties}`);
+    });
+    test('ranchera : des adornos commencent en cours de mesure et passent la barre ; registres variés', () => {
+        let crossing = 0, midStart = 0;
+        const regs = new Set();
+        for (let s = 1; s < 12; s++) {
+            const { out, bpb } = song('mx-ranchera', { seed: s });
+            out.forEach((o, m) => {
+                const lead = o.piano.filter(e => e.intervals.length <= 2 && e.roll <= 0.005 && e.intervals[e.intervals.length - 1] >= 10);
+                if (!lead.length) return;
+                lead.forEach(e => regs.add(Math.floor((e.intervals[e.intervals.length - 1] + 2) / 6)));
+                if (lead[0].pos > 0.4) midStart++;
+                // une note jouée dans le premier temps alors que la mesure précédente finissait déjà par un adorno
+                const prev = out[m - 1];
+                if (prev && prev.piano.some(e => e.intervals.length <= 2 && e.roll <= 0.005 && e.pos >= bpb - 1.01 && e.intervals[0] >= 10)
+                    && lead.some(e => e.pos < 0.6)) crossing++;
+            });
+        }
+        assert.ok(midStart > 10, `adornos en cours de mesure : ${midStart}`);
+        assert.ok(crossing > 10, `passages de barre : ${crossing}`);
+        assert.ok(regs.size >= 3, `registres : ${[...regs]}`);
+    });
+    test('mariachi : la guitare chante en sixtes, la vihuela gratte avec apagones, le guitarrón alterne 6/8 et 3/4', () => {
+        let sixths = 0, lead = 0, mutes = 0, tresBars = 0, seisBars = 0;
+        for (let s = 1; s < 10; s++) {
+            const { out } = song('mx-mariachi', { seed: s });
+            out.forEach(o => {
+                o.piano.forEach(e => {
+                    if (e.mute) mutes++;
+                    if (e.roll <= 0.005 && e.intervals[e.intervals.length - 1] >= 10) { lead++; if (e.intervals.length === 2 && [8, 9].includes(e.intervals[1] - e.intervals[0])) sixths++; }
+                });
+                const bp = o.bass.map(b => +b.pos.toFixed(2));
+                if (bp.includes(0.67) && bp.includes(1.33)) tresBars++;
+                if (bp.includes(1) && !bp.includes(0.67)) seisBars++;
+            });
+        }
+        assert.ok(lead > 200, `guitare qui chante : ${lead}`);
+        assert.ok(sixths / lead > 0.2, `sixtes : ${sixths}/${lead}`);
+        assert.ok(mutes > 50, 'apagones');
+        assert.ok(tresBars > 20 && seisBars > 20, `hémiole : ${tresBars} / ${seisBars}`);
     });
 });

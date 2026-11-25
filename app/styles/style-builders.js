@@ -276,6 +276,31 @@ function sambaJazzForm(t) {
 // Son jarocho (6/8), 16 mesures : courts cycles I - IV - V7 qui tournent (deux accords par mesure, comme « La Bamba » ou
 // « El Siquisirí »), le V7 qui dure, une partie B qui insiste sur IV. En mode mineur (sones en menor : « La Llorona » jarocha) :
 // i - iv - V7, ♭VII - ♭III.
+// Son jalisciense du mariachi (6/8), 16 mesures (« El Son de la Negra », « Guadalajara ») : I et V7 qui alternent, souvent
+// deux accords par mesure, IV, la dominante de la dominante (II7) ; partie B par I7 vers IV. En mode mineur : i - iv - V7,
+// ♭VII - ♭III.
+function mariachiForm(t) {
+    const { pick, join, minorQuality } = t;
+    if (minorQuality) {
+        const row = brKitRow(t, {
+            i: [0, 'minTriad', 'aeolian', 'tonic'], iv: [5, 'minTriad', 'dorian', 'predominant'], V: [7, '7', 'phrygianDominant', 'dominant'],
+            VII: [10, 'majTriad', 'mixolydian', 'predominant'], III: [3, 'majTriad', 'ionian', 'tonic']
+        });
+        const Q = [ [['i', 2], ['V', 2]], [['i', 1, 'V'], ['i'], ['iv'], ['V']], [['i'], ['VII'], ['III'], ['V']] ];
+        const Rr = [ [['V', 2], ['i', 2]], [['iv'], ['V'], ['i', 2]], [['V', 1, 'i'], ['V', 1, 'i'], ['V'], ['i']] ];
+        const B = [ [['III', 2], ['VII'], ['V']], [['iv', 2], ['i'], ['V']] ];
+        return join(row(pick(Q), 'A', 'A1'), row(pick(Rr), 'A', 'A2'), row(pick(B), 'B', 'B1'), row(pick(Rr), 'B', 'B2'));
+    }
+    const row = brKitRow(t, {
+        I: [0, 'majTriad', 'ionian', 'tonic'], IV: [5, 'majTriad', 'lydian', 'predominant'], V: [7, '7', 'mixolydian', 'dominant'],
+        II7: [2, '7', 'mixolydian', 'secondaryDominant'], I7: [0, '7', 'mixolydian', 'secondaryDominant']
+    });
+    const Q = [ [['I', 1, 'V'], ['I', 1, 'V'], ['I'], ['V']], [['I', 2], ['V', 2]], [['I'], ['IV'], ['V', 2]], [['I', 2], ['II7'], ['V']] ];
+    const Rr = [ [['V', 1, 'I'], ['V', 1, 'I'], ['V'], ['I']], [['V', 2], ['I', 2]], [['IV'], ['V'], ['I', 2]], [['II7'], ['V'], ['V'], ['I']] ];
+    const B = [ [['I7'], ['IV', 2], ['V']], [['IV'], ['I'], ['II7'], ['V']], [['IV', 2], ['V', 2]] ];
+    return join(row(pick(Q), 'A', 'A1'), row(pick(Rr), 'A', 'A2'), row(pick(B), 'B', 'B1'), row(pick(Rr), 'B', 'B2'));
+}
+
 function sonJarochoForm(t) {
     const { pick, join, minorQuality } = t;
     if (minorQuality) {
@@ -1798,6 +1823,7 @@ const STYLE_BUILDERS = {
     polkanortena: polkaNortenaForm,
     bolerotrio: boleroTrioForm,
     ranchera: rancheraForm,
+    mariachi: mariachiForm,
     tango: (t) => {
         const { pick, abs, join } = t;
         let template = [];

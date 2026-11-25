@@ -11,6 +11,9 @@
 //   mx-ranchera  canción ranchera jouée par les cordes pincées du mariachi, sans trompettes ni violons : guitarrón (basse et ses
 //                bajeos), vihuela (rasgueo aigu et sec), guitare, requinto pour les adornos ; vals en 3/4, polka en 2/4, bolero
 //                ranchero en 4/4
+//   mx-mariachi  son jalisciense du mariachi, sans trompettes ni violons : la guitare chante (en sixtes et en tierces) à la place
+//                des cuivres, vihuela en rasgueo avec ses apagones, guitare, guitarrón en hémiole (une mesure en 6/8, la suivante
+//                en 3/4)
 // Chargé par index.html via <script src="app/band/mexico-plan.js"> (après band/brasil-plan.js) et testé par band/mexico-plan.test.js.
 //
 // Fonction pure : tout ce qui dépendait de JamEngine (`this`) passe par l'objet `env` :
@@ -37,7 +40,7 @@ if (typeof cumbiaVoicing === 'undefined' && typeof require === 'function') {
     var { cumbiaVoicing } = require('./cumbia-plan.js');
 }
 
-const MEXICO_GROOVES = ['mx-jarocho', 'mx-huapango', 'mx-polka', 'mx-bolero', 'mx-ranchera'];
+const MEXICO_GROOVES = ['mx-jarocho', 'mx-huapango', 'mx-polka', 'mx-bolero', 'mx-ranchera', 'mx-mariachi'];
 // Rythmes de l'ensemble norteño : l'accordéon chante, le bajo sexto accompagne, basse électrique et batterie
 const MX_NORTENO = { 'mx-huapango': true, 'mx-polka': true };
 
@@ -45,11 +48,13 @@ const MX_NORTENO = { 'mx-huapango': true, 'mx-polka': true };
 //   norteño : six croches (6/8, 3/4, 9/8, 12/8) → huapango ; 2/4, 4/4 → polka
 //   son jarocho : six croches → son ; 2/4 → ranchera (polka) ; 4/4 → bolero
 //   bolero : six croches → ranchera (vals) ; ranchera : toutes les mesures (vals, polka ou bolero ranchero)
+//   mariachi (son jalisciense) : six croches → son ; 4/4 → bolero ; 2/4 → ranchera
 //   aucun (Auto) : mesure composée → son jarocho ; 4/4 → bolero ; 3/4, 2/4 → ranchera
 function mexicoGroove(groove, bpb, ternary) {
     const three = !!ternary || bpb === 3;
     if (groove === 'mx-huapango' || groove === 'mx-polka') return three ? 'mx-huapango' : 'mx-polka';
     if (groove === 'mx-ranchera') return 'mx-ranchera';
+    if (groove === 'mx-mariachi') return three ? 'mx-mariachi' : (bpb === 4 ? 'mx-bolero' : 'mx-ranchera');
     if (groove === 'mx-jarocho') return three ? 'mx-jarocho' : (bpb === 4 ? 'mx-bolero' : 'mx-ranchera');
     if (groove === 'mx-bolero') return three ? 'mx-ranchera' : 'mx-bolero';
     if (ternary) return 'mx-jarocho';
@@ -124,11 +129,12 @@ const MX_RHYTHMS = {
 // Rôle de la voix chantée sur chaque quart de phrase : mel (mélodie), rest (silence : l'accompagnement seul), fill (mélodie,
 // dernier cycle en adorno vers la suite), adorno (silence, puis un adorno sur le dernier cycle).
 const MX_ROLES = {
-    'mx-jarocho':  [['mel', 'mel', 'rest', 'fill'], ['mel', 'mel', 'mel', 'fill'], ['rest', 'mel', 'mel', 'fill'], ['mel', 'rest', 'mel', 'mel']],
+    'mx-jarocho':  [['mel', 'mel', 'mel', 'fill'], ['mel', 'mel', 'mel', 'mel'], ['mel', 'fill', 'mel', 'fill'], ['rest', 'mel', 'mel', 'fill']],
     'mx-huapango': [['mel', 'mel', 'mel', 'fill'], ['mel', 'rest', 'mel', 'fill'], ['rest', 'mel', 'mel', 'fill'], ['mel', 'mel', 'rest', 'fill']],
     'mx-polka':    [['mel', 'mel', 'mel', 'fill'], ['mel', 'rest', 'mel', 'fill'], ['rest', 'mel', 'mel', 'fill'], ['mel', 'mel', 'adorno', 'fill']],
     'mx-bolero':   [['mel', 'mel', 'adorno', 'fill'], ['rest', 'adorno', 'mel', 'fill'], ['mel', 'adorno', 'rest', 'adorno'], ['adorno', 'mel', 'mel', 'fill']],
-    'mx-ranchera': [['rest', 'adorno', 'rest', 'adorno'], ['mel', 'adorno', 'rest', 'adorno'], ['rest', 'mel', 'adorno', 'fill'], ['adorno', 'rest', 'adorno', 'fill']]
+    'mx-ranchera': [['rest', 'adorno', 'rest', 'adorno'], ['mel', 'adorno', 'rest', 'adorno'], ['rest', 'mel', 'adorno', 'fill'], ['adorno', 'rest', 'adorno', 'fill']],
+    'mx-mariachi': [['mel', 'mel', 'mel', 'fill'], ['mel', 'adorno', 'mel', 'fill'], ['mel', 'mel', 'adorno', 'fill'], ['adorno', 'mel', 'mel', 'fill']]
 };
 
 // ---- Accompagnements ----
@@ -160,18 +166,41 @@ const MX_RANCHERA = {
     bolero: { bass: [0, 4], walk: [6, 7], v: [[2, 1, 0.64], [3, -1, 0.38], [6, 1, 0.62], [7, -1, 0.36]], g: [2, 6] }
 };
 
+// Mariachi (son jalisciense) : guitarrón [case, R | F | O, durée en cases, vélocité] et guitare (accords sur les appuis)
+const MX_MARIACHI = {
+    seis: { gn: [[0, 'R', 2.4, 0.9], [3, 'F', 2.2, 0.8]], g: [0, 3] },
+    tres: { gn: [[0, 'R', 1.8, 0.9], [2, 'O', 1.8, 0.78], [4, 'F', 1.8, 0.76]], g: [0, 2, 4] }
+};
+
 // Registres (hauteurs écrites relatives au do3 des instruments d'harmonie ; transOffset ramène aux hauteurs réelles)
 const MX_RANGES = {
-    jarana: { lo: 10, hi: 25, centre: 17, soft: 22 },
-    jarana2: { lo: 4, hi: 19, centre: 11, soft: 16 },
+    jarana: { lo: 8, hi: 22, centre: 15, soft: 19 },
+    jarana2: { lo: 3, hi: 17, centre: 10, soft: 14 },
     sexto: { lo: 0, hi: 14, centre: 7, soft: 11 },
     gtr: { lo: 2, hi: 17, centre: 9, soft: 14 },
     vihuela: { lo: 12, hi: 26, centre: 19, soft: 23 }
 };
-// Registre de la voix chantée (réel) : requinto jarocho, accordéon, requinto du trío et de la ranchera
-const MX_LEAD = { 'mx-jarocho': [14, 33], 'mx-huapango': [12, 29], 'mx-polka': [12, 29], 'mx-bolero': [12, 31], 'mx-ranchera': [14, 31] };
-// Doublure à la tierce inférieure (les mélodies norteñas et les requintos du trío chantent en tierces)
-const MX_THIRDS = { 'mx-jarocho': 0.12, 'mx-huapango': 0.6, 'mx-polka': 0.6, 'mx-bolero': 0.42, 'mx-ranchera': 0.5 };
+// Voix chantée de chaque rythme (requinto, accordéon, guitare du mariachi) :
+//   lo, hi    registre réel (do3 = 0)
+//   dbl       part des notes doublées en dessous, toujours par une note de l'accord (jamais de doublure dissonante) ;
+//             dblStep : 2 = tierce (norteño, trío), 5 = sixte (la guitare du mariachi chante surtout en sixtes)
+//   ct        part des mouvements qui sautent à la note de l'accord voisine (mélodies en arpèges de la polka) plutôt que
+//             d'avancer d'un degré
+//   art       articulation : durée tenue / durée écrite (1 = lié, 0,55 = détaché, net)
+//   tie       la dernière note d'un cycle se prolonge par-dessus la barre quand elle appartient à l'accord suivant (liant)
+//   spill     les adornos commencent en cours de mesure et passent la barre pour se poser sur l'accord suivant
+//   vary      les adornos changent de registre (grave, médium, aigu) au lieu de repartir de la note précédente
+//   dense     part des cycles où la voix prend un rythme fourni (quatre notes ou plus)
+//   dry       accordéon norteño : anches peu désaccordées (son net, aéré), sans nappe quand il se tait
+const MX_LEAD_STYLE = {
+    'mx-jarocho':  { lo: 11, hi: 28, dbl: 0.06, dblStep: 2, ct: 0.3, art: 0.8, tie: 0.35, spill: 0.55, vary: false, dense: 0.85 },
+    'mx-huapango': { lo: 12, hi: 28, dbl: 0.28, dblStep: 2, ct: 0.35, art: 0.62, tie: 0.25, spill: 0, vary: false, dense: 0.45, dry: true },
+    'mx-polka':    { lo: 12, hi: 28, dbl: 0.3, dblStep: 2, ct: 0.55, art: 0.55, tie: 0.12, spill: 0, vary: false, dense: 0.35, dry: true },
+    'mx-bolero':   { lo: 12, hi: 31, dbl: 0.42, dblStep: 2, ct: 0.25, art: 1, tie: 0.3, spill: 0, vary: false, dense: 0.3 },
+    'mx-ranchera': { lo: 10, hi: 33, dbl: 0.45, dblStep: 2, ct: 0.3, art: 1, tie: 0.2, spill: 0.75, vary: true, dense: 0.3 },
+    'mx-mariachi': { lo: 14, hi: 31, dbl: 0.6, dblStep: 5, ct: 0.35, art: 0.75, tie: 0.4, spill: 0.55, vary: true, dense: 0.45 }
+};
+const MX_LEAD = Object.fromEntries(Object.entries(MX_LEAD_STYLE).map(([g, o]) => [g, [o.lo, o.hi]]));
 
 const mxPick = (rng, opts) => {
     const tot = opts.reduce((a, o) => a + o[1], 0);
@@ -213,7 +242,12 @@ function mexicoPhraseExtras(groove, ph, rng) {
     } else if (groove === 'mx-ranchera') {
         out.walk = 0.45 + 0.35 * I;                          // bajeos du guitarrón aux changements d'accord
         out.vihUp = I > 0.4;                                 // coups remontés de la vihuela
+    } else if (groove === 'mx-mariachi') {
+        out.walk = 0.4 + 0.35 * I;
+        out.both = rng() < 0.25;                             // parfois deux mesures de suite en 3/4 au lieu de l'alternance
+        out.apagon = 0.35 + 0.4 * I;                         // apagones de la vihuela
     }
+    if (MX_LEAD_STYLE[groove].dry) { out.pad = false; out.orn *= 0.5; }
     return out;
 }
 
@@ -258,13 +292,19 @@ function mxLine(env, csOf, target, from, rhythm, contour, rng, land, o) {
         else if (contour === 'valley') dir = idx < N / 2 ? -1 : 1;
         else if (contour === 'neighbor') dir = [1, -1, -1, 1][idx % 4];
         else dir = idx % 3 === 2 ? -1 : 0;
+        // la ligne revient vers le milieu de son registre (elle ne s'installe pas dans le grave ni dans l'aigu)
+        const q = (HI - LO) * 0.28;
+        if (n < LO + q && dir <= 0 && rng() < 0.75) dir = 1;
+        else if (n > HI - q && dir >= 0 && rng() < 0.75) dir = -1;
         // la ligne ne s'écrase pas sur les bords du registre : elle repart dans l'autre sens
         if (dir > 0 && n >= HI - 2) dir = -1;
         if (dir < 0 && n <= LO + 2) dir = 1;
         if (idx > 0 || !Number.isFinite(from)) {
             if (dir !== 0) {
-                const leap = rng() < 0.2 ? 2 : 1;
-                const nx = mxScaleStep(c, n, dir * leap);
+                // saut à la note de l'accord voisine (arpège), ou pas conjoint (parfois une tierce)
+                let nx = null;
+                if (o.ct && rng() < o.ct) for (let d = 1; d <= 7 && nx === null; d++) { const x = n + dir * d; if (isCT(c, x)) nx = x; }
+                if (nx === null) nx = mxScaleStep(c, n, dir * (rng() < 0.2 ? 2 : 1));
                 n = (nx !== null && nx >= LO && nx <= HI) ? nx : (mxScaleStep(c, n, -dir) ?? n);
             }
         } else if (dir !== 0) {
@@ -417,6 +457,7 @@ function buildMexicoPlan(env, groove0, bpb, ternary, step, nextStep, isLastMeasu
             if (o.mute) e.mute = true;
         }
         if (o.gain && o.gain !== 1) e.gainMul = o.gain;
+        if (o.dry && inst === 'acc') e.dry = true;   // accordéon norteño : anches peu désaccordées (voir accordionNotes)
         harm.push(e);
     };
     const bass = [];
@@ -454,10 +495,14 @@ function buildMexicoPlan(env, groove0, bpb, ternary, step, nextStep, isLastMeasu
         return T.root;
     };
 
-    // ======================= VOIX CHANTÉE (requinto ou accordéon) =======================
+    // ======================= VOIX CHANTÉE (requinto, accordéon, guitare du mariachi) =======================
     const units = L * unitsPerBar;
     const leadAcc = !!MX_NORTENO[groove];
-    const [loL, hiL] = MX_LEAD[groove];
+    const LS = MX_LEAD_STYLE[groove];
+    const loL = LS.lo, hiL = LS.hi;
+    const pcsOf = (c) => env.findChordObj(c.chordId).notes.slice(0, 4).map(x => (((c.rootIndex + x) % 12) + 12) % 12);
+    const isCT = (c, n) => !!c && pcsOf(c).includes(((n % 12) + 12) % 12);
+    const afterBar = changeNext ? nextStep : lastSeg.cs;   // accord qui suit la barre
     const roleOf = (u) => {
         let r = mx.roles[Math.floor(u * 4 / Math.max(1, units))] || 'mel';
         const q = Math.floor(u * 4 / Math.max(1, units));
@@ -476,7 +521,9 @@ function buildMexicoPlan(env, groove0, bpb, ternary, step, nextStep, isLastMeasu
         const role = roleOf(u);
         const tab = MX_RHYTHMS[fam];
         const end = u === units - 1 && role !== 'fill';
-        const pool = role === 'fill' ? tab.fill : (end ? tab.end : tab.mel);
+        let pool = role === 'fill' ? tab.fill : (end ? tab.end : tab.mel);
+        // rythme fourni (quatre notes ou plus) : la voix « puntea » davantage
+        if (pool === tab.mel && rng() < LS.dense) pool = tab.mel.filter(r => r.length >= 4);
         let idx = Math.floor(rng() * pool.length);
         const prev = mx.rh[u - 1];
         if (prev && prev.pool === pool && prev.idx === idx && pool.length > 1) idx = (idx + 1 + Math.floor(rng() * (pool.length - 1))) % pool.length;
@@ -485,7 +532,72 @@ function buildMexicoPlan(env, groove0, bpb, ternary, step, nextStep, isLastMeasu
         mx.rh[u] = { pool, idx, rhythm, role };
         return mx.rh[u];
     };
-    const thirdsP = MX_THIRDS[groove];
+    // une note (ou deux) de la voix chantée ; la doublure inférieure (tierce, ou sixte pour le mariachi) est toujours une note de
+    // l'accord, jamais une seconde ou une note étrangère
+    const leadNote = (p, n, d, cs, isStrong, vel, o = {}) => {
+        const notes = [n];
+        if (rng() < Math.min(0.9, LS.dbl * (isStrong ? 1 : 0.65) * (o.fill ? 1.3 : 1))) {
+            const lo = mxScaleStep(cs, n, -LS.dblStep);
+            const gap = lo === null ? 0 : n - lo;
+            const okGap = LS.dblStep === 5 ? (gap === 8 || gap === 9) : (gap === 3 || gap === 4);
+            if (lo !== null && okGap && isCT(cs, lo) && lo + off >= loL - 9) notes.unshift(lo);
+        }
+        if (leadAcc) {
+            pushH(p, Math.max(0.08, d * LS.art), notes, vel, { inst: 'acc', art: o.run ? 'run' : 'lin', free: !!o.free, dry: !!LS.dry });
+        } else {
+            // cordes pincées : détachées (jarocho, mariachi) ou un peu plus liées (trío, ranchera)
+            const ring = o.free ? d * 0.95 : groove === 'mx-jarocho' ? Math.min(d * LS.art, slot * 1.3)
+                : Math.min(d * LS.art + (LS.art >= 1 ? slot * 0.3 : 0), slot * 3.5);
+            pushH(p, Math.max(0.08, ring), notes, vel + 0.04, { dir: 1, roll: 0.004, gain: groove === 'mx-jarocho' ? 1.05 : 1, free: !!o.free });
+        }
+    };
+    // ---- ce que la mesure précédente a laissé passer la barre : fin d'un adorno, note liée ----
+    let busyUntil = -1;   // en cases depuis le début de la mesure
+    if (st.spill && st.spill.length) {
+        st.spill.forEach(sp => {
+            const p = sp.k * slot;
+            if (p < bpb) leadNote(p, sp.n, sp.d * slot, csAt(p), strong(sp.k), sp.vel);
+            busyUntil = Math.max(busyUntil, sp.k + sp.d);
+        });
+        st.lanes.mel = { n: st.spill[st.spill.length - 1].n };
+    }
+    st.spill = null;
+    if (st.tie) busyUntil = Math.max(busyUntil, st.tie);
+    st.tie = 0;
+    // ---- adorno : quelques notes qui commencent en cours de mesure et, souvent, passent la barre pour se poser sur l'accord
+    // suivant (au 1 ou juste après) ; registre changeant (LS.vary) ----
+    const makeAdorno = (c0k, avail, lastUnit) => {
+        const sp = (lastUnit && rng() < LS.spill) ? 1 + (rng() < 0.45 ? 1 : 0) : 0;
+        const stp = rng() < 0.3 ? 0.5 : 1;
+        const nIn = 2 + Math.floor(rng() * 3);
+        const cells = [];
+        if (sp) {
+            const k0 = Math.max(0, avail - nIn * stp);
+            for (let k = k0; k < avail - 1e-6; k += stp) cells.push([k, stp]);
+            for (let j = 0; j < sp; j++) cells.push([avail + j * stp, j === sp - 1 ? 2 : stp]);
+        } else {
+            const room = avail - nIn * stp - 1;
+            const kS = Math.max(0, room > 1 ? 1 + Math.floor(rng() * room) : 0);
+            for (let j = 0; j < nIn; j++) cells.push([kS + j * stp, stp]);
+            const lastK = kS + nIn * stp;
+            if (lastK < avail - 1e-6) cells.push([lastK, avail - lastK]);
+        }
+        if (cells.length < 2) return;
+        const csOf = (k) => k < avail - 1e-6 ? csAt(P(c0k + k)) : afterBar;
+        const contour = mxPick(rng, [['down', 2], ['up', 1.6], ['arch', 1.4], ['valley', 1]]);
+        let from = st.lanes.mel ? st.lanes.mel.n : null;
+        if (LS.vary || from === null) from = Math.round(loL + (hiL - loL) * mxPick(rng, [[0.25, 1], [0.5, 1.2], [0.78, 1]])) - off;
+        const line = mxLine(env, csOf, sp ? afterBar : csOf(cells[cells.length - 1][0]), from, cells, contour, rng, true, { slot, strong, lo: loL, hi: hiL, ct: LS.ct });
+        const spill = [];
+        line.forEach((nt, j) => {
+            const vel = 0.54 + 0.12 * j / Math.max(1, line.length - 1);
+            if (nt.k < avail - 1e-6) {
+                if (c0k + nt.k >= busyUntil - 1e-6) leadNote(P(c0k) + nt.p, nt.n, nt.d, csOf(nt.k), strong(nt.k), vel, { fill: true, run: true });
+            } else spill.push({ k: nt.k - avail, n: nt.n, d: nt.d / slot, vel: vel + 0.04 });
+        });
+        if (spill.length) st.spill = spill;
+        if (line.length) st.lanes.mel = { n: line[line.length - 1].n };
+    };
     for (let c = 0; c < unitsPerBar; c++) {
         const u = i * unitsPerBar + c;
         const c0k = c * cyc;
@@ -504,38 +616,37 @@ function buildMexicoPlan(env, groove0, bpb, ternary, step, nextStep, isLastMeasu
             }
             continue;
         }
+        if (role === 'fill' && !leadAcc && LS.spill > 0) { makeAdorno(c0k, avail, lastUnit); continue; }
         const R0 = rhythmFor(u, avail);
-        if (!R0.rhythm.length) continue;
+        const rhythm = R0.rhythm.filter(([k]) => c0k + k >= busyUntil - 1e-6);
+        if (!rhythm.length) continue;
         const fill = R0.role === 'fill';
         const contour = fill ? (rng() < 0.6 ? 'down' : 'up') : mx.contours[u % mx.contours.length];
         const from = st.lanes.mel ? st.lanes.mel.n : null;
         const csK = (k) => csAt(P(c0k + k));
         const target = toNext || (phraseEnd ? csK(avail - 1) : null);
-        const line = mxLine(env, csK, target, from, R0.rhythm, contour, rng, phraseEnd || !!toNext, { slot, strong, lo: loL, hi: hiL });
+        const line = mxLine(env, csK, target, from, rhythm, contour, rng, phraseEnd || !!toNext, { slot, strong, lo: loL, hi: hiL, ct: LS.ct });
         line.forEach((nt, k) => {
             const p = P(c0k) + nt.p;
             const isStrong = strong(nt.k);
-            const notes = [nt.n];
-            const tp = fill ? Math.min(0.85, thirdsP + 0.2) : thirdsP;
-            if (rng() < tp * (isStrong ? 1 : 0.65)) {
-                const lo = mxScaleStep(csK(nt.k), nt.n, -2);
-                if (lo !== null) notes.unshift(lo);
-            }
             const last = k === line.length - 1;
             const vel = (isStrong ? 0.66 : 0.56) + (nt.peak ? 0.06 : 0) + (last && phraseEnd ? 0.04 : 0);
             // petite note d'ornement juste avant une note longue (la note du dessus)
             if (isStrong && nt.d >= 2 * slot && p >= 0.08 && rng() < mx.orn) {
                 const up = mxScaleStep(csK(nt.k), nt.n, 1);
-                if (up !== null) pushH(p - 0.06, 0.07, [up], 0.4, leadAcc ? { inst: 'acc', art: 'orn', free: true } : { free: true, gain: 0.9 });
+                if (up !== null && up + off <= hiL) pushH(p - 0.06, 0.07, [up], 0.4, leadAcc ? { inst: 'acc', art: 'orn', free: true, dry: !!LS.dry } : { free: true, gain: 0.9 });
             }
-            if (leadAcc) {
-                const d = last ? Math.max(0.1, nt.d) : nt.d;
-                pushH(p, d, notes, vel, { inst: 'acc', art: fill && nt.d < 1.2 * slot ? 'run' : 'lin', free: last && !toNext });
-            } else {
-                // requinto : cordes pincées au médiator (jarocho : notes vives) ou aux doigts (trío, ranchera : un peu plus liées)
-                const ring = groove === 'mx-jarocho' ? Math.min(nt.d, slot * 1.4) : Math.min(nt.d + slot * 0.4, slot * 3.5);
-                pushH(p, Math.max(0.09, ring), notes, vel + 0.04, { dir: 1, roll: 0.004, gain: groove === 'mx-jarocho' ? 1.05 : 1 });
+            let d = nt.d, free = false;
+            // liant : la dernière note du cycle, si elle va jusqu'au bout et appartient à l'accord qui suit, passe la barre
+            if (last && Math.abs((nt.p + nt.d - 0.03) - avail * slot) < 0.02 && rng() < LS.tie) {
+                const nextCs = lastUnit ? afterBar : csK(avail);
+                if (isCT(nextCs, nt.n)) {
+                    const extra = fam === 'P' ? 2 : (rng() < 0.5 ? 1 : 2);
+                    d += extra * slot; free = true;
+                    if (lastUnit) st.tie = extra; else busyUntil = c0k + avail + extra;
+                }
             }
+            leadNote(p, nt.n, d, csK(nt.k), isStrong, vel, { fill, run: fill && nt.d < 1.2 * slot, free: free || (leadAcc && last && !toNext) });
         });
         if (line.length) st.lanes.mel = { n: line[line.length - 1].n };
     }
@@ -767,6 +878,51 @@ function buildMexicoPlan(env, groove0, bpb, ternary, step, nextStep, isLastMeasu
         }
     }
 
+    // ======================= MARIACHI (son jalisciense, sans trompettes ni violons) =======================
+    if (groove === 'mx-mariachi') {
+        const mis = Number.isInteger(env.measureInStep) ? env.measureInStep : 0;
+        // bajeo du guitarrón sur les deux dernières croches vers l'accord suivant
+        let walkFrom = 99;
+        if (changeNext && rng() < (isTurn ? Math.min(0.95, mx.walk + 0.25) : mx.walk) && !(halves && bpb - 2 * slot <= splitAt + 1e-6)) {
+            const notes = mxWalk(env, lastSeg.cs, nextStep, 2, rng);
+            if (notes.length) {
+                walkFrom = bpb - 2 * slot;
+                notes.forEach((n, j) => pushB(walkFrom + j * slot, n, slot * 0.95, 0.74 + 0.05 * j, 1.1));
+            }
+        }
+        for (let c = 0; c < unitsPerBar; c++) {
+            const c0k = c * cyc;
+            const avail = Math.min(cyc, nS - c0k);
+            // sesquiáltera : une mesure en 6/8, la suivante en 3/4 (parfois deux en 3/4)
+            const tres = mx.both ? ((m * unitsPerBar + c) % 3 !== 0) : ((m * unitsPerBar + c + (mx.flip ? 1 : 0)) % 2 === 1);
+            const pat = MX_MARIACHI[tres ? 'tres' : 'seis'];
+            pat.gn.forEach(([k, tok, d, v]) => {
+                if (k >= avail) return;
+                const p = P(c0k + k);
+                if (p >= walkFrom - 1e-6) return;
+                const sg = segAt(p);
+                const T = bassOf(sg.cs);
+                const first = Math.abs(sg.s - p) < 1e-6;
+                let abs = first ? T.root : (tok === 'F' ? T.fifth : tok === 'O' ? T.octave : T.root);
+                if (k === 0 && mis % 2 === 1 && !halves && !tres) abs = T.fifth;   // même accord, deuxième mesure : la quinte
+                pushB(p, abs, slot * d, v, 1.1);
+            });
+            // vihuela : rasgueo sur toutes les croches, apagones (coups étouffés) sur les temps faibles
+            const fig = tres ? (rng() < mx.apagon ? 'tresap' : 'tres') : (rng() < mx.apagon ? 'apagon' : 'seis');
+            MX_JARANA[fig].forEach(([k, dir, v, mute]) => {
+                if (k >= avail) return;
+                const p = P(c0k + k);
+                pushH(p, mute ? 0.06 : slot * (dir > 0 ? 1.3 : 0.9), vihOf(csAt(p)), v * 0.92, { dir, roll: dir > 0 ? 0.01 : 0.007, mute: !!mute, gain: 0.8 });
+            });
+            // guitare : les accords sur les appuis
+            pat.g.forEach(k => {
+                if (k >= avail) return;
+                const p = P(c0k + k);
+                pushH(p, slot * 1.7, topN(csAt(p), gtrOf(csAt(p)), 3), 0.5, { dir: 1, roll: 0.018, gain: 0.78, lay: 0.006 });
+            });
+        }
+    }
+
     harm.sort((a, b) => a.pos - b.pos);
     // basse : durées bornées par la note suivante
     bass.sort((a, b) => a.pos - b.pos);
@@ -786,6 +942,6 @@ function buildMexicoPlan(env, groove0, bpb, ternary, step, nextStep, isLastMeasu
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { MEXICO_GROOVES, MX_NORTENO, MX_RHYTHMS, MX_ROLES, MX_JARANA, MX_JARANA_SEQ, MX_SEXTO_T, MX_BOLERO_GTR, MX_RANCHERA,
+    module.exports = { MEXICO_GROOVES, MX_NORTENO, MX_LEAD_STYLE, MX_MARIACHI, MX_RHYTHMS, MX_ROLES, MX_JARANA, MX_JARANA_SEQ, MX_SEXTO_T, MX_BOLERO_GTR, MX_RANCHERA,
         mexicoGroove, mxGrid, mexicoPhraseExtras, mxScaleStep, mxLine, mxDensify, mxWalk, buildMexicoPlan };
 }

@@ -134,6 +134,7 @@ const STYLE_REGISTRY = {
     polkanortena: { band: 'mexico', groove: 'mx-polka', bpm: 132, meter: '2/4', scales: 'classic', key: 0, bars: 32, gen: 'none' },
     bolerotrio: { band: 'mexico', groove: 'mx-bolero', bpm: 80, meter: '4/4', scales: 'jazz', bars: 32, gen: 'light' },
     ranchera: { band: 'mexico', groove: 'mx-ranchera', bpm: 168, meter: '3/4', scales: 'classic', key: 7, bars: 32, gen: 'none' },
+    mariachi: { band: 'mexico', groove: 'mx-mariachi', bpm: 112, meter: '6/8', scales: 'classic', key: 2, gen: 'none' },
     // —— Afrique ——
     afrobeat: { band: 'africa', groove: 'af-afrobeat', bpm: 112, meter: '4/4', scales: 'classic', key: 2, gen: 'none' },
     highlife: { band: 'africa', groove: 'af-highlife', bpm: 120, meter: '4/4', scales: 'classic', key: 5, gen: 'none' },

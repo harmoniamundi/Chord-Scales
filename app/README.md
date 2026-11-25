@@ -255,7 +255,7 @@ Deux styles de grille : **Jazz manouche (swing gitan)** dans le groupe « Jazz �
 
 ## 5 sexies. Les styles mexicains (orchestre Mexique, sans cuivres)
 
-Cinq styles de grille du groupe « Mexique » du jukebox (formes dans `styles/style-builders.js` : `sonJarochoForm`, `huapangoForm`, `polkaNortenaForm`, `boleroTrioForm`, `rancheraForm`) proposent l'orchestre **Mexique** (`band/mexico-plan.js`, entrée factice `BAND_PATTERNS.mexico`), qui se choisit aussi dans la liste « Formation » pour n'importe quelle grille. Aucun cuivre : ni les trompettes du mariachi, ni la banda.
+Six styles de grille du groupe « Mexique » du jukebox (formes dans `styles/style-builders.js` : `sonJarochoForm`, `huapangoForm`, `polkaNortenaForm`, `boleroTrioForm`, `rancheraForm`, `mariachiForm`) proposent l'orchestre **Mexique** (`band/mexico-plan.js`, entrée factice `BAND_PATTERNS.mexico`), qui se choisit aussi dans la liste « Formation » pour n'importe quelle grille. Aucun cuivre : ni les trompettes du mariachi, ni la banda.
 
 | Style de grille | Rythme | Formation | Signature, tempo, tonalité |
 |---|---|---|---|
@@ -264,6 +264,7 @@ Cinq styles de grille du groupe « Mexique » du jukebox (formes dans `styles/st
 | `polkanortena` : polka norteña / corrido | `mx-polka` | accordéon, bajo sexto, basse électrique, batterie | 2/4, 132, do (32 mesures, trío à la sous-dominante) |
 | `bolerotrio` : bolero romántico | `mx-bolero` | requinto, deux guitares, guitarrón, maracas, bongó | 4/4, 80 (32 mesures AABA) |
 | `ranchera` : canción ranchera | `mx-ranchera` | guitarrón, vihuela, guitare, requinto | 3/4, 168, sol (32 mesures) |
+| `mariachi` : son jalisciense | `mx-mariachi` | guitare qui chante (sixtes, tierces) à la place des cuivres, vihuela, guitare, guitarrón | 6/8, 112, ré |
 
 - **Le rythme suit la mesure** (`mexicoGroove`) : chaque rythme garde sa formation. Norteño : six croches (6/8, 3/4, 9/8, 12/8) → huapango, 2/4 ou 4/4 → polka. Son jarocho : six croches → son, 4/4 → bolero, 2/4 → ranchera. Bolero en six croches → ranchera (vals). La ranchera joue partout : vals (3/4, 6/8), polka ranchera (2/4), bolero ranchero (4/4). « Auto » : mesure composée → son jarocho, 4/4 → bolero, 3/4 et 2/4 → ranchera.
 - **Écriture en cases** : une croche en six croches (cycle de 6, coupé 3 + 3 ou 2 + 2 + 2 : la **sesquiáltera**), une double croche en polka (cycle d'une mesure de 2/4), une croche en bolero et ranchera binaire (cycle d'une mesure de 4/4).
@@ -271,7 +272,8 @@ Cinq styles de grille du groupe « Mexique » du jukebox (formes dans `styles/st
 - **Norteño** : accordéon qui chante en tierces (art `lin`, adornos en `run`, ornements `orn`, nappe `pad` quand il se tait) ; bajo sexto (basse sur les appuis et accords en rasgueo dans le huapango, « tchac » sur les contretemps de la polka) et ses **bajeos** (notes conjointes vers la basse de l'accord suivant, `mxWalk`) ; basse électrique tónica - quinta ; batterie légère (polka : grosse caisse sur les temps, caisse claire sur les contretemps).
 - **Bolero** : guitares en pouce + accords (`clasico`), arpèges ou rasgueo (`MX_BOLERO_GTR`) ; requinto en tierces avec ses triolets au tour de phrase ; guitarrón discret ; maracas en croches et bongó très doux après l'introduction.
 - **Ranchera** : guitarrón sur le 1 (fondamentale, puis quinte à la mesure suivante du même accord), bajeos vers l'accord suivant ; vihuela sèche et aiguë et guitare sur les temps faibles (`MX_RANCHERA`) ; requinto pour les adornos ; pas de percussions (curseur grisé).
-- **Voix chantée** (requinto, ou accordéon en norteño) : rôles par quart de phrase (`MX_ROLES` : mélodie, silence, adorno), rythmes par famille (`MX_RHYTHMS`), ligne conjointe posée sur les notes de l'accord aux appuis (`mxLine`). Le curseur **Densité** (50 % = l'écriture d'origine) la fait se taire plus souvent ou chanter davantage (`mxDensify`).
+- **Mariachi** (sans trompettes ni violons) : une mesure en 6/8, la suivante en 3/4 (guitarrón `MX_MARIACHI`), vihuela en rasgueo avec apagones, guitare sur les appuis, bajeos du guitarrón ; la guitare chante en sixtes ; pas de percussions.
+- **Voix chantée** (requinto, accordéon, guitare du mariachi) : rôles par quart de phrase (`MX_ROLES` : mélodie, silence, adorno), rythmes par famille (`MX_RHYTHMS`), ligne posée sur les notes de l'accord aux appuis et ramenée vers le milieu de son registre (`mxLine`). Profil de chaque rythme dans `MX_LEAD_STYLE` : registre, doublure (toujours une note de l'accord : tierce, ou sixte au mariachi), sauts d'arpège, articulation (détaché), liant (la dernière note passe la barre si elle appartient à l'accord suivant : `st.tie`), adornos qui commencent en cours de mesure et passent la barre (`makeAdorno`, `st.spill`), registre changeant, accordéon « sec » (`e.dry` : deux anches presque accordées, voir `accordionNotes`). Le curseur **Densité** (50 % = l'écriture d'origine) la fait se taire plus souvent ou chanter davantage (`mxDensify`).
 - Moteur : `buildMexicoPlan` (mémoire `_mxState`), `playMexicoHit` aiguille `e.inst` : `acc` → accordéon, `gtr` → guitare nylon (bus réglé clair, comme le violão du choro). Curseurs : « Accordéon » ou « Guitares », « Basse », « Leona » ou « Guitarrón », « Batterie » ou « Percus. ».
 
 ## 6. Mode hors ligne (service worker)

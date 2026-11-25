@@ -252,6 +252,7 @@
                                 <option value="polkanortena">Polka norteña / corrido (2/4)</option>
                                 <option value="bolerotrio">Bolero romántico (trío, 4/4)</option>
                                 <option value="ranchera">Canción ranchera (vals, 3/4)</option>
+                                <option value="mariachi">Mariachi sans cuivres (son jalisciense, 6/8)</option>
                             </optgroup>
                             <optgroup label="Afrique">
                                 <option value="afrobeat">Afrobeat (Nigeria)</option>
@@ -2794,8 +2795,8 @@
                 // Jazz manouche : pas de batterie (la pompe tient le tempo).
                 const solo = this.bandStyle === 'classic' || this.bandStyle === 'guitar';
                 const flamPerc = this.bandStyle === 'guitar' && (!!this._flamencoGroove() || this._badenGroove());
-                // Mexique, ranchera : guitarrón et cordes du mariachi, sans percussions.
-                const mxNoPerc = this.bandStyle === 'mexico' && this._mexicoGroove() === 'mx-ranchera';
+                // Mexique, ranchera et mariachi : guitarrón et cordes du mariachi, sans percussions.
+                const mxNoPerc = this.bandStyle === 'mexico' && ['mx-ranchera', 'mx-mariachi'].includes(this._mexicoGroove());
                 [['band-vol-bass', solo], ['band-vol-drums', (solo && !flamPerc) || this.bandStyle === 'manouche' || mxNoPerc]].forEach(([id, off]) => {
                     const el = document.getElementById(id);
                     if (!el) return;
@@ -11374,7 +11375,7 @@
                 'app/band/baden-plan.js': typeof buildBadenPlan === 'function' && typeof BDN_FINGERS !== 'undefined' && BDN_FINGERS.length === 6,
                 'app/band/guitar-plan.js': typeof guitarPhraseExtras === 'function' && String(guitarPhraseExtras).indexOf('g-baden') >= 0,
                 'app/band/band-catalog.js': typeof BAND_MENU !== 'undefined' && JSON.stringify(BAND_MENU).indexOf('br-choro') >= 0 && JSON.stringify(BAND_MENU).indexOf('mx-jarocho') >= 0,
-                'app/band/mexico-plan.js': typeof buildMexicoPlan === 'function' && typeof mexicoGroove === 'function' && typeof MEXICO_GROOVES !== 'undefined' && MEXICO_GROOVES.length === 5,
+                'app/band/mexico-plan.js': typeof buildMexicoPlan === 'function' && typeof mexicoGroove === 'function' && typeof MEXICO_GROOVES !== 'undefined' && MEXICO_GROOVES.length === 6,
                 'app/band/band-state.js': typeof bandVoiceState === 'function' && String(bandVoiceState).indexOf('_brState') >= 0,
                 'app/styles/style-registry.js': typeof STYLE_REGISTRY !== 'undefined' && !!STYLE_REGISTRY.sambajazz,
                 'app/styles/style-builders.js': typeof STYLE_BUILDERS !== 'undefined' && typeof STYLE_BUILDERS.choro === 'function',
