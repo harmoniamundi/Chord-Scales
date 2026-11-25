@@ -1217,11 +1217,14 @@
    la grille d'accords rétrécit d'autant (--jam-row1-h ; la grille défile, et suit la lecture pendant la jam ; la colonne de réglages défile aussi
    si besoin). */
 :root { --cs-annot-resize: 3; } /* repère lu par la page : style.css à jour */
-.jam-annot-resize { display: none; flex: 0 0 auto; height: 12px; margin: -4px 0 2px; align-items: center; justify-content: center;
-    cursor: ns-resize; touch-action: none; border-radius: 6px; user-select: none; -webkit-user-select: none; }
-.jam-annot-resize-grip { width: 48px; height: 4px; border-radius: 2px; background: #64748b; pointer-events: none; }
-.jam-annot-resize:hover, .jam-annot-resize:focus-visible, .jam-annot-resize.is-dragging { background: rgba(59, 130, 246, .18); outline: none; }
-.jam-annot-resize:hover .jam-annot-resize-grip, .jam-annot-resize:focus-visible .jam-annot-resize-grip, .jam-annot-resize.is-dragging .jam-annot-resize-grip { background: #60a5fa; }
+.jam-annot-resize { display: none; position: relative; flex: 0 0 auto; height: 18px; margin: -8px -10px 2px; align-items: center; justify-content: center;
+    cursor: ns-resize; touch-action: none; border-radius: 12px 12px 0 0; user-select: none; -webkit-user-select: none; transition: background-color .12s; }
+/* Toute la largeur de la carte est attrapable : un trait la traverse d'un bord à l'autre, la pastille marque le centre. */
+.jam-annot-resize::before { content: ''; position: absolute; left: 14px; right: 14px; top: 50%; height: 1px; margin-top: -.5px; background: #475569; pointer-events: none; transition: background-color .12s, height .12s, margin-top .12s; }
+.jam-annot-resize-grip { position: relative; width: 56px; height: 5px; border-radius: 3px; background: #64748b; pointer-events: none; transition: background-color .12s; }
+.jam-annot-resize:hover, .jam-annot-resize:focus-visible, .jam-annot-resize.is-dragging { background: rgba(59, 130, 246, .22); outline: none; }
+.jam-annot-resize:hover::before, .jam-annot-resize:focus-visible::before, .jam-annot-resize.is-dragging::before { background: #60a5fa; height: 2px; margin-top: -1px; }
+.jam-annot-resize:hover .jam-annot-resize-grip, .jam-annot-resize:focus-visible .jam-annot-resize-grip, .jam-annot-resize.is-dragging .jam-annot-resize-grip { background: #93c5fd; }
 @media (min-width: 1024px) {
     #view-jam:not(.jam-antiseche-hidden) #jam-scales-card.jam-annot-mode:not(.jam-annot-fs) > .jam-annot-resize { display: flex; }
     /* Rangée de la grille d'accords (et de la colonne de réglages, qui défile alors si besoin) raccourcie quand on tire les annotations vers le haut */
