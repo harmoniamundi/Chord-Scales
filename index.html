@@ -246,6 +246,13 @@
                                 <option value="salsa">Salsa (4/4)</option>
                                 <option value="afro68">Afro-cubain (6/8)</option>
                             </optgroup>
+                            <optgroup label="Mexique">
+                                <option value="sonjarocho">Son jarocho (6/8)</option>
+                                <option value="huapango">Huapango norteño (6/8)</option>
+                                <option value="polkanortena">Polka norteña / corrido (2/4)</option>
+                                <option value="bolerotrio">Bolero romántico (trío, 4/4)</option>
+                                <option value="ranchera">Canción ranchera (vals, 3/4)</option>
+                            </optgroup>
                             <optgroup label="Afrique">
                                 <option value="afrobeat">Afrobeat (Nigeria)</option>
                                 <option value="highlife">Highlife (Ghana)</option>
@@ -526,6 +533,7 @@
     <script src="app/band/balkan-plan.js"></script>
     <script src="app/band/cumbia-plan.js"></script>
     <script src="app/band/brasil-plan.js"></script>
+    <script src="app/band/mexico-plan.js"></script>
     <script src="app/band/manouche-plan.js"></script>
     <script src="app/band/africa-plan.js"></script>
     <script src="app/band/cuban-plan.js"></script>
@@ -1439,6 +1447,7 @@
                 if (s === 'africa') return !!this.rockGtr && !!this.bassInstrumentPop;
                 if (s === 'piazzolla') return !!(this.pzInst && Object.keys(this.pzInst).filter(k => k !== 'violin_stc').length > 1);
                 if (s === 'manouche') return !!(this.mnInst && this.mnInst.pompe) && !!this.bassInstrument;
+                if (s === 'mexico') return !!this.guitarInstrument && (this._mexicoNorteno() ? (!!this.accordionInstrument && !!this.bassInstrumentPop) : !!this.bassInstrument);
                 if (s === 'latin' && this._brasilGroove() === 'br-baiao') return !!this.accordionInstrument && !!this.bassInstrument;
                 if (s === 'latin' && this._brasilGroove() === 'br-sambajazz') return !!this.bandPianoInstrument && !!this.bassInstrument;
                 if (s === 'latin') return !!this.guitarInstrument && !!this.bassInstrument;
@@ -2785,7 +2794,9 @@
                 // Jazz manouche : pas de batterie (la pompe tient le tempo).
                 const solo = this.bandStyle === 'classic' || this.bandStyle === 'guitar';
                 const flamPerc = this.bandStyle === 'guitar' && (!!this._flamencoGroove() || this._badenGroove());
-                [['band-vol-bass', solo], ['band-vol-drums', (solo && !flamPerc) || this.bandStyle === 'manouche']].forEach(([id, off]) => {
+                // Mexique, ranchera : guitarrón et cordes du mariachi, sans percussions.
+                const mxNoPerc = this.bandStyle === 'mexico' && this._mexicoGroove() === 'mx-ranchera';
+                [['band-vol-bass', solo], ['band-vol-drums', (solo && !flamPerc) || this.bandStyle === 'manouche' || mxNoPerc]].forEach(([id, off]) => {
                     const el = document.getElementById(id);
                     if (!el) return;
                     el.disabled = off;
@@ -3047,11 +3058,14 @@
                 const el = document.getElementById('band-vol-piano-label');
                 const brz = this._brasilGroove();             // choro, partido alto, baião, samba-canção, samba-jazz (band/brasil-plan.js)
                 const brzH = brz ? BR_HARMONY[brz] : null;
-                if (el) el.textContent = mn ? 'Pompe' : (brass || africa) ? 'Cuivres' : ((balkan || brzH === 'accordion') ? 'Accordéon' : (brzH === 'piano' ? 'Piano' : ((this.bandStyle === 'latin' || this.bandStyle === 'guitar' || this._cubaGuitar()) ? 'Guitare' : 'Piano')));
+                // Mexique : accordéon et bajo sexto (norteño) ou guitares (jarana, requinto, vihuela) sur le premier curseur ;
+                // basse électrique, leona ou guitarrón ; batterie (norteño) ou percussions (zapateado, maracas et bongó)
+                const mxg = this.bandStyle === 'mexico' ? this._mexicoGroove() : null;
+                if (el) el.textContent = mxg ? (MX_NORTENO[mxg] ? 'Accordéon' : 'Guitares') : mn ? 'Pompe' : (brass || africa) ? 'Cuivres' : ((balkan || brzH === 'accordion') ? 'Accordéon' : (brzH === 'piano' ? 'Piano' : ((this.bandStyle === 'latin' || this.bandStyle === 'guitar' || this._cubaGuitar()) ? 'Guitare' : 'Piano')));
                 const eb = document.getElementById('band-vol-bass-label');
-                if (eb) eb.textContent = brass ? 'Tubas' : ((pz || mn) ? 'Contreb.' : ((brz && BR_NO_BASS[brz]) ? 'Violão 7' : 'Basse'));
+                if (eb) eb.textContent = mxg ? (MX_NORTENO[mxg] ? 'Basse' : (mxg === 'mx-jarocho' ? 'Leona' : 'Guitarrón')) : brass ? 'Tubas' : ((pz || mn) ? 'Contreb.' : ((brz && BR_NO_BASS[brz]) ? 'Violão 7' : 'Basse'));
                 const ed = document.getElementById('band-vol-drums-label');
-                if (ed) ed.textContent = (brass || balkan || pz || (this.bandStyle === 'guitar' && (!!this._flamencoGroove() || this._badenGroove())) || (this.bandStyle === 'latin' && this.getEffectiveGroove('latin') === 'samba') || (brz && brz !== 'br-sambajazz')) ? 'Percus.' : 'Batterie';
+                if (ed) ed.textContent = (mxg && !MX_NORTENO[mxg]) ? 'Percus.' : mxg ? 'Batterie' : (brass || balkan || pz || (this.bandStyle === 'guitar' && (!!this._flamencoGroove() || this._badenGroove())) || (this.bandStyle === 'latin' && this.getEffectiveGroove('latin') === 'samba') || (brz && brz !== 'br-sambajazz')) ? 'Percus.' : 'Batterie';
                 // curseurs propres au Tango nuevo (bandonéon, violon, guitare électrique)
                 ['bandoneon', 'violin', 'guitar'].forEach(k => {
                     const row = document.getElementById('band-row-pz-' + k);
@@ -3248,6 +3262,7 @@
                     classic: "Densité de notes du piano : à 0, presque seulement la basse et une note par mesure ; 50 % = l'écriture d'origine ; au-dessus, les silences se remplissent puis des doubles-croches s'intercalent jusqu'à un flot continu (Baroque : la main gauche s'anime).",
                     piazzolla: "Densité des lignes du violon, du bandonéon et de la guitare : 50 % = l'écriture d'origine ; en dessous, les notes brèves et les ornements disparaissent ; au-dessus, des notes de passage remplissent les lignes puis des doubles-croches s'intercalent. Accords et basse inchangés.",
                     balkan: "Densité de la ligne de l'accordéon : 50 % = l'écriture d'origine ; en dessous, les notes brèves et les ornements disparaissent ; au-dessus, des notes de passage remplissent la ligne puis des doubles-croches s'intercalent. Accords, basse et percussions inchangés.",
+                    mexico: "Densité de la voix qui chante (requinto, ou accordéon en norteño) : 50 % = l'écriture d'origine ; en dessous, elle se tait plus souvent et ses notes brèves disparaissent ; au-dessus, elle chante davantage et des notes de passage s'ajoutent. Accompagnement, basse et percussions inchangés.",
                     cumbia: "Densité de la mélodie de l'accordéon : 50 % = l'écriture d'origine ; en dessous, les notes brèves disparaissent ; au-dessus, des notes de passage remplissent la mélodie puis des doubles-croches s'intercalent. Accords, basse et percussions inchangés.",
                     manouche: "Présence et quantité de notes de la guitare solo : à 0, la pompe et la contrebasse seules ; 50 % = la guitare improvise sur la plupart des phrases, avec des respirations et parfois une phrase laissée à la pompe ; au-dessus, des lignes plus fournies et presque sans pause. Pompe et contrebasse inchangées.",
                     brass: "Densité des notes détachées des cors et des cornets : 50 % = l'écriture d'origine ; en dessous, des frappes disparaissent ; au-dessus, des frappes brèves comblent les croches vides puis s'intercalent. Notes tenues, tubas et percussions inchangés."
@@ -3312,13 +3327,13 @@
                 }
                 this.loadBandPiano();
                 if (this.bandStyle === 'brass' || this.bandStyle === 'africa') this.loadBrass();   // Afrique : section de cuivres
-                if (this.bandStyle === 'balkan' || this.bandStyle === 'cumbia' || this._brasilGroove() === 'br-baiao') this.loadAccordion();   // baião : sanfona
+                if (this.bandStyle === 'balkan' || this.bandStyle === 'cumbia' || this._brasilGroove() === 'br-baiao' || this._mexicoNorteno()) this.loadAccordion();   // baião : sanfona ; Mexique : accordéon norteño
                 if (this.bandStyle === 'piazzolla') this.loadPiazzolla();
                 if (this.bandStyle === 'manouche') this.loadManouche();
                 if (this.bandStyle !== 'classic' && this.bandStyle !== 'guitar' && !this.bassInstrument) this.loadBass();
-                if (this.bandStyle === 'pop' || this.bandStyle === 'cumbia' || this.bandStyle === 'africa') this.loadBassPop();   // basse électrique (doigts)
+                if (this.bandStyle === 'pop' || this.bandStyle === 'cumbia' || this.bandStyle === 'africa' || this._mexicoNorteno()) this.loadBassPop();   // basse électrique (doigts)
                 if (this.bandStyle === 'pop' || this.bandStyle === 'africa') this.loadRock();   // guitare électrique, orgue, cordes
-                if (this.bandStyle === 'latin' || this.bandStyle === 'guitar' || this._cubaGuitar()) this.loadGuitarLatin();
+                if (this.bandStyle === 'latin' || this.bandStyle === 'guitar' || this.bandStyle === 'mexico' || this._cubaGuitar()) this.loadGuitarLatin();
                 // Instruments choisis dans le pop-up (pupitres Harmonie et Basse) : chargés à la demande
                 const hk = this._instChoice('harmony'), bk = this._instChoice('bass');
                 if (hk) this._harmonyInst(hk);
@@ -3664,7 +3679,8 @@
                 const flam = solo && !!this._flamencoGroove();
                 // Violão brésilien (Baden Powell) : attaque franche des ongles, médium présent, un peu moins de grave que le nylon classique
                 // Choro et partido alto (orchestre Brasil sans contrebasse) : cavaquinho et violão 7 cordas, même son clair que le violão de Baden Powell
-                const bdn = (solo && this._badenGroove()) || ['br-choro', 'br-partido'].includes(this._brasilGroove());
+                // Mexique : jarana, requinto, bajo sexto et vihuela, cordes pincées claires (même réglage)
+                const bdn = (solo && this._badenGroove()) || ['br-choro', 'br-partido'].includes(this._brasilGroove()) || this.bandStyle === 'mexico';
                 // Orchestre Cuba (son, guajira, guaguancó) : la guitare imite le tres, plus clair et plus mordant ; bolero : nylon chaleureux
                 const cg = this.bandStyle === 'cuba' ? this.getEffectiveGroove('cuba') : null;
                 const tres = cg === 'cu-son' || cg === 'cu-guajira' || cg === 'cu-guaguanco';
@@ -3874,7 +3890,7 @@
             // upright : contrebasse (rock'n'roll des années 50) même dans l'orchestre Pop-Rock, qui joue sinon la basse électrique ;
             // gainMul : coefficient de niveau de la note (basse qui mène).
             playBassAbs(absSemi, time, duration, vel = 0.85, wide = false, upright = false, gainMul = 1) {
-                const inst = (!(upright && this.bassInstrument) && (this.bandStyle === 'pop' || this.bandStyle === 'cumbia' || this.bandStyle === 'africa') && this.bassInstrumentPop) ? this.bassInstrumentPop : this.bassInstrument;
+                const inst = (!(upright && this.bassInstrument) && (this.bandStyle === 'pop' || this.bandStyle === 'cumbia' || this.bandStyle === 'africa' || this._mexicoNorteno()) && this.bassInstrumentPop) ? this.bassInstrumentPop : this.bassInstrument;
                 if (!inst) return;
                 // soundfont-player n'honore l'option "destination" qu'à la création de l'instrument, pas par note : le curseur
                 // de volume de la basse est donc appliqué directement au gain de la note (wide : dynamique élargie, style Pop).
@@ -4107,6 +4123,8 @@
                 if (style === 'balkan') return this.buildBalkanPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 // Cumbia colombienne : accordéon, basse électrique, guacharaca / llamador / tambora / alegre, quelle que soit la signature
                 if (style === 'cumbia') return this.buildCumbiaPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
+                // Mexique (sans cuivres) : son jarocho, huapango, polka norteña, bolero, ranchera, quelle que soit la signature
+                if (style === 'mexico') return this.buildMexicoPlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 // Jazz manouche : pompe, contrebasse et guitare solo, quelle que soit la signature
                 if (style === 'manouche') return this.buildManouchePlan(bpbNow, this.isTernary(), step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m);
                 // Afrique : guitares électriques, basse, batterie et percussions, orgue et cuivres selon le rythme, quelle que soit la signature
@@ -4187,6 +4205,30 @@
             // ===== Choro, partido alto, baião, samba-canção, samba-jazz : le calcul est dans band/brasil-plan.js (fonction pure) =====
             buildBrasilPlan(groove, bpb, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
                 return this._bandRun(['brState', 'bandLastFill'], env => buildBrasilPlan(env, groove, bpb, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), { splitBeat: this.getSplitBeat() });
+            }
+
+            // ===== Orchestre Mexique (son jarocho, huapango, polka norteña, bolero, ranchera) : le calcul est dans band/mexico-plan.js =====
+            buildMexicoPlan(bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m) {
+                const extra = { splitBeat: this.getSplitBeat(), density: this.getBandDensity('mexico'), measureInStep: this._bandCtx ? this._bandCtx.measureInStep : 0 };
+                return this._bandRun(['mxState', 'bandLastFill'], env => buildMexicoPlan(env, this.getEffectiveGroove('mexico'), bpb, ternary, step, nextStep, isLastMeasureOfStep, halves, ph, i, L, isTurn, m), extra);
+            }
+
+            // Rythme mexicain réellement joué (selon le rythme choisi et la mesure : mexicoGroove), ou null hors de l'orchestre Mexique
+            _mexicoGroove() {
+                if (this.bandStyle !== 'mexico') return null;
+                return mexicoGroove(this.getEffectiveGroove('mexico'), this.getBeatsPerBar(), this.isTernary());
+            }
+            // Ensemble norteño (accordéon, bajo sexto, basse électrique, batterie) : huapango et polka
+            _mexicoNorteno() { const g = this._mexicoGroove(); return !!(g && MX_NORTENO[g]); }
+
+            // Une frappe de l'orchestre Mexique : accordéon (e.inst 'acc') ou cordes pincées (jarana, requinto, bajo sexto, vihuela,
+            // guitares : l'échantillon de nylon). Sans accordéon chargé, la guitare (ou le piano) prend le relais.
+            playMexicoHit(e, time, beatSec) {
+                if (e.inst === 'acc') {
+                    if (this.accordionInstrument || this._instChoice('harmony')) this.playAccordionHit(e, time, beatSec);
+                    return;
+                }
+                this.playClassicalGuitarHit(e, time, beatSec);
             }
 
             // Rythme brésilien de band/brasil-plan.js imposé à l'orchestre Brasil (br-choro, br-baiao…), ou null
@@ -4810,7 +4852,7 @@
                 plan.bass.filter(inBeat).forEach(e => bassAs ? this._playBassAs(bassAs, e, at(e), beatSec) : plan.piazzolla ? this.playPiazzollaBass(e, at(e), beatSec) : plan.brass ? this.playTubaAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), e.art) : this.playBassAbs(e.abs, at(e), Math.max(0.1, e.dur * beatSec), e.vel * (0.94 + Math.random() * 0.12), !!e.wide, !!plan.upright, e.gainMul || 1));
                 // Choro, partido alto : le violão 7 cordas (basse de la formation) suit le curseur « Violão 7 » (celui de la basse)
                 const g7 = (plan.classicalGuitar && plan.bass.length === 0 && this._brasilGroove()) ? Math.min(3, this.bandVolumes.bass / Math.max(0.05, this.bandVolumes.piano)) : 0;
-                plan.piano.filter(inBeat).forEach(e0 => { const e = (g7 && e0.who === '7c') ? { ...e0, gainMul: (e0.gainMul || 1) * g7 } : e0; e.fermataPiano ? this.playPianoHit(e, at(e), beatSec) : plan.manouche ? this.playManoucheHit(e, at(e), beatSec) : plan.africa ? this.playAfricaHit(e, at(e), beatSec) : plan.rock ? this.playRockHit(e, at(e), beatSec) : plan.classicalGuitar ? this.playClassicalGuitarHit(e, at(e), beatSec) : plan.piazzolla ? this.playPiazzollaHit(e, at(e), beatSec) : plan.brass ? this.playBrassHit(e, at(e), beatSec) : (plan.accordion ? this.playAccordionHit(e, at(e), beatSec) : (plan.guitar ? this.playGuitarHit(e, at(e), beatSec) : this.playPianoHit(e, at(e), beatSec))); });
+                plan.piano.filter(inBeat).forEach(e0 => { const e = (g7 && e0.who === '7c') ? { ...e0, gainMul: (e0.gainMul || 1) * g7 } : e0; e.fermataPiano ? this.playPianoHit(e, at(e), beatSec) : plan.mexico ? this.playMexicoHit(e, at(e), beatSec) : plan.manouche ? this.playManoucheHit(e, at(e), beatSec) : plan.africa ? this.playAfricaHit(e, at(e), beatSec) : plan.rock ? this.playRockHit(e, at(e), beatSec) : plan.classicalGuitar ? this.playClassicalGuitarHit(e, at(e), beatSec) : plan.piazzolla ? this.playPiazzollaHit(e, at(e), beatSec) : plan.brass ? this.playBrassHit(e, at(e), beatSec) : (plan.accordion ? this.playAccordionHit(e, at(e), beatSec) : (plan.guitar ? this.playGuitarHit(e, at(e), beatSec) : this.playPianoHit(e, at(e), beatSec))); });
             }
 
 
@@ -11117,6 +11159,7 @@
                         <option value="pop">Pop-Rock</option>
                         <option value="latin">Brasil</option>
                         <option value="cuba">Cuba</option>
+                        <option value="mexico">Mexique</option>
                         <option value="classic">Classique (piano)</option>
                         <option value="guitar">Guitare</option>
                         <option value="brass">Brass band</option>
@@ -11330,7 +11373,8 @@
                 'app/audio/drum-synths.js': typeof synthTriangle === 'function' && typeof synthZabumba === 'function',
                 'app/band/baden-plan.js': typeof buildBadenPlan === 'function' && typeof BDN_FINGERS !== 'undefined' && BDN_FINGERS.length === 6,
                 'app/band/guitar-plan.js': typeof guitarPhraseExtras === 'function' && String(guitarPhraseExtras).indexOf('g-baden') >= 0,
-                'app/band/band-catalog.js': typeof BAND_MENU !== 'undefined' && JSON.stringify(BAND_MENU).indexOf('br-choro') >= 0,
+                'app/band/band-catalog.js': typeof BAND_MENU !== 'undefined' && JSON.stringify(BAND_MENU).indexOf('br-choro') >= 0 && JSON.stringify(BAND_MENU).indexOf('mx-jarocho') >= 0,
+                'app/band/mexico-plan.js': typeof buildMexicoPlan === 'function' && typeof mexicoGroove === 'function' && typeof MEXICO_GROOVES !== 'undefined' && MEXICO_GROOVES.length === 5,
                 'app/band/band-state.js': typeof bandVoiceState === 'function' && String(bandVoiceState).indexOf('_brState') >= 0,
                 'app/styles/style-registry.js': typeof STYLE_REGISTRY !== 'undefined' && !!STYLE_REGISTRY.sambajazz,
                 'app/styles/style-builders.js': typeof STYLE_BUILDERS !== 'undefined' && typeof STYLE_BUILDERS.choro === 'function',

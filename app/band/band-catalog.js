@@ -39,7 +39,8 @@ const BAND_FORMATIONS = {
     cumbia:    { name: 'Cumbia',      grooves: [] },
     piazzolla: { name: 'Tango nuevo', grooves: ['lyrique'] },
     africa:    { name: 'Highlife',    grooves: BC_AFRICA.AFRICA_GROOVES },  // sans rythme, l'orchestre Afrique joue le highlife
-    manouche:  { name: 'Jazz manouche', grooves: [] }                       // pompe, contrebasse, guitare solo (band/manouche-plan.js)
+    manouche:  { name: 'Jazz manouche', grooves: [] },                      // pompe, contrebasse, guitare solo (band/manouche-plan.js)
+    mexico:    { name: 'Mexique',     grooves: ['mx-jarocho', 'mx-huapango', 'mx-polka', 'mx-bolero', 'mx-ranchera'] }      // band/mexico-plan.js (sans cuivres)
 };
 
 // Nom affiché sur le bouton quand un rythme est imposé (sinon le nom de la formation). Un rythme absent garde le nom de la formation.
@@ -47,20 +48,21 @@ const BAND_GROOVE_NAMES = {
     pop: { 'r-roll': "Rock'n'roll", 'r-classic': 'Rock classique', 'r-hard': 'Hard rock', 'r-punk': 'Punk', 'r-ballad': 'Power ballad', 'r-blues': 'Blues rock', 'r-indie': 'Indie' },
     latin: { bossa: 'Bossa nova', samba: 'Samba', 'br-choro': 'Choro', 'br-partido': 'Partido alto', 'br-baiao': 'Baião', 'br-cancao': 'Samba-canção', 'br-sambajazz': 'Samba-jazz' },
     cuba: Object.assign({ salsa: 'Salsa' }, ...BC_AFRO.AFRO_GROOVES.map(g => ({ [g]: BC_AFRO.AFRO_STYLES[g].name }))),
+    mexico: { 'mx-jarocho': 'Son jarocho', 'mx-huapango': 'Huapango norteño', 'mx-polka': 'Polka norteña', 'mx-bolero': 'Bolero (trío)', 'mx-ranchera': 'Ranchera' },
     guitar: { 'f-solea': 'Flamenco', 'f-bulerias': 'Flamenco', 'f-tangos': 'Flamenco', 'g-baden': 'Violão (Baden Powell)' },
     piazzolla: { lyrique: 'Milonga lyrique' },
     africa: Object.assign({}, ...BC_AFRICA.AFRICA_GROOVES.map(g => ({ [g]: BC_AFRICA.AFRICA_NAMES[g] })))
 };
 
 // Liste « Formation » du pop-up Orchestre : ordre et libellés.
-const BAND_FORMATION_ORDER = ['swing', 'manouche', 'pop', 'latin', 'cuba', 'classic', 'guitar', 'brass', 'balkan', 'cumbia', 'africa', 'piazzolla'];
-const BAND_FORMATION_LABELS = { swing: 'Jazz', manouche: 'Jazz manouche', pop: 'Pop-Rock', latin: 'Brasil', cuba: 'Cuba', classic: 'Classique (piano)', guitar: 'Guitare',
+const BAND_FORMATION_ORDER = ['swing', 'manouche', 'pop', 'latin', 'cuba', 'mexico', 'classic', 'guitar', 'brass', 'balkan', 'cumbia', 'africa', 'piazzolla'];
+const BAND_FORMATION_LABELS = { swing: 'Jazz', manouche: 'Jazz manouche', pop: 'Pop-Rock', latin: 'Brasil', cuba: 'Cuba', mexico: 'Mexique', classic: 'Classique (piano)', guitar: 'Guitare',
     brass: 'Brass band', balkan: 'Balkans', cumbia: 'Cumbia', africa: 'Afrique', piazzolla: 'Quinteto de tango' };
 
 // Liste « Rythme » : ce que joue la formation sans rythme imposé (première ligne, valeur ''). null : pas de choix « Auto »
 // (l'orchestre Afrique joue alors le highlife, montré comme tel). Formation sans rythme : la liste est grisée.
 const BAND_AUTO_LABELS = { swing: 'Swing', pop: 'Pop-Rock (couches selon la phrase)', latin: 'Auto : bossa ou samba selon le tempo',
-    cuba: 'Afro-cubain (clave, montuno)', classic: 'Piano classique', guitar: 'Guitare classique (arpèges)',
+    cuba: 'Afro-cubain (clave, montuno)', mexico: 'Auto : selon la mesure (son, ranchera, bolero)', classic: 'Piano classique', guitar: 'Guitare classique (arpèges)',
     brass: 'Auto : marche, fanfare ou choral', balkan: 'Auto : danse (selon la mesure)', cumbia: 'Cumbia', africa: null, piazzolla: 'Tango nuevo',
     manouche: 'La pompe (swing manouche)' };
 
@@ -74,6 +76,9 @@ const BAND_GROOVE_LABELS = {
     'br-cancao': 'Samba-canção / MPB (4/4)', 'br-sambajazz': 'Samba-jazz (piano trio, 4/4)',
     salsa: 'Salsa (4/4)', 'cu-son': 'Son montuno (4/4)', 'cu-chacha': 'Cha-cha-chá (4/4)', 'cu-bolero': 'Bolero (4/4)', 'cu-guajira': 'Guajira (4/4)',
     'cu-danzon': 'Danzón (2/4)', 'cu-guaguanco': 'Rumba guaguancó (4/4)',
+    'mx-jarocho': 'Son jarocho (jaranas, requinto, zapateado, 6/8)', 'mx-huapango': 'Huapango norteño (accordéon, bajo sexto, 6/8)',
+    'mx-polka': 'Polka norteña / corrido (accordéon, bajo sexto, 2/4)', 'mx-bolero': 'Bolero romántico (trío de guitares, 4/4)',
+    'mx-ranchera': 'Ranchera (guitarrón, vihuela, guitares ; 3/4, 2/4 ou 4/4)',
     'c-baroque': 'Baroque',
     'c-renaissance': 'Renaissance (pavane, consort, luth)', 'c-chaconne': 'Basse obstinée (chaconne, folia)',
     'c-nocturne': 'Romantique : nocturne (Chopin)', 'c-romantic': 'Romantique tardif (Wagner, Franck)',
@@ -119,6 +124,12 @@ const BAND_MENU = [
     { value: 'guajira',          label: 'Cuba : guajira (4/4)', band: 'cuba', groove: 'cu-guajira', tempo: true },
     { value: 'danzon',           label: 'Cuba : danzón (2/4)', band: 'cuba', groove: 'cu-danzon', tempo: true },
     { value: 'guaguanco',        label: 'Cuba : rumba guaguancó (4/4)', band: 'cuba', groove: 'cu-guaguanco', tempo: true },
+    { value: 'mexico',           label: 'Mexique', band: 'mexico' },
+    { value: 'sonjarocho',       label: 'Mexique : son jarocho (6/8)', band: 'mexico', groove: 'mx-jarocho', tempo: true },
+    { value: 'huapango',         label: 'Mexique : huapango norteño (6/8)', band: 'mexico', groove: 'mx-huapango', tempo: true },
+    { value: 'polkanortena',     label: 'Mexique : polka norteña (2/4)', band: 'mexico', groove: 'mx-polka', tempo: true },
+    { value: 'bolerotrio',       label: 'Mexique : bolero du trío (4/4)', band: 'mexico', groove: 'mx-bolero', tempo: true },
+    { value: 'ranchera',         label: 'Mexique : ranchera (vals, 3/4)', band: 'mexico', groove: 'mx-ranchera', tempo: true },
     { value: 'classic',          label: 'Classique', band: 'classic' },
     { value: 'guitar',           label: 'Guitare', band: 'guitar' },
     { value: 'flamencosolea',    label: 'Flamenco : soleá (12 temps)', band: 'guitar', groove: 'f-solea', tempo: true },
@@ -184,14 +195,14 @@ function bandDisplayName(band, groove) {
 
 // Choix d'une formation seule dans le menu (Jazz, Brasil, Cuba, Guitare…) : rythme mémorisé qui reste, ou null.
 // Comportement d'origine conservé tel quel : les rythmes choisis dans ce menu (bossa, samba, salsa, cubains, palos, rock,
-// Afrique, lyrique, violão brésilien, rythmes brésiliens br-…) sont effacés ; le baroque n'est gardé que pour Classique ou Guitare, les écritures par époque (nocturne,
+// Afrique, lyrique, violão brésilien, rythmes brésiliens br-…, mexicains mx-…) sont effacés ; le baroque n'est gardé que pour Classique ou Guitare, les écritures par époque (nocturne,
 // impressionnisme…) pour Classique ; les rythmes qui ne viennent que
 // d'un style de grille (tango, piazzolla, afro, choral, sevdah, tsifteteli) restent en mémoire.
 function bandGrooveAfterPlainChoice(groove, value) {
     const g = groove || '';
     if (g === 'lyrique' || ['bossa', 'samba', 'salsa'].includes(g) || g.startsWith('f-') || g.startsWith('r-')
         || (g.startsWith('c-') && !((g === 'c-baroque' && (value === 'guitar' || value === 'classic')) || (BC_ERA_GROOVES.includes(g) && value === 'classic')))
-        || g.startsWith('cu-') || g.startsWith('af-') || g.startsWith('g-') || g.startsWith('br-')) return null;
+        || g.startsWith('cu-') || g.startsWith('af-') || g.startsWith('g-') || g.startsWith('br-') || g.startsWith('mx-')) return null;
     return groove;
 }
 
@@ -230,6 +241,7 @@ function bandNativeInstrument(band, groove, role) {
         if (b === 'latin' && groove === 'br-sambajazz') return 'piano';   // samba-jazz : trio avec piano
         if (b === 'latin' || b === 'guitar') return 'guitar';
         if (b === 'cuba') return afroUsesGuitar(groove) ? 'guitar' : 'piano';
+        if (b === 'mexico') return (groove === 'mx-huapango' || groove === 'mx-polka') ? 'accordion' : 'guitar';   // norteño : accordéon (et bajo sexto)
         if (b === 'balkan' || b === 'cumbia') return 'accordion';
         return null;
     }
@@ -239,6 +251,7 @@ function bandNativeInstrument(band, groove, role) {
         if (b === 'brass') return 'tuba';   // (Jazz manouche : contrebasse, comme le cas général)
         if (b === 'pop') return groove === 'r-roll' ? 'upright' : 'electric';   // rock'n'roll des années 50 : la contrebasse mène
         if (b === 'cumbia' || b === 'africa') return 'electric';
+        if (b === 'mexico') return (groove === 'mx-huapango' || groove === 'mx-polka') ? 'electric' : 'upright';   // guitarrón, leona : contrebasse
         return 'upright';
     }
     return null;

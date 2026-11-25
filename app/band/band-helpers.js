@@ -307,6 +307,7 @@ const BAND_SWING_DEFAULTS = {
     pop: 0.5,
     latin: 0.5,       // Brasil
     cuba: 0.5,
+    mexico: 0.5,      // Mexique : croches droites (sones et huapangos sont en mesure composée, polka et bolero droits)
     classic: 0.5,
     guitar: 0.5,
     brass: 0.5,

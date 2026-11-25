@@ -128,6 +128,12 @@ const STYLE_REGISTRY = {
     guaguanco: { band: 'cuba', groove: 'cu-guaguanco', bpm: 108, meter: '4/4', scales: 'classic', gen: 'none' },
     salsa: { band: 'cuba', groove: 'salsa', bpm: 180, meter: '4/4', scales: 'jazz' },
     afro68: { band: 'cuba', groove: 'afro', bpm: 96, meter: '6/8', scales: 'jazz', gen: { turn: false, w: { colour: 1.2, sus: 0.6, secDom: 0.4 } } },
+    // —— Mexique (orchestre Mexique, sans cuivres) ——
+    sonjarocho: { band: 'mexico', groove: 'mx-jarocho', bpm: 126, meter: '6/8', scales: 'classic', key: 2, gen: 'none' },
+    huapango: { band: 'mexico', groove: 'mx-huapango', bpm: 104, meter: '6/8', scales: 'classic', key: 7, gen: 'none' },
+    polkanortena: { band: 'mexico', groove: 'mx-polka', bpm: 132, meter: '2/4', scales: 'classic', key: 0, bars: 32, gen: 'none' },
+    bolerotrio: { band: 'mexico', groove: 'mx-bolero', bpm: 80, meter: '4/4', scales: 'jazz', bars: 32, gen: 'light' },
+    ranchera: { band: 'mexico', groove: 'mx-ranchera', bpm: 168, meter: '3/4', scales: 'classic', key: 7, bars: 32, gen: 'none' },
     // —— Afrique ——
     afrobeat: { band: 'africa', groove: 'af-afrobeat', bpm: 112, meter: '4/4', scales: 'classic', key: 2, gen: 'none' },
     highlife: { band: 'africa', groove: 'af-highlife', bpm: 120, meter: '4/4', scales: 'classic', key: 5, gen: 'none' },

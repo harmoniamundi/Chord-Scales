@@ -334,6 +334,13 @@ BAND_PATTERNS.manouche = {
     turn: [bandCell(1, [[0, 1, 'C', 0.8]])]
 };
 
+// L'orchestre « Mexique » a son propre générateur (buildMexicoPlan, band/mexico-plan.js) : entrée factice pour le moteur commun.
+BAND_PATTERNS.mexico = {
+    rootlessProb: 0, fillProb: 0,
+    piano: [bandCell(1, [[0, 1, 'C', 0.8]])],
+    turn: [bandCell(1, [[0, 1, 'C', 0.8]])]
+};
+
 // L'orchestre « Afrique » a son propre générateur (buildAfricaPlan) : entrée factice pour le moteur commun.
 BAND_PATTERNS.africa = {
     rootlessProb: 0, fillProb: 0,
