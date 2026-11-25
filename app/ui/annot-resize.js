@@ -1,49 +1,53 @@
-// ui/annot-resize.js — poignée qui règle la hauteur des zones d'annotation pendant la jam, sans DOM : bornes, glisser, clavier,
-// lecture de la valeur mémorisée et HTML de la poignée. Le moteur (index.html) applique la hauteur à la variable CSS
-// « --jam-annot-play-h » de #view-jam et la garde dans localStorage (« jamAnnotPlayHeight »).
+// ui/annot-resize.js — hauteur des zones d'annotation pendant la jam, sans DOM.
+// Jam lancée (onglet Annotations, écran large), la grille d'accords et les annotations se partagent toute la hauteur de la fenêtre :
+//  - par défaut, la grille garde sa taille et les annotations prennent toute la place restante jusqu'au bas de la fenêtre ;
+//  - la poignée posée en haut des annotations les tire vers le haut : la grille rétrécit d'autant (elle défile et suit la lecture),
+//    sans descendre sous une ligne de dominos. Ce « tirage » (pull, en px) est gardé dans localStorage (« jamAnnotPull »).
+// Le moteur (index.html) mesure la place (total, hauteur du contenu de la grille), appelle arzLayout et pose le résultat sur les
+// variables CSS « --jam-row1-play-h » et « --jam-annot-play-h » de #view-jam (voir style.css).
 // Chargé par index.html via <script src="app/ui/annot-resize.js"> et testé par ui/annot-resize.test.js.
 
-const ARZ_MIN = 120;          // hauteur minimale des zones (px)
-const ARZ_DEFAULT = 220;      // hauteur d'origine en lecture (style.css)
+const ARZ_MIN = 120;          // hauteur minimale des zones d'annotation (px)
+const ARZ_GRID_MIN = 84;      // hauteur minimale de la grille d'accords quand on tire les annotations vers le haut (une ligne de dominos)
 const ARZ_STEP = 10;          // pas des flèches du clavier (× 5 avec Maj)
-const ARZ_STORAGE_KEY = 'jamAnnotPlayHeight';
+const ARZ_STORAGE_KEY = 'jamAnnotPull';
 
-// Hauteur ramenée entre ARZ_MIN et maxH (la place disponible) ; Infinity donne le maximum, une valeur illisible ARZ_DEFAULT (borné aussi).
-function arzClamp(h, maxH) {
-    const max = Math.max(ARZ_MIN, Math.round(Number.isFinite(Number(maxH)) && Number(maxH) > 0 ? Number(maxH) : Infinity));
-    const n = Number(h);
-    const v = (n === Infinity) ? max : (Number.isFinite(n) ? Math.round(n) : ARZ_DEFAULT); // Infinity = le maximum
-    return Math.max(ARZ_MIN, Math.min(max, v));
-}
-
-// Valeur mémorisée : un nombre entier d'au moins ARZ_MIN, sinon null (= hauteur d'origine).
-function arzParse(stored) {
-    if (stored === null || stored === undefined || stored === '') return null;
+// Tirage mémorisé : entier positif ou nul (0 = annotations sous la grille, à sa taille normale).
+function arzParsePull(stored) {
     const n = Math.round(Number(stored));
-    return Number.isFinite(n) && n >= ARZ_MIN && n <= 5000 ? n : null;
+    return Number.isFinite(n) && n > 0 && n <= 5000 ? n : 0;
 }
 
-// Hauteur pendant un glisser : celle du départ plus le déplacement vertical du pointeur (vers le bas = plus haut).
-function arzDragHeight(startH, startY, y, maxH) {
-    return arzClamp(Number(startH) + (Number(y) - Number(startY)), maxH);
+// Partage de la hauteur. total = hauteur de la grille + hauteur des zones d'annotation + place libre sous la carte ;
+// gridContent = hauteur du contenu de la grille (toutes ses lignes) ; pull = tirage voulu.
+// Renvoie { grid, annot, pull, maxPull } : hauteur de la grille, des zones, tirage retenu (borné) et tirage maximal.
+function arzLayout({ total, gridContent, pull }) {
+    const T = Math.max(0, Math.round(Number(total) || 0));
+    const G = Math.max(0, Math.round(Number(gridContent) || 0));
+    const gridNat = Math.max(0, Math.min(G, T - ARZ_MIN));        // la grille entière, si les annotations gardent au moins ARZ_MIN
+    const gridMin = Math.min(gridNat, ARZ_GRID_MIN);
+    const maxPull = Math.max(0, gridNat - gridMin);
+    const p = Math.max(0, Math.min(maxPull, Math.round(Number(pull) || 0)));
+    const grid = gridNat - p;
+    return { grid, annot: Math.max(ARZ_MIN, T - grid), pull: p, maxPull };
 }
 
-// Touche du clavier sur la poignée : nouvelle hauteur, ou null si la touche ne la concerne pas.
-// ↓ agrandit, ↑ réduit (la poignée est sous les zones), Maj = pas de 50 ; Début = minimum, Fin = maximum.
-function arzKeyHeight(h, key, shift, maxH) {
+// Tirage pendant un glisser : la poignée est en haut des annotations, monter (y plus petit) les agrandit.
+function arzDragPull(startPull, startY, y) {
+    return Math.round(Number(startPull) + (Number(startY) - Number(y)));
+}
+
+// Touche du clavier sur la poignée : nouveau tirage (non borné : arzLayout le borne), ou null si la touche ne le concerne pas.
+// ↑ agrandit les annotations, ↓ les réduit, Maj = pas de 50 ; Début = tout en haut (maximum), Fin = position normale.
+function arzKeyPull(pull, key, shift, maxPull) {
     const step = ARZ_STEP * (shift ? 5 : 1);
-    if (key === 'ArrowDown') return arzClamp(h + step, maxH);
-    if (key === 'ArrowUp') return arzClamp(h - step, maxH);
-    if (key === 'Home') return arzClamp(ARZ_MIN, maxH);
-    if (key === 'End') return arzClamp(Infinity, maxH);
+    if (key === 'ArrowUp') return pull + step;
+    if (key === 'ArrowDown') return Math.max(0, pull - step);
+    if (key === 'Home') return Math.max(0, Math.round(Number(maxPull) || 0));
+    if (key === 'End') return 0;
     return null;
 }
 
-// Valeurs ARIA de la poignée (séparateur accessible) : hauteur actuelle, minimum et maximum, bornés.
-function arzAria(h, maxH) {
-    return { now: arzClamp(h, maxH), min: ARZ_MIN, max: arzClamp(Infinity, maxH) };
-}
-
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { ARZ_MIN, ARZ_DEFAULT, ARZ_STEP, ARZ_STORAGE_KEY, arzClamp, arzParse, arzDragHeight, arzKeyHeight, arzAria };
+    module.exports = { ARZ_MIN, ARZ_GRID_MIN, ARZ_STEP, ARZ_STORAGE_KEY, arzParsePull, arzLayout, arzDragPull, arzKeyPull };
 }

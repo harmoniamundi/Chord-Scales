@@ -483,6 +483,8 @@
                 </div>
 
                 <div id="jam-scales-card" class="flex-1 bg-[#252525] border border-[#333333] rounded-xl p-5 shadow flex flex-col justify-between overflow-hidden min-h-0">
+                    <!-- Poignée en haut des annotations, jam lancée : tirer vers le haut agrandit les zones et raccourcit la grille d'accords (ui/annot-resize.js) -->
+                    <div id="jam-annot-resize" class="jam-annot-resize" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Hauteur des annotations pendant la jam" title="Tirer vers le haut pour agrandir les annotations (la grille d'accords rétrécit et suit la lecture) ; flèches ↑ ↓ au clavier ; double-clic : position normale"><span class="jam-annot-resize-grip" aria-hidden="true"></span></div>
                     <div class="jam-scales-head flex justify-between items-center gap-2 mb-3 shrink-0 flex-wrap">
                         <div class="flex items-center gap-2 flex-wrap">
                             <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Antisèches</h3>
@@ -509,8 +511,6 @@
                     </div>
                     <div id="jam-blind-scales-note" class="jam-blind-note" role="status">À l'aveugle : gammes masquées</div>
                     <div id="jam-scale-visualizer" class="flex-1 overflow-y-auto custom-scrollbar grid grid-cols-1 lg:grid-cols-2 gap-4 pr-1 min-h-0 content-start items-start"></div>
-                    <!-- Poignée : hauteur des zones d'annotation pendant la jam (ui/annot-resize.js) ; visible seulement jam lancée, onglet Annotations -->
-                    <div id="jam-annot-resize" class="jam-annot-resize" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Hauteur des annotations pendant la jam" title="Glisser pour régler la hauteur des annotations pendant la jam (flèches ↑ ↓ au clavier) ; double-clic : hauteur d'origine"><span class="jam-annot-resize-grip" aria-hidden="true"></span></div>
                 </div>
 
             </main>
@@ -7337,7 +7337,10 @@
                     const activeRow = activeCell ? activeCell.closest('.jam-row') : null;
 
                     if (this.isPlaying && activeRow) {
-                        const targetTop = scrollTargetFor(container.scrollTop, container.clientHeight, activeRow.offsetTop, activeRow.offsetHeight);
+                        // Position de la ligne dans la zone qui défile (et non par rapport à son offsetParent, qui n'est pas la grille :
+                        // avec offsetTop, le défilement allait trop loin et la ligne jouée sortait par le haut).
+                        const rowTop = activeRow.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+                        const targetTop = scrollTargetFor(container.scrollTop, container.clientHeight, rowTop, activeRow.offsetHeight);
                         if (targetTop !== null) {
                             container.scrollTo({
                                 top: targetTop,
@@ -7419,6 +7422,7 @@
                     this._annotFsKey = null;
                 }
                 if (on) window.scrollTo(0, 0);
+                if (this.isPlaying) requestAnimationFrame(() => this._annotFit()); // le partage grille / annotations est recalculé
             }
 
             toggleGridFullscreen() {
@@ -7675,7 +7679,7 @@
                 this.renderJamScales();
                 // Pendant la jam, la hauteur réservée à la zone est recalculée en entrant dans l'onglet Annotations ou en le quittant.
                 if (this.isPlaying && (annot || prev === 'annotations')) this.lockScalesHeight();
-                if (this.isPlaying && annot) requestAnimationFrame(() => this._applyAnnotPlayHeight()); // hauteur réglée, ramenée à la place de l'écran
+                if (this.isPlaying) requestAnimationFrame(() => this._annotFit()); // annotations : toute la hauteur libre (ui/annot-resize.js) ; autres onglets : mise en page d'origine
             }
 
             // Joue une note isolée (clic sur une pastille) avec la transposition du mode Jam.
@@ -9332,86 +9336,107 @@
 
             // Pendant la jam, la place réservée aux gammes est fixée une fois pour toutes à la hauteur
             // de la paire la plus haute de la grille : la grille d'accords garde ainsi une taille stable.
-            // ----- Hauteur des zones d'annotation pendant la jam (poignée sous les zones, ui/annot-resize.js) -----
-            // La hauteur choisie est posée sur la variable CSS « --jam-annot-play-h » de #view-jam (style.css s'en sert à la place des 220 px
-            // d'origine) et gardée dans localStorage ; sans réglage (ou après un double-clic), la hauteur d'origine revient.
+            // ----- Hauteur des zones d'annotation pendant la jam (ui/annot-resize.js) -----
+            // Jam lancée dans l'onglet Annotations (écran large) : la grille garde sa taille et les annotations prennent toute la place jusqu'au
+            // bas de la fenêtre. La poignée en haut des annotations les tire vers le haut : la grille rétrécit d'autant (elle défile et suit la
+            // lecture). Les hauteurs sont calculées au lancement, en entrant dans l'onglet, au retour du plein écran et quand la fenêtre change
+            // de taille, puis posées sur les variables CSS « --jam-row1-play-h » et « --jam-annot-play-h » de #view-jam (style.css).
             _annotResizeInit() {
-                let h = null;
-                try { h = arzParse(localStorage.getItem(ARZ_STORAGE_KEY)); } catch (e) {}
-                this.annotPlayHeight = h;
-                this._applyAnnotPlayHeight();
+                let p = 0;
+                try { p = arzParsePull(localStorage.getItem(ARZ_STORAGE_KEY)); } catch (e) {}
+                this.annotPull = p;
+                this._annotGeom = null;
                 const grip = document.getElementById('jam-annot-resize');
                 if (!grip) return;
                 let drag = null;
-                const end = (save) => {
+                const end = () => {
                     if (!drag) return;
                     grip.classList.remove('is-dragging');
                     drag = null;
-                    if (save) this._saveAnnotPlayHeight();
+                    this._saveAnnotPull();
                 };
                 grip.addEventListener('pointerdown', (ev) => {
-                    if (ev.button !== 0) return;
+                    if (ev.button !== 0 || !this._annotGeom) return;
                     ev.preventDefault();
-                    drag = { y: ev.clientY, h: this._annotPlayCurrent(), max: this._annotPlayMax() };
+                    drag = { y: ev.clientY, pull: this._annotLayout().pull };
                     grip.classList.add('is-dragging');
                     try { grip.setPointerCapture(ev.pointerId); } catch (e) {}
                 });
                 grip.addEventListener('pointermove', (ev) => {
                     if (!drag) return;
-                    this.annotPlayHeight = arzDragHeight(drag.h, drag.y, ev.clientY, drag.max);
-                    this._applyAnnotPlayHeight();
+                    this.annotPull = this._annotLayout(arzDragPull(drag.pull, drag.y, ev.clientY)).pull;
+                    this._applyAnnotLayout();
                 });
-                grip.addEventListener('pointerup', () => end(true));
-                grip.addEventListener('pointercancel', () => end(true));
-                grip.addEventListener('lostpointercapture', () => end(true));
+                grip.addEventListener('pointerup', end);
+                grip.addEventListener('pointercancel', end);
+                grip.addEventListener('lostpointercapture', end);
                 grip.addEventListener('dblclick', () => {
-                    this.annotPlayHeight = null;
-                    this._applyAnnotPlayHeight();
-                    this._saveAnnotPlayHeight();
+                    this.annotPull = 0;
+                    this._applyAnnotLayout();
+                    this._saveAnnotPull();
                 });
                 grip.addEventListener('keydown', (ev) => {
-                    const h = arzKeyHeight(this._annotPlayCurrent(), ev.key, ev.shiftKey, this._annotPlayMax());
-                    if (h === null) return;
+                    if (!this._annotGeom) return;
+                    const L = this._annotLayout();
+                    const p = arzKeyPull(L.pull, ev.key, ev.shiftKey, L.maxPull);
+                    if (p === null) return;
                     ev.preventDefault();
-                    this.annotPlayHeight = h;
-                    this._applyAnnotPlayHeight();
-                    this._saveAnnotPlayHeight();
+                    this.annotPull = this._annotLayout(p).pull;
+                    this._applyAnnotLayout();
+                    this._saveAnnotPull();
                 });
-                // Fenêtre réduite : une hauteur trop grande pour la nouvelle place est ramenée (sans changer le réglage mémorisé).
-                window.addEventListener('resize', () => this._applyAnnotPlayHeight());
+                window.addEventListener('resize', () => { if (this.isPlaying) this._annotFit(); });
             }
 
-            _annotPlayCurrent() { return this.annotPlayHeight || ARZ_DEFAULT; }
+            // Partage calculé (ui/annot-resize.js) pour un tirage donné (par défaut celui mémorisé).
+            _annotLayout(pull) {
+                const g = this._annotGeom || { total: 0, gridContent: 0 };
+                return arzLayout({ total: g.total, gridContent: g.gridContent, pull: pull === undefined ? this.annotPull : pull });
+            }
 
-            // Place disponible : poignée affichée, les zones peuvent grandir jusqu'à ce que la poignée touche le bas de la fenêtre (rien ne sort de
-            // l'écran, la grille d'accords reste au-dessus) ; poignée cachée (jam arrêtée), on ne borne pas : ce sera fait au lancement de la jam.
-            _annotPlayMax() {
-                const grip = document.getElementById('jam-annot-resize');
+            // Mesure la place dans la mise en page d'origine (variables retirées), puis applique le partage. Hors de ces conditions, les variables
+            // restent retirées (mise en page d'origine). La grille d'accords partage sa rangée avec la colonne de réglages : pour la raccourcir,
+            // c'est la hauteur de cette rangée (« --jam-row1-play-h ») qui diminue ; la colonne de réglages défile alors si besoin.
+            _annotFit() {
+                const view = document.getElementById('view-jam');
+                const card = document.getElementById('jam-scales-card');
+                const seq = document.getElementById('jam-chord-sequence-display');
                 const vis = document.getElementById('jam-scale-visualizer');
-                if (!grip || !vis || grip.offsetParent === null) return 5000;
-                const room = (window.innerHeight || 800) - grip.getBoundingClientRect().bottom - 10;
-                return Math.max(ARZ_MIN, Math.round(vis.getBoundingClientRect().height + room));
+                if (view) ['--jam-row1-play-h', '--jam-annot-play-h'].forEach(v => view.style.removeProperty(v));
+                this._annotGeom = null;
+                const wide = window.matchMedia('(min-width: 1024px)').matches;
+                const on = !!(view && card && seq && vis && wide && this.isPlaying && this.visMode === 'annotations' && !this.annotFs && card.offsetParent !== null);
+                if (!on) return;
+                const row1 = parseFloat(String(getComputedStyle(view).gridTemplateRows).split(' ')[0]);
+                if (!Number.isFinite(row1)) return;
+                const gridH = seq.getBoundingClientRect().height;
+                const annotH = vis.getBoundingClientRect().height;
+                const below = parseFloat(getComputedStyle(card).marginBottom) || 0;
+                const free = window.innerHeight - card.getBoundingClientRect().bottom - below;   // place libre sous la carte (négative si elle déborde)
+                this._annotGeom = { total: Math.round(gridH + annotH + free), gridContent: Math.round(gridH), row1: Math.round(row1) };
+                this._applyAnnotLayout();
             }
 
-            _applyAnnotPlayHeight() {
+            _applyAnnotLayout() {
                 const view = document.getElementById('view-jam');
                 const grip = document.getElementById('jam-annot-resize');
-                const max = this._annotPlayMax();
-                if (view) {
-                    if (this.annotPlayHeight) view.style.setProperty('--jam-annot-play-h', `${arzClamp(this.annotPlayHeight, max)}px`);
-                    else view.style.removeProperty('--jam-annot-play-h');
-                }
+                const g = this._annotGeom;
+                if (!view || !g) return;
+                const L = this._annotLayout();
+                const cut = g.gridContent - L.grid;                    // ce que la grille cède aux annotations
+                if (cut > 0) view.style.setProperty('--jam-row1-play-h', `${Math.max(0, g.row1 - cut)}px`);
+                else view.style.removeProperty('--jam-row1-play-h');
+                view.style.setProperty('--jam-annot-play-h', `${L.annot}px`);
                 if (grip) {
-                    const a = arzAria(this._annotPlayCurrent(), max);
-                    grip.setAttribute('aria-valuenow', String(a.now));
-                    grip.setAttribute('aria-valuemin', String(a.min));
-                    grip.setAttribute('aria-valuemax', String(a.max));
+                    grip.setAttribute('aria-valuenow', String(L.annot));
+                    grip.setAttribute('aria-valuemin', String(L.annot - L.pull));
+                    grip.setAttribute('aria-valuemax', String(L.annot - L.pull + L.maxPull));
                 }
             }
 
-            _saveAnnotPlayHeight() {
+            _saveAnnotPull() {
                 try {
-                    if (this.annotPlayHeight) localStorage.setItem(ARZ_STORAGE_KEY, String(this.annotPlayHeight));
+                    if (this.annotPull > 0) localStorage.setItem(ARZ_STORAGE_KEY, String(this.annotPull));
                     else localStorage.removeItem(ARZ_STORAGE_KEY);
                 } catch (e) {}
             }
@@ -9546,7 +9571,7 @@
                 Object.assign(this, bandRunState(newBandSeed()), bandVoiceState());
                 this._countInBeats = this._exporting ? 0 : this.getBeatsPerBar(); // l'intro d'une mesure est toujours jouée (sauf à l'export du son)
                 document.getElementById('view-jam')?.classList.add('jam-playing');
-                requestAnimationFrame(() => this._applyAnnotPlayHeight()); // poignée des annotations : hauteur ramenée à la place de l'écran
+                requestAnimationFrame(() => this._annotFit()); // annotations : toute la hauteur libre jusqu'au bas de la fenêtre (ui/annot-resize.js)
 
                 const btn = document.getElementById('jam-play-btn');
                 if (btn) {
@@ -11453,8 +11478,8 @@
                 'app/grid/saved-library.js': typeof slBuildView === 'function' && typeof slMergeBackup === 'function' && typeof slHighlight === 'function',
                 'app/grid/grid-format.js': typeof NOTE_FONTS !== 'undefined' && !!NOTE_FONTS.menlo && typeof sanitizeNoteHtml === 'function' && sanitizeNoteHtml('<div class="annot-frame" data-frame="200" data-at="5,5" data-border="0">x</div>', 300).indexOf('data-border') >= 0 && (function () { try { var g = sanitizeImportedGrid([{ rootIndex: 0, chordId: 'maj7', measures: 1, segno: true, jump: 'dsCoda' }]); return !!(g && g[0].segno && g[0].jump === 'dsCoda'); } catch (e) { return false; } })(),
                 'app/ui/staff-editor.js': typeof nseKeyValue === 'function' && typeof nseToolState === 'function' && typeof nseBlocksToClipText === 'function' && typeof NoteStaffView === 'function' && typeof NoteStaffView.prototype.setBorder === 'function' && typeof NoteStaffView.prototype._setTuplet === 'function' && typeof nseSwingOptions === 'function' && typeof NoteStaffView.prototype._toggleTie === 'function' && typeof NoteStaffView.prototype._startMarquee === 'function',
-                'app/ui/annot-resize.js': typeof arzDragHeight === 'function' && typeof arzKeyHeight === 'function' && typeof ARZ_STORAGE_KEY === 'string',
-                'app/style.css': (function () { try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-annot-resize').trim() === '1'; } catch (e) { return false; } })(),
+                'app/ui/annot-resize.js': typeof arzLayout === 'function' && typeof arzDragPull === 'function' && typeof arzKeyPull === 'function' && typeof ARZ_STORAGE_KEY === 'string',
+                'app/style.css': (function () { try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-annot-resize').trim() === '2'; } catch (e) { return false; } })(),
                 'app/ui/text-frame.js': typeof NoteFrameView === 'function' && typeof NoteFrameView.prototype.setBorder === 'function',
                 'app/ui/annot-canvas.js': typeof AnnotCanvas === 'function' && typeof acZoomOffset === 'function' && typeof acEmptySpot === 'function' && typeof AC_GUTTER === 'number',
                 'app/ui/chord-notes.js': typeof chordsParse === 'function' && typeof chordsStubHtml === 'function' && typeof chordsDefault === 'function',

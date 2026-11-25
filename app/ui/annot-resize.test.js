@@ -1,57 +1,64 @@
-// Tests de la poignée de hauteur des annotations pendant la jam (ui/annot-resize.js). Lancer : node --test
+// Tests du partage de hauteur grille / annotations pendant la jam (ui/annot-resize.js). Lancer : node --test
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
-const { ARZ_MIN, ARZ_DEFAULT, ARZ_STEP, ARZ_STORAGE_KEY, arzClamp, arzParse, arzDragHeight, arzKeyHeight, arzAria } = require('./annot-resize.js');
+const { ARZ_MIN, ARZ_GRID_MIN, ARZ_STEP, ARZ_STORAGE_KEY, arzParsePull, arzLayout, arzDragPull, arzKeyPull } = require('./annot-resize.js');
 
-describe('annot-resize : bornes', () => {
-    test('valeurs de départ', () => {
-        assert.equal(ARZ_DEFAULT, 220);
-        assert.ok(ARZ_MIN < ARZ_DEFAULT);
-        assert.equal(ARZ_STORAGE_KEY, 'jamAnnotPlayHeight');
+describe('annot-resize : mémoire', () => {
+    test('clé et lecture du tirage', () => {
+        assert.equal(ARZ_STORAGE_KEY, 'jamAnnotPull');
+        assert.equal(arzParsePull('150'), 150);
+        assert.equal(arzParsePull(42.6), 43);
     });
-    test('arzClamp borne entre le minimum et la place disponible', () => {
-        assert.equal(arzClamp(50, 600), ARZ_MIN);
-        assert.equal(arzClamp(400, 600), 400);
-        assert.equal(arzClamp(900, 600), 600);
-        assert.equal(arzClamp(333.6, 600), 334);
-    });
-    test('place disponible absente ou trop petite', () => {
-        assert.equal(arzClamp(900), 900);
-        assert.equal(arzClamp(900, 0), 900);
-        assert.equal(arzClamp(300, 80), ARZ_MIN); // jamais sous le minimum
-    });
-    test('valeur illisible → hauteur d\'origine', () => {
-        assert.equal(arzClamp('abc', 600), ARZ_DEFAULT);
-        assert.equal(arzClamp(undefined, 600), ARZ_DEFAULT);
+    test('valeurs illisibles ou négatives → 0', () => {
+        [null, undefined, '', 'x', '-20', '0', '99999', 'NaN'].forEach(v => assert.equal(arzParsePull(v), 0, String(v)));
     });
 });
 
-describe('annot-resize : mémoire', () => {
-    test('arzParse lit un nombre valable', () => {
-        assert.equal(arzParse('360'), 360);
-        assert.equal(arzParse(360.4), 360);
+describe('annot-resize : partage de la hauteur', () => {
+    test('sans tirage : grille entière, annotations jusqu\'en bas', () => {
+        assert.deepEqual(arzLayout({ total: 900, gridContent: 340, pull: 0 }), { grid: 340, annot: 560, pull: 0, maxPull: 340 - ARZ_GRID_MIN });
     });
-    test('arzParse refuse le reste (hauteur d\'origine)', () => {
-        [null, undefined, '', 'x', '50', '99999', 'NaN'].forEach(v => assert.equal(arzParse(v), null, String(v)));
+    test('le tirage prend sur la grille, le total ne change pas', () => {
+        const L = arzLayout({ total: 900, gridContent: 340, pull: 100 });
+        assert.equal(L.grid, 240);
+        assert.equal(L.annot, 660);
+        assert.equal(L.grid + L.annot, 900);
+    });
+    test('la grille ne descend pas sous une ligne', () => {
+        const L = arzLayout({ total: 900, gridContent: 340, pull: 5000 });
+        assert.equal(L.grid, ARZ_GRID_MIN);
+        assert.equal(L.pull, L.maxPull);
+    });
+    test('tirage négatif ramené à 0', () => {
+        assert.equal(arzLayout({ total: 900, gridContent: 340, pull: -50 }).pull, 0);
+    });
+    test('grille plus haute que la fenêtre : les annotations gardent leur minimum', () => {
+        const L = arzLayout({ total: 500, gridContent: 800, pull: 0 });
+        assert.equal(L.annot, ARZ_MIN);
+        assert.equal(L.grid, 500 - ARZ_MIN);
+    });
+    test('petite grille (une ligne) : pas de tirage possible', () => {
+        const L = arzLayout({ total: 900, gridContent: 76, pull: 200 });
+        assert.equal(L.maxPull, 0);
+        assert.equal(L.grid, 76);
+        assert.equal(L.annot, 824);
+    });
+    test('fenêtre minuscule : jamais sous le minimum', () => {
+        assert.equal(arzLayout({ total: 60, gridContent: 300, pull: 0 }).annot, ARZ_MIN);
     });
 });
 
 describe('annot-resize : glisser et clavier', () => {
-    test('glisser vers le bas agrandit, vers le haut réduit, toujours borné', () => {
-        assert.equal(arzDragHeight(220, 500, 600, 700), 320);
-        assert.equal(arzDragHeight(220, 500, 450, 700), 170);
-        assert.equal(arzDragHeight(220, 500, 100, 700), ARZ_MIN);
-        assert.equal(arzDragHeight(220, 500, 1500, 700), 700);
+    test('monter agrandit les annotations', () => {
+        assert.equal(arzDragPull(0, 500, 380), 120);
+        assert.equal(arzDragPull(120, 500, 560), 60);
     });
     test('flèches, Maj, Début, Fin', () => {
-        assert.equal(arzKeyHeight(220, 'ArrowDown', false, 700), 220 + ARZ_STEP);
-        assert.equal(arzKeyHeight(220, 'ArrowUp', false, 700), 220 - ARZ_STEP);
-        assert.equal(arzKeyHeight(220, 'ArrowDown', true, 700), 220 + 5 * ARZ_STEP);
-        assert.equal(arzKeyHeight(220, 'Home', false, 700), ARZ_MIN);
-        assert.equal(arzKeyHeight(220, 'End', false, 700), 700);
-        assert.equal(arzKeyHeight(220, 'a', false, 700), null);
-    });
-    test('valeurs ARIA', () => {
-        assert.deepEqual(arzAria(900, 600), { now: 600, min: ARZ_MIN, max: 600 });
+        assert.equal(arzKeyPull(0, 'ArrowUp', false, 300), ARZ_STEP);
+        assert.equal(arzKeyPull(0, 'ArrowUp', true, 300), 5 * ARZ_STEP);
+        assert.equal(arzKeyPull(5, 'ArrowDown', false, 300), 0);
+        assert.equal(arzKeyPull(40, 'Home', false, 300), 300);
+        assert.equal(arzKeyPull(40, 'End', false, 300), 0);
+        assert.equal(arzKeyPull(40, 'x', false, 300), null);
     });
 });

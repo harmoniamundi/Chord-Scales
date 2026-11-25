@@ -1211,17 +1211,20 @@
     #view-jam.jam-playing #jam-scales-card.jam-annot-mode #jam-scale-visualizer.jam-annot-grid { grid-template-rows: var(--jam-annot-play-h, 220px); } /* réglable par la poignée */
 }
 
-/* ===== Poignée de hauteur des annotations pendant la jam (ui/annot-resize.js) =====
-   Visible seulement jam lancée, onglet Annotations, sur les écrans où les deux zones sont côte à côte (hauteur fixe en lecture).
-   Elle règle la variable --jam-annot-play-h de #view-jam (220 px d'origine). */
-:root { --cs-annot-resize: 1; } /* repère lu par la page : style.css à jour */
-.jam-annot-resize { display: none; flex: 0 0 auto; height: 14px; margin-top: 4px; align-items: center; justify-content: center;
+/* ===== Hauteur des annotations pendant la jam (ui/annot-resize.js) =====
+   Jam lancée, onglet Annotations, écran large (1024 px et plus) : les zones prennent toute la place jusqu'au bas de la fenêtre (--jam-annot-play-h) ;
+   la poignée en haut de la carte les tire vers le haut et la rangée de la grille d'accords rétrécit d'autant (--jam-row1-play-h ; la grille défile et suit la lecture,
+   la colonne de réglages aussi si besoin). */
+:root { --cs-annot-resize: 2; } /* repère lu par la page : style.css à jour */
+.jam-annot-resize { display: none; flex: 0 0 auto; height: 12px; margin: -4px 0 2px; align-items: center; justify-content: center;
     cursor: ns-resize; touch-action: none; border-radius: 6px; user-select: none; -webkit-user-select: none; }
 .jam-annot-resize-grip { width: 48px; height: 4px; border-radius: 2px; background: #64748b; pointer-events: none; }
 .jam-annot-resize:hover, .jam-annot-resize:focus-visible, .jam-annot-resize.is-dragging { background: rgba(59, 130, 246, .18); outline: none; }
 .jam-annot-resize:hover .jam-annot-resize-grip, .jam-annot-resize:focus-visible .jam-annot-resize-grip, .jam-annot-resize.is-dragging .jam-annot-resize-grip { background: #60a5fa; }
-@media (min-width: 1024px), (min-width: 640px) and (pointer: coarse) and (max-height: 500px) {
+@media (min-width: 1024px) {
     #view-jam.jam-playing #jam-scales-card.jam-annot-mode:not(.jam-annot-fs) > .jam-annot-resize { display: flex; }
+    /* Rangée de la grille d'accords (et de la colonne de réglages, qui défile alors si besoin) raccourcie quand on tire les annotations vers le haut */
+    #view-jam.jam-playing:not(.hidden):has(#jam-scales-card.jam-annot-mode:not(.jam-annot-fs)) { grid-template-rows: var(--jam-row1-play-h, minmax(0, auto)) minmax(300px, 1fr); }
 }
 
 /* ===== Faux plein écran de la zone d'annotation : la carte recouvre toute la fenêtre (pas d'API plein écran du navigateur) ===== */
