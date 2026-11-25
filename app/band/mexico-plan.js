@@ -126,6 +126,18 @@ const MX_RHYTHMS = {
     }
 };
 
+// Mariachi : rythmes sans trou (pas de levée qui laisse le 1 vide, pas de note qui tient toute la mesure) ; plusieurs finissent
+// par des croches qui mènent à la mesure suivante
+const MX_FLOW_T = [
+    [[0, 2], [2, 1], [3, 2], [5, 1]],
+    [[0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [5, 1]],
+    [[0, 2], [2, 2], [4, 1], [5, 1]],
+    [[0, 3], [3, 1], [4, 1], [5, 1]],
+    [[0, 2], [2, 1], [3, 1], [4, 1], [5, 1]],
+    [[0, 1], [1, 1], [2, 2], [4, 1], [5, 1]],
+    [[0, 2], [2, 2], [4, 2]]
+];
+
 // Rôle de la voix chantée sur chaque quart de phrase : mel (mélodie), rest (silence : l'accompagnement seul), fill (mélodie,
 // dernier cycle en adorno vers la suite), adorno (silence, puis un adorno sur le dernier cycle).
 const MX_ROLES = {
@@ -134,7 +146,7 @@ const MX_ROLES = {
     'mx-polka':    [['mel', 'mel', 'mel', 'fill'], ['mel', 'rest', 'mel', 'fill'], ['rest', 'mel', 'mel', 'fill'], ['mel', 'mel', 'adorno', 'fill']],
     'mx-bolero':   [['mel', 'mel', 'adorno', 'fill'], ['rest', 'adorno', 'mel', 'fill'], ['mel', 'adorno', 'rest', 'adorno'], ['adorno', 'mel', 'mel', 'fill']],
     'mx-ranchera': [['rest', 'adorno', 'rest', 'adorno'], ['mel', 'adorno', 'rest', 'adorno'], ['rest', 'mel', 'adorno', 'fill'], ['adorno', 'rest', 'adorno', 'fill']],
-    'mx-mariachi': [['mel', 'mel', 'mel', 'fill'], ['mel', 'adorno', 'mel', 'fill'], ['mel', 'mel', 'adorno', 'fill'], ['adorno', 'mel', 'mel', 'fill']]
+    'mx-mariachi': [['mel', 'mel', 'mel', 'fill'], ['mel', 'fill', 'mel', 'fill'], ['mel', 'mel', 'mel', 'mel']]
 };
 
 // ---- Accompagnements ----
@@ -166,10 +178,17 @@ const MX_RANCHERA = {
     bolero: { bass: [0, 4], walk: [6, 7], v: [[2, 1, 0.64], [3, -1, 0.38], [6, 1, 0.62], [7, -1, 0.36]], g: [2, 6] }
 };
 
+// Vihuela du mariachi : [case, sens, vélocité, étouffé] ; accents égaux d'une mesure à l'autre, apagón sur la dernière croche
+const MX_VIHUELA = {
+    seis:   [[0, 1, 0.86], [1, -1, 0.46], [2, 1, 0.62], [3, 1, 0.8], [4, -1, 0.46], [5, 1, 0.6]],
+    seisap: [[0, 1, 0.86], [1, -1, 0.46], [2, 1, 0.62], [3, 1, 0.8], [4, -1, 0.46], [5, 1, 0.5, 1]],
+    tres:   [[0, 1, 0.86], [1, -1, 0.44], [2, 1, 0.74], [3, -1, 0.44], [4, 1, 0.74], [5, -1, 0.48]],
+    tresap: [[0, 1, 0.86], [1, -1, 0.44], [2, 1, 0.74], [3, -1, 0.44], [4, 1, 0.74], [5, 1, 0.48, 1]]
+};
 // Mariachi (son jalisciense) : guitarrón [case, R | F | O, durée en cases, vélocité] et guitare (accords sur les appuis)
 const MX_MARIACHI = {
-    seis: { gn: [[0, 'R', 2.4, 0.9], [3, 'F', 2.2, 0.8]], g: [0, 3] },
-    tres: { gn: [[0, 'R', 1.8, 0.9], [2, 'O', 1.8, 0.78], [4, 'F', 1.8, 0.76]], g: [0, 2, 4] }
+    seis: { gn: [[0, 'R', 2.9, 0.84], [3, 'F', 2.9, 0.78]], g: [0, 3] },
+    tres: { gn: [[0, 'R', 1.95, 0.84], [2, 'O', 1.95, 0.76], [4, 'F', 1.95, 0.76]], g: [0, 2, 4] }
 };
 
 // Registres (hauteurs écrites relatives au do3 des instruments d'harmonie ; transOffset ramène aux hauteurs réelles)
@@ -191,6 +210,8 @@ const MX_RANGES = {
 //   spill     les adornos commencent en cours de mesure et passent la barre pour se poser sur l'accord suivant
 //   vary      les adornos changent de registre (grave, médium, aigu) au lieu de repartir de la note précédente
 //   dense     part des cycles où la voix prend un rythme fourni (quatre notes ou plus)
+//   flow      ligne continue (mariachi) : pas de silence en début ou en milieu de mesure, rythmes sans trou, chaque note
+//             sonne jusqu'à la suivante, contour gardé sur deux mesures, l'adorno de fin de phrase s'enchaîne à la ligne
 //   dry       accordéon norteño : anches peu désaccordées (son net, aéré), sans nappe quand il se tait
 const MX_LEAD_STYLE = {
     'mx-jarocho':  { lo: 11, hi: 28, dbl: 0.06, dblStep: 2, ct: 0.3, art: 0.8, tie: 0.35, spill: 0.55, vary: false, dense: 0.85 },
@@ -198,7 +219,7 @@ const MX_LEAD_STYLE = {
     'mx-polka':    { lo: 12, hi: 28, dbl: 0.3, dblStep: 2, ct: 0.55, art: 0.55, tie: 0.12, spill: 0, vary: false, dense: 0.35, dry: true },
     'mx-bolero':   { lo: 12, hi: 31, dbl: 0.42, dblStep: 2, ct: 0.25, art: 1, tie: 0.3, spill: 0, vary: false, dense: 0.3 },
     'mx-ranchera': { lo: 10, hi: 33, dbl: 0.45, dblStep: 2, ct: 0.3, art: 1, tie: 0.2, spill: 0.75, vary: true, dense: 0.3 },
-    'mx-mariachi': { lo: 14, hi: 31, dbl: 0.6, dblStep: 5, ct: 0.35, art: 0.75, tie: 0.4, spill: 0.55, vary: true, dense: 0.45 }
+    'mx-mariachi': { lo: 14, hi: 31, dbl: 0.6, dblStep: 5, ct: 0.35, art: 1, tie: 0.45, spill: 0.9, vary: false, dense: 0.5, flow: true }
 };
 const MX_LEAD = Object.fromEntries(Object.entries(MX_LEAD_STYLE).map(([g, o]) => [g, [o.lo, o.hi]]));
 
@@ -245,7 +266,8 @@ function mexicoPhraseExtras(groove, ph, rng) {
     } else if (groove === 'mx-mariachi') {
         out.walk = 0.4 + 0.35 * I;
         out.both = rng() < 0.25;                             // parfois deux mesures de suite en 3/4 au lieu de l'alternance
-        out.apagon = 0.35 + 0.4 * I;                         // apagones de la vihuela
+        out.vihA = rng() < 0.35 + 0.4 * I ? 'seisap' : 'seis';   // figures de la vihuela (6/8, 3/4) pour toute la phrase
+        out.vihB = rng() < 0.35 + 0.4 * I ? 'tresap' : 'tres';
     }
     if (MX_LEAD_STYLE[groove].dry) { out.pad = false; out.orn *= 0.5; }
     return out;
@@ -522,8 +544,10 @@ function buildMexicoPlan(env, groove0, bpb, ternary, step, nextStep, isLastMeasu
         const tab = MX_RHYTHMS[fam];
         const end = u === units - 1 && role !== 'fill';
         let pool = role === 'fill' ? tab.fill : (end ? tab.end : tab.mel);
+        if (LS.flow && fam === 'T' && pool === tab.mel) pool = MX_FLOW_T;
+        if (LS.flow && pool === tab.end) pool = tab.end.filter(r => r.length >= 2);
         // rythme fourni (quatre notes ou plus) : la voix « puntea » davantage
-        if (pool === tab.mel && rng() < LS.dense) pool = tab.mel.filter(r => r.length >= 4);
+        if ((pool === tab.mel || pool === MX_FLOW_T) && rng() < LS.dense) pool = pool.filter(r => r.length >= 4);
         let idx = Math.floor(rng() * pool.length);
         const prev = mx.rh[u - 1];
         if (prev && prev.pool === pool && prev.idx === idx && pool.length > 1) idx = (idx + 1 + Math.floor(rng() * (pool.length - 1))) % pool.length;
@@ -546,7 +570,7 @@ function buildMexicoPlan(env, groove0, bpb, ternary, step, nextStep, isLastMeasu
             pushH(p, Math.max(0.08, d * LS.art), notes, vel, { inst: 'acc', art: o.run ? 'run' : 'lin', free: !!o.free, dry: !!LS.dry });
         } else {
             // cordes pincées : détachées (jarocho, mariachi) ou un peu plus liées (trío, ranchera)
-            const ring = o.free ? d * 0.95 : groove === 'mx-jarocho' ? Math.min(d * LS.art, slot * 1.3)
+            const ring = o.free ? d * 0.95 : LS.flow ? d * 0.97 : groove === 'mx-jarocho' ? Math.min(d * LS.art, slot * 1.3)
                 : Math.min(d * LS.art + (LS.art >= 1 ? slot * 0.3 : 0), slot * 3.5);
             pushH(p, Math.max(0.08, ring), notes, vel + 0.04, { dir: 1, roll: 0.004, gain: groove === 'mx-jarocho' ? 1.05 : 1, free: !!o.free });
         }
@@ -581,6 +605,15 @@ function buildMexicoPlan(env, groove0, bpb, ternary, step, nextStep, isLastMeasu
             for (let j = 0; j < nIn; j++) cells.push([kS + j * stp, stp]);
             const lastK = kS + nIn * stp;
             if (lastK < avail - 1e-6) cells.push([lastK, avail - lastK]);
+        }
+        // ligne continue : une note tient du début de la mesure jusqu'à l'adorno (pas de silence avant lui)
+        // (ou depuis la fin de la note liée de la mesure précédente)
+        const start = Math.max(0, Math.ceil(busyUntil - c0k - 1e-6));
+        if (LS.flow && cells.length && cells[0][0] - start > 0.5) {
+            const k0 = cells[0][0], gap = k0 - start;
+            if (gap >= 2) { const h = Math.floor(gap / 2); cells.unshift([start, h], [start + h, gap - h]); }
+            else cells.unshift([start, gap]);
+            cells.sort((a, b) => a[0] - b[0]);
         }
         if (cells.length < 2) return;
         const csOf = (k) => k < avail - 1e-6 ? csAt(P(c0k + k)) : afterBar;
@@ -618,10 +651,18 @@ function buildMexicoPlan(env, groove0, bpb, ternary, step, nextStep, isLastMeasu
         }
         if (role === 'fill' && !leadAcc && LS.spill > 0) { makeAdorno(c0k, avail, lastUnit); continue; }
         const R0 = rhythmFor(u, avail);
-        const rhythm = R0.rhythm.filter(([k]) => c0k + k >= busyUntil - 1e-6);
+        // notes déjà couvertes par une note liée ou la fin d'un adorno : retirées ; une note longue à moitié couverte repart
+        // juste après (pas de trou)
+        const bu = busyUntil - c0k;
+        const rhythm = [];
+        R0.rhythm.forEach(([k, len]) => {
+            if (k >= bu - 1e-6) rhythm.push([k, len]);
+            else if (k + len > bu + 0.99 && !rhythm.length) rhythm.push([Math.max(0, Math.ceil(bu - 1e-6)), k + len - Math.max(0, Math.ceil(bu - 1e-6))]);
+        });
         if (!rhythm.length) continue;
         const fill = R0.role === 'fill';
-        const contour = fill ? (rng() < 0.6 ? 'down' : 'up') : mx.contours[u % mx.contours.length];
+        // contour : un par cycle, ou un pour deux mesures (ligne continue du mariachi)
+        const contour = fill ? (rng() < 0.6 ? 'down' : 'up') : mx.contours[(LS.flow ? u >> 1 : u) % mx.contours.length];
         const from = st.lanes.mel ? st.lanes.mel.n : null;
         const csK = (k) => csAt(P(c0k + k));
         const target = toNext || (phraseEnd ? csK(avail - 1) : null);
@@ -908,17 +949,20 @@ function buildMexicoPlan(env, groove0, bpb, ternary, step, nextStep, isLastMeasu
                 pushB(p, abs, slot * d, v, 1.1);
             });
             // vihuela : rasgueo sur toutes les croches, apagones (coups étouffés) sur les temps faibles
-            const fig = tres ? (rng() < mx.apagon ? 'tresap' : 'tres') : (rng() < mx.apagon ? 'apagon' : 'seis');
-            MX_JARANA[fig].forEach(([k, dir, v, mute]) => {
+            // figure gardée pour toute la phrase ; l'apagón ne tombe que sur la dernière croche (juste avant la barre), jamais au
+            // milieu de la mesure
+            const fig = MX_VIHUELA[tres ? mx.vihB : mx.vihA];
+            fig.forEach(([k, dir, v, mute]) => {
                 if (k >= avail) return;
                 const p = P(c0k + k);
-                pushH(p, mute ? 0.06 : slot * (dir > 0 ? 1.3 : 0.9), vihOf(csAt(p)), v * 0.92, { dir, roll: dir > 0 ? 0.01 : 0.007, mute: !!mute, gain: 0.8 });
+                pushH(p, mute ? 0.07 : slot * (dir > 0 ? 1.4 : 1.05), vihOf(csAt(p)), v * 0.9, { dir, roll: dir > 0 ? 0.01 : 0.007, mute: !!mute, gain: 0.8 });
             });
-            // guitare : les accords sur les appuis
-            pat.g.forEach(k => {
+            // guitare : les accords sur les appuis, tenus jusqu'à l'appui suivant (le tapis sous la vihuela)
+            pat.g.forEach((k, j) => {
                 if (k >= avail) return;
                 const p = P(c0k + k);
-                pushH(p, slot * 1.7, topN(csAt(p), gtrOf(csAt(p)), 3), 0.5, { dir: 1, roll: 0.018, gain: 0.78, lay: 0.006 });
+                const nxt = j < pat.g.length - 1 ? pat.g[j + 1] : avail;
+                pushH(p, slot * (nxt - k) * 0.96, topN(csAt(p), gtrOf(csAt(p)), 3), j === 0 ? 0.5 : 0.44, { dir: 1, roll: 0.018, gain: 0.74, lay: 0.006 });
             });
         }
     }
@@ -942,6 +986,6 @@ function buildMexicoPlan(env, groove0, bpb, ternary, step, nextStep, isLastMeasu
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { MEXICO_GROOVES, MX_NORTENO, MX_LEAD_STYLE, MX_MARIACHI, MX_RHYTHMS, MX_ROLES, MX_JARANA, MX_JARANA_SEQ, MX_SEXTO_T, MX_BOLERO_GTR, MX_RANCHERA,
+    module.exports = { MEXICO_GROOVES, MX_NORTENO, MX_LEAD_STYLE, MX_MARIACHI, MX_VIHUELA, MX_FLOW_T, MX_RHYTHMS, MX_ROLES, MX_JARANA, MX_JARANA_SEQ, MX_SEXTO_T, MX_BOLERO_GTR, MX_RANCHERA,
         mexicoGroove, mxGrid, mexicoPhraseExtras, mxScaleStep, mxLine, mxDensify, mxWalk, buildMexicoPlan };
 }

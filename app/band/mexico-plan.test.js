@@ -356,3 +356,25 @@ describe('retouches : liant, détaché, consonance, adornos, mariachi', () => {
         assert.ok(tresBars > 20 && seisBars > 20, `hémiole : ${tresBars} / ${seisBars}`);
     });
 });
+
+describe('mariachi : jeu continu', () => {
+    test('la guitare qui chante n\'a pas de trou au milieu de la mesure ; les apagones ne tombent que sur la dernière croche', () => {
+        let gaps = 0, notes = 0;
+        for (let s = 1; s < 12; s++) {
+            const { out, bpb } = song('mx-mariachi', { seed: s });
+            let lastEnd = null;
+            out.forEach((o, m) => {
+                o.piano.filter(e => e.mute).forEach(e => assert.ok(Math.abs(e.pos - (bpb - 1 / 3)) < 0.02, `apagón à ${e.pos}`));
+                const lead = o.piano.filter(e => e.roll <= 0.005 && e.intervals[e.intervals.length - 1] >= 14).sort((a, b) => a.pos - b.pos);
+                lead.forEach(e => {
+                    const at = m * bpb + e.pos;
+                    if (lastEnd !== null && at - lastEnd > 0.36) gaps++;
+                    lastEnd = Math.max(lastEnd ?? 0, at + e.dur);
+                    notes++;
+                });
+            });
+        }
+        assert.ok(notes > 300);
+        assert.ok(gaps / notes < 0.04, `silences : ${gaps}/${notes}`);
+    });
+});
