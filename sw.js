@@ -97,6 +97,7 @@ const SHELL_FILES = [
     'app/ui/chord-block.js',
     'app/ui/draw-block.js',
     'app/ui/annot-bar.js',
+    'app/ui/annot-resize.js',
     'app/ui/chord-display.js',
     'app/ui/pastilles.js',
     'app/ui/scale-harmony.js',
