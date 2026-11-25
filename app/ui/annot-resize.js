@@ -1,10 +1,10 @@
-// ui/annot-resize.js — hauteur des zones d'annotation pendant la jam, sans DOM.
-// Jam lancée (onglet Annotations, écran large), la grille d'accords et les annotations se partagent toute la hauteur de la fenêtre :
+// ui/annot-resize.js — hauteur des zones d'annotation, sans DOM.
+// Onglet Annotations, écran large, jam lancée ou non : la grille d'accords et les annotations se partagent toute la hauteur de la fenêtre :
 //  - par défaut, la grille garde sa taille et les annotations prennent toute la place restante jusqu'au bas de la fenêtre ;
-//  - la poignée posée en haut des annotations les tire vers le haut : la grille rétrécit d'autant (elle défile et suit la lecture),
+//  - la poignée posée en haut des annotations les tire vers le haut : la grille rétrécit d'autant (elle défile, et suit la lecture pendant la jam),
 //    sans descendre sous une ligne de dominos. Ce « tirage » (pull, en px) est gardé dans localStorage (« jamAnnotPull »).
 // Le moteur (index.html) mesure la place (total, hauteur du contenu de la grille), appelle arzLayout et pose le résultat sur les
-// variables CSS « --jam-row1-play-h » et « --jam-annot-play-h » de #view-jam (voir style.css).
+// variables CSS « --jam-row1-h » et « --jam-annot-play-h » de #view-jam (voir style.css).
 // Chargé par index.html via <script src="app/ui/annot-resize.js"> et testé par ui/annot-resize.test.js.
 
 const ARZ_MIN = 120;          // hauteur minimale des zones d'annotation (px)

@@ -483,8 +483,8 @@
                 </div>
 
                 <div id="jam-scales-card" class="flex-1 bg-[#252525] border border-[#333333] rounded-xl p-5 shadow flex flex-col justify-between overflow-hidden min-h-0">
-                    <!-- Poignée en haut des annotations, jam lancée : tirer vers le haut agrandit les zones et raccourcit la grille d'accords (ui/annot-resize.js) -->
-                    <div id="jam-annot-resize" class="jam-annot-resize" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Hauteur des annotations pendant la jam" title="Tirer vers le haut pour agrandir les annotations (la grille d'accords rétrécit et suit la lecture) ; flèches ↑ ↓ au clavier ; double-clic : position normale"><span class="jam-annot-resize-grip" aria-hidden="true"></span></div>
+                    <!-- Poignée en haut des annotations (onglet Annotations, écran large) : tirer vers le haut agrandit les zones et raccourcit la grille d'accords (ui/annot-resize.js) -->
+                    <div id="jam-annot-resize" class="jam-annot-resize" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Hauteur des annotations pendant la jam" title="Tirer vers le haut pour agrandir les annotations (la grille d'accords rétrécit et défile) ; flèches ↑ ↓ au clavier ; double-clic : position normale"><span class="jam-annot-resize-grip" aria-hidden="true"></span></div>
                     <div class="jam-scales-head flex justify-between items-center gap-2 mb-3 shrink-0 flex-wrap">
                         <div class="flex items-center gap-2 flex-wrap">
                             <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Antisèches</h3>
@@ -708,7 +708,7 @@
                 this.showCharacteristic = false;
                 this.showScaleInfo = false; // bouton « livre ouvert » : famille de gamme + texte explicatif (masqués par défaut)
                 this.showHarmonicFunctions = false;
-                this.visMode = 'staff';
+                this.visMode = 'annotations'; // onglet ouvert au démarrage du mode Jam (Annotations ; les boutons sont mis à jour par setVisMode à l'initialisation)
 
                 this.loadedGridName = null;
                 this.gridNote = ''; // annotation générale de la grille (onglet Annotations, zone de gauche) ; celles des mesures sont portées par les blocs (`note`)
@@ -7355,6 +7355,7 @@
                         container.scrollTo({ top: 0, behavior: 'smooth' });
                     }
                 }
+                if (!this.isPlaying) this._annotRefitSoon(); // hors jam, la grille peut changer de taille (édition) : partage grille / annotations recalculé
             }
 
             // Plein écran de la grille : toujours simulé (« faux » plein écran, comme celui de la zone d'annotation) : la carte de la grille recouvre
@@ -7384,6 +7385,7 @@
                     btn.classList.toggle('text-slate-400', !!this.antisechesHidden);
                 }
                 if (this.antisechesHidden) { this._setAnnotFullscreen(false); this.annotDeactivate(); } // la zone qu'on éditait disparaît : son texte est validé
+                this._annotRefitSoon(); // panneau masqué : partage grille / annotations retiré ; réaffiché : recalculé (ui/annot-resize.js)
             }
 
             // Faux plein écran de la zone d'annotation : la carte « Antisèches » recouvre toute la fenêtre (CSS seul,
@@ -7422,7 +7424,7 @@
                     this._annotFsKey = null;
                 }
                 if (on) window.scrollTo(0, 0);
-                if (this.isPlaying) requestAnimationFrame(() => this._annotFit()); // le partage grille / annotations est recalculé
+                this._annotRefitSoon(); // le partage grille / annotations est recalculé
             }
 
             toggleGridFullscreen() {
@@ -7679,7 +7681,7 @@
                 this.renderJamScales();
                 // Pendant la jam, la hauteur réservée à la zone est recalculée en entrant dans l'onglet Annotations ou en le quittant.
                 if (this.isPlaying && (annot || prev === 'annotations')) this.lockScalesHeight();
-                if (this.isPlaying) requestAnimationFrame(() => this._annotFit()); // annotations : toute la hauteur libre (ui/annot-resize.js) ; autres onglets : mise en page d'origine
+                this._annotRefitSoon(); // annotations : toute la hauteur libre (ui/annot-resize.js) ; autres onglets : mise en page d'origine
             }
 
             // Joue une note isolée (clic sur une pastille) avec la transposition du mode Jam.
@@ -9336,11 +9338,12 @@
 
             // Pendant la jam, la place réservée aux gammes est fixée une fois pour toutes à la hauteur
             // de la paire la plus haute de la grille : la grille d'accords garde ainsi une taille stable.
-            // ----- Hauteur des zones d'annotation pendant la jam (ui/annot-resize.js) -----
-            // Jam lancée dans l'onglet Annotations (écran large) : la grille garde sa taille et les annotations prennent toute la place jusqu'au
-            // bas de la fenêtre. La poignée en haut des annotations les tire vers le haut : la grille rétrécit d'autant (elle défile et suit la
-            // lecture). Les hauteurs sont calculées au lancement, en entrant dans l'onglet, au retour du plein écran et quand la fenêtre change
-            // de taille, puis posées sur les variables CSS « --jam-row1-play-h » et « --jam-annot-play-h » de #view-jam (style.css).
+            // ----- Hauteur des zones d'annotation (ui/annot-resize.js) -----
+            // Onglet Annotations (écran large), jam lancée ou non : la grille garde sa taille et les annotations prennent toute la place jusqu'au
+            // bas de la fenêtre. La poignée en haut des annotations les tire vers le haut : la grille rétrécit d'autant (elle défile, et suit la
+            // lecture pendant la jam). Les hauteurs sont calculées au lancement et à l'arrêt de la jam, en entrant dans l'onglet, au retour du plein
+            // écran, quand le panneau est affiché, quand la fenêtre change de taille et, hors jam, après chaque rendu de la grille ; elles sont
+            // posées sur les variables CSS « --jam-row1-h » (rangée de la grille) et « --jam-annot-play-h » (zones, pendant la jam) de #view-jam.
             _annotResizeInit() {
                 let p = 0;
                 try { p = arzParsePull(localStorage.getItem(ARZ_STORAGE_KEY)); } catch (e) {}
@@ -9385,7 +9388,14 @@
                     this._applyAnnotLayout();
                     this._saveAnnotPull();
                 });
-                window.addEventListener('resize', () => { if (this.isPlaying) this._annotFit(); });
+                window.addEventListener('resize', () => this._annotRefitSoon());
+            }
+
+            // Recalcul au prochain dessin (plusieurs demandes dans la même image n'en font qu'un).
+            _annotRefitSoon() {
+                if (this._annotRefitPending) return;
+                this._annotRefitPending = true;
+                requestAnimationFrame(() => { this._annotRefitPending = false; this._annotFit(); });
             }
 
             // Partage calculé (ui/annot-resize.js) pour un tirage donné (par défaut celui mémorisé).
@@ -9396,16 +9406,17 @@
 
             // Mesure la place dans la mise en page d'origine (variables retirées), puis applique le partage. Hors de ces conditions, les variables
             // restent retirées (mise en page d'origine). La grille d'accords partage sa rangée avec la colonne de réglages : pour la raccourcir,
-            // c'est la hauteur de cette rangée (« --jam-row1-play-h ») qui diminue ; la colonne de réglages défile alors si besoin.
+            // c'est la hauteur de cette rangée (« --jam-row1-h ») qui diminue ; la colonne de réglages défile alors si besoin.
             _annotFit() {
                 const view = document.getElementById('view-jam');
                 const card = document.getElementById('jam-scales-card');
                 const seq = document.getElementById('jam-chord-sequence-display');
                 const vis = document.getElementById('jam-scale-visualizer');
-                if (view) ['--jam-row1-play-h', '--jam-annot-play-h'].forEach(v => view.style.removeProperty(v));
+                const keep = seq ? seq.scrollTop : 0;                 // la mesure remet la grille à sa taille d'origine : sa position de défilement est gardée
+                if (view) ['--jam-row1-h', '--jam-annot-play-h'].forEach(v => view.style.removeProperty(v));
                 this._annotGeom = null;
                 const wide = window.matchMedia('(min-width: 1024px)').matches;
-                const on = !!(view && card && seq && vis && wide && this.isPlaying && this.visMode === 'annotations' && !this.annotFs && card.offsetParent !== null);
+                const on = !!(view && card && seq && vis && wide && this.visMode === 'annotations' && !this.annotFs && !this.antisechesHidden && card.offsetParent !== null);
                 if (!on) return;
                 const row1 = parseFloat(String(getComputedStyle(view).gridTemplateRows).split(' ')[0]);
                 if (!Number.isFinite(row1)) return;
@@ -9415,6 +9426,7 @@
                 const free = window.innerHeight - card.getBoundingClientRect().bottom - below;   // place libre sous la carte (négative si elle déborde)
                 this._annotGeom = { total: Math.round(gridH + annotH + free), gridContent: Math.round(gridH), row1: Math.round(row1) };
                 this._applyAnnotLayout();
+                if (keep) seq.scrollTop = keep;
             }
 
             _applyAnnotLayout() {
@@ -9424,8 +9436,8 @@
                 if (!view || !g) return;
                 const L = this._annotLayout();
                 const cut = g.gridContent - L.grid;                    // ce que la grille cède aux annotations
-                if (cut > 0) view.style.setProperty('--jam-row1-play-h', `${Math.max(0, g.row1 - cut)}px`);
-                else view.style.removeProperty('--jam-row1-play-h');
+                if (cut > 0) view.style.setProperty('--jam-row1-h', `${Math.max(0, g.row1 - cut)}px`);
+                else view.style.removeProperty('--jam-row1-h');
                 view.style.setProperty('--jam-annot-play-h', `${L.annot}px`);
                 if (grip) {
                     grip.setAttribute('aria-valuenow', String(L.annot));
@@ -9571,7 +9583,7 @@
                 Object.assign(this, bandRunState(newBandSeed()), bandVoiceState());
                 this._countInBeats = this._exporting ? 0 : this.getBeatsPerBar(); // l'intro d'une mesure est toujours jouée (sauf à l'export du son)
                 document.getElementById('view-jam')?.classList.add('jam-playing');
-                requestAnimationFrame(() => this._annotFit()); // annotations : toute la hauteur libre jusqu'au bas de la fenêtre (ui/annot-resize.js)
+                this._annotRefitSoon(); // annotations : toute la hauteur libre jusqu'au bas de la fenêtre (ui/annot-resize.js)
 
                 const btn = document.getElementById('jam-play-btn');
                 if (btn) {
@@ -9607,6 +9619,7 @@
                 this._annotJamTransport();
                 this._countInBeats = 0;
                 document.getElementById('view-jam')?.classList.remove('jam-playing');
+                this._annotRefitSoon(); // annotations hors jam : partage recalculé (ui/annot-resize.js)
                 const scalesBox = document.getElementById('jam-scale-visualizer');
                 if (scalesBox) scalesBox.style.minHeight = '';
                 if (this._onResize) window.removeEventListener('resize', this._onResize);
@@ -10100,6 +10113,7 @@
                 this.initUI();
                 this.update();
                 this.jam.renderGridUI();
+                this.jam.setVisMode(this.jam.visMode); // onglet de départ (Annotations) : boutons, zones et partage de la hauteur
                 this.jam._applyAntiseches();
                 this.jam.renderSavedGridsMenu();
                 this.jam.updateBandSwingUI();
@@ -11479,7 +11493,7 @@
                 'app/grid/grid-format.js': typeof NOTE_FONTS !== 'undefined' && !!NOTE_FONTS.menlo && typeof sanitizeNoteHtml === 'function' && sanitizeNoteHtml('<div class="annot-frame" data-frame="200" data-at="5,5" data-border="0">x</div>', 300).indexOf('data-border') >= 0 && (function () { try { var g = sanitizeImportedGrid([{ rootIndex: 0, chordId: 'maj7', measures: 1, segno: true, jump: 'dsCoda' }]); return !!(g && g[0].segno && g[0].jump === 'dsCoda'); } catch (e) { return false; } })(),
                 'app/ui/staff-editor.js': typeof nseKeyValue === 'function' && typeof nseToolState === 'function' && typeof nseBlocksToClipText === 'function' && typeof NoteStaffView === 'function' && typeof NoteStaffView.prototype.setBorder === 'function' && typeof NoteStaffView.prototype._setTuplet === 'function' && typeof nseSwingOptions === 'function' && typeof NoteStaffView.prototype._toggleTie === 'function' && typeof NoteStaffView.prototype._startMarquee === 'function',
                 'app/ui/annot-resize.js': typeof arzLayout === 'function' && typeof arzDragPull === 'function' && typeof arzKeyPull === 'function' && typeof ARZ_STORAGE_KEY === 'string',
-                'app/style.css': (function () { try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-annot-resize').trim() === '2'; } catch (e) { return false; } })(),
+                'app/style.css': (function () { try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-annot-resize').trim() === '3'; } catch (e) { return false; } })(),
                 'app/ui/text-frame.js': typeof NoteFrameView === 'function' && typeof NoteFrameView.prototype.setBorder === 'function',
                 'app/ui/annot-canvas.js': typeof AnnotCanvas === 'function' && typeof acZoomOffset === 'function' && typeof acEmptySpot === 'function' && typeof AC_GUTTER === 'number',
                 'app/ui/chord-notes.js': typeof chordsParse === 'function' && typeof chordsStubHtml === 'function' && typeof chordsDefault === 'function',
