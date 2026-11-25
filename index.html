@@ -484,7 +484,7 @@
 
                 <div id="jam-scales-card" class="flex-1 bg-[#252525] border border-[#333333] rounded-xl p-5 shadow flex flex-col justify-between overflow-hidden min-h-0">
                     <!-- Poignée en haut des annotations (onglet Annotations, écran large) : tirer vers le haut agrandit les zones et raccourcit la grille d'accords (ui/annot-resize.js) -->
-                    <div id="jam-annot-resize" class="jam-annot-resize" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Hauteur des annotations pendant la jam" title="Tirer vers le haut pour agrandir les annotations (la grille d'accords rétrécit et défile) ; flèches ↑ ↓ au clavier ; double-clic : position normale"><span class="jam-annot-resize-grip" aria-hidden="true"></span></div>
+                    <div id="jam-annot-resize" class="jam-annot-resize" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Hauteur des annotations pendant la jam" ><span class="jam-annot-resize-grip" aria-hidden="true" title="Tirer vers le haut pour agrandir les annotations (la grille d'accords rétrécit et défile) ; flèches ↑ ↓ au clavier ; double-clic : position normale"></span></div>
                     <div class="jam-scales-head flex justify-between items-center gap-2 mb-3 shrink-0 flex-wrap">
                         <div class="flex items-center gap-2 flex-wrap">
                             <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Antisèches</h3>
@@ -9359,11 +9359,11 @@
                     this._saveAnnotPull();
                 };
                 grip.addEventListener('pointerdown', (ev) => {
-                    if (ev.button !== 0 || !this._annotGeom) return;
+                    if (ev.button !== 0 || !this._annotGeom || !ev.target.closest('.jam-annot-resize-grip')) return;
                     ev.preventDefault();
                     drag = { y: ev.clientY, pull: this._annotLayout().pull };
                     grip.classList.add('is-dragging');
-                    try { grip.setPointerCapture(ev.pointerId); } catch (e) {}
+                    try { ev.target.setPointerCapture(ev.pointerId); } catch (e) {} // la pastille (seule partie qui réagit) garde le pointeur
                 });
                 grip.addEventListener('pointermove', (ev) => {
                     if (!drag) return;
