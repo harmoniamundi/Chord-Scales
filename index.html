@@ -2703,7 +2703,7 @@
             }
 
             _harmonyChordName(d) {
-                return `${chordRootName(d.rootIndex, d.chordId, rootLabels)}${this.getJazzChordNotation(d.chordId)}`;
+                return `${d.rootName || chordRootName(d.rootIndex, d.chordId, rootLabels)}${this.getJazzChordNotation(d.chordId)}`;
             }
 
             // Dessine (ou met à jour) le contenu du pop-up ; sans effet s'il est fermé.
@@ -2720,7 +2720,7 @@
                 document.getElementById('harmony-key-title').textContent = `${rootLabels[this.mainKey]} ${qualText}`.trim();
 
                 // Les accords ne sont redessinés que si la tonalité, la qualité ou l'orthographe a changé
-                const sig = [this.mainKey, this.mainQuality, rootLabels.join(','), degrees.map(d => d.chordId + d.label).join(',')].join('|');
+                const sig = [this.mainKey, this.mainQuality, rootLabels.join(','), degrees.map(d => d.chordId + d.label + d.rootName).join(',')].join('|');
                 const box = document.getElementById('harmony-chords');
                 if (sig !== this._harmonySig) {
                     this._harmonySig = sig;
@@ -2757,7 +2757,7 @@
                 hint.classList.toggle('hidden', !!d);
                 row.classList.toggle('hidden', !d);
                 if (!d) { title.textContent = ''; return; }
-                const rootName = chordRootName(d.rootIndex, d.chordId, rootLabels);
+                const rootName = d.rootName || chordRootName(d.rootIndex, d.chordId, rootLabels);
                 title.textContent = this._harmonyChordName(d);
                 chordBadges(rootName, this.findChordObj(d.chordId)).forEach(({ label, interval }) => {
                     const badge = document.createElement('span');
@@ -5048,7 +5048,7 @@
 
             // Fondamentale écrite d'un accord de la grille (bloc stepIndex, moitié half) selon l'accord qui le suit :
             // B#°7 avant C#m7, E#°7 avant B/F#… (voir contextChordRootName dans theory.js).
-            ctxRootName(stepIndex, half = 0) { return gridRootName(this.grid, stepIndex, half, rootLabels); }
+            ctxRootName(stepIndex, half = 0) { return gridRootName(this.grid, stepIndex, half, rootLabels, { index: this.mainKey, quality: this.mainQuality }); }
 
             // Même chose pour un accord donné : une entrée de getFlatMeasureList() (son 2d accord si parent est l'entrée
             // de la mesure), un bloc de this.grid ou son 2d accord. null pour un accord hors de la grille.
@@ -6264,8 +6264,11 @@
             }
 
             getDiatonicDegrees(opts) {
-                return diatonicDegrees({ mainKey: this.mainKey, mainQuality: this.mainQuality, convention: this.getFnConvention(), triads: !!(opts && opts.triads), findChordObj: (id) => this.findChordObj(id),
+                const degrees = diatonicDegrees({ mainKey: this.mainKey, mainQuality: this.mainQuality, convention: this.getFnConvention(), triads: !!(opts && opts.triads), findChordObj: (id) => this.findChordObj(id),
                     styleScaleFor: (id, root) => this._styleScaleFor(id, root) });
+                // fondamentale écrite sur la lettre du degré (Cb et non B en Sol♭ majeur)
+                degrees.forEach((d) => { d.rootName = keyScaleRootName(d.rootIndex, d.chordId, rootLabels, this.mainKey, this.mainQuality) || chordRootName(d.rootIndex, d.chordId, rootLabels); });
+                return degrees;
             }
 
             // Isole une mesure dans son propre bloc (un bloc de 4 mesures devient jusqu'à 3 blocs) et renvoie son index.
@@ -11587,7 +11590,7 @@
     <script>
     // Numéro de version + contrôle de mise en ligne : si un fichier n'a pas été remplacé sur GitHub, une bannière dit lequel.
     (function () {
-        var BUILD = '2026-11-24-b';
+        var BUILD = '2026-11-27-a';
         function cssBuild() {
             try { return getComputedStyle(document.documentElement).getPropertyValue('--cs-build').replace(/['"\s]/g, ''); } catch (e) { return ''; }
         }

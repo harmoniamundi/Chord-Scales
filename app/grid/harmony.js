@@ -6,9 +6,9 @@
 
 // Sous Node, la théorie se charge ; en navigateur ce sont des globaux (theory.js).
 const HARM_THEORY = (typeof lookupChord !== 'undefined')
-    ? { lookupChord, chordInfo, chordTypes, chordRootName, contextChordRootName, bassNoteName }
+    ? { lookupChord, chordInfo, chordTypes, chordRootName, contextChordRootName, keyScaleRootName, bassNoteName }
     : require('../theory.js');
-const HARMONY_BUILD = '2026-11-24-b'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
+const HARMONY_BUILD = '2026-11-27-a'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
 if (typeof romanDeg === 'undefined' && typeof require === 'function') {
     var { romanDeg, chordFamily, convertRomanText, convertRomanLabel } = require('./generation.js');
 }
@@ -55,17 +55,21 @@ function chordSymbol(chord, rootLabels, rootName = null) {
 // Fondamentale écrite d'un accord de la grille (bloc i, moitié half : 0 = 1er accord, 1 = 2d accord d'une mesure à deux
 // accords), d'après l'accord qui le suit dans l'ordre de la grille (voir contextChordRootName : B#°7 avant C#m7, E#°7 avant
 // B/F#…). Le dernier accord est suivi du premier (lecture en boucle). Renvoie null si le bloc n'existe pas.
-function gridRootName(grid, i, half, rootLabels) {
+// key (facultatif) : { index, quality } de la tonalité principale : un accord sur un degré de la gamme s'écrit sur la lettre de ce degré
+// (Cb∆ et non B∆ en Sol♭ majeur), sauf quand l'accord suivant impose déjà une écriture (diminué de passage).
+function gridRootName(grid, i, half, rootLabels, key = null) {
     const st = grid[i];
     if (!st) return null;
     const isSplit2 = !!(st.split && st.measures === 1);
     const chord = (half === 1 && isSplit2) ? st.split : st;
     const next = (chord === st && isSplit2) ? st.split : (grid.length > 1 ? grid[(i + 1) % grid.length] : null);
-    return HARM_THEORY.contextChordRootName(chord.rootIndex, chord.chordId, rootLabels, next);
+    const ctx = HARM_THEORY.contextChordRootName(chord.rootIndex, chord.chordId, rootLabels, next);
+    if (!key || ctx !== HARM_THEORY.chordRootName(chord.rootIndex, chord.chordId, rootLabels)) return ctx;
+    return HARM_THEORY.keyScaleRootName(chord.rootIndex, chord.chordId, rootLabels, key.index, key.quality) || ctx;
 }
 // Toute la grille : tableau parallèle à grid, [1er accord, 2d accord ou null].
-function gridRootNames(grid, rootLabels) {
-    return grid.map((st, i) => [gridRootName(grid, i, 0, rootLabels), (st.split && st.measures === 1) ? gridRootName(grid, i, 1, rootLabels) : null]);
+function gridRootNames(grid, rootLabels, key = null) {
+    return grid.map((st, i) => [gridRootName(grid, i, 0, rootLabels, key), (st.split && st.measures === 1) ? gridRootName(grid, i, 1, rootLabels, key) : null]);
 }
 
 // Les caractères absents de la police Kalam (Δ, ♭, ♯ et le signe moins « − » du mineur) sont isolés dans un <span>

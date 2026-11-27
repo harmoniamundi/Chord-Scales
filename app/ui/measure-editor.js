@@ -19,7 +19,7 @@ const { chordRootName: med_chordRootName, bassNoteName: med_bassNoteName, chordI
     cbStructIntervals: med_cbStructIntervals, CB_EXT_ORDER: MED_EXT_ORDER, CB_EXT: MED_EXT, CB_EXT_LABEL: MED_EXT_LABEL,
     getSpelledChordNotes: med_getSpelledChordNotes, chordTypes: med_chordTypes, scalesDb: med_scalesDb } = MED_T;
 
-const MEASURE_EDITOR_BUILD = '2026-11-24-b'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
+const MEASURE_EDITOR_BUILD = '2026-11-27-a'; // numéro de version affiché par la page (détecte un fichier oublié lors d'une mise en ligne)
 
 function editorHtml(v) {
     const { m, step, isHalf, cur, half, rootLabels, isFolded, findChordObj, halfLabelText, halfTitleText } = v;
@@ -31,7 +31,7 @@ function editorHtml(v) {
                 const degrees = v.degrees.map((d, i) =>
                     chip(d.rootIndex === cur.rootIndex && d.chordId === cur.chordId,
                         `data-act="degree" data-i="${i}" title="Raccourci clavier : ${i + 1}"`,
-                        `${d.label}<small>${med_chordRootName(d.rootIndex, d.chordId, rootLabels)}${jazz(d.chordId)}</small>`, ' jm-deg')
+                        `${d.label}<small>${d.rootName || med_chordRootName(d.rootIndex, d.chordId, rootLabels)}${jazz(d.chordId)}</small>`, ' jm-deg')
                 ).join('');
                 // Fondamentale : les 12 notes, les touches noires en dièse ET en bémol (le nom choisi s'applique à toute la grille)
                 const roots = [['C', '0'], ['C#', '1s'], ['Db', '1f'], ['D', '2'], ['D#', '3s'], ['Eb', '3f'], ['E', '4'], ['F', '5'],

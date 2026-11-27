@@ -105,6 +105,27 @@ function bassNoteName(rootIndex, chordId, bassPc, labels, rootName = null) {
     const steps = [0, 1, 1, 2, 2, 3, flat5 ? 4 : 3, 4, aug ? 4 : 5, (info && info.st.sev === 'bb7') ? 6 : 5, 6, 6];
     return spellOnLetter(LETTER_ORDER[(rl + steps[iv]) % 7], bassPc) || labels[bassPc];
 }
+// Fondamentale d'un accord écrite sur la lettre de son degré dans la tonalité (Cb et non B en Sol♭ majeur, Fb en Mi♭ mineur, E# en Fa# majeur…),
+// quand elle appartient à la gamme de la tonalité (keyIndex : tonique ; quality : ionian, dorian, … locrian). null sinon, ou si cette écriture
+// demandait une double altération, ou pour un accord diminué (°, °7 : il garde sa fondamentale dièsée, voir chordRootName).
+const KEY_MODE_ROT = { ionian: 0, dorian: 1, phrygian: 2, lydian: 3, mixolydian: 4, aeolian: 5, locrian: 6 };
+const MAJOR_STEPS = [0, 2, 4, 5, 7, 9, 11];
+function keyScaleRootName(rootIndex, chordId, labels, keyIndex, quality) {
+    const rot = KEY_MODE_ROT[quality];
+    if (rot === undefined || !Number.isInteger(keyIndex) || !Number.isInteger(rootIndex) || !labels || !labels[keyIndex]) return null;
+    const info = chordInfo(chordId);
+    if (info && info.fam === 'dim') return null;
+    const li = LETTER_ORDER.indexOf(String(labels[keyIndex])[0]);
+    if (li < 0) return null;
+    const rel = (((rootIndex - keyIndex) % 12) + 12) % 12;
+    for (let d = 0; d < 7; d++) {
+        const off = (MAJOR_STEPS[(rot + d) % 7] - MAJOR_STEPS[rot] + 12) % 12;
+        if (off !== rel) continue;
+        const name = spellOnLetter(LETTER_ORDER[(li + d) % 7], rootIndex);
+        return (name && !/##|bb/.test(name)) ? name : null;
+    }
+    return null;
+}
 // Fondamentale écrite selon l'accord qui suit : un accord diminué (°, °7) ou demi-diminué (ø) placé un demi-ton sous la
 // basse de l'accord suivant est l'accord de sensible de cet accord (vii°7/x, dominante sans fondamentale) ; sa fondamentale
 // s'écrit donc sur la lettre juste au-dessous de celle de la note visée : B#°7 → C#m7 (et non C°7), E#°7 → B/F# (et non F°7),
@@ -634,7 +655,7 @@ if (typeof module !== 'undefined' && module.exports) {
         LETTER_ORDER,
         spellOnLetter,
         chordRootName,
-        contextChordRootName,
+        contextChordRootName, keyScaleRootName,
         bassNoteName,
         scaleLetterStep,
         AWKWARD_NOTE,

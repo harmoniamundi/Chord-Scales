@@ -217,3 +217,31 @@ describe('contextChordRootName : accord diminué de sensible', () => {
         assert.equal(T.bassNoteName(0, 'dim7', 3, L, 'B#'), 'D#');
     });
 });
+
+describe('keyScaleRootName : fondamentale sur la lettre du degré de la tonalité', () => {
+    const T = require('./theory.js');
+    const lab = (k, q) => T.labelsForSpelling(T.deriveSpelling(k, q));
+    test('Sol♭ majeur : IV = Cb (et non B)', () => {
+        assert.equal(T.keyScaleRootName(11, 'maj7', lab('Gb', 'ionian'), 6, 'ionian'), 'Cb');
+        assert.equal(T.keyScaleRootName(1, '7', lab('Gb', 'ionian'), 6, 'ionian'), 'Db');
+    });
+    test('Fa# majeur : VII = E# ; Mi♭ mineur : VI = Cb ; La♭ mineur : VI = Fb (Sol# mineur : E)', () => {
+        assert.equal(T.keyScaleRootName(5, 'm7b5', lab('F#', 'ionian'), 6, 'ionian'), 'E#');
+        assert.equal(T.keyScaleRootName(11, 'maj7', lab('Eb', 'aeolian'), 3, 'aeolian'), 'Cb');
+        assert.equal(T.keyScaleRootName(4, 'maj7', T.labelsForSpelling('fffff'), 8, 'aeolian'), 'Fb');   // La♭ mineur écrit en bémols
+        assert.equal(T.keyScaleRootName(4, 'maj7', T.labelsForSpelling('sssss'), 8, 'aeolian'), 'E');    // Sol# mineur : VI = E
+    });
+    test('hors de la gamme, accord diminué ou tonalité inconnue : null', () => {
+        assert.equal(T.keyScaleRootName(0, 'maj7', lab('Gb', 'ionian'), 6, 'ionian'), null);
+        assert.equal(T.keyScaleRootName(5, 'dim7', lab('F#', 'ionian'), 6, 'ionian'), null);
+        assert.equal(T.keyScaleRootName(11, 'maj7', lab('Gb', 'ionian'), 6, 'harmonicMinor'), null);
+    });
+    test('tonalités usuelles : rien ne change (Do majeur, Fa majeur, Si♭ dorien)', () => {
+        const c = lab('C', 'ionian');
+        [0, 2, 4, 5, 7, 9, 11].forEach(p => assert.equal(T.keyScaleRootName(p, 'm7', c, 0, 'ionian'), c[p]));
+        const f = lab('F', 'ionian');
+        [5, 7, 9, 10, 0, 2, 4].forEach(p => assert.equal(T.keyScaleRootName(p, '7', f, 5, 'ionian'), f[p]));
+        const bb = lab('Bb', 'dorian');
+        [10, 0, 1, 3, 5, 7, 8].forEach(p => assert.equal(T.keyScaleRootName(p, 'm7', bb, 10, 'dorian'), bb[p]));
+    });
+});

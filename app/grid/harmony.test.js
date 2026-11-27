@@ -484,3 +484,20 @@ describe('gridRootName : fondamentale écrite selon l\'accord suivant', () => {
         assert.equal(H.gridRootName(g, 1, 0, L), 'B#');
     });
 });
+
+describe('gridRootName : orthographe selon la tonalité principale', () => {
+    const H = require('./harmony.js');
+    const T = require('../theory.js');
+    const L = T.labelsForSpelling(T.deriveSpelling('Gb', 'ionian'));
+    const grid = [{ rootIndex: 6, chordId: 'maj7', measures: 1 }, { rootIndex: 11, chordId: 'maj7', measures: 1 }, { rootIndex: 1, chordId: '7', measures: 1 }];
+    test('Sol♭ majeur : Cb∆ dans la grille, B sans tonalité donnée (ancienne écriture)', () => {
+        assert.equal(H.gridRootName(grid, 1, 0, L, { index: 6, quality: 'ionian' }), 'Cb');
+        assert.equal(H.gridRootName(grid, 1, 0, L), 'B');
+        assert.equal(H.chordSymbol(grid[1], L, H.gridRootName(grid, 1, 0, L, { index: 6, quality: 'ionian' })), 'CbΔ');
+    });
+    test('un diminué de passage garde l\'écriture imposée par l\'accord suivant', () => {
+        const Ls = T.labelsForSpelling(T.deriveSpelling('B', 'ionian'));
+        const g = [{ rootIndex: 0, chordId: 'dim7', measures: 1 }, { rootIndex: 1, chordId: 'm7', measures: 1 }];
+        assert.equal(H.gridRootName(g, 0, 0, Ls, { index: 11, quality: 'ionian' }), 'B#');
+    });
+});
