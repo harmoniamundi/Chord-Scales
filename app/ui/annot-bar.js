@@ -124,23 +124,27 @@ function annotBarHtml() {
     </div>`;
 }
 
-// Boutons de disposition, en tête de chaque zone d'annotation : aimant (léger magnétisme entre blocs), cadre visible / caché,
-// premier plan, arrière-plan. L'aimant est un réglage de la page ; les trois autres s'appliquent aux blocs sélectionnés de la zone.
+// Boutons de disposition, en tête de chaque zone d'annotation : aimant (léger magnétisme entre blocs), mode « largeur » des cadres de texte,
+// cadre visible / caché, premier plan, arrière-plan. L'aimant et le mode « largeur » sont des réglages de la page ; les trois autres s'appliquent
+// aux blocs sélectionnés de la zone.
 // Les boutons ne prennent pas le focus (la sélection de blocs, ou le texte en cours d'écriture, reste en place).
 const ANNOT_TOOL_ICONS = {
     magnet: '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 7v1.2a5 5 0 0 0 10 0V7" fill="none" stroke="currentColor" stroke-width="3"/><path d="M3 1.8V5.4M13 1.8V5.4" fill="none" stroke="currentColor" stroke-width="3" opacity=".5"/></svg>',
+    reflow: '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 5h7M4.5 8h5M4.5 11h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M1 8h2M2.2 6.8 1 8l1.2 1.2M15 8h-2M13.8 6.8 15 8l-1.2 1.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     border: '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2.4 1.8"/><path d="M5 6.5h6M5 9.5h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
     front: '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".55"/><rect x="6" y="6" width="8" height="8" rx="1" fill="currentColor"/></svg>',
     back: '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="6" y="6" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".55"/><rect x="2" y="2" width="8" height="8" rx="1" fill="currentColor"/></svg>'
 };
 const ANNOT_TOOLS = [
     { act: 'magnet', title: 'Aimant : les blocs se collent légèrement les uns aux autres et aux bords quand on les déplace (Alt pour l\'ignorer le temps d\'un geste)' },
+    { act: 'reflow', title: 'Cadres de texte : tirer un bord change la largeur, le texte se remet à la ligne sans changer de taille (désactivé : tirer un bord agrandit ou réduit le texte). Alt inverse le temps d\'un geste' },
     { act: 'border', title: 'Cadre visible / caché pour les blocs sélectionnés' },
     { act: 'front', title: 'Mettre les blocs sélectionnés au premier plan' },
     { act: 'back', title: 'Mettre les blocs sélectionnés à l\'arrière-plan' }
 ];
+const ANNOT_PAGE_TOOLS = ['magnet', 'reflow']; // réglages de la page (toujours actifs), et non actions sur les blocs sélectionnés
 function annotToolsHtml() {
-    const b = ANNOT_TOOLS.map(t => `<button type="button" class="ab-btn at-btn" data-annot-act="${t.act}" title="${t.title}" aria-label="${t.title}"${t.act === 'magnet' ? ' aria-pressed="false"' : ' disabled'}
+    const b = ANNOT_TOOLS.map(t => `<button type="button" class="ab-btn at-btn" data-annot-act="${t.act}" title="${t.title}" aria-label="${t.title}"${ANNOT_PAGE_TOOLS.includes(t.act) ? ' aria-pressed="false"' : ' disabled'}
         onmousedown="event.preventDefault()" onclick="app.jam.annotToolAct('${t.act}')">${ANNOT_TOOL_ICONS[t.act]}</button>`).join('');
     return `<span class="jam-annot-tools" role="group" aria-label="Disposition des blocs">${b}</span>`;
 }

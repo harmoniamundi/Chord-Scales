@@ -124,3 +124,38 @@ describe('noteFrameStubHtml', () => {
         assert.equal(F.sanitizeNoteHtml(stub), stub);
     });
 });
+
+describe('ntfResizeWidth : mode « largeur » (le texte se remet à la ligne, sa taille ne change pas)', () => {
+    test('bord droit : la largeur suit le pointeur, le bord gauche reste en place', () => {
+        assert.deepEqual(T.ntfResizeWidth('e', 260, 1, 40), { w: 300, ax: 0 });
+        assert.deepEqual(T.ntfResizeWidth('e', 260, 1, -60), { w: 200, ax: 0 });
+    });
+    test('bord gauche et coins : tirer vers la gauche élargit, le bord droit reste en place', () => {
+        assert.deepEqual(T.ntfResizeWidth('w', 260, 1, -40), { w: 300, ax: 1 });
+        assert.deepEqual(T.ntfResizeWidth('sw', 260, 1, 20), { w: 240, ax: 1 });
+        assert.deepEqual(T.ntfResizeWidth('ne', 260, 1, 30), { w: 290, ax: 0 });
+    });
+    test('un cadre affiché à 200 % : un déplacement de 40 pixels à l\'écran = 20 pixels de mise en page', () => {
+        assert.equal(T.ntfResizeWidth('e', 260, 2, 40).w, 280);
+    });
+    test('bornes : largeur minimale du format, largeur de la zone, un cadre déjà plus large ne saute pas', () => {
+        assert.equal(T.ntfResizeWidth('e', 260, 1, -500).w, 80);
+        assert.equal(T.ntfResizeWidth('e', 260, 1, 500, { maxWidth: 400 }).w, 400);
+        assert.equal(T.ntfResizeWidth('e', 600, 1, 10, { maxWidth: 400 }).w, 600);
+        assert.equal(T.ntfResizeWidth('e', 600, 1, -50, { maxWidth: 400 }).w, 550);
+        assert.equal(T.ntfResizeWidth('e', 1150, 1, 500).w, 1200);
+    });
+    test('la largeur obtenue s\'enregistre sans changer l\'échelle du texte', () => {
+        const w = T.ntfResizeWidth('e', 260, 1.5, 90).w;
+        const stub = T.noteFrameStubHtml({ w, s: 150 }, { x: 0, y: 0 }, 'texte');
+        assert.match(stub, /data-frame="320,150"/);
+    });
+    test('les bords haut et bas ne redimensionnent pas (la hauteur suit le texte)', () => {
+        assert.equal(T.ntfWidthZone('n'), '');
+        assert.equal(T.ntfWidthZone('s'), '');
+        assert.equal(T.ntfWidthZone('se'), 'se');
+        assert.equal(T.ntfWidthCursor('nw'), 'ew-resize');
+        assert.equal(T.ntfWidthCursor('s'), '');
+        assert.deepEqual(T.ntfResizeWidth('s', 260, 1, 40), { w: 260, ax: 0 });
+    });
+});

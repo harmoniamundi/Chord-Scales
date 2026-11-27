@@ -9,12 +9,15 @@
 //  - « au repos » : le cadre se sélectionne d'un clic (Maj / ⌘ / Ctrl pour en choisir plusieurs, Suppr. les enlève), se déplace en le glissant avec les autres
 //    blocs sélectionnés (au pixel près, avec repères d'alignement et aimant, y compris dans l'autre zone), et s'agrandit ou se réduit en tirant sur ses bords et ses coins (le curseur qui les survole change de forme). Le texte suit : tirer
 //    change l'échelle d'affichage E (25 à 400 %), donc la taille visible de tout ce que contient le cadre ; la mise en page du texte ne bouge pas.
+//    En mode « largeur » (réglage de la page, bouton ↔ des outils de disposition ; Alt inverse le mode le temps d'un geste), tirer un bord gauche / droit
+//    ou un coin change au contraire la largeur de mise en page L : la taille des caractères reste la même et le texte se remet à la ligne selon la
+//    nouvelle largeur ; la hauteur suit le texte (les bords haut / bas ne font rien).
 // Le texte enregistré ne garde que ce petit bloc et son texte mis en forme (format et nettoyage : ui/staff-notes.js et grid/grid-format.js).
 // Chargé par index.html via <script src="app/ui/text-frame.js"> (après ui/staff-editor.js) et testé par ui/text-frame.test.js.
 
 // Sous Node (tests), le format se charge ; en navigateur ce sont des globaux (ui/staff-notes.js).
 const NTF_N = (typeof parseFrameBox !== 'undefined')
-    ? { parseFrameBox, formatFrameBox, parseStaffPos, formatStaffPos, clampStaffPos, parseBlockAt, formatBlockAt, clampBlockAt, parseBlockBorder, SN_FRAME_W_DEFAULT, SN_FRAME_SCALE_MIN, SN_FRAME_SCALE_MAX, SN_FRAME_SCALE_DEFAULT }
+    ? { parseFrameBox, formatFrameBox, parseStaffPos, formatStaffPos, clampStaffPos, parseBlockAt, formatBlockAt, clampBlockAt, parseBlockBorder, SN_FRAME_W_DEFAULT, SN_FRAME_W_MIN, SN_FRAME_W_MAX, SN_FRAME_SCALE_MIN, SN_FRAME_SCALE_MAX, SN_FRAME_SCALE_DEFAULT }
     : require('./staff-notes.js');
 
 const NTF_EDGE = 6;          // épaisseur (pixels) de la zone sensible le long des bords, à la souris
@@ -66,6 +69,27 @@ function ntfResizeScale(zone, w0, h0, s0, dx, dy, opts = {}) {
     return { s, ax: sx > 0 ? 0 : (sx < 0 ? 1 : 0.5), ay: sy > 0 ? 0 : (sy < 0 ? 1 : 0.5) };
 }
 
+// Mode « largeur » : nouvelle largeur de mise en page quand on tire la poignée `zone` de dx pixels (écran). Le texte se remet à la ligne, la taille
+// des caractères ne change pas. Seuls les bords gauche / droit et les coins agissent (la hauteur suit le texte).
+// w0 : largeur de mise en page au départ ; f : pixels d'écran par pixel de mise en page (échelle du cadre × zoom de la zone) ;
+// opts.maxWidth : largeur de mise en page maximale (celle de la zone ; un cadre déjà plus large peut seulement être réduit, sans saut).
+// Renvoie { w, ax } : w = largeur, ax = côté qui reste en place (0 = gauche, 1 = droite).
+function ntfResizeWidth(zone, w0, f, dx, opts = {}) {
+    const sx = zone.includes('e') ? 1 : (zone.includes('w') ? -1 : 0);
+    if (!sx) return { w: w0, ax: 0 };
+    const k = f > 0 ? f : 1;
+    const lo = Math.max(NTF_N.SN_FRAME_W_MIN, Math.ceil(NTF_MIN_WIDTH / k));
+    let hi = NTF_N.SN_FRAME_W_MAX;
+    if (opts.maxWidth > 0) hi = Math.min(hi, Math.max(lo, w0, Math.floor(opts.maxWidth)));
+    const w = Math.max(lo, Math.min(hi, Math.round(w0 + sx * (Number.isFinite(dx) ? dx : 0) / k)));
+    return { w, ax: sx > 0 ? 0 : 1 };
+}
+
+// Mode « largeur » : zones qui redimensionnent (bords gauche / droit et coins ; '' pour les bords haut / bas, qui déplacent le cadre comme son milieu)
+// et forme du curseur qui les survole.
+function ntfWidthZone(zone) { return /[ew]/.test(zone || '') ? zone : ''; }
+function ntfWidthCursor(zone) { return ntfWidthZone(zone) ? 'ew-resize' : ''; }
+
 // Petit bloc enregistré dans l'annotation pour un cadre : sa largeur / échelle, sa place sur le canevas, son bord (caché si border === false)
 // et son texte (déjà en HTML restreint).
 function noteFrameStubHtml(box, at, innerHtml, border) {
@@ -82,7 +106,8 @@ let NTF_ACTIVE = null; // le cadre dont le texte est en cours d'édition (un seu
 //        onChange(view) après chaque changement (texte à la sortie de l'édition, place, taille) ; onActivate(view) / onDeactivate(view) ;
 //        onFocusBack(view) quand on sort de l'édition au clavier ou par le crayon (le focus revient à la zone) ;
 //        canvas() → le canevas de la zone (ui/annot-canvas.js) : sélection et déplacement des blocs ;
-//        onGrab(view) quand le cadre est saisi (redimensionnement) ; onMoved(view) quand il vient d'être redimensionné.
+//        onGrab(view) quand le cadre est saisi (redimensionnement) ; onMoved(view) quand il vient d'être redimensionné ;
+//        reflow() → true en mode « largeur » (tirer un bord change la largeur du texte, pas sa taille).
 class NoteFrameView {
     constructor(el, opts) {
         this.el = el;
@@ -269,7 +294,13 @@ class NoteFrameView {
     // Survol à la souris : le curseur change de forme sur les bords et les coins.
     _hover(ev) {
         if (ev.buttons || this._resizing || ev.pointerType === 'touch') return;
-        this.el.style.cursor = (!this.editable || this.isActive) ? '' : ntfCursor(this._zoneAt(ev));
+        this.el.style.cursor = (!this.editable || this.isActive) ? '' : (this._reflowFor(ev) ? ntfWidthCursor : ntfCursor)(this._zoneAt(ev));
+    }
+
+    // Mode « largeur » pour ce geste (réglage de la page, inversé par Alt).
+    _reflowFor(ev) {
+        const on = !!(this.opts.reflow && this.opts.reflow());
+        return ev && ev.altKey ? !on : on;
     }
 
     _down(ev) {
@@ -277,10 +308,11 @@ class NoteFrameView {
         if (ev.target.closest && ev.target.closest('.annot-frame-edit')) return;
         ev.preventDefault();
         ev.stopPropagation();
-        const zone = this._zoneAt(ev);
+        const reflow = this._reflowFor(ev);
+        const zone = reflow ? ntfWidthZone(this._zoneAt(ev)) : this._zoneAt(ev);
         const cv = this._canvas();
         const additive = ev.shiftKey || ev.metaKey || ev.ctrlKey;
-        if (zone && !additive) this._resizeDown(ev, zone);
+        if (zone && !additive) { if (reflow) this._resizeWidthDown(ev, zone); else this._resizeDown(ev, zone); }
         else if (cv) cv.startMove(this, ev);
     }
 
@@ -289,14 +321,77 @@ class NoteFrameView {
     // Largeur du texte avant mise à l'échelle (fixe, ou mesurée pour un cadre à largeur automatique).
     _baseWidth() { return this.box.auto ? (this.body.offsetWidth || NTF_MIN_WIDTH) : this.box.w; }
 
-    // Largeur maximale du cadre : celle de la zone (échelle maximale correspondante).
-    _maxScale() {
+    // Place disponible en largeur dans la zone (pixels du canevas) ; 0 sans zone.
+    _room() {
         const z = this._zone();
-        if (!z) return NTF_N.SN_FRAME_SCALE_MAX;
+        if (!z) return 0;
         const px = (v) => parseFloat(v) || 0;
         const zs = getComputedStyle(z);
-        const room = z.clientWidth - px(zs.paddingLeft) - px(zs.paddingRight) - 12;
-        return Math.max(NTF_N.SN_FRAME_SCALE_MIN, room / this._baseWidth() * 100);
+        return z.clientWidth - px(zs.paddingLeft) - px(zs.paddingRight) - 12;
+    }
+
+    // Largeur maximale du cadre : celle de la zone (échelle maximale correspondante).
+    _maxScale() {
+        if (!this._zone()) return NTF_N.SN_FRAME_SCALE_MAX;
+        return Math.max(NTF_N.SN_FRAME_SCALE_MIN, this._room() / this._baseWidth() * 100);
+    }
+
+    // Mode « largeur » : tirer un bord gauche / droit ou un coin change la largeur de mise en page (le texte se remet à la ligne, ses caractères
+    // gardent leur taille) ; le bord opposé reste en place, le haut du cadre aussi. Un cadre à largeur automatique prend une largeur fixe.
+    _resizeWidthDown(ev, zone) {
+        const el = this.el;
+        const cv = this._canvas();
+        if (cv) cv.select([el], 'set', true);
+        if (this.opts.onGrab) this.opts.onGrab(this);
+        const r0 = el.getBoundingClientRect();
+        const box0 = { ...this.box }, pos0 = { ...this.pos };
+        const w0 = Math.round(this._baseWidth());
+        const f = w0 > 0 ? r0.width / w0 : 1;                 // pixels d'écran par pixel de mise en page (échelle du cadre et zoom de la zone)
+        const room = this._room();
+        const k = this.box.s / 100;
+        let maxWidth = room > 0 ? room / k : 0;
+        // vers la gauche, le cadre s'élargit jusqu'au bord de la zone au plus (son bord droit reste ainsi en place)
+        if (zone.includes('w') && !this.legacy) maxWidth = Math.min(maxWidth || Infinity, w0 + this.pos.x / k);
+        const x0 = ev.clientX;
+        let changed = false;
+        this._resizing = true;
+        el.style.cursor = ntfWidthCursor(zone);
+        try { el.setPointerCapture(ev.pointerId); } catch (e) { /* non pris en charge */ }
+        const end = (drop) => {
+            el.removeEventListener('pointermove', onMove);
+            el.removeEventListener('pointerup', onUp);
+            el.removeEventListener('pointercancel', onCancel);
+            document.removeEventListener('keydown', onKey, true);
+            try { el.releasePointerCapture(ev.pointerId); } catch (e) { /* déjà relâché */ }
+            this._resizing = false;
+            el.style.cursor = '';
+            if (!drop) {
+                if (changed) { this.pos = pos0; this.box = box0; this._layout(); this._showPos(); }
+                return;
+            }
+            if (!changed) { this._pick(); return; }
+            this.commit();
+            if (this.opts.onMoved) this.opts.onMoved(this);
+            this._pick();
+        };
+        const onMove = (e2) => {
+            const dx = e2.clientX - x0;
+            if (!changed && Math.abs(dx) < 3) return;
+            const res = ntfResizeWidth(zone, w0, f, dx, { maxWidth });
+            if (!this.box.auto && res.w === this.box.w) return;
+            changed = true;
+            this.box = { w: res.w, s: box0.s };
+            this._layout();
+            const r1 = el.getBoundingClientRect();
+            this.placeAt({ left: r0.left + res.ax * (r0.width - r1.width), top: r0.top });
+        };
+        const onUp = () => end(true);
+        const onCancel = () => end(false);
+        const onKey = (k) => { if (k.key === 'Escape') { k.preventDefault(); k.stopPropagation(); end(false); } };
+        el.addEventListener('pointermove', onMove);
+        el.addEventListener('pointerup', onUp);
+        el.addEventListener('pointercancel', onCancel);
+        document.addEventListener('keydown', onKey, true);
     }
 
     _resizeDown(ev, zone) {
@@ -407,5 +502,5 @@ function hydrateNoteFrames(root, opts) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { NTF_EDGE, NTF_CORNER, NTF_MIN_WIDTH, ntfHitZone, ntfCursor, ntfResizeScale, noteFrameStubHtml };
+    module.exports = { NTF_EDGE, NTF_CORNER, NTF_MIN_WIDTH, ntfHitZone, ntfCursor, ntfResizeScale, ntfResizeWidth, ntfWidthZone, ntfWidthCursor, noteFrameStubHtml };
 }

@@ -677,6 +677,7 @@
                 try { const m = localStorage.getItem('jamPerfMode'); if (['auto', 'full', 'light', 'minimal'].indexOf(m) >= 0) this.perfMode = m; } catch (e) {}
                 this.perfTier = this._initialPerfTier();
                 this.annotMagnet = (() => { try { return localStorage.getItem('jamAnnotMagnet') === '1'; } catch (e) { return false; } })(); // aimant entre blocs d'annotation
+                this.annotReflow = (() => { try { return localStorage.getItem('jamAnnotReflow') === '1'; } catch (e) { return false; } })(); // cadres de texte : tirer un bord change la largeur (ui/text-frame.js)
                 this.annotEdit = { general: false, measure: false }; // mode édition de chaque zone d'annotation (crayon à côté du titre) ; hors édition, les blocs sont figés
                 this.annotZoom = (() => { // zoom de lecture de chaque zone (hors édition), gardé d'une visite à l'autre
                     let o = {}; try { o = JSON.parse(localStorage.getItem('jamAnnotZoom') || '{}') || {}; } catch (e) {}
@@ -8834,6 +8835,12 @@
                     this._annotRefreshTools();
                     return;
                 }
+                if (act === 'reflow') {
+                    this.annotReflow = !this.annotReflow;
+                    try { localStorage.setItem('jamAnnotReflow', this.annotReflow ? '1' : '0'); } catch (e) {}
+                    this._annotRefreshTools();
+                    return;
+                }
                 const ed = this._annotActive;
                 const views = this._annotTargets();
                 if (!ed || !views.length) return;
@@ -8860,9 +8867,10 @@
                     const mine = !!zone && zone === this._annotActive;
                     strip.querySelectorAll('[data-annot-act]').forEach((b) => {
                         const a = b.dataset.annotAct;
-                        if (a === 'magnet') {
-                            b.classList.toggle('is-on', !!this.annotMagnet);
-                            b.setAttribute('aria-pressed', this.annotMagnet ? 'true' : 'false');
+                        if (a === 'magnet' || a === 'reflow') {
+                            const on = !!(a === 'magnet' ? this.annotMagnet : this.annotReflow);
+                            b.classList.toggle('is-on', on);
+                            b.setAttribute('aria-pressed', on ? 'true' : 'false');
                             return;
                         }
                         b.disabled = !mine || targets.length === 0;
@@ -9000,6 +9008,7 @@
                     onDeactivate: () => this._annotRefreshState(),
                     onFocusBack: () => { try { ed.focus({ preventScroll: true }); } catch (e) {} },
                     maxFrames: NOTE_MAX_FRAMES,
+                    reflow: () => !!this.annotReflow,
                     onGrab: () => { if (this._annotStaffTimer) this._annotCommit(ed); }
                 };
             }

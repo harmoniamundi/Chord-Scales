@@ -706,6 +706,71 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
         await close();
     });
 
+    test('cadre de texte, mode « largeur » : tirer un bord change la largeur, le texte se remet à la ligne sans changer de taille ; Alt inverse', async () => {
+        const { page, errors, close } = await openAnnotations();
+        await wake(page);
+        await newFrame(page, G, 40, 40, 'Thème A : jouer piano doucement, puis laisser la basse seule sur le pont avant la reprise');
+        const fb = () => page.evaluate(() => {
+            const f = document.querySelector('#jam-annot-general .annot-frame');
+            const r = f.getBoundingClientRect(), body = f.querySelector('.annot-frame-body');
+            return { x: r.x, y: r.y, w: r.width, h: r.height, font: parseFloat(getComputedStyle(body).fontSize), scale: body.style.transform || '',
+                frame: f.getAttribute('data-frame'), cursor: getComputedStyle(f).cursor };
+        });
+        const cursorAt = async (m, dx, dy) => { await page.mouse.move(m.x + dx, m.y + dy); await page.waitForTimeout(30); return (await fb()).cursor; };
+        // le bouton ↔ des outils de disposition met le mode en marche (réglage de la page, gardé d'une visite à l'autre)
+        await page.click('[data-annot-act="reflow"] >> nth=0');
+        assert.equal(await page.evaluate(() => localStorage.getItem('jamAnnotReflow')), '1');
+        const m0 = await fb();
+        assert.equal(await cursorAt(m0, m0.w - 2, m0.h / 2), 'ew-resize');
+        assert.equal(await cursorAt(m0, m0.w - 2, m0.h - 2), 'ew-resize', 'un coin ne règle que la largeur');
+        assert.equal(await cursorAt(m0, m0.w / 2, m0.h - 2), 'grab', 'le bord bas ne redimensionne pas');
+        // bord droit vers la gauche : plus étroit, plus haut (le texte se remet à la ligne), mêmes caractères, bord gauche en place
+        await page.mouse.move(m0.x + m0.w - 2, m0.y + m0.h / 2);
+        await page.mouse.down();
+        await page.mouse.move(m0.x + m0.w - 90, m0.y + m0.h / 2 + 40, { steps: 8 });
+        await page.mouse.up();
+        await page.waitForTimeout(100);
+        const m1 = await fb();
+        assert.ok(m1.w < m0.w - 70, `cadre rétréci ${m0.w} → ${m1.w}`);
+        assert.ok(m1.h > m0.h + 10, `le texte passe sur plus de lignes ${m0.h} → ${m1.h}`);
+        assert.equal(m1.font, m0.font);
+        assert.equal(m1.scale, m0.scale, 'l\'échelle du texte ne change pas');
+        assert.ok(Math.abs(m1.x - m0.x) <= 2 && Math.abs(m1.y - m0.y) <= 2, 'bord gauche et haut en place');
+        assert.match(m1.frame, /^\d+$/, 'largeur fixe, échelle 100 %');
+        // bord gauche vers la gauche : plus large, le bord droit reste en place
+        await page.mouse.move(m1.x + 2, m1.y + m1.h / 2);
+        await page.mouse.down();
+        await page.mouse.move(m1.x - 30, m1.y + m1.h / 2, { steps: 8 });
+        await page.mouse.up();
+        await page.waitForTimeout(100);
+        const m2 = await fb();
+        assert.ok(m2.w > m1.w + 20 && Math.abs((m2.x + m2.w) - (m1.x + m1.w)) <= 2, `élargi vers la gauche ${m1.w} → ${m2.w}, bord droit en place`);
+        // au bord de la zone, le cadre ne s'élargit plus vers la gauche (son bord droit ne glisse pas)
+        await page.mouse.move(m2.x + 2, m2.y + m2.h / 2);
+        await page.mouse.down();
+        await page.mouse.move(m2.x - 300, m2.y + m2.h / 2, { steps: 8 });
+        await page.mouse.up();
+        await page.waitForTimeout(100);
+        const m2b = await fb();
+        assert.ok(Math.abs((m2b.x + m2b.w) - (m2.x + m2.w)) <= 2, 'bord droit toujours en place');
+        assert.equal(m2.font, m0.font);
+        // Alt inverse le mode le temps d'un geste : tirer agrandit alors le texte (échelle)
+        await page.keyboard.down('Alt');
+        await page.mouse.move(m2b.x + m2b.w - 2, m2b.y + m2b.h - 2);
+        await page.mouse.down();
+        await page.mouse.move(m2b.x + m2b.w + 80, m2b.y + m2b.h + 40, { steps: 8 });
+        await page.mouse.up();
+        await page.keyboard.up('Alt');
+        await page.waitForTimeout(100);
+        const m3 = await fb();
+        assert.match(m3.frame, /^\d+,\d+$/, 'Alt : l\'échelle a changé');
+        assert.ok(m3.scale.startsWith('scale('));
+        await settle(page);
+        assert.match(await note(page), /data-frame="\d+,\d+"/, 'enregistré dans l\'annotation');
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
     test('cadre de texte : curseurs des bords et des coins, redimensionnement (le contenu suit), déplacement, Échap', async () => {
         const { page, errors, close } = await openAnnotations();
         await wake(page);
