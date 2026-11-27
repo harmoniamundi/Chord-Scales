@@ -343,8 +343,8 @@
                         </button>
                     </div>
                     <button onclick="app.jam.exportGrid()" title="Exporter la grille en cours (fichier .json) ou son son (fichier .wav)" class="jr-half text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2.5 py-1 rounded transition whitespace-nowrap">Exporter</button>
-                    <button onclick="document.getElementById('jam-import-file').click()" title="Importer une grille depuis un fichier .json" class="jr-half text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2.5 py-1 rounded transition whitespace-nowrap">Importer</button>
-                    <input type="file" id="jam-import-file" accept=".json,application/json" class="hidden" onchange="app.jam.importGridFile(this)">
+                    <button onclick="document.getElementById('jam-import-file').click()" title="Importer une grille (fichier .json) ou des grilles iReal Pro (fichier exporté par iReal Pro)" class="jr-half text-xs bg-slate-600 hover:bg-slate-500 text-white font-semibold px-2.5 py-1 rounded transition whitespace-nowrap">Importer</button>
+                    <input type="file" id="jam-import-file" accept=".json,application/json,.html,.htm,text/html,.txt,text/plain" class="hidden" onchange="app.jam.importGridFile(this)">
                 </div>
 
 <div class="jr-actions px-1 pt-1">
@@ -563,6 +563,7 @@
     <script src="app/ui/chord-notes.js"></script>
     <script src="app/ui/draw-notes.js"></script>
     <script src="app/grid/grid-format.js"></script>
+    <script src="app/grid/ireal-import.js"></script>
     <script src="app/grid/saved-library.js"></script>
     <script src="app/grid/saved-sync.js"></script>
     <script src="app/grid/generation.js"></script>
@@ -1625,9 +1626,10 @@
                 const reader = new FileReader();
                 reader.onerror = () => alert('Impossible de lire ce fichier.');
                 reader.onload = () => {
+                    if (irLooksLikeIReal(reader.result)) { this.importIRealText(reader.result); return; } // fichier exporté par iReal Pro
                     let data;
                     try { data = JSON.parse(reader.result); }
-                    catch (e) { alert("Ce fichier n'est pas un JSON valide."); return; }
+                    catch (e) { alert("Ce fichier n'est ni une grille (.json) ni un export iReal Pro."); return; }
                     if (slIsBackup(data)) { this.importBackupData(data); return; } // copie de sécurité de toutes les sauvegardes
 
                     const rawGrid = Array.isArray(data) ? data : (data && data.grid);
@@ -1649,6 +1651,51 @@
                     this.renderSavedGridsMenu();
                 };
                 reader.readAsText(file);
+            }
+
+            // Grilles iReal Pro (page HTML exportée par iReal Pro, ou lien irealb:// collé) : chaque morceau devient une sauvegarde,
+            // rangée dans un dossier (nom de la playlist, sinon « iReal Pro ») ; la première est chargée. Ce qui a dû être adapté
+            // (mesures de plus de 2 accords, accords alternatifs…) est résumé, et noté dans l'annotation des mesures concernées.
+            importIRealText(text) {
+                const scaleFor = (id, root, key, quality) => userScaleFor({ scaleStyle: null, mainKey: key, mainQuality: quality, qualityAuto: false,
+                    findChordObj: (c) => this.findChordObj(c) }, id, root);
+                const r = irealImport(text, { scaleFor });
+                if (!r.songs.length) { alert("Aucune grille iReal Pro lisible n'a été trouvée."); return; }
+                const saved = this.getSavedGrids();
+                const folder = slResolveFolder(r.playlist || 'iReal Pro', slFolderList(saved, this.getSavedFolders()));
+                const done = [];
+                let refused = r.failed, adapted = 0;
+                r.songs.forEach(sg => {
+                    const grid = this.sanitizeImportedGrid(sg.grid);
+                    if (!grid) { refused++; return; }
+                    let name = sg.name, n = 2;
+                    while (saved[name]) name = `${sg.name} (${n++})`;
+                    saved[name] = slWithFolder({ grid, settings: this.sanitizeImportedSettings(sg.settings), savedAt: Date.now() }, folder);
+                    done.push({ name, warnings: sg.warnings });
+                    if (sg.warnings.length) adapted++;
+                });
+                if (!done.length) { alert("Les grilles iReal Pro trouvées n'ont pas pu être lues."); return; }
+                if (!this._writeSavedLibrary(saved)) return;
+                this.loadSavedGrid(done[0].name);
+                this.renderSavedGridsMenu();
+                let msg;
+                if (done.length === 1) {
+                    msg = `« ${done[0].name} » importée depuis iReal Pro (dossier « ${folder} » des Sauvegardes).`;
+                    if (done[0].warnings.length) msg += '\n\nAdaptations :\n• ' + done[0].warnings.join('\n• ');
+                } else {
+                    msg = `${done.length} grilles importées depuis iReal Pro dans le dossier « ${folder} » des Sauvegardes. « ${done[0].name} » est chargée.`;
+                    if (adapted) msg += `\n\n${adapted} grille${adapted > 1 ? 's ont' : ' a'} été adaptée${adapted > 1 ? 's' : ''} (mesures de plus de 2 accords, accords alternatifs, signatures…) : le détail est dans l'annotation des mesures concernées.`;
+                }
+                if (refused) msg += `\n\n${refused} morceau${refused > 1 ? 'x' : ''} n'${refused > 1 ? 'ont' : 'a'} pas pu être lu${refused > 1 ? 's' : ''}.`;
+                alert(msg);
+            }
+
+            // Lien iReal Pro collé (« Partager » dans iReal Pro, ou lien d'une playlist du forum iReal Pro).
+            pasteIRealLink() {
+                const t = prompt("Collez ici un lien iReal Pro (irealb://…).\nPour un fichier exporté par iReal Pro, utilisez plutôt le bouton « Importer ».");
+                if (t === null || !t.trim()) return;
+                if (!irLooksLikeIReal(t)) { alert("Ce texte ne contient pas de lien iReal Pro (il doit commencer par irealb:// ou irealbook://)."); return; }
+                this.importIRealText(t);
             }
 
             // « Sauvegardes » s'ouvre dans une fenêtre flottante qu'on déplace en glissant sa barre de titre.
@@ -1752,6 +1799,7 @@
                 if (action === 'save') this.saveGrid();
                 else if (action === 'update') this.updateSavedGrid();
                 else if (action === 'export') this.exportGrid();
+                else if (action === 'import-ireal') this.pasteIRealLink();
                 else if (action === 'import') {
                     const input = document.getElementById('jam-import-file');
                     if (input) input.click();
@@ -1777,6 +1825,7 @@
                     actions += `<div class="sg-action" data-sg-act="update"><span class="truncate">Sauvegarder « ${E(current)} »</span></div>`;
                 }
                 actions += '<div class="sg-action" data-sg-act="save">＋ Sauvegarder sous…</div>';
+                actions += '<div class="sg-action" data-sg-act="import-ireal" title="Coller un lien irealb:// (morceau ou playlist)">↓ Coller un lien iReal Pro…</div>';
                 const allFolders = slFolderList(saved, folders);
                 const folderIcon = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
                 const row = (name) => {
@@ -1841,7 +1890,7 @@
                     const act = el.dataset.sgAct, name = el.dataset.sgName, folder = el.dataset.sgFolder;
                     if (act === 'load') { this._sgMoveFor = null; this.loadSavedGrid(name); }
                     else if (act === 'delete') this.deleteSavedGrid(name);
-                    else if (act === 'update' || act === 'save') this.runSavedGridsAction(act);
+                    else if (act === 'update' || act === 'save' || act === 'import-ireal') this.runSavedGridsAction(act);
                     else if (act === 'move') { this._sgMoveFor = this._sgMoveFor === name ? null : name; this.renderSavedGridsMenu(); }
                     else if (act === 'move-to') { this._sgMoveFor = null; this.moveSavedGrid(name, folder); }
                     else if (act === 'new-folder') this.newSavedFolder(name);

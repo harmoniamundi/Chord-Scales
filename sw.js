@@ -75,6 +75,7 @@ const SHELL_FILES = [
     'app/ui/chord-notes.js',
     'app/ui/draw-notes.js',
     'app/grid/grid-format.js',
+    'app/grid/ireal-import.js',
     'app/grid/saved-library.js',
     'app/grid/saved-sync.js',
     'app/grid/generation.js',
