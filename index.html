@@ -7965,7 +7965,7 @@
                             <div id="jam-annot-general" class="jam-annot-text" data-editable="false" data-can-edit="false" role="group" spellcheck="false"
                                 aria-label="Annotations générales de la grille" data-placeholder="Double-cliquez pour ajouter un texte…" ${handlers}></div>
                         </div>
-                        <div class="jam-annot-zone">
+                        <div class="jam-annot-zone">${annotSplitHtml()}
                             <div class="jam-annot-head"><span class="jam-annot-title" id="jam-annot-measure-head">Mesure</span>${annotModeHtml('measure')}<div id="jam-annot-span" class="jam-annot-span" role="group" aria-label="Durée de l'annotation" hidden><span class="jam-annot-span-label">Affichée sur</span><button type="button" class="ab-btn at-btn jam-annot-zbtn" data-span-act="dec" title="Une mesure de moins" aria-label="Une mesure de moins" onmousedown="event.preventDefault()" onclick="app.jam.annotSpanAct('dec')">−</button><output id="jam-annot-span-n" class="jam-annot-span-n" aria-live="polite">1</output><button type="button" class="ab-btn at-btn jam-annot-zbtn" data-span-act="inc" title="Une mesure de plus" aria-label="Une mesure de plus" onmousedown="event.preventDefault()" onclick="app.jam.annotSpanAct('inc')">+</button><span id="jam-annot-span-range" class="jam-annot-span-range"></span></div>${annotZoomHtml('measure')}${annotToolsHtml()}</div>
                             <div id="jam-annot-measure" class="jam-annot-text" data-editable="false" data-can-edit="false" role="group" spellcheck="false"
                                 aria-label="Annotations de la mesure" ${handlers}></div>
@@ -7973,6 +7973,7 @@
                     general = container.querySelector('#jam-annot-general');
                     box = container.querySelector('#jam-annot-measure');
                     this._annotBindBar(container.querySelector('#jam-annot-bar'));
+                    this._annotBindSplit(container);
                     container.classList.add('jam-annot-barless'); // la barre n'apparaît que pendant l'édition
                 }
                 const head = container.querySelector('#jam-annot-measure-head');
@@ -8147,6 +8148,67 @@
                 ed.scrollLeft = acZoomScroll(ed.scrollLeft, px, z0, z1);
                 ed.scrollTop = acZoomScroll(ed.scrollTop, py, z0, z1);
                 this._annotRefreshZoomUi(which);
+            }
+
+            // ----- Poignée entre les zones « Grille » et « Mesure » (côte à côte) : répartit la largeur (ui/annot-bar.js), réglage gardé -----
+            _annotApplySplit(container, f, save) {
+                const a = annotSplitClamp(f);
+                this.annotSplit = a;
+                const cols = annotSplitColumns(a);
+                container.style.setProperty('--jam-annot-c1', cols.c1);
+                container.style.setProperty('--jam-annot-c2', cols.c2);
+                const h = container.querySelector('.jam-annot-split');
+                if (h) h.setAttribute('aria-valuenow', String(Math.round(a * 100)));
+                if (save) { try { localStorage.setItem('jamAnnotSplit', String(a)); } catch (e) {} }
+            }
+
+            _annotBindSplit(container) {
+                const h = container.querySelector('.jam-annot-split');
+                let stored = ANNOT_SPLIT_DEFAULT;
+                try { const v = localStorage.getItem('jamAnnotSplit'); if (v !== null) stored = annotSplitClamp(v); } catch (e) {}
+                this._annotApplySplit(container, stored, false);
+                if (!h) return;
+                h.addEventListener('pointerdown', (ev) => {
+                    if (ev.button > 0) return;
+                    ev.preventDefault(); ev.stopPropagation();
+                    const gap = parseFloat(getComputedStyle(container).columnGap) || 0;
+                    const pad = (v) => parseFloat(v) || 0;
+                    const cs = getComputedStyle(container);
+                    const f0 = this.annotSplit;
+                    try { h.setPointerCapture(ev.pointerId); } catch (e) {}
+                    h.classList.add('is-dragging');
+                    document.body.classList.add('jam-annot-splitting');
+                    const at = (e2) => {
+                        const r = container.getBoundingClientRect();
+                        const left = r.left + container.clientLeft + pad(cs.paddingLeft);
+                        const width = container.clientWidth - pad(cs.paddingLeft) - pad(cs.paddingRight);
+                        this._annotApplySplit(container, annotSplitFromPointer(e2.clientX, left, width, gap), false);
+                    };
+                    const end = (keep) => {
+                        h.removeEventListener('pointermove', at);
+                        h.removeEventListener('pointerup', onUp);
+                        h.removeEventListener('pointercancel', onCancel);
+                        document.removeEventListener('keydown', onKey, true);
+                        try { h.releasePointerCapture(ev.pointerId); } catch (e) {}
+                        h.classList.remove('is-dragging');
+                        document.body.classList.remove('jam-annot-splitting');
+                        this._annotApplySplit(container, keep ? this.annotSplit : f0, keep);
+                    };
+                    const onUp = () => end(true);
+                    const onCancel = () => end(false);
+                    const onKey = (k) => { if (k.key === 'Escape') { k.preventDefault(); k.stopPropagation(); end(false); } };
+                    h.addEventListener('pointermove', at);
+                    h.addEventListener('pointerup', onUp);
+                    h.addEventListener('pointercancel', onCancel);
+                    document.addEventListener('keydown', onKey, true);
+                });
+                h.addEventListener('dblclick', (ev) => { ev.preventDefault(); this._annotApplySplit(container, ANNOT_SPLIT_DEFAULT, true); });
+                h.addEventListener('keydown', (ev) => {
+                    const f = annotSplitKey(this.annotSplit, ev.key);
+                    if (f === null) return;
+                    ev.preventDefault(); ev.stopPropagation();
+                    this._annotApplySplit(container, f, true);
+                });
             }
 
             annotZoomAct(which, act) {

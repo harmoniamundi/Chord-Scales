@@ -166,3 +166,41 @@ describe('en-tête des zones : crayon du mode édition et zoom de lecture', () =
         assert.equal((h.match(/onmousedown="event\.preventDefault\(\)"/g) || []).length, 3);
     });
 });
+
+describe('poignée entre les zones Grille et Mesure', () => {
+    test('part bornée entre 20 et 80 %, 50 % par défaut ou pour une valeur illisible', () => {
+        assert.equal(B.annotSplitClamp(0.1), 0.2);
+        assert.equal(B.annotSplitClamp(0.95), 0.8);
+        assert.equal(B.annotSplitClamp('0.6'), 0.6);
+        assert.equal(B.annotSplitClamp('n'), 0.5);
+        assert.equal(B.annotSplitClamp(null), 0.2); // Number(null) = 0 : ramené au minimum
+    });
+    test('pointeur : la poignée suit le milieu de l\'espace entre les zones', () => {
+        // grille de 1000 px à partir de x = 100, espace de 8 px entre les colonnes
+        assert.equal(B.annotSplitFromPointer(100 + 4 + 496, 100, 1000, 8), 0.5);
+        assert.equal(B.annotSplitFromPointer(100 + 4 + 297.6, 100, 1000, 8), 0.3);
+        assert.equal(B.annotSplitFromPointer(0, 100, 1000, 8), 0.2);
+        assert.equal(B.annotSplitFromPointer(5000, 100, 1000, 8), 0.8);
+        assert.equal(B.annotSplitFromPointer(500, 100, 0, 8), 0.5);
+    });
+    test('clavier : flèches par pas de 5 %, Début / Fin aux bornes, Entrée revient à moitié-moitié', () => {
+        assert.equal(B.annotSplitKey(0.5, 'ArrowLeft'), 0.45);
+        assert.equal(B.annotSplitKey(0.5, 'ArrowRight'), 0.55);
+        assert.equal(B.annotSplitKey(0.5, 'Home'), 0.2);
+        assert.equal(B.annotSplitKey(0.5, 'End'), 0.8);
+        assert.equal(B.annotSplitKey(0.7, 'Enter'), 0.5);
+        assert.equal(B.annotSplitKey(0.5, ' '), null);
+        assert.equal(B.annotSplitKey(0.5, 'a'), null);
+    });
+    test('colonnes CSS proportionnelles', () => {
+        assert.deepEqual(B.annotSplitColumns(0.5), { c1: '1fr', c2: '1fr' });
+        assert.deepEqual(B.annotSplitColumns(0.3), { c1: '0.6fr', c2: '1.4fr' });
+    });
+    test('la poignée est un séparateur accessible, atteignable au clavier', () => {
+        const h = B.annotSplitHtml();
+        assert.match(h, /role="separator"/);
+        assert.match(h, /aria-orientation="vertical"/);
+        assert.match(h, /tabindex="0"/);
+        assert.match(h, /aria-valuenow="50"/);
+    });
+});

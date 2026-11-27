@@ -197,6 +197,47 @@ function annotMenuHtml(kind, state = {}) {
     return '';
 }
 
+// ----- Poignée entre les zones « Grille » et « Mesure » (côte à côte, sur grand écran) -----
+// La part de la zone « Grille » (0,2 à 0,8 de la largeur ; 0,5 par défaut) se règle en glissant la poignée, au clavier (flèches, Début / Fin)
+// ou revient à moitié-moitié par un double-clic ; elle est gardée d'une visite à l'autre. Les colonnes de la grille CSS des zones prennent
+// les valeurs --jam-annot-c1 / --jam-annot-c2 (voir style.css).
+const ANNOT_SPLIT_MIN = 0.2;
+const ANNOT_SPLIT_MAX = 0.8;
+const ANNOT_SPLIT_DEFAULT = 0.5;
+const ANNOT_SPLIT_STEP = 0.05;
+function annotSplitClamp(f) {
+    const n = Number(f);
+    if (!Number.isFinite(n)) return ANNOT_SPLIT_DEFAULT;
+    return Math.round(Math.max(ANNOT_SPLIT_MIN, Math.min(ANNOT_SPLIT_MAX, n)) * 1000) / 1000;
+}
+// Part de la zone « Grille » quand le pointeur est en x (pixels de l'écran) : la poignée est au milieu de l'espace entre les deux zones.
+// left / width : bord gauche et largeur de la grille des zones ; gap : espace entre les deux colonnes.
+function annotSplitFromPointer(x, left, width, gap = 0) {
+    const room = width - gap;
+    if (!(room > 0)) return ANNOT_SPLIT_DEFAULT;
+    return annotSplitClamp((x - left - gap / 2) / room);
+}
+// Touches de la poignée : nouvelle part, ou null si la touche ne la concerne pas.
+function annotSplitKey(f, key) {
+    if (key === 'ArrowLeft' || key === 'ArrowUp') return annotSplitClamp(f - ANNOT_SPLIT_STEP);
+    if (key === 'ArrowRight' || key === 'ArrowDown') return annotSplitClamp(f + ANNOT_SPLIT_STEP);
+    if (key === 'Home') return ANNOT_SPLIT_MIN;
+    if (key === 'End') return ANNOT_SPLIT_MAX;
+    if (key === 'Enter') return ANNOT_SPLIT_DEFAULT; // (pas Espace : il lance la grille)
+    return null;
+}
+// Largeurs des deux colonnes (valeurs CSS) pour une part donnée.
+function annotSplitColumns(f) {
+    const a = annotSplitClamp(f);
+    const r = (v) => String(Math.round(v * 1000) / 1000);
+    return { c1: `${r(a * 2)}fr`, c2: `${r((1 - a) * 2)}fr` };
+}
+function annotSplitHtml() {
+    const t = 'Glisser pour répartir la place entre les zones Grille et Mesure (double-clic : moitié-moitié)';
+    return `<div class="jam-annot-split" role="separator" aria-orientation="vertical" aria-label="Répartition entre les zones Grille et Mesure" aria-valuemin="${ANNOT_SPLIT_MIN * 100}" aria-valuemax="${ANNOT_SPLIT_MAX * 100}" aria-valuenow="${ANNOT_SPLIT_DEFAULT * 100}" tabindex="0" title="${t}"><span class="jam-annot-split-grip" aria-hidden="true"></span></div>`;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { ANNOT_SIZE_MIN, ANNOT_SIZE_MAX, ANNOT_SIZE_DEFAULT, ANNOT_SIZE_STEPS, ANNOT_FONT_DEFAULT_CSS, ANNOT_FONT_CHOICES, nextAnnotSize, clampAnnotSize, annotFontLabel, annotBarHtml, annotMenuHtml, annotToolsHtml, ANNOT_TOOLS, ANNOT_ZONES, annotModeHtml, annotZoomHtml };
+    module.exports = { ANNOT_SIZE_MIN, ANNOT_SIZE_MAX, ANNOT_SIZE_DEFAULT, ANNOT_SIZE_STEPS, ANNOT_FONT_DEFAULT_CSS, ANNOT_FONT_CHOICES, nextAnnotSize, clampAnnotSize, annotFontLabel, annotBarHtml, annotMenuHtml, annotToolsHtml, ANNOT_TOOLS, ANNOT_ZONES, annotModeHtml, annotZoomHtml,
+        ANNOT_SPLIT_MIN, ANNOT_SPLIT_MAX, ANNOT_SPLIT_DEFAULT, annotSplitClamp, annotSplitFromPointer, annotSplitKey, annotSplitColumns, annotSplitHtml };
 }

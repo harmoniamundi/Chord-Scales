@@ -1108,6 +1108,20 @@
    Gauche : annotation générale de la grille (fixe) ; droite : annotation de la mesure en cours / sélectionnée. */
 #jam-scale-visualizer.jam-annot-grid { align-items: stretch; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; grid-auto-rows: minmax(150px, auto); }
 .jam-annot-zone { display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 150px; }
+/* Poignée entre les zones « Grille » et « Mesure » : dans l'espace entre les deux colonnes (ui/annot-bar.js, annotSplitHtml), seulement quand
+   elles sont côte à côte. Glisser répartit la largeur ; double-clic : moitié-moitié. */
+.jam-annot-split { display: none; }
+@media (min-width: 1024px), (min-width: 640px) and (pointer: coarse) and (max-height: 500px) {
+    .jam-annot-grid .jam-annot-zone:has(> .jam-annot-split) { position: relative; }
+    .jam-annot-grid .jam-annot-split { display: block; position: absolute; top: 0; bottom: 0; left: -12px; width: 16px; z-index: 25; cursor: col-resize;
+        touch-action: none; outline: none; }
+    .jam-annot-split-grip { position: absolute; top: 50%; left: 50%; width: 4px; height: 44px; margin: -22px 0 0 -2px; border-radius: 3px; background: #4b5563;
+        transition: background .15s, height .15s, margin .15s; }
+    .jam-annot-split:hover .jam-annot-split-grip, .jam-annot-split:focus-visible .jam-annot-split-grip, .jam-annot-split.is-dragging .jam-annot-split-grip {
+        background: #3b82f6; height: 64px; margin-top: -32px; }
+    .jam-annot-split:focus-visible { box-shadow: inset 0 0 0 2px rgba(59, 130, 246, .5); border-radius: 4px; }
+    body.jam-annot-splitting, body.jam-annot-splitting * { cursor: col-resize !important; user-select: none !important; -webkit-user-select: none !important; }
+}
 .jam-annot-head { flex: 0 0 auto; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-height: 22px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; user-select: none; }
 .jam-annot-text {
     position: relative; flex: 1 1 auto; width: 100%; min-height: 120px; box-sizing: border-box; overflow: auto;
@@ -1181,7 +1195,7 @@
 @media (min-width: 1024px), (min-width: 640px) and (pointer: coarse) and (max-height: 500px) {
     /* Barre en haut, puis deux zones côte à côte ; hors lecture elles remplissent la place disponible, en lecture elles ont une hauteur fixe
        (la grille d'accords ne bouge pas pendant la jam). */
-    #view-jam #jam-scales-card #jam-scale-visualizer.jam-annot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto minmax(180px, 1fr); grid-auto-rows: auto; }
+    #view-jam #jam-scales-card #jam-scale-visualizer.jam-annot-grid { grid-template-columns: minmax(0, var(--jam-annot-c1, 1fr)) minmax(0, var(--jam-annot-c2, 1fr)); grid-template-rows: auto minmax(180px, 1fr); grid-auto-rows: auto; }
     /* Sans la barre (elle n'apparaît que pendant l'édition) : les zones prennent toute la place ; jam lancée, hauteur fixe (la grille d'accords ne bouge pas) */
     #view-jam #jam-scales-card #jam-scale-visualizer.jam-annot-grid.jam-annot-barless { grid-template-rows: minmax(180px, 1fr); }
     #view-jam.jam-playing #jam-scales-card #jam-scale-visualizer.jam-annot-grid { grid-template-rows: var(--jam-annot-play-h, 250px); }
@@ -1246,7 +1260,7 @@ html.jam-annot-fs-lock, html.jam-annot-fs-lock body { overflow: hidden !importan
 #view-jam #jam-scales-card.jam-annot-fs .jam-annot-text { min-height: 0; }
 #view-jam #jam-scales-card.jam-annot-fs .annot-bar { grid-row: 1; }
 @media (min-width: 1024px), (min-width: 640px) and (pointer: coarse) and (max-height: 500px) {
-    #view-jam #jam-scales-card.jam-annot-fs #jam-scale-visualizer.jam-annot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; grid-template-rows: auto minmax(0, 1fr) !important; grid-auto-rows: auto; }
+    #view-jam #jam-scales-card.jam-annot-fs #jam-scale-visualizer.jam-annot-grid { grid-template-columns: minmax(0, var(--jam-annot-c1, 1fr)) minmax(0, var(--jam-annot-c2, 1fr)) !important; grid-template-rows: auto minmax(0, 1fr) !important; grid-auto-rows: auto; }
     #view-jam #jam-scales-card.jam-annot-fs #jam-scale-visualizer.jam-annot-grid.jam-annot-barless { grid-template-rows: minmax(0, 1fr) !important; }
 }
 

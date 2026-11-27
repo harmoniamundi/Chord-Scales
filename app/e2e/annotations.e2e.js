@@ -706,6 +706,69 @@ describe('annotations : canevas de blocs (navigateur)', { skip: !pw && 'Playwrig
         await close();
     });
 
+    test('poignée entre les zones Grille et Mesure : glisser répartit la largeur, Échap annule, double-clic et clavier, réglage gardé', async () => {
+        const { page, errors, close } = await openAnnotations();
+        const widths = () => page.evaluate(() => ({ g: document.getElementById('jam-annot-general').getBoundingClientRect().width,
+            m: document.getElementById('jam-annot-measure').getBoundingClientRect().width }));
+        const h = page.locator('.jam-annot-split');
+        assert.ok(await h.isVisible(), 'poignée visible quand les zones sont côte à côte');
+        const w0 = await widths();
+        assert.ok(Math.abs(w0.g - w0.m) < 3, 'moitié-moitié au départ');
+        const hb = await h.boundingBox();
+        const cx = hb.x + hb.width / 2, cy = hb.y + hb.height / 2;
+        await page.mouse.move(cx, cy);
+        await page.mouse.down();
+        await page.mouse.move(cx - 250, cy, { steps: 10 });
+        await page.mouse.up();
+        const w1 = await widths();
+        assert.ok(w1.g < w0.g - 200 && w1.m > w0.m + 200, `zone Mesure élargie ${JSON.stringify(w0)} → ${JSON.stringify(w1)}`);
+        const saved = Number(await page.evaluate(() => localStorage.getItem('jamAnnotSplit')));
+        assert.ok(saved > 0.2 && saved < 0.45, `réglage gardé (${saved})`);
+        // Échap pendant le glisser : retour à la place d'avant
+        const hb1 = await h.boundingBox();
+        await page.mouse.move(hb1.x + hb1.width / 2, cy);
+        await page.mouse.down();
+        await page.mouse.move(hb1.x + 400, cy, { steps: 6 });
+        await page.keyboard.press('Escape');
+        await page.mouse.up();
+        const w2 = await widths();
+        assert.ok(Math.abs(w2.g - w1.g) < 3, 'Échap annule');
+        // bornes : jamais moins de 20 % pour une zone
+        await page.mouse.move(hb1.x + hb1.width / 2, cy);
+        await page.mouse.down();
+        await page.mouse.move(0, cy, { steps: 6 });
+        await page.mouse.up();
+        const w3 = await widths();
+        assert.ok(w3.g > (w3.g + w3.m) * 0.15, 'la zone Grille garde au moins 20 %');
+        // clavier puis double-clic
+        await h.focus();
+        await page.keyboard.press('End');
+        const w4 = await widths();
+        assert.ok(w4.g > w4.m * 3, 'Fin : 80 % pour la zone Grille');
+        await h.dblclick();
+        const w5 = await widths();
+        assert.ok(Math.abs(w5.g - w5.m) < 3, 'double-clic : moitié-moitié');
+        // réglage retrouvé après rechargement
+        await page.keyboard.press('ArrowLeft');
+        await page.keyboard.press('ArrowLeft');
+        const w6 = await widths();
+        await page.reload();
+        await page.waitForFunction(() => typeof app !== 'undefined' && app.jam);
+        await page.evaluate(() => app.jam.setVisMode('annotations'));
+        await page.waitForSelector('#jam-annot-general');
+        const w7 = await widths();
+        assert.ok(Math.abs(w7.g / (w7.g + w7.m) - w6.g / (w6.g + w6.m)) < 0.01, 'même répartition après rechargement');
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
+    test('poignée entre les zones : cachée sur téléphone (zones l\'une sous l\'autre)', async () => {
+        const { page, errors, close } = await openAnnotations({ width: 390, height: 844 }, { edit: false });
+        assert.equal(await page.locator('.jam-annot-split').isVisible(), false);
+        assert.deepEqual(errors, []);
+        await close();
+    });
+
     test('cadre de texte, mode « largeur » : tirer un bord change la largeur, le texte se remet à la ligne sans changer de taille ; Alt inverse', async () => {
         const { page, errors, close } = await openAnnotations();
         await wake(page);
